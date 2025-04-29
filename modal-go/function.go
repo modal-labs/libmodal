@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"log"
 	"time"
 
 	pickle "github.com/kisielk/og-rek"
@@ -90,7 +89,7 @@ func (function *Function) Remote(ctx context.Context, args []interface{}, kwargs
 		PipelinedInputs:            functionInputs,
 	}.Build())
 	if err != nil {
-		log.Fatalf("FunctionMap errro: %v", err)
+		return nil, fmt.Errorf("FunctionMap errro: %v", err)
 	}
 
 	response, err := client.FunctionGetOutputs(ctx, proto.FunctionGetOutputsRequest_builder{
@@ -101,9 +100,8 @@ func (function *Function) Remote(ctx context.Context, args []interface{}, kwargs
 		ClearOnSuccess: true,
 		RequestedAt:    timeNow(),
 	}.Build())
-
 	if err != nil {
-		log.Fatalf("FunctionGetOutputs failed: %v", err)
+		return nil, fmt.Errorf("FunctionGetOutputs failed: %v", err)
 	}
 
 	// Output serialization may fail if any of the output items can't be deserialized
@@ -113,7 +111,7 @@ func (function *Function) Remote(ctx context.Context, args []interface{}, kwargs
 		data := outputs[0].GetResult().GetData()
 		resultPayload, err := function.deserialize(data)
 		if err != nil {
-			log.Fatalf("failed to deserialize output: %v", err)
+			return nil, fmt.Errorf("failed to deserialize output: %v", err)
 		}
 
 		return resultPayload, nil
