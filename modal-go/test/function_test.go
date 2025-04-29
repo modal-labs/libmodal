@@ -21,10 +21,10 @@ func TestFunctionCall(t *testing.T) {
 	// Represent Python kwargs.
 	result, err := function.Remote(context.Background(), nil, map[string]any{"s": "hello"})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(result).Should(gomega.BeEquivalentTo("output: hello"))
+	g.Expect(result).Should(gomega.Equal("output: hello"))
 
 	// Try the same, but with args.
 	result, err = function.Remote(context.Background(), []any{"hello"}, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(result).Should(gomega.BeEquivalentTo("output: hello"))
+	g.Expect(result).Should(gomega.Equal("output: hello"))
 }

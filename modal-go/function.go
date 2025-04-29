@@ -1,5 +1,7 @@
 package modal
 
+// Function calls and invocations, to be used with Modal Functions.
+
 import (
 	"bytes"
 	"context"
@@ -17,7 +19,7 @@ func timeNow() float64 {
 	return float64(time.Now().UnixNano()) / 1e9
 }
 
-// function references a deployed Modal Function.
+// Function references a deployed Modal Function.
 type Function struct {
 	FunctionId string
 	ctx        context.Context
