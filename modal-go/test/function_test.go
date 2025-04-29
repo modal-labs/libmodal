@@ -8,7 +8,7 @@ import (
 	"github.com/onsi/gomega"
 )
 
-func TestCallFunction(t *testing.T) {
+func TestFunctionCall(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
