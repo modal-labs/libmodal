@@ -39,8 +39,8 @@ func FunctionLookup(ctx context.Context, appName string, name string, options Lo
 	return &Function{FunctionId: resp.GetFunctionId(), ctx: ctx}, nil
 }
 
+// Serialize function inputs to the Python pickle format.
 func (function *Function) serialize(args []interface{}, kwargs map[string]interface{}) (bytes.Buffer, error) {
-	// Create a buffer to hold the pickled data
 	var inputBuffer bytes.Buffer
 
 	e := pickle.NewEncoder(&inputBuffer)
@@ -55,6 +55,7 @@ func (function *Function) serialize(args []interface{}, kwargs map[string]interf
 	return inputBuffer, nil
 }
 
+// Deserialize from Python pickle into Go basic types.
 func (function *Function) deserialize(buffer []byte) (interface{}, error) {
 	decoder := pickle.NewDecoder(bytes.NewReader(buffer))
 	result, err := decoder.Decode()
@@ -65,6 +66,7 @@ func (function *Function) deserialize(buffer []byte) (interface{}, error) {
 	return result, nil
 }
 
+// Execute a single input into a remote Function.
 func (function *Function) Remote(ctx context.Context, args []interface{}, kwargs map[string]interface{}) (interface{}, error) {
 	ctx = clientContext(ctx)
 
@@ -116,7 +118,5 @@ func (function *Function) Remote(ctx context.Context, args []interface{}, kwargs
 
 		return resultPayload, nil
 	}
-
 	return nil, nil
-
 }
