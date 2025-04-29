@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	proto "github.com/modal-labs/libmodal/modal-go/proto/modal_proto"
+	pb "github.com/modal-labs/libmodal/modal-go/proto/modal_proto"
 )
 
 // App references a deployed Modal App.
@@ -31,12 +31,12 @@ type SandboxOptions struct {
 func AppLookup(ctx context.Context, name string, options LookupOptions) (*App, error) {
 	ctx = clientContext(ctx)
 
-	creationType := proto.ObjectCreationType_OBJECT_CREATION_TYPE_UNSPECIFIED
+	creationType := pb.ObjectCreationType_OBJECT_CREATION_TYPE_UNSPECIFIED
 	if options.CreateIfMissing {
-		creationType = proto.ObjectCreationType_OBJECT_CREATION_TYPE_CREATE_IF_MISSING
+		creationType = pb.ObjectCreationType_OBJECT_CREATION_TYPE_CREATE_IF_MISSING
 	}
 
-	resp, err := client.AppGetOrCreate(ctx, proto.AppGetOrCreateRequest_builder{
+	resp, err := client.AppGetOrCreate(ctx, pb.AppGetOrCreateRequest_builder{
 		AppName:            name,
 		EnvironmentName:    environmentName(options.Environment),
 		ObjectCreationType: creationType,
@@ -51,16 +51,16 @@ func AppLookup(ctx context.Context, name string, options LookupOptions) (*App, e
 
 // CreateSandbox creates a new Sandbox in the App with the specified image and options.
 func (app *App) CreateSandbox(image *Image, options SandboxOptions) (*Sandbox, error) {
-	createResp, err := client.SandboxCreate(app.ctx, proto.SandboxCreateRequest_builder{
+	createResp, err := client.SandboxCreate(app.ctx, pb.SandboxCreateRequest_builder{
 		AppId: app.AppId,
-		Definition: proto.Sandbox_builder{
+		Definition: pb.Sandbox_builder{
 			EntrypointArgs: options.Command,
 			ImageId:        image.ImageId,
 			TimeoutSecs:    uint32(options.Timeout.Seconds()),
-			NetworkAccess: proto.NetworkAccess_builder{
-				NetworkAccessType: proto.NetworkAccess_OPEN,
+			NetworkAccess: pb.NetworkAccess_builder{
+				NetworkAccessType: pb.NetworkAccess_OPEN,
 			}.Build(),
-			Resources: proto.Resources_builder{
+			Resources: pb.Resources_builder{
 				MilliCpu: uint32(1000 * options.CPU),
 				MemoryMb: uint32(options.Memory),
 			}.Build(),

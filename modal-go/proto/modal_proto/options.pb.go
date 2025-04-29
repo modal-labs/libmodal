@@ -8,7 +8,7 @@
 // 	protoc        v3.21.6
 // source: modal_proto/options.proto
 
-package proto
+package pb
 
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"

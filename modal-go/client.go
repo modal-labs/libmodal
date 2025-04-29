@@ -17,7 +17,7 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
-	proto "github.com/modal-labs/libmodal/modal-go/proto/modal_proto"
+	pb "github.com/modal-labs/libmodal/modal-go/proto/modal_proto"
 )
 
 // timeoutCallOption carries a per-RPC absolute timeout.
@@ -68,7 +68,7 @@ var defaultConfig config
 // defaultProfile is resolved at package init from MODAL_PROFILE, ~/.modal.toml, etc.
 var defaultProfile Profile
 
-var client proto.ModalClientClient
+var client pb.ModalClientClient
 
 func init() {
 	var err error
@@ -86,7 +86,7 @@ func init() {
 
 // newClient dials api.modal.com with auth/timeout/retry interceptors installed.
 // It returns (conn, stub). Close the conn when done.
-func newClient(profile Profile) (*grpc.ClientConn, proto.ModalClientClient, error) {
+func newClient(profile Profile) (*grpc.ClientConn, pb.ModalClientClient, error) {
 	var target string
 	var creds credentials.TransportCredentials
 	if strings.HasPrefix(profile.ServerURL, "https://") {
@@ -114,12 +114,12 @@ func newClient(profile Profile) (*grpc.ClientConn, proto.ModalClientClient, erro
 	if err != nil {
 		return nil, nil, err
 	}
-	return conn, proto.NewModalClientClient(conn), nil
+	return conn, pb.NewModalClientClient(conn), nil
 }
 
 // clientContext returns a context with the default profile's auth headers.
 func clientContext(ctx context.Context) context.Context {
-	clientType := strconv.Itoa(int(proto.ClientType_CLIENT_TYPE_LIBMODAL))
+	clientType := strconv.Itoa(int(pb.ClientType_CLIENT_TYPE_LIBMODAL))
 	return metadata.AppendToOutgoingContext(
 		ctx,
 		"x-modal-client-type", clientType,

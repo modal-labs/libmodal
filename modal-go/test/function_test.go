@@ -12,20 +12,19 @@ func TestFunctionCall(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
-	function, err := modal.FunctionLookup(context.Background(), "libmodal-test", "libmodal_function_test", modal.LookupOptions{Environment: "luis-dev"})
+	function, err := modal.FunctionLookup(
+		context.Background(),
+		"libmodal-test-support", "echo_string", modal.LookupOptions{},
+	)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	// Represent Python args and kwargs.
-	args := []interface{}{}
-	kwargs := map[string]interface{}{
-		"s": "hello",
-	}
-	result, err := function.Remote(context.Background(), args, kwargs)
+	// Represent Python kwargs.
+	result, err := function.Remote(context.Background(), nil, map[string]any{"s": "hello"})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(result).Should(gomega.BeEquivalentTo("output: hello"))
 
-	// Parse the result as a string using type assertion.
-	resultString, ok := result.(string)
-	g.Expect(ok).Should(gomega.BeTrueBecause("output should be a string"))
-	g.Expect(resultString).Should(gomega.BeEquivalentTo("output: hello"))
-
+	// Try the same, but with args.
+	result, err = function.Remote(context.Background(), []any{"hello"}, nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(result).Should(gomega.BeEquivalentTo("output: hello"))
 }

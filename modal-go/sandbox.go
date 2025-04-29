@@ -9,7 +9,7 @@ import (
 
 	"github.com/djherbis/buffer"
 	"github.com/djherbis/nio/v3"
-	proto "github.com/modal-labs/libmodal/modal-go/proto/modal_proto"
+	pb "github.com/modal-labs/libmodal/modal-go/proto/modal_proto"
 )
 
 // StdioBehavior defines how the standard input/output/error streams should behave.
@@ -44,8 +44,8 @@ type Sandbox struct {
 func newSandbox(ctx context.Context, sandboxId string) *Sandbox {
 	sb := &Sandbox{SandboxId: sandboxId, ctx: ctx}
 	sb.Stdin = inputStreamSb(ctx, sandboxId)
-	sb.Stdout = outputStreamSb(ctx, sandboxId, proto.FileDescriptor_FILE_DESCRIPTOR_STDOUT)
-	sb.Stderr = outputStreamSb(ctx, sandboxId, proto.FileDescriptor_FILE_DESCRIPTOR_STDERR)
+	sb.Stdout = outputStreamSb(ctx, sandboxId, pb.FileDescriptor_FILE_DESCRIPTOR_STDOUT)
+	sb.Stderr = outputStreamSb(ctx, sandboxId, pb.FileDescriptor_FILE_DESCRIPTOR_STDERR)
 	return sb
 }
 
@@ -54,7 +54,7 @@ func (sb *Sandbox) Exec(command []string, opts ExecOptions) (*ContainerProcess, 
 	if err := sb.ensureTaskId(); err != nil {
 		return nil, err
 	}
-	resp, err := client.ContainerExec(sb.ctx, proto.ContainerExecRequest_builder{
+	resp, err := client.ContainerExec(sb.ctx, pb.ContainerExecRequest_builder{
 		TaskId:  sb.taskId,
 		Command: command,
 	}.Build())
@@ -66,7 +66,7 @@ func (sb *Sandbox) Exec(command []string, opts ExecOptions) (*ContainerProcess, 
 
 func (sb *Sandbox) ensureTaskId() error {
 	if sb.taskId == "" {
-		resp, err := client.SandboxGetTaskId(sb.ctx, proto.SandboxGetTaskIdRequest_builder{
+		resp, err := client.SandboxGetTaskId(sb.ctx, pb.SandboxGetTaskIdRequest_builder{
 			SandboxId: sb.SandboxId,
 		}.Build())
 		if err != nil {
@@ -85,7 +85,7 @@ func (sb *Sandbox) ensureTaskId() error {
 
 // Terminate stops the sandbox.
 func (sb *Sandbox) Terminate() error {
-	_, err := client.SandboxTerminate(sb.ctx, proto.SandboxTerminateRequest_builder{
+	_, err := client.SandboxTerminate(sb.ctx, pb.SandboxTerminateRequest_builder{
 		SandboxId: sb.SandboxId,
 	}.Build())
 	if err != nil {
@@ -98,7 +98,7 @@ func (sb *Sandbox) Terminate() error {
 // Wait blocks until the sandbox exits.
 func (sb *Sandbox) Wait() (int32, error) {
 	for {
-		resp, err := client.SandboxWait(sb.ctx, proto.SandboxWaitRequest_builder{
+		resp, err := client.SandboxWait(sb.ctx, pb.SandboxWaitRequest_builder{
 			SandboxId: sb.SandboxId,
 			Timeout:   55,
 		}.Build())
@@ -137,12 +137,12 @@ func newContainerProcess(ctx context.Context, execId string, opts ExecOptions) *
 	cp := &ContainerProcess{execId: execId, ctx: ctx}
 	cp.Stdin = inputStreamCp(ctx, execId)
 
-	cp.Stdout = outputStreamCp(ctx, execId, proto.FileDescriptor_FILE_DESCRIPTOR_STDOUT)
+	cp.Stdout = outputStreamCp(ctx, execId, pb.FileDescriptor_FILE_DESCRIPTOR_STDOUT)
 	if stdoutBehavior == Ignore {
 		cp.Stdout.Close()
 		cp.Stdout = io.NopCloser(bytes.NewReader(nil))
 	}
-	cp.Stderr = outputStreamCp(ctx, execId, proto.FileDescriptor_FILE_DESCRIPTOR_STDERR)
+	cp.Stderr = outputStreamCp(ctx, execId, pb.FileDescriptor_FILE_DESCRIPTOR_STDERR)
 	if stderrBehavior == Ignore {
 		cp.Stderr.Close()
 		cp.Stderr = io.NopCloser(bytes.NewReader(nil))
@@ -154,7 +154,7 @@ func newContainerProcess(ctx context.Context, execId string, opts ExecOptions) *
 // Wait blocks until the container process exits and returns its exit code.
 func (cp *ContainerProcess) Wait() (int32, error) {
 	for {
-		resp, err := client.ContainerExecWait(cp.ctx, proto.ContainerExecWaitRequest_builder{
+		resp, err := client.ContainerExecWait(cp.ctx, pb.ContainerExecWaitRequest_builder{
 			ExecId:  cp.execId,
 			Timeout: 55,
 		}.Build())
@@ -184,7 +184,7 @@ func (s *sbStdin) Write(p []byte) (n int, err error) {
 	defer s.mu.Unlock()
 	index := s.index
 	s.index++
-	_, err = client.SandboxStdinWrite(s.ctx, proto.SandboxStdinWriteRequest_builder{
+	_, err = client.SandboxStdinWrite(s.ctx, pb.SandboxStdinWriteRequest_builder{
 		SandboxId: s.sandboxId,
 		Input:     p,
 		Index:     index,
@@ -198,7 +198,7 @@ func (s *sbStdin) Write(p []byte) (n int, err error) {
 func (s *sbStdin) Close() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	_, err := client.SandboxStdinWrite(s.ctx, proto.SandboxStdinWriteRequest_builder{
+	_, err := client.SandboxStdinWrite(s.ctx, pb.SandboxStdinWriteRequest_builder{
 		SandboxId: s.sandboxId,
 		Index:     s.index,
 		Eof:       true,
@@ -217,9 +217,9 @@ type cpStdin struct {
 }
 
 func (c *cpStdin) Write(p []byte) (n int, err error) {
-	_, err = client.ContainerExecPutInput(c.ctx, proto.ContainerExecPutInputRequest_builder{
+	_, err = client.ContainerExecPutInput(c.ctx, pb.ContainerExecPutInputRequest_builder{
 		ExecId: c.execId,
-		Input: proto.RuntimeInputMessage_builder{
+		Input: pb.RuntimeInputMessage_builder{
 			Message:      p,
 			MessageIndex: c.messageIndex,
 		}.Build(),
@@ -232,9 +232,9 @@ func (c *cpStdin) Write(p []byte) (n int, err error) {
 }
 
 func (c *cpStdin) Close() error {
-	_, err := client.ContainerExecPutInput(c.ctx, proto.ContainerExecPutInputRequest_builder{
+	_, err := client.ContainerExecPutInput(c.ctx, pb.ContainerExecPutInputRequest_builder{
 		ExecId: c.execId,
-		Input: proto.RuntimeInputMessage_builder{
+		Input: pb.RuntimeInputMessage_builder{
 			MessageIndex: c.messageIndex,
 			Eof:          true,
 		}.Build(),
@@ -242,7 +242,7 @@ func (c *cpStdin) Close() error {
 	return err
 }
 
-func outputStreamSb(ctx context.Context, sandboxId string, fd proto.FileDescriptor) io.ReadCloser {
+func outputStreamSb(ctx context.Context, sandboxId string, fd pb.FileDescriptor) io.ReadCloser {
 	pr, pw := nio.Pipe(buffer.New(64 * 1024))
 	go func() {
 		defer pw.Close()
@@ -250,7 +250,7 @@ func outputStreamSb(ctx context.Context, sandboxId string, fd proto.FileDescript
 		completed := false
 		retries := 10
 		for !completed {
-			stream, err := client.SandboxGetLogs(ctx, proto.SandboxGetLogsRequest_builder{
+			stream, err := client.SandboxGetLogs(ctx, pb.SandboxGetLogsRequest_builder{
 				SandboxId:      sandboxId,
 				FileDescriptor: fd,
 				Timeout:        55,
@@ -292,7 +292,7 @@ func outputStreamSb(ctx context.Context, sandboxId string, fd proto.FileDescript
 	return pr
 }
 
-func outputStreamCp(ctx context.Context, execId string, fd proto.FileDescriptor) io.ReadCloser {
+func outputStreamCp(ctx context.Context, execId string, fd pb.FileDescriptor) io.ReadCloser {
 	pr, pw := nio.Pipe(buffer.New(64 * 1024))
 	go func() {
 		defer pw.Close()
@@ -300,7 +300,7 @@ func outputStreamCp(ctx context.Context, execId string, fd proto.FileDescriptor)
 		completed := false
 		retries := 10
 		for !completed {
-			stream, err := client.ContainerExecGetOutput(ctx, proto.ContainerExecGetOutputRequest_builder{
+			stream, err := client.ContainerExecGetOutput(ctx, pb.ContainerExecGetOutputRequest_builder{
 				ExecId:         execId,
 				FileDescriptor: fd,
 				Timeout:        55,

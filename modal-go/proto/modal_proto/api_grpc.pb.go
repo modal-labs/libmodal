@@ -4,7 +4,7 @@
 // - protoc             v3.21.6
 // source: modal_proto/api.proto
 
-package proto
+package pb
 
 import (
 	context "context"

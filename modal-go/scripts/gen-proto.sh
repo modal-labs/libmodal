@@ -8,3 +8,6 @@ protoc \
   --go-grpc_out=paths=source_relative:proto \
   --proto_path=../modal-client \
   ../modal-client/modal_proto/*.proto
+
+# Find all 'package proto' declarations and replace with 'package pb'
+find . -type f -name '*.go' -exec sed -i 's/^package proto$/package pb/' {} +
