@@ -12,7 +12,7 @@ import (
 func TestCreateOneSandbox(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
-	app, err := modal.AppLookup(context.Background(), "libmodal-test", modal.LookupOptions{CreateIfMissing: true})
+	app, err := modal.AppLookup(context.Background(), "libmodal-test", modal.LookupOptions{Environment: "libmodal", CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	image, err := app.ImageFromRegistry("alpine:3.21")
@@ -29,7 +29,7 @@ func TestCreateOneSandbox(t *testing.T) {
 func TestPassCatToStdin(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
-	app, err := modal.AppLookup(context.Background(), "libmodal-test", modal.LookupOptions{CreateIfMissing: true})
+	app, err := modal.AppLookup(context.Background(), "libmodal-test", modal.LookupOptions{Environment: "libmodal", CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	image, err := app.ImageFromRegistry("alpine:3.21")
@@ -57,7 +57,7 @@ func TestPassCatToStdin(t *testing.T) {
 func TestIgnoreLargeStdout(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
-	app, err := modal.AppLookup(context.Background(), "libmodal-test", modal.LookupOptions{CreateIfMissing: true})
+	app, err := modal.AppLookup(context.Background(), "libmodal-test", modal.LookupOptions{Environment: "libmodal", CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	image, err := app.ImageFromRegistry("python:3.13-alpine")

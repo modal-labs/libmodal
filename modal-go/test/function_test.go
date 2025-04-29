@@ -14,7 +14,7 @@ func TestFunctionCall(t *testing.T) {
 
 	function, err := modal.FunctionLookup(
 		context.Background(),
-		"libmodal-test-support", "echo_string", modal.LookupOptions{},
+		"libmodal-test-support", "echo_string", modal.LookupOptions{Environment: "libmodal"},
 	)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
