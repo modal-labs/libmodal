@@ -74,13 +74,20 @@ const timeoutMiddleware: ClientMiddleware<TimeoutOptions> =
     }
   };
 
-const RETRYABLE_GRPC_STATUS_CODES = [
+const retryableGrpcStatusCodes = new Set([
   Status.DEADLINE_EXCEEDED,
   Status.UNAVAILABLE,
   Status.CANCELLED,
   Status.INTERNAL,
   Status.UNKNOWN,
-];
+]);
+
+export function isRetryableGrpc(error: unknown) {
+  if (error instanceof ClientError) {
+    return retryableGrpcStatusCodes.has(error.code);
+  }
+  return false;
+}
 
 /** Sleep helper that can be cancelled via an AbortSignal. */
 const sleep = (ms: number, signal?: AbortSignal) =>
@@ -132,8 +139,8 @@ const retryMiddleware: ClientMiddleware<RetryOptions> =
       return yield* call.next(call.request, restOptions);
     }
 
-    const retryableCodes = new Set<number>([
-      ...RETRYABLE_GRPC_STATUS_CODES,
+    const retryableCodes = new Set([
+      ...retryableGrpcStatusCodes,
       ...additionalStatusCodes,
     ]);
 

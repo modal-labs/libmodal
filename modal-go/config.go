@@ -1,7 +1,7 @@
+package modal
+
 // config.go houses the logic for loading and resolving Modal profiles
 // from ~/.modal.toml or environment variables.
-
-package modal
 
 import (
 	"errors"

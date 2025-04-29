@@ -15,5 +15,5 @@ This deployed app will be called from tests in each language.
 cd modal-js && npm test
 
 # Go
-cd modal-go && go test -v -count=1 ./...
+cd modal-go && go test -v -count=1 -parallel=10 ./test
 ```

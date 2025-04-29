@@ -31,3 +31,20 @@ test("PassCatToStdin", async () => {
   // Terminate the sandbox.
   await sb.terminate();
 });
+
+test("IgnoreLargeStdout", async () => {
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
+  const image = await app.imageFromRegistry("python:3.13-alpine");
+
+  const sb = await app.createSandbox(image);
+  try {
+    const p = await sb.exec(["python", "-c", `print("a" * 1_000_000)`], {
+      stdout: "ignore",
+    });
+    expect(await p.stdout.readText()).toBe(""); // Stdout is ignored
+    // Stdout should be consumed after cancel, without blocking the process.
+    expect(await p.wait()).toBe(0);
+  } finally {
+    await sb.terminate();
+  }
+});

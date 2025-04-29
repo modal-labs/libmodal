@@ -7,6 +7,8 @@ import (
 	"io"
 	"sync"
 
+	"github.com/djherbis/buffer"
+	"github.com/djherbis/nio/v3"
 	proto "github.com/modal-labs/libmodal/modal-go/proto/modal_proto"
 )
 
@@ -135,14 +137,14 @@ func newContainerProcess(ctx context.Context, execId string, opts ExecOptions) *
 	cp := &ContainerProcess{execId: execId, ctx: ctx}
 	cp.Stdin = inputStreamCp(ctx, execId)
 
-	if stdoutBehavior == Pipe {
-		cp.Stdout = outputStreamCp(ctx, execId, proto.FileDescriptor_FILE_DESCRIPTOR_STDOUT)
-	} else {
+	cp.Stdout = outputStreamCp(ctx, execId, proto.FileDescriptor_FILE_DESCRIPTOR_STDOUT)
+	if stdoutBehavior == Ignore {
+		cp.Stdout.Close()
 		cp.Stdout = io.NopCloser(bytes.NewReader(nil))
 	}
-	if stderrBehavior == Pipe {
-		cp.Stderr = outputStreamCp(ctx, execId, proto.FileDescriptor_FILE_DESCRIPTOR_STDERR)
-	} else {
+	cp.Stderr = outputStreamCp(ctx, execId, proto.FileDescriptor_FILE_DESCRIPTOR_STDERR)
+	if stderrBehavior == Ignore {
+		cp.Stderr.Close()
 		cp.Stderr = io.NopCloser(bytes.NewReader(nil))
 	}
 
@@ -241,7 +243,7 @@ func (c *cpStdin) Close() error {
 }
 
 func outputStreamSb(ctx context.Context, sandboxId string, fd proto.FileDescriptor) io.ReadCloser {
-	pr, pw := io.Pipe()
+	pr, pw := nio.Pipe(buffer.New(64 * 1024))
 	go func() {
 		defer pw.Close()
 		lastIndex := "0-0"
@@ -255,7 +257,7 @@ func outputStreamSb(ctx context.Context, sandboxId string, fd proto.FileDescript
 				LastEntryId:    lastIndex,
 			}.Build())
 			if err != nil {
-				if retries > 0 {
+				if isRetryableGrpc(err) && retries > 0 {
 					retries--
 					continue
 				}
@@ -266,39 +268,34 @@ func outputStreamSb(ctx context.Context, sandboxId string, fd proto.FileDescript
 				batch, err := stream.Recv()
 				if err != nil {
 					if err != io.EOF {
-						if retries > 0 {
+						if isRetryableGrpc(err) && retries > 0 {
 							retries--
 						} else {
 							pw.CloseWithError(fmt.Errorf("error getting output stream: %w", err))
 							return
 						}
 					}
-					break // stream ends, may be io.EOF / timeout
+					break // we need to retry, either from an EOF or gRPC error
 				}
 				lastIndex = batch.GetEntryId()
 				for _, item := range batch.GetItems() {
-					if _, err := pw.Write([]byte(item.GetData())); err != nil {
-						pw.CloseWithError(err)
-						return
-					}
+					// On error, writer has been closed. Still consume the rest of the channel.
+					pw.Write([]byte(item.GetData()))
 				}
 				if batch.GetEof() {
 					completed = true
 					break
 				}
 			}
-
-			pw.Close()
 		}
 	}()
 	return pr
 }
 
 func outputStreamCp(ctx context.Context, execId string, fd proto.FileDescriptor) io.ReadCloser {
-	pr, pw := io.Pipe()
+	pr, pw := nio.Pipe(buffer.New(64 * 1024))
 	go func() {
 		defer pw.Close()
-
 		var lastIndex uint64
 		completed := false
 		retries := 10
@@ -311,7 +308,7 @@ func outputStreamCp(ctx context.Context, execId string, fd proto.FileDescriptor)
 				LastBatchIndex: lastIndex,
 			}.Build())
 			if err != nil {
-				if retries > 0 {
+				if isRetryableGrpc(err) && retries > 0 {
 					retries--
 					continue
 				}
@@ -322,21 +319,19 @@ func outputStreamCp(ctx context.Context, execId string, fd proto.FileDescriptor)
 				batch, err := stream.Recv()
 				if err != nil {
 					if err != io.EOF {
-						if retries > 0 {
+						if isRetryableGrpc(err) && retries > 0 {
 							retries--
 						} else {
 							pw.CloseWithError(fmt.Errorf("error getting output stream: %w", err))
 							return
 						}
 					}
-					break // stream ends, may be io.EOF / timeout
+					break // we need to retry, either from an EOF or gRPC error
 				}
 				lastIndex = batch.GetBatchIndex()
 				for _, item := range batch.GetItems() {
-					if _, err := pw.Write(item.GetMessageBytes()); err != nil {
-						pw.CloseWithError(err)
-						return
-					}
+					// On error, writer has been closed. Still consume the rest of the channel.
+					pw.Write(item.GetMessageBytes())
 				}
 				if batch.HasExitCode() {
 					completed = true

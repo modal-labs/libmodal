@@ -1,5 +1,6 @@
-// Client construction, auth, timeout, and retry logic for Modal.
 package modal
+
+// Client construction, auth, timeout, and retry logic for Modal.
 
 import (
 	"context"
@@ -44,12 +45,21 @@ const (
 	defaultRetryBackoffMul = 2.0
 )
 
-var defaultRetryable = map[codes.Code]struct{}{
+var retryableGrpcStatusCodes = map[codes.Code]struct{}{
 	codes.DeadlineExceeded: {},
 	codes.Unavailable:      {},
 	codes.Canceled:         {},
 	codes.Internal:         {},
 	codes.Unknown:          {},
+}
+
+func isRetryableGrpc(err error) bool {
+	if st, ok := status.FromError(err); ok {
+		if _, ok := retryableGrpcStatusCodes[st.Code()]; ok {
+			return true
+		}
+	}
+	return false
 }
 
 // defaultConfig caches the parsed ~/.modal.toml contents (may be empty).
@@ -159,7 +169,7 @@ func retryInterceptor() grpc.UnaryClientInterceptor {
 		baseDelay := defaultRetryBaseDelay
 		maxDelay := defaultRetryMaxDelay
 		factor := defaultRetryBackoffMul
-		retryable := defaultRetryable
+		retryable := retryableGrpcStatusCodes
 
 		// override from call-options (first one wins)
 		for _, o := range opts {
@@ -178,7 +188,7 @@ func retryInterceptor() grpc.UnaryClientInterceptor {
 				}
 				if len(rc.additionalCodes) > 0 {
 					retryable = map[codes.Code]struct{}{}
-					for k := range defaultRetryable {
+					for k := range retryableGrpcStatusCodes {
 						retryable[k] = struct{}{}
 					}
 					for _, c := range rc.additionalCodes {

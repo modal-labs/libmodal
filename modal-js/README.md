@@ -1,19 +1,25 @@
-# modal-js development
+# Modal JavaScript Library
 
-Setup after cloning the repo with submodules:
+[![Version](https://img.shields.io/npm/v/stripe.svg)](https://www.npmjs.org/package/stripe)
+[![Build Status](https://github.com/modal-labs/libmodal/actions/workflows/ci.yaml/badge.svg?branch=main)](https://github.com/modal-labs/libmodal/actions?query=branch%3Amain)
+[![Downloads](https://img.shields.io/npm/dm/modal.svg)](https://www.npmjs.com/package/modal)
+
+The [Modal](https://modal.com/) JavaScript SDK allows you to run Modal Functions and Sandboxes from server-side JavaScript applications.
+
+It comes with built-in TypeScript type definitions.
+
+## Documentation
+
+See the [documentation and examples](https://github.com/modal-labs/libmodal?tab=readme-ov-file#javascript-modal-js) on GitHub.
+
+## Requirements
+
+Node 22 or higher, in [ES modules](https://gist.github.com/sindresorhus/a39789f98801d908bbc7ff3ecc99d99c) mode.
+
+## Installation
+
+Install the package with
 
 ```bash
-npm install
+npm install modal
 ```
-
-Then run a script with:
-
-```bash
-node --import tsx path/to/script.ts
-```
-
-## gRPC support
-
-We're using `nice-grpc` because the `@grpc/grpc-js` library doesn't support promises and is difficult to customize with types.
-
-This gRPC library depends on the `protobuf-ts` package, which is not compatible with tree shaking because `ModalClientDefinition` transitively references every type. However, since `modal-js` is a server-side package, having a larger bundled library is not a huge issue.

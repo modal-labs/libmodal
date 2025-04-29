@@ -17,9 +17,9 @@
 // At runtime the client resolves credentials in this order:
 //
 //  1. Environment variables
-//     MODAL_TOKEN_ID, MODAL_TOKEN_SECRET, MODAL_SERVER_URL (optional)
-//  2. A profile marked `active = true` in `~/.modal.toml`
-//  3. A profile explicitly requested via `modal.GetProfile`
+//     MODAL_TOKEN_ID, MODAL_TOKEN_SECRET, MODAL_ENVIRONMENT (optional)
+//  2. A profile explicitly requested via `MODAL_PROFILE`
+//  3. A profile marked `active = true` in `~/.modal.toml`
 //
 // See `config.go` for the resolution logic.
 //

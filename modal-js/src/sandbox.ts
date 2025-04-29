@@ -1,8 +1,9 @@
 import { FileDescriptor } from "../proto/modal_proto/api";
-import { client } from "./client";
+import { client, isRetryableGrpc } from "./client";
 import {
   ModalReadStream,
   ModalWriteStream,
+  streamConsumingIter,
   toModalReadStream,
   toModalWriteStream,
 } from "./streams";
@@ -37,14 +38,14 @@ export class Sandbox {
 
     this.stdin = toModalWriteStream(inputStreamSb(sandboxId));
     this.stdout = toModalReadStream(
-      ReadableStream.from(
+      streamConsumingIter(
         outputStreamSb(sandboxId, FileDescriptor.FILE_DESCRIPTOR_STDOUT),
-      ),
+      ).pipeThrough(new TextDecoderStream()),
     );
     this.stderr = toModalReadStream(
-      ReadableStream.from(
+      streamConsumingIter(
         outputStreamSb(sandboxId, FileDescriptor.FILE_DESCRIPTOR_STDERR),
-      ),
+      ).pipeThrough(new TextDecoderStream()),
     );
   }
 
@@ -126,16 +127,21 @@ class ContainerProcess<R extends string | Uint8Array = any> {
 
     this.stdin = toModalWriteStream(inputStreamCp<R>(execId));
 
-    const stdoutStream = ReadableStream.from(
-      stdout === "pipe"
-        ? outputStreamCp(execId, FileDescriptor.FILE_DESCRIPTOR_STDOUT)
-        : [],
+    let stdoutStream = streamConsumingIter(
+      outputStreamCp(execId, FileDescriptor.FILE_DESCRIPTOR_STDOUT),
     );
-    const stderrStream = ReadableStream.from(
-      stderr === "pipe"
-        ? outputStreamCp(execId, FileDescriptor.FILE_DESCRIPTOR_STDERR)
-        : [],
+    if (stdout === "ignore") {
+      stdoutStream.cancel();
+      stdoutStream = ReadableStream.from([]);
+    }
+
+    let stderrStream = streamConsumingIter(
+      outputStreamCp(execId, FileDescriptor.FILE_DESCRIPTOR_STDERR),
     );
+    if (stderr === "ignore") {
+      stderrStream.cancel();
+      stderrStream = ReadableStream.from([]);
+    }
 
     if (mode === "text") {
       this.stdout = toModalReadStream(
@@ -168,10 +174,10 @@ class ContainerProcess<R extends string | Uint8Array = any> {
 async function* outputStreamSb(
   sandboxId: string,
   fileDescriptor: FileDescriptor,
-): AsyncIterable<string> {
+): AsyncIterable<Uint8Array> {
   let lastIndex = "0-0";
   let completed = false;
-  let retriesRemaining = 10;
+  let retries = 10;
   while (!completed) {
     try {
       const outputIterator = client.sandboxGetLogs({
@@ -182,19 +188,15 @@ async function* outputStreamSb(
       });
       for await (const batch of outputIterator) {
         lastIndex = batch.entryId;
-        yield* batch.items.map((item) => item.data);
+        yield* batch.items.map((item) => new TextEncoder().encode(item.data));
         if (batch.eof) {
           completed = true;
           break;
         }
       }
-    } catch (error: any) {
-      // TODO: Distinguish retryable gRPC status codes, StreamTerminated, etc.
-      if (retriesRemaining > 0) {
-        retriesRemaining--;
-      } else {
-        throw error;
-      }
+    } catch (error) {
+      if (isRetryableGrpc(error) && retries > 0) retries--;
+      else throw error;
     }
   }
 }
@@ -206,7 +208,7 @@ async function* outputStreamCp(
 ): AsyncIterable<Uint8Array> {
   let lastIndex = 0;
   let completed = false;
-  let retriesRemaining = 10;
+  let retries = 10;
   while (!completed) {
     try {
       const outputIterator = client.containerExecGetOutput({
@@ -226,13 +228,9 @@ async function* outputStreamCp(
           break;
         }
       }
-    } catch (error: any) {
-      // TODO: Distinguish retryable gRPC status codes, StreamTerminated, etc.
-      if (retriesRemaining > 0) {
-        retriesRemaining--;
-      } else {
-        throw error;
-      }
+    } catch (error) {
+      if (isRetryableGrpc(error) && retries > 0) retries--;
+      else throw error;
     }
   }
 }
