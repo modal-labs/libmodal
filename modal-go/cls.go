@@ -1,6 +1,6 @@
 package modal
 
-// Class lookups
+// Cls lookups and Function binding.
 
 import (
 	"context"
@@ -15,7 +15,7 @@ type Cls struct {
 	ctx     context.Context
 }
 
-// ClsLookup looks up an existing Cls.
+// ClsLookup looks up an existing Cls constructing Function objects for each class method.
 func ClsLookup(ctx context.Context, appName string, name string, options LookupOptions) (*Cls, error) {
 	ctx = clientContext(ctx)
 	cls := Cls{
@@ -23,7 +23,6 @@ func ClsLookup(ctx context.Context, appName string, name string, options LookupO
 		ctx:     context.Background(),
 	}
 
-	// Lookup a class definition.
 	resp, err := client.ClassGet(ctx, pb.ClassGetRequest_builder{
 		AppName:           appName,
 		ObjectTag:         name,
@@ -39,7 +38,8 @@ func ClsLookup(ctx context.Context, appName string, name string, options LookupO
 
 	cls.ClassId = resp.GetClassId()
 
-	// Get the class service function first
+	// Find class service function metadata. Service functions are used to implement class methods,
+	// which are invoked using a combination of service function ID and the method name.
 	serviceFunctionName := fmt.Sprintf("%s.*", name)
 	serviceFunction, err := client.FunctionGet(ctx, pb.FunctionGetRequest_builder{
 		AppName:         appName,
@@ -55,7 +55,7 @@ func ClsLookup(ctx context.Context, appName string, name string, options LookupO
 	// Check if we have method metadata on the class service function (v0.67+)
 	serviceFunctionHandleMetadata := serviceFunction.GetHandleMetadata()
 	if serviceFunctionHandleMetadata != nil && len(serviceFunctionHandleMetadata.GetMethodHandleMetadata()) > 0 {
-		for methodName, _ := range serviceFunctionHandleMetadata.GetMethodHandleMetadata() {
+		for methodName := range serviceFunctionHandleMetadata.GetMethodHandleMetadata() {
 			function := &Function{
 				FunctionId: serviceFunction.GetFunctionId(),
 				MethodName: methodName,
@@ -65,7 +65,9 @@ func ClsLookup(ctx context.Context, appName string, name string, options LookupO
 		}
 	} else {
 		// Legacy approach not supported
-		return nil, fmt.Errorf("Go SDK does not support legacy class deployment (< v0.67). Please update your deployment to use Go SDK.")
+		return nil, fmt.Errorf("Go SDK requires Modal deployments using v0.67 or later.\n" +
+			"Your deployment uses a legacy class format that is not supported. " +
+			"Please update your deployment to make it compatible with this SDK.")
 
 	}
 
