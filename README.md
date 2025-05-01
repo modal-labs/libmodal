@@ -1,6 +1,6 @@
 # libmodal: [Modal](https://modal.com) SDK Lite
 
-Modal client libraries for JavaScript and Go.
+Modal client libraries for JavaScript and Go. **(Alpha)**
 
 This repository provides lightweight alternatives to the [Modal Python Library](https://github.com/modal-labs/modal-client). They let you start sandboxes (secure VMs), call Modal Functions, read or edit Volumes, and manage containers. However, they don't support deploying Modal Functions — those still need to be written in Python!
 
