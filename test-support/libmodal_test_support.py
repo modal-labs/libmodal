@@ -13,3 +13,11 @@ class EchoCls:
     @modal.method()
     def echo_string(self, s: str) -> str:
         return "output: " + s
+
+@app.cls(scaledown_window=60 * 60)
+class EchoClsParametrized:
+    name: str = modal.parameter(default="test")
+  
+    @modal.method()
+    def echo_parameter(self) -> str:
+        return "output: " + self.name

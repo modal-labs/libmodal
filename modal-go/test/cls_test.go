@@ -30,4 +30,19 @@ func TestClsCall(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(result).Should(gomega.Equal("output: hello"))
 
+	clsParametrized, err := modal.ClsLookup(
+		context.Background(),
+		"libmodal-test-support", "EchoClsParametrized", modal.LookupOptions{},
+	)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	// initialize
+	clsInitialized, err := clsParametrized.Init(map[string]any{"name": "hello-init"})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	function, err = clsInitialized.Method("echo_parameter")
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	result, err = function.Remote(context.Background(), nil, nil)
+	g.Expect(result).Should(gomega.Equal("output: hello-init"))
 }

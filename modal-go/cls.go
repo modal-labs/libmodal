@@ -7,12 +7,76 @@ import (
 	"fmt"
 
 	pb "github.com/modal-labs/libmodal/modal-go/proto/modal_proto"
+	"google.golang.org/protobuf/proto"
 )
 
 type Cls struct {
-	ClassId string
-	methods map[string]*Function
-	ctx     context.Context
+	ClassId           string
+	methods           map[string]*Function
+	schema            []*pb.ClassParameterSpec // schema for parameters used in init
+	serviceFunctionId string
+	ctx               context.Context
+}
+
+// Initialize a Cls app. This is only useful when the Cls is parametrized.
+func (c *Cls) Init(kwargs map[string]any) (*Cls, error) {
+	if len(c.schema) == 0 {
+		return c, nil
+	} else {
+
+		// Create a parameter set with values from kwargs
+		paramSet := pb.ClassParameterSet_builder{
+			Parameters: []*pb.ClassParameterValue{},
+		}.Build()
+
+		// For each parameter in the schema
+		for _, paramSpec := range c.schema {
+			name := paramSpec.GetName()
+			value, provided := kwargs[name]
+
+			// Skip if not provided and has default value
+			if !provided && paramSpec.GetHasDefault() {
+				continue
+			}
+
+			// Error if required and not provided
+			if !provided && !paramSpec.GetHasDefault() {
+				return nil, fmt.Errorf("required parameter '%s' not provided", name)
+			}
+
+			// Convert value to proto parameter
+			paramValue, err := convertToParameterValue(name, paramSpec.GetType(), value)
+			if err != nil {
+				return nil, err
+			}
+
+			newParameters := append(paramSet.GetParameters(), paramValue)
+			paramSet.SetParameters(newParameters)
+		}
+
+		// Serialize the parameter set
+		serializedParams, err := proto.Marshal(paramSet)
+		if err != nil {
+			return nil, fmt.Errorf("failed to serialize parameters: %w", err)
+		}
+
+		// Bind parameters to create a parameterized function
+		bindResp, err := client.FunctionBindParams(c.ctx, pb.FunctionBindParamsRequest_builder{
+			FunctionId:       c.serviceFunctionId,
+			SerializedParams: serializedParams,
+		}.Build())
+		if err != nil {
+			return nil, fmt.Errorf("failed to bind parameters: %w", err)
+		}
+
+		// Update all methods to use the bound function ID
+		boundFunctionId := bindResp.GetBoundFunctionId()
+		for methodName, function := range c.methods {
+			function.FunctionId = boundFunctionId
+			c.methods[methodName] = function
+		}
+	}
+	return c, nil
 }
 
 // Method returns the Function with the given name.
@@ -35,7 +99,7 @@ func ClsLookup(ctx context.Context, appName string, name string, options LookupO
 	ctx = clientContext(ctx)
 	cls := Cls{
 		methods: make(map[string]*Function),
-		ctx:     context.Background(),
+		ctx:     ctx,
 	}
 
 	resp, err := client.ClassGet(ctx, pb.ClassGetRequest_builder{
@@ -67,6 +131,17 @@ func ClsLookup(ctx context.Context, appName string, name string, options LookupO
 		return nil, fmt.Errorf("failed to look up class service function: %w", err)
 	}
 
+	// Validate that we only support parameter serialization format PROTO.
+	parameterInfo := serviceFunction.GetHandleMetadata().GetClassParameterInfo()
+	schema := parameterInfo.GetSchema()
+	if len(schema) > 0 && parameterInfo.GetFormat() != pb.ClassParameterInfo_PARAM_SERIALIZATION_FORMAT_PROTO {
+		return nil, fmt.Errorf("unsupported parameter format: %v", parameterInfo.GetFormat())
+	} else {
+		cls.schema = schema
+	}
+
+	cls.serviceFunctionId = serviceFunction.GetFunctionId()
+
 	// Check if we have method metadata on the class service function (v0.67+)
 	serviceFunctionHandleMetadata := serviceFunction.GetHandleMetadata()
 	if serviceFunctionHandleMetadata != nil && len(serviceFunctionHandleMetadata.GetMethodHandleMetadata()) > 0 {
@@ -87,4 +162,54 @@ func ClsLookup(ctx context.Context, appName string, name string, options LookupO
 	}
 
 	return &cls, nil
+}
+
+// convertToParameterValue converts a Go value to a ParameterValue proto message
+func convertToParameterValue(name string, paramType pb.ParameterType, value any) (*pb.ClassParameterValue, error) {
+	paramValue := pb.ClassParameterValue_builder{
+		Name: name,
+		Type: paramType,
+	}.Build()
+
+	switch paramType {
+	case pb.ParameterType_PARAM_TYPE_STRING:
+		strValue, ok := value.(string)
+		if !ok {
+			return nil, fmt.Errorf("parameter '%s' must be a string", name)
+		}
+		paramValue.SetStringValue(strValue)
+
+	case pb.ParameterType_PARAM_TYPE_INT:
+		var intValue int64
+		switch v := value.(type) {
+		case int:
+			intValue = int64(v)
+		case int64:
+			intValue = v
+		case int32:
+			intValue = int64(v)
+		default:
+			return nil, fmt.Errorf("parameter '%s' must be an integer", name)
+		}
+		paramValue.SetIntValue(intValue)
+
+	case pb.ParameterType_PARAM_TYPE_BOOL:
+		boolValue, ok := value.(bool)
+		if !ok {
+			return nil, fmt.Errorf("parameter '%s' must be a boolean", name)
+		}
+		paramValue.SetBoolValue(boolValue)
+
+	case pb.ParameterType_PARAM_TYPE_BYTES:
+		bytesValue, ok := value.([]byte)
+		if !ok {
+			return nil, fmt.Errorf("parameter '%s' must be a byte slice", name)
+		}
+		paramValue.SetBytesValue(bytesValue)
+
+	default:
+		return nil, fmt.Errorf("unsupported parameter type: %v", paramType)
+	}
+
+	return paramValue, nil
 }
