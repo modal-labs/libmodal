@@ -18,8 +18,8 @@ type Cls struct {
 	ctx               context.Context
 }
 
-// Initialize a Cls app. This is only useful when the Cls is parametrized.
-func (c *Cls) Init(kwargs map[string]any) (*Cls, error) {
+// Creates parametrized instnace of Cls.
+func (c *Cls) Instance(kwargs map[string]any) (*Cls, error) {
 	if len(c.schema) == 0 {
 		return c, nil
 	} else {

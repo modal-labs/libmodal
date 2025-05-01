@@ -37,10 +37,10 @@ func TestClsCall(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	// initialize
-	clsInitialized, err := clsParametrized.Init(map[string]any{"name": "hello-init"})
+	instance, err := clsParametrized.Instance(map[string]any{"name": "hello-init"})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	function, err = clsInitialized.Method("echo_parameter")
+	function, err = instance.Method("echo_parameter")
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	result, err = function.Remote(context.Background(), nil, nil)
