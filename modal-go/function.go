@@ -22,7 +22,7 @@ func timeNow() float64 {
 // Function references a deployed Modal Function.
 type Function struct {
 	FunctionId string
-	MethodName string // used for class methods
+	MethodName *string // used for class methods
 	ctx        context.Context
 }
 
@@ -86,7 +86,7 @@ func (function *Function) Remote(ctx context.Context, args []any, kwargs map[str
 		Input: pb.FunctionInput_builder{
 			Args:       payload.Bytes(),
 			DataFormat: pb.DataFormat_DATA_FORMAT_PICKLE,
-			MethodName: &function.MethodName,
+			MethodName: function.MethodName,
 		}.Build(),
 	}.Build()
 	functionInputs = append(functionInputs, functionInputItem)

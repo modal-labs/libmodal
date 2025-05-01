@@ -11,15 +11,30 @@ import (
 
 type Cls struct {
 	ClassId string
-	Methods map[string]*Function
+	methods map[string]*Function
 	ctx     context.Context
+}
+
+// Method returns the Function with the given name.
+// It returns an error if the Cls is not initialized or if the method doesn't exist.
+func (c *Cls) Method(name string) (*Function, error) {
+	if c.methods == nil {
+		return nil, fmt.Errorf("Cls not initialized")
+	}
+
+	method, ok := c.methods[name]
+	if !ok {
+		return nil, fmt.Errorf("Cls method %s not found", name)
+	}
+
+	return method, nil
 }
 
 // ClsLookup looks up an existing Cls constructing Function objects for each class method.
 func ClsLookup(ctx context.Context, appName string, name string, options LookupOptions) (*Cls, error) {
 	ctx = clientContext(ctx)
 	cls := Cls{
-		Methods: make(map[string]*Function),
+		methods: make(map[string]*Function),
 		ctx:     context.Background(),
 	}
 
@@ -58,10 +73,10 @@ func ClsLookup(ctx context.Context, appName string, name string, options LookupO
 		for methodName := range serviceFunctionHandleMetadata.GetMethodHandleMetadata() {
 			function := &Function{
 				FunctionId: serviceFunction.GetFunctionId(),
-				MethodName: methodName,
+				MethodName: &methodName,
 				ctx:        ctx,
 			}
-			cls.Methods[methodName] = function
+			cls.methods[methodName] = function
 		}
 	} else {
 		// Legacy approach not supported

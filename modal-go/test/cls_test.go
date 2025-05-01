@@ -14,15 +14,17 @@ func TestClsCall(t *testing.T) {
 
 	cls, err := modal.ClsLookup(
 		context.Background(),
-		"libmodal-test-support", "EchoCls", modal.LookupOptions{
-			Environment: "libmodal",
-		},
+		"libmodal-test-support", "EchoCls", modal.LookupOptions{},
 	)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
+	// Try accessing a non-existent method
+	function, err := cls.Method("nonexistent")
+	g.Expect(err).Should(gomega.HaveOccurred())
+
 	// Call function
-	function, ok := cls.Methods["echo_string"]
-	g.Expect(ok).Should(gomega.BeTrue())
+	function, err = cls.Method("echo_string")
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	result, err := function.Remote(context.Background(), nil, map[string]any{"s": "hello"})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
