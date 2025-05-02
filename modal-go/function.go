@@ -175,7 +175,7 @@ func processResult(ctx context.Context, result *pb.GenericResult, dataFormat pb.
 	return deserializeDataFormat(data, dataFormat)
 }
 
-// blobUpload uploads a blob to S3 and returns its ID.
+// blobUpload uploads a blob to storage and returns its ID.
 func blobUpload(ctx context.Context, data []byte) (string, error) {
 	md5sum := md5.Sum(data)
 	sha256sum := sha256.Sum256(data)

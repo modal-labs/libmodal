@@ -21,7 +21,7 @@ test("FunctionCallLargeInput", async () => {
     "libmodal-test-support",
     "bytelength",
   );
-  const len = 3 * 1000 * 1000; // More than 2 MiB, limit to offload to S3
+  const len = 3 * 1000 * 1000; // More than 2 MiB, offload to blob storage
   const input = new Uint8Array(len);
   const result = await function_.remote([input]);
   expect(result).toBe(len);
