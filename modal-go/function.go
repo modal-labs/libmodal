@@ -5,6 +5,9 @@ package modal
 import (
 	"bytes"
 	"context"
+	"crypto/md5"
+	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"net/http"
@@ -14,6 +17,9 @@ import (
 	pb "github.com/modal-labs/libmodal/modal-go/proto/modal_proto"
 	"google.golang.org/protobuf/proto"
 )
+
+// From: modal/_utils/blob_utils.py
+const maxObjectSizeBytes = 2 * 1024 * 1024 // 2 MiB
 
 func timeNow() float64 {
 	return float64(time.Now().UnixNano()) / 1e9
@@ -78,12 +84,24 @@ func (function *Function) Remote(ctx context.Context, args []any, kwargs map[str
 		return nil, err
 	}
 
+	argsBytes := payload.Bytes()
+	var argsBlobId *string
+	if payload.Len() > maxObjectSizeBytes {
+		blobId, err := blobUpload(ctx, argsBytes)
+		if err != nil {
+			return nil, err
+		}
+		argsBytes = nil
+		argsBlobId = &blobId
+	}
+
 	// Single input sync invocation
 	var functionInputs []*pb.FunctionPutInputsItem
 	functionInputItem := pb.FunctionPutInputsItem_builder{
 		Idx: 0,
 		Input: pb.FunctionInput_builder{
-			Args:       payload.Bytes(),
+			Args:       argsBytes,
+			ArgsBlobId: argsBlobId,
 			DataFormat: pb.DataFormat_DATA_FORMAT_PICKLE,
 		}.Build(),
 	}.Build()
@@ -155,6 +173,49 @@ func processResult(ctx context.Context, result *pb.GenericResult, dataFormat pb.
 	}
 
 	return deserializeDataFormat(data, dataFormat)
+}
+
+// blobUpload uploads a blob to S3 and returns its ID.
+func blobUpload(ctx context.Context, data []byte) (string, error) {
+	md5sum := md5.Sum(data)
+	sha256sum := sha256.Sum256(data)
+	contentMd5 := base64.StdEncoding.EncodeToString(md5sum[:])
+	contentSha256 := base64.StdEncoding.EncodeToString(sha256sum[:])
+
+	resp, err := client.BlobCreate(ctx, pb.BlobCreateRequest_builder{
+		ContentMd5:          contentMd5,
+		ContentSha256Base64: contentSha256,
+		ContentLength:       int64(len(data)),
+	}.Build())
+	if err != nil {
+		return "", fmt.Errorf("failed to create blob: %w", err)
+	}
+
+	switch resp.WhichUploadTypeOneof() {
+	case pb.BlobCreateResponse_Multipart_case:
+		return "", fmt.Errorf("function input size exceeds multipart upload threshold, unsupported by this SDK version")
+
+	case pb.BlobCreateResponse_UploadUrl_case:
+		req, err := http.NewRequest("PUT", resp.GetUploadUrl(), bytes.NewReader(data))
+		if err != nil {
+			return "", fmt.Errorf("failed to create upload request: %w", err)
+		}
+		req.Header.Set("Content-Type", "application/octet-stream")
+		req.Header.Set("Content-MD5", contentMd5)
+		uploadResp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return "", fmt.Errorf("failed to upload blob: %w", err)
+		}
+		defer uploadResp.Body.Close()
+		if uploadResp.StatusCode < 200 || uploadResp.StatusCode >= 300 {
+			return "", fmt.Errorf("failed blob upload: %s", uploadResp.Status)
+		}
+		// Skip client-side ETag header validation for now (MD5 checksum).
+		return resp.GetBlobId(), nil
+
+	default:
+		return "", fmt.Errorf("missing upload URL in BlobCreate response")
+	}
 }
 
 // blobDownload downloads a blob by its ID.
