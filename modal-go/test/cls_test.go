@@ -2,7 +2,6 @@ package test
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	"github.com/modal-labs/libmodal/modal-go"
@@ -58,28 +57,13 @@ type Parameter struct {
 	Type  pb.ParameterType
 }
 
-func (p *Parameter) EncodeValue() (*pb.ClassParameterValue, error) {
-	switch v := p.Value.(type) {
-	case string:
-		return modal.EncodeParameterValue(p.Name, v, p.Type)
-	case int:
-		return modal.EncodeParameterValue(p.Name, v, p.Type)
-	case bool:
-		return modal.EncodeParameterValue(p.Name, v, p.Type)
-	case []byte:
-		return modal.EncodeParameterValue(p.Name, v, p.Type)
-	default:
-		return nil, fmt.Errorf("unsupported parameter type: %T", p.Value)
-	}
-}
-
 func serializeParameterSet(params []Parameter) ([]byte, error) {
 	paramSet := pb.ClassParameterSet_builder{
 		Parameters: []*pb.ClassParameterValue{},
 	}.Build()
 
 	for _, param := range params {
-		serializedParam, err := param.EncodeValue()
+		serializedParam, err := modal.EncodeParameterValue(param.Name, param.Value, param.Type)
 		if err != nil {
 			return nil, err
 		}
