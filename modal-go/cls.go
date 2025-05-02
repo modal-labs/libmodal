@@ -15,11 +15,13 @@ type Cls struct {
 	methods           map[string]*Function
 	schema            []*pb.ClassParameterSpec // schema for parameters used in init
 	serviceFunctionId string
+	initialized       bool
 	ctx               context.Context
 }
 
 // Creates parametrized instnace of Cls.
 func (c *Cls) Instance(kwargs map[string]any) (*Cls, error) {
+	c.initialized = true
 	if len(c.schema) == 0 {
 		return c, nil
 	} else {
@@ -82,8 +84,11 @@ func (c *Cls) Instance(kwargs map[string]any) (*Cls, error) {
 // Method returns the Function with the given name.
 // It returns an error if the Cls is not initialized or if the method doesn't exist.
 func (c *Cls) Method(name string) (*Function, error) {
-	if c.methods == nil {
+	if !c.initialized {
 		return nil, fmt.Errorf("Cls not initialized")
+	}
+	if c.methods == nil {
+		return nil, fmt.Errorf("Cls has no methods")
 	}
 
 	method, ok := c.methods[name]
@@ -161,6 +166,7 @@ func ClsLookup(ctx context.Context, appName string, name string, options LookupO
 
 	}
 
+	cls.initialized = false
 	return &cls, nil
 }
 

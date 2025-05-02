@@ -18,11 +18,13 @@ func TestClsCall(t *testing.T) {
 	)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
+	instance, err := cls.Instance(nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
 	// Try accessing a non-existent method
 	function, err := cls.Method("nonexistent")
 	g.Expect(err).Should(gomega.HaveOccurred())
 
-	// Call function
 	function, err = cls.Method("echo_string")
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
@@ -36,8 +38,7 @@ func TestClsCall(t *testing.T) {
 	)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	// initialize
-	instance, err := clsParametrized.Instance(map[string]any{"name": "hello-init"})
+	instance, err = clsParametrized.Instance(map[string]any{"name": "hello-init"})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	function, err = instance.Method("echo_parameter")
