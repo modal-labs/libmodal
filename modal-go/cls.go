@@ -10,90 +10,116 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+// Cls represents a Modal class definition that can be instantiated with parameters.
+// It contains metadata about the class and its methods.
 type Cls struct {
-	methods           map[string]*Function
-	schema            []*pb.ClassParameterSpec // schema for parameters used in init
-	serviceFunctionId string
-	initialized       bool
 	ctx               context.Context
+	serviceFunctionId string
+	schema            []*pb.ClassParameterSpec
+	methods           map[string]*Function
 }
 
-// Creates parametrized instnace of Cls.
-func (c *Cls) Instance(kwargs map[string]any) (*Cls, error) {
-	c.initialized = true
+// ClsInstance represents an instantiated Modal class with bound parameters.
+// It provides access to the class methods with the bound parameters.
+type ClsInstance struct {
+	ctx     context.Context
+	methods map[string]*Function
+}
+
+// Instance creates a new instance of the class with the provided parameters.
+func (c *Cls) Instance(kwargs map[string]any) (*ClsInstance, error) {
+	// Class isn't parametrized, return a simple instance
 	if len(c.schema) == 0 {
-		return c, nil
-	} else {
-
-		// Create a parameter set with values from kwargs
-		paramSet := pb.ClassParameterSet_builder{
-			Parameters: []*pb.ClassParameterValue{},
-		}.Build()
-
-		// For each parameter in the schema
-		for _, paramSpec := range c.schema {
-			name := paramSpec.GetName()
-			value, provided := kwargs[name]
-
-			// Use default value if value is not provided but avaialble
-			defaultValue := paramSpec.GetHasDefault()
-			if !provided && paramSpec.GetHasDefault() {
-				value = defaultValue
-			}
-
-			// Error if required and not provided
-			if !provided && !paramSpec.GetHasDefault() {
-				return nil, fmt.Errorf("required parameter '%s' not provided", name)
-			}
-
-			// Convert value to proto parameter
-			paramValue, err := EncodeParameterValue(name, value, paramSpec.GetType())
-			if err != nil {
-				return nil, err
-			}
-
-			newParameters := append(paramSet.GetParameters(), paramValue)
-			paramSet.SetParameters(newParameters)
-		}
-
-		// Serialize the parameter set
-		serializedParams, err := proto.Marshal(paramSet)
-		if err != nil {
-			return nil, fmt.Errorf("failed to serialize parameters: %w", err)
-		}
-
-		// Bind parameters to create a parameterized function
-		bindResp, err := client.FunctionBindParams(c.ctx, pb.FunctionBindParamsRequest_builder{
-			FunctionId:       c.serviceFunctionId,
-			SerializedParams: serializedParams,
-		}.Build())
-		if err != nil {
-			return nil, fmt.Errorf("failed to bind parameters: %w", err)
-		}
-
-		// Update all methods to use the bound function ID
-		boundFunctionId := bindResp.GetBoundFunctionId()
-		for methodName, function := range c.methods {
-			function.FunctionId = boundFunctionId
-			c.methods[methodName] = function
-		}
+		return &ClsInstance{
+			ctx:     c.ctx,
+			methods: copyMethods(c.methods),
+		}, nil
 	}
-	return c, nil
+
+	// Class has parameters, bind the parameters to service function
+	// and update method references
+	boundFunctionId, err := c.bindParameters(kwargs)
+	if err != nil {
+		return nil, err
+	}
+
+	instance := &ClsInstance{
+		ctx:     c.ctx,
+		methods: make(map[string]*Function),
+	}
+
+	// Update all methods to use the bound function ID
+	for methodName, methodDef := range c.methods {
+		boundMethod := &Function{
+			FunctionId: boundFunctionId,
+			MethodName: methodDef.MethodName,
+			ctx:        c.ctx,
+		}
+		instance.methods[methodName] = boundMethod
+	}
+
+	return instance, nil
 }
 
-// Method returns the Function with the given name.
-// It returns an error if the Cls is not initialized or if the method doesn't exist.
-func (c *Cls) Method(name string) (*Function, error) {
-	if !c.initialized {
-		return nil, fmt.Errorf("Cls not initialized")
+// bindParameters processes the parameters and binds them to the class function.
+func (c *Cls) bindParameters(kwargs map[string]any) (string, error) {
+	// Create a parameter set
+	paramSet := pb.ClassParameterSet_builder{
+		Parameters: []*pb.ClassParameterValue{},
+	}.Build()
+
+	// Process each parameter according to the schema
+	for _, paramSpec := range c.schema {
+		name := paramSpec.GetName()
+		value, provided := kwargs[name]
+
+		// Check if required or use default
+		if !provided {
+			if paramSpec.GetHasDefault() {
+				value = paramSpec.GetHasDefault()
+			} else {
+				return "", fmt.Errorf("required parameter '%s' not provided", name)
+			}
+		}
+
+		// Encode the parameter value
+		paramValue, err := EncodeParameterValue(name, value, paramSpec.GetType())
+		if err != nil {
+			return "", err
+		}
+
+		// Add to the parameter set
+		newParameters := append(paramSet.GetParameters(), paramValue)
+		paramSet.SetParameters(newParameters)
 	}
+
+	// Serialize and bind parameters
+	serializedParams, err := proto.Marshal(paramSet)
+	if err != nil {
+		return "", fmt.Errorf("failed to serialize parameters: %w", err)
+	}
+
+	// Bind parameters to create a parameterized function
+	bindResp, err := client.FunctionBindParams(c.ctx, pb.FunctionBindParamsRequest_builder{
+		FunctionId:       c.serviceFunctionId,
+		SerializedParams: serializedParams,
+	}.Build())
+	if err != nil {
+		return "", fmt.Errorf("failed to bind parameters: %w", err)
+	}
+
+	return bindResp.GetBoundFunctionId(), nil
+}
+
+// Method returns the Function with the given name from a ClsInstance.
+func (c *ClsInstance) Method(name string) (*Function, error) {
 	if c.methods == nil {
-		return nil, fmt.Errorf("Cls has no methods")
+		return nil, fmt.Errorf("class instance has no methods")
 	}
 
 	method, ok := c.methods[name]
 	if !ok {
-		return nil, fmt.Errorf("Cls method %s not found", name)
+		return nil, fmt.Errorf("method '%s' not found", name)
 	}
 
 	return method, nil
@@ -151,8 +177,16 @@ func ClsLookup(ctx context.Context, appName string, name string, options LookupO
 
 	}
 
-	cls.initialized = false
 	return &cls, nil
+}
+
+// Helper function to copy methods map
+func copyMethods(methods map[string]*Function) map[string]*Function {
+	result := make(map[string]*Function)
+	for name, method := range methods {
+		result[name] = method
+	}
+	return result
 }
 
 // EncodeParameterValue converts a Go value to a ParameterValue proto message

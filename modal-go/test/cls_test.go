@@ -25,10 +25,10 @@ func TestClsCall(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	// Try accessing a non-existent method
-	function, err := cls.Method("nonexistent")
+	function, err := instance.Method("nonexistent")
 	g.Expect(err).Should(gomega.HaveOccurred())
 
-	function, err = cls.Method("echo_string")
+	function, err = instance.Method("echo_string")
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	result, err := function.Remote(context.Background(), nil, map[string]any{"s": "hello"})
