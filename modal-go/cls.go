@@ -11,7 +11,6 @@ import (
 )
 
 type Cls struct {
-	ClassId           string
 	methods           map[string]*Function
 	schema            []*pb.ClassParameterSpec // schema for parameters used in init
 	serviceFunctionId string
@@ -48,7 +47,7 @@ func (c *Cls) Instance(kwargs map[string]any) (*Cls, error) {
 			}
 
 			// Convert value to proto parameter
-			paramValue, err := convertToParameterValue(name, paramSpec.GetType(), value)
+			paramValue, err := EncodeParameterValue(name, value, paramSpec.GetType())
 			if err != nil {
 				return nil, err
 			}
@@ -108,21 +107,6 @@ func ClsLookup(ctx context.Context, appName string, name string, options LookupO
 		ctx:     ctx,
 	}
 
-	resp, err := client.ClassGet(ctx, pb.ClassGetRequest_builder{
-		AppName:           appName,
-		ObjectTag:         name,
-		Namespace:         pb.DeploymentNamespace_DEPLOYMENT_NAMESPACE_WORKSPACE,
-		EnvironmentName:   environmentName(options.Environment),
-		LookupPublished:   false,
-		OnlyClassFunction: true,
-	}.Build())
-
-	if err != nil {
-		return nil, err
-	}
-
-	cls.ClassId = resp.GetClassId()
-
 	// Find class service function metadata. Service functions are used to implement class methods,
 	// which are invoked using a combination of service function ID and the method name.
 	serviceFunctionName := fmt.Sprintf("%s.*", name)
@@ -171,8 +155,8 @@ func ClsLookup(ctx context.Context, appName string, name string, options LookupO
 	return &cls, nil
 }
 
-// convertToParameterValue converts a Go value to a ParameterValue proto message
-func convertToParameterValue(name string, paramType pb.ParameterType, value any) (*pb.ClassParameterValue, error) {
+// EncodeParameterValue converts a Go value to a ParameterValue proto message
+func EncodeParameterValue(name string, value any, paramType pb.ParameterType) (*pb.ClassParameterValue, error) {
 	paramValue := pb.ClassParameterValue_builder{
 		Name: name,
 		Type: paramType,
