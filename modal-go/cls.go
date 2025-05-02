@@ -36,9 +36,10 @@ func (c *Cls) Instance(kwargs map[string]any) (*Cls, error) {
 			name := paramSpec.GetName()
 			value, provided := kwargs[name]
 
-			// Skip if not provided and has default value
+			// Use default value if value is not provided but avaialble
+			defaultValue := paramSpec.GetHasDefault()
 			if !provided && paramSpec.GetHasDefault() {
-				continue
+				value = defaultValue
 			}
 
 			// Error if required and not provided
