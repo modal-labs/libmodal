@@ -1,6 +1,6 @@
 // Function calls and invocations, to be used with Modal Functions.
 
-import { createHash } from "crypto";
+import { createHash } from "node:crypto";
 
 import {
   DataFormat,
