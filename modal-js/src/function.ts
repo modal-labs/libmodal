@@ -1,5 +1,7 @@
 // Function calls and invocations, to be used with Modal Functions.
 
+import { createHash } from "node:crypto";
+
 import {
   DataFormat,
   DeploymentNamespace,
@@ -14,6 +16,9 @@ import { client } from "./client";
 import { environmentName } from "./config";
 import { InternalFailure, RemoteError, TimeoutError } from "./errors";
 import { dumps, loads } from "./pickle";
+
+// From: modal/_utils/blob_utils.py
+const maxObjectSizeBytes = 2 * 1024 * 1024; // 2 MiB
 
 function timeNow() {
   return Date.now() / 1e3;
@@ -48,23 +53,27 @@ export class Function_ {
   ): Promise<any> {
     const payload = dumps([args, kwargs]);
 
-    // Single input sync invocation
-    const functionInputs = [
-      {
-        idx: 0,
-        input: {
-          args: payload,
-          dataFormat: DataFormat.DATA_FORMAT_PICKLE,
-        },
-      },
-    ];
+    let argsBlobId: string | undefined = undefined;
+    if (payload.length > maxObjectSizeBytes) {
+      argsBlobId = await blobUpload(payload);
+    }
 
+    // Single input sync invocation
     const functionMapResponse = await client.functionMap({
       functionId: this.functionId,
       functionCallType: FunctionCallType.FUNCTION_CALL_TYPE_UNARY,
       functionCallInvocationType:
         FunctionCallInvocationType.FUNCTION_CALL_INVOCATION_TYPE_SYNC,
-      pipelinedInputs: functionInputs,
+      pipelinedInputs: [
+        {
+          idx: 0,
+          input: {
+            args: argsBlobId ? undefined : payload,
+            argsBlobId,
+            dataFormat: DataFormat.DATA_FORMAT_PICKLE,
+          },
+        },
+      ],
     });
 
     while (true) {
@@ -113,7 +122,38 @@ async function processResult(
       throw new RemoteError(`Remote error: ${result.exception}`);
   }
 
-  return deserializeDataFormat(result.data, dataFormat);
+  return deserializeDataFormat(data, dataFormat);
+}
+
+async function blobUpload(data: Uint8Array): Promise<string> {
+  const contentMd5 = createHash("md5").update(data).digest("base64");
+  const contentSha256 = createHash("sha256").update(data).digest("base64");
+  const resp = await client.blobCreate({
+    contentMd5,
+    contentSha256Base64: contentSha256,
+    contentLength: data.length,
+  });
+  if (resp.multipart) {
+    throw new Error(
+      "Function input size exceeds multipart upload threshold, unsupported by this SDK version",
+    );
+  } else if (resp.uploadUrl) {
+    const uploadResp = await fetch(resp.uploadUrl, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/octet-stream",
+        "Content-MD5": contentMd5,
+      },
+      body: data,
+    });
+    if (uploadResp.status < 200 || uploadResp.status >= 300) {
+      throw new Error(`Failed blob upload: ${uploadResp.statusText}`);
+    }
+    // Skip client-side ETag header validation for now (MD5 checksum).
+    return resp.blobId;
+  } else {
+    throw new Error("Missing upload URL in BlobCreate response");
+  }
 }
 
 async function blobDownload(blobId: string): Promise<Uint8Array> {

@@ -15,3 +15,14 @@ test("FunctionCall", async () => {
   const resultArgs = await function_.remote(["hello"]);
   expect(resultArgs).toBe("output: hello");
 });
+
+test("FunctionCallLargeInput", async () => {
+  const function_ = await Function_.lookup(
+    "libmodal-test-support",
+    "bytelength",
+  );
+  const len = 3 * 1000 * 1000; // More than 2 MiB, offload to blob storage
+  const input = new Uint8Array(len);
+  const result = await function_.remote([input]);
+  expect(result).toBe(len);
+});
