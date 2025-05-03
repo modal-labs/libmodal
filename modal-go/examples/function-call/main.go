@@ -28,5 +28,5 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to call function with kwargs: %v", err)
 	}
-	fmt.Printf("%s\n", ret)
+	log.Printf("%s\n", ret)
 }

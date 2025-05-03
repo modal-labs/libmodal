@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"log"
 
@@ -26,7 +25,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create sandbox: %v", err)
 	}
-	fmt.Println("Started sandbox:", sb.SandboxId)
+	log.Println("Started sandbox:", sb.SandboxId)
 	defer sb.Terminate()
 
 	p, err := sb.Exec(
@@ -60,11 +59,11 @@ for i in range(50000):
 		log.Fatalf("Failed to read stderr: %v", err)
 	}
 
-	fmt.Printf("Got %d bytes stdout and %d bytes stderr\n", len(contentStdout), len(contentStderr))
+	log.Printf("Got %d bytes stdout and %d bytes stderr\n", len(contentStdout), len(contentStderr))
 	returnCode, err := p.Wait()
 	if err != nil {
 		log.Fatalf("Failed to wait for process completion: %v", err)
 	}
-	fmt.Println("Return code:", returnCode)
+	log.Println("Return code:", returnCode)
 
 }

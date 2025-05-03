@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"log"
 
@@ -28,7 +27,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create sandbox: %v", err)
 	}
-	fmt.Printf("sandbox: %s\n", sb.SandboxId)
+	log.Printf("sandbox: %s\n", sb.SandboxId)
 
 	_, err = sb.Stdin.Write([]byte("this is input that should be mirrored by cat"))
 	if err != nil {
@@ -44,5 +43,5 @@ func main() {
 		log.Fatalf("Failed to read from sandbox stdout: %v", err)
 	}
 
-	fmt.Printf("output: %s\n", string(output))
+	log.Printf("output: %s\n", string(output))
 }
