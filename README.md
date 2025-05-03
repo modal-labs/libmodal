@@ -29,6 +29,7 @@ npm install modal
 Examples:
 
 - [Call a deployed function](./modal-js/examples/function-call.ts)
+- [Call a deployed cls](./modal-js/examples/cls-call.ts)
 - [Create a sandbox](./modal-js/examples/sandbox.ts)
 - [Execute sandbox commands](./modal-js/examples/sandbox-exec.ts)
 
@@ -49,6 +50,7 @@ import "github.com/modal-labs/libmodal/modal-go"
 Examples:
 
 - [Call a deployed function](./modal-go/examples/function-call/main.go)
+- [Call a deployed cls](./modal-go/examples/cls-call/main.go)
 - [Create a sandbox](./modal-go/examples/sandbox/main.go)
 - [Execute sandbox commands](./modal-go/examples/sandbox-exec/main.go)
 
