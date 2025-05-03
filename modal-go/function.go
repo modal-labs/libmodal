@@ -77,9 +77,7 @@ func pickleDeserialize(buffer []byte) (any, error) {
 }
 
 // Execute a single input into a remote Function.
-func (function *Function) Remote(ctx context.Context, args []any, kwargs map[string]any) (any, error) {
-	ctx = clientContext(ctx)
-
+func (f *Function) Remote(args []any, kwargs map[string]any) (any, error) {
 	payload, err := pickleSerialize(args, kwargs)
 	if err != nil {
 		return nil, err
@@ -88,7 +86,7 @@ func (function *Function) Remote(ctx context.Context, args []any, kwargs map[str
 	argsBytes := payload.Bytes()
 	var argsBlobId *string
 	if payload.Len() > maxObjectSizeBytes {
-		blobId, err := blobUpload(ctx, argsBytes)
+		blobId, err := blobUpload(f.ctx, argsBytes)
 		if err != nil {
 			return nil, err
 		}
@@ -104,13 +102,13 @@ func (function *Function) Remote(ctx context.Context, args []any, kwargs map[str
 			Args:       argsBytes,
 			ArgsBlobId: argsBlobId,
 			DataFormat: pb.DataFormat_DATA_FORMAT_PICKLE,
-			MethodName: function.MethodName,
+			MethodName: f.MethodName,
 		}.Build(),
 	}.Build()
 	functionInputs = append(functionInputs, functionInputItem)
 
-	functionMapResponse, err := client.FunctionMap(ctx, pb.FunctionMapRequest_builder{
-		FunctionId:                 function.FunctionId,
+	functionMapResponse, err := client.FunctionMap(f.ctx, pb.FunctionMapRequest_builder{
+		FunctionId:                 f.FunctionId,
 		FunctionCallType:           pb.FunctionCallType_FUNCTION_CALL_TYPE_UNARY,
 		FunctionCallInvocationType: pb.FunctionCallInvocationType_FUNCTION_CALL_INVOCATION_TYPE_SYNC,
 		PipelinedInputs:            functionInputs,
@@ -120,7 +118,7 @@ func (function *Function) Remote(ctx context.Context, args []any, kwargs map[str
 	}
 
 	for {
-		response, err := client.FunctionGetOutputs(ctx, pb.FunctionGetOutputsRequest_builder{
+		response, err := client.FunctionGetOutputs(f.ctx, pb.FunctionGetOutputsRequest_builder{
 			FunctionCallId: functionMapResponse.GetFunctionCallId(),
 			MaxValues:      1,
 			Timeout:        55,
@@ -136,7 +134,7 @@ func (function *Function) Remote(ctx context.Context, args []any, kwargs map[str
 		// into a supported Go type. Users are expected to serialize outputs correctly.
 		outputs := response.GetOutputs()
 		if len(outputs) > 0 {
-			return processResult(ctx, outputs[0].GetResult(), outputs[0].GetDataFormat())
+			return processResult(f.ctx, outputs[0].GetResult(), outputs[0].GetDataFormat())
 		}
 	}
 }

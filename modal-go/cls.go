@@ -5,6 +5,7 @@ package modal
 import (
 	"context"
 	"fmt"
+	"sort"
 
 	pb "github.com/modal-labs/libmodal/modal-go/proto/modal_proto"
 	"google.golang.org/protobuf/proto"
@@ -16,7 +17,7 @@ type Cls struct {
 	ctx               context.Context
 	serviceFunctionId string
 	schema            []*pb.ClassParameterSpec
-	methods           map[string]*Function
+	methodNames       []string
 }
 
 // ClsInstance represents an instantiated Modal class with bound parameters.
@@ -28,12 +29,21 @@ type ClsInstance struct {
 
 // Instance creates a new instance of the class with the provided parameters.
 func (c *Cls) Instance(kwargs map[string]any) (*ClsInstance, error) {
+	instance := &ClsInstance{
+		ctx:     c.ctx,
+		methods: make(map[string]*Function),
+	}
 	// Class isn't parametrized, return a simple instance
 	if len(c.schema) == 0 {
-		return &ClsInstance{
-			ctx:     c.ctx,
-			methods: copyMethods(c.methods),
-		}, nil
+		for _, name := range c.methodNames {
+			function := &Function{
+				FunctionId: c.serviceFunctionId,
+				MethodName: &name,
+				ctx:        c.ctx,
+			}
+			instance.methods[name] = function
+		}
+		return instance, nil
 	}
 
 	// Class has parameters, bind the parameters to service function
@@ -43,21 +53,15 @@ func (c *Cls) Instance(kwargs map[string]any) (*ClsInstance, error) {
 		return nil, err
 	}
 
-	instance := &ClsInstance{
-		ctx:     c.ctx,
-		methods: make(map[string]*Function),
-	}
-
 	// Update all methods to use the bound function ID
-	for methodName, methodDef := range c.methods {
+	for _, name := range c.methodNames {
 		boundMethod := &Function{
 			FunctionId: boundFunctionId,
-			MethodName: methodDef.MethodName,
+			MethodName: &name,
 			ctx:        c.ctx,
 		}
-		instance.methods[methodName] = boundMethod
+		instance.methods[name] = boundMethod
 	}
-
 	return instance, nil
 }
 
@@ -83,7 +87,7 @@ func (c *Cls) bindParameters(kwargs map[string]any) (string, error) {
 		}
 
 		// Encode the parameter value
-		paramValue, err := EncodeParameterValue(name, value, paramSpec.GetType())
+		paramValue, err := encodeParameterValue(name, value, paramSpec.GetType())
 		if err != nil {
 			return "", err
 		}
@@ -94,6 +98,7 @@ func (c *Cls) bindParameters(kwargs map[string]any) (string, error) {
 	}
 
 	// Serialize and bind parameters
+	sortParameterSet(paramSet)
 	serializedParams, err := proto.Marshal(paramSet)
 	if err != nil {
 		return "", fmt.Errorf("failed to serialize parameters: %w", err)
@@ -129,8 +134,8 @@ func (c *ClsInstance) Method(name string) (*Function, error) {
 func ClsLookup(ctx context.Context, appName string, name string, options LookupOptions) (*Cls, error) {
 	ctx = clientContext(ctx)
 	cls := Cls{
-		methods: make(map[string]*Function),
-		ctx:     ctx,
+		methodNames: []string{},
+		ctx:         ctx,
 	}
 
 	// Find class service function metadata. Service functions are used to implement class methods,
@@ -162,12 +167,7 @@ func ClsLookup(ctx context.Context, appName string, name string, options LookupO
 	serviceFunctionHandleMetadata := serviceFunction.GetHandleMetadata()
 	if serviceFunctionHandleMetadata != nil && len(serviceFunctionHandleMetadata.GetMethodHandleMetadata()) > 0 {
 		for methodName := range serviceFunctionHandleMetadata.GetMethodHandleMetadata() {
-			function := &Function{
-				FunctionId: serviceFunction.GetFunctionId(),
-				MethodName: &methodName,
-				ctx:        ctx,
-			}
-			cls.methods[methodName] = function
+			cls.methodNames = append(cls.methodNames, methodName)
 		}
 	} else {
 		// Legacy approach not supported
@@ -180,6 +180,15 @@ func ClsLookup(ctx context.Context, appName string, name string, options LookupO
 	return &cls, nil
 }
 
+// Sort ClassParameterSet parameters based on parameter value
+func sortParameterSet(paramSet *pb.ClassParameterSet) {
+	values := paramSet.GetParameters()
+	sort.Slice(values, func(i, j int) bool {
+		return values[i] != nil && (values[j] == nil || values[i].GetName() < values[j].GetName())
+	})
+	paramSet.SetParameters(values)
+}
+
 // Helper function to copy methods map
 func copyMethods(methods map[string]*Function) map[string]*Function {
 	result := make(map[string]*Function)
@@ -189,8 +198,8 @@ func copyMethods(methods map[string]*Function) map[string]*Function {
 	return result
 }
 
-// EncodeParameterValue converts a Go value to a ParameterValue proto message
-func EncodeParameterValue(name string, value any, paramType pb.ParameterType) (*pb.ClassParameterValue, error) {
+// encodeParameterValue converts a Go value to a ParameterValue proto message
+func encodeParameterValue(name string, value any, paramType pb.ParameterType) (*pb.ClassParameterValue, error) {
 	paramValue := pb.ClassParameterValue_builder{
 		Name: name,
 		Type: paramType,
