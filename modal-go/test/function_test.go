@@ -19,12 +19,12 @@ func TestFunctionCall(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	// Represent Python kwargs.
-	result, err := function.Remote(context.Background(), nil, map[string]any{"s": "hello"})
+	result, err := function.Remote(nil, map[string]any{"s": "hello"})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(result).Should(gomega.Equal("output: hello"))
 
 	// Try the same, but with args.
-	result, err = function.Remote(context.Background(), []any{"hello"}, nil)
+	result, err = function.Remote([]any{"hello"}, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(result).Should(gomega.Equal("output: hello"))
 }
@@ -41,7 +41,7 @@ func TestFunctionCallLargeInput(t *testing.T) {
 
 	len := 3 * 1000 * 1000 // More than 2 MiB, offload to blob storage
 	input := make([]byte, len)
-	result, err := function.Remote(context.Background(), []any{input}, nil)
+	result, err := function.Remote([]any{input}, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(result).Should(gomega.Equal(int64(len)))
 }
