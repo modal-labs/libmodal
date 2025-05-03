@@ -22,7 +22,7 @@ type Cls struct {
 	methodNames       []string
 }
 
-// ClsLookup looks up an existing Cls constructing Function objects for each class method.
+// ClsLookup looks up an existing Cls on a deployed App.
 func ClsLookup(ctx context.Context, appName string, name string, options LookupOptions) (*Cls, error) {
 	ctx = clientContext(ctx)
 	cls := Cls{
@@ -60,62 +60,43 @@ func ClsLookup(ctx context.Context, appName string, name string, options LookupO
 
 	// Check if we have method metadata on the class service function (v0.67+)
 	serviceFunctionHandleMetadata := serviceFunction.GetHandleMetadata()
-	if serviceFunctionHandleMetadata != nil && len(serviceFunctionHandleMetadata.GetMethodHandleMetadata()) > 0 {
+	if serviceFunctionHandleMetadata != nil && serviceFunctionHandleMetadata.GetMethodHandleMetadata() != nil {
 		for methodName := range serviceFunctionHandleMetadata.GetMethodHandleMetadata() {
 			cls.methodNames = append(cls.methodNames, methodName)
 		}
 	} else {
 		// Legacy approach not supported
-		return nil, fmt.Errorf("Go SDK requires Modal deployments using v0.67 or later.\n" +
-			"Your deployment uses a legacy class format that is not supported. " +
-			"Please update your deployment to make it compatible with this SDK.")
-
+		return nil, fmt.Errorf("Cls requires Modal deployments using client v0.67 or later")
 	}
 
 	return &cls, nil
 }
 
-// ClsInstance represents an instantiated Modal class with bound parameters.
-// It provides access to the class methods with the bound parameters.
-type ClsInstance struct {
-	ctx     context.Context
-	methods map[string]*Function
-}
-
 // Instance creates a new instance of the class with the provided parameters.
 func (c *Cls) Instance(params map[string]any) (*ClsInstance, error) {
-	instance := &ClsInstance{
-		ctx:     c.ctx,
-		methods: make(map[string]*Function),
-	}
-
-	// Class isn't parametrized, return a simple instance.
+	var functionId string
 	if len(c.schema) == 0 {
-		for _, name := range c.methodNames {
-			instance.methods[name] = &Function{
-				FunctionId: c.serviceFunctionId,
-				MethodName: &name,
-				ctx:        c.ctx,
-			}
+		// Class isn't parametrized, return a simple instance.
+		functionId = c.serviceFunctionId
+	} else {
+		// Class has parameters, bind the parameters to service function
+		// and update method references.
+		boundFunctionId, err := c.bindParameters(params)
+		if err != nil {
+			return nil, err
 		}
-		return instance, nil
+		functionId = boundFunctionId
 	}
 
-	// Class has parameters, bind the parameters to service function
-	// and update method references.
-	boundFunctionId, err := c.bindParameters(params)
-	if err != nil {
-		return nil, err
-	}
-	// Update all methods to use the bound function ID.
+	methods := make(map[string]*Function)
 	for _, name := range c.methodNames {
-		instance.methods[name] = &Function{
-			FunctionId: boundFunctionId,
+		methods[name] = &Function{
+			FunctionId: functionId,
 			MethodName: &name,
 			ctx:        c.ctx,
 		}
 	}
-	return instance, nil
+	return &ClsInstance{methods: methods}, nil
 }
 
 // bindParameters processes the parameters and binds them to the class function.
@@ -137,22 +118,12 @@ func (c *Cls) bindParameters(params map[string]any) (string, error) {
 	return bindResp.GetBoundFunctionId(), nil
 }
 
-// Method returns the Function with the given name from a ClsInstance.
-func (c *ClsInstance) Method(name string) (*Function, error) {
-	method, ok := c.methods[name]
-	if !ok {
-		return nil, NotFoundError{fmt.Sprintf("method '%s' not found on class", name)}
-	}
-	return method, nil
-}
-
 // encodeParameterSet encodes the parameter values into a binary format.
 func encodeParameterSet(schema []*pb.ClassParameterSpec, params map[string]any) ([]byte, error) {
 	var encoded []*pb.ClassParameterValue
 
 	for _, paramSpec := range schema {
-		name := paramSpec.GetName()
-		paramValue, err := encodeParameter(paramSpec, params[name])
+		paramValue, err := encodeParameter(paramSpec, params[paramSpec.GetName()])
 		if err != nil {
 			return nil, err
 		}
@@ -228,4 +199,19 @@ func encodeParameter(paramSpec *pb.ClassParameterSpec, value any) (*pb.ClassPara
 	}
 
 	return paramValue, nil
+}
+
+// ClsInstance represents an instantiated Modal class with bound parameters.
+// It provides access to the class methods with the bound parameters.
+type ClsInstance struct {
+	methods map[string]*Function
+}
+
+// Method returns the Function with the given name from a ClsInstance.
+func (c *ClsInstance) Method(name string) (*Function, error) {
+	method, ok := c.methods[name]
+	if !ok {
+		return nil, NotFoundError{fmt.Sprintf("method '%s' not found on class", name)}
+	}
+	return method, nil
 }

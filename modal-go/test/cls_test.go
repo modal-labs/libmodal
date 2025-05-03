@@ -23,7 +23,7 @@ func TestClsCall(t *testing.T) {
 
 	// Try accessing a non-existent method
 	_, err = instance.Method("nonexistent")
-	g.Expect(err).Should(gomega.HaveOccurred())
+	g.Expect(err).Should(gomega.BeAssignableToTypeOf(modal.NotFoundError{}))
 
 	function, err := instance.Method("echo_string")
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())

@@ -33,9 +33,11 @@ function timeNow() {
 /** Represents a deployed Modal Function, which can be invoked remotely. */
 export class Function_ {
   readonly functionId: string;
+  readonly methodName: string | undefined;
 
-  constructor(functionId: string) {
+  constructor(functionId: string, methodName?: string) {
     this.functionId = functionId;
+    this.methodName = methodName;
   }
 
   static async lookup(
@@ -83,6 +85,7 @@ export class Function_ {
             args: argsBlobId ? undefined : payload,
             argsBlobId,
             dataFormat: DataFormat.DATA_FORMAT_PICKLE,
+            methodName: this.methodName,
           },
         },
       ],

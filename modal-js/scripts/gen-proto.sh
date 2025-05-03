@@ -16,3 +16,9 @@ find proto -name '*.ts' | while read -r file; do
     (echo '// @ts-nocheck'; cat "$file") > "$file.tmp" && mv "$file.tmp" "$file"
   fi
 done
+
+# HACK: Patch for bad Protobuf codegen: fix the "Object" type conflicting with
+# builtin `Object` API in JavaScript and breaking Protobuf import.
+perl -pi -e 's/Object\.entries/PLACEHOLDER_OBJECT_ENTRIES/g' proto/modal_proto/api.ts
+perl -pi -e 's/\bObject\b/Object_/g' proto/modal_proto/api.ts
+perl -pi -e 's/PLACEHOLDER_OBJECT_ENTRIES/Object.entries/g' proto/modal_proto/api.ts

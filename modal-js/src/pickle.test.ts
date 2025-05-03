@@ -1,7 +1,7 @@
 import { expect, test } from "vitest";
 import { dumps, loads, Protocol } from "./pickle";
 
-test("can pickle and unpickle", () => {
+test("PickleUnpickle", () => {
   const sample = {
     a: 1,
     b: [2, 3, true, null],
