@@ -11,13 +11,11 @@ import (
 
 func main() {
 	ctx := context.Background()
-	app := "libmodal-test-support"
-	clsName := "EchoCls"
 
-	log.Printf("Calling %s.%s", app, clsName)
+	// Lookup a deployed Cls.
 	cls, err := modal.ClsLookup(
 		ctx,
-		app, clsName, modal.LookupOptions{},
+		"libmodal-test-support", "EchoCls", modal.LookupOptions{},
 	)
 	if err != nil {
 		log.Fatalf("Failed to lookup Cls: %v", err)
@@ -33,10 +31,17 @@ func main() {
 		log.Fatalf("Failed to access Cls method: %v", err)
 	}
 
-	result, err := function.Remote(nil, map[string]any{"s": "hello"})
+	// Call the Cls function with args.
+	result, err := function.Remote([]any{"hello"}, nil)
 	if err != nil {
 		log.Fatalf("Failed to call Cls method: %v", err)
 	}
+	log.Printf("%v\n", result)
 
-	log.Printf("Function output: %v", result)
+	// Call the Cls function with kwargs.
+	result, err = function.Remote(nil, map[string]any{"s": "hello"})
+	if err != nil {
+		log.Fatalf("Failed to call Cls method: %v", err)
+	}
+	log.Printf("%v\n", result)
 }

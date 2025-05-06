@@ -2,14 +2,15 @@
 
 import { Cls } from "modal";
 
+// Lookup a deployed Cls.
 const cls = await Cls.lookup("libmodal-test-support", "EchoCls");
 const instance = await cls.instance();
 const method = instance.method("echo_string");
 
-// Call the function with args.
+// Call the Cls function with args.
 let ret = await method.remote(["Hello world!"]);
 console.log(ret);
 
-// Call the function with kwargs.
+// Call the Cls function with kwargs.
 ret = await method.remote([], { s: "Hello world!" });
 console.log(ret);
