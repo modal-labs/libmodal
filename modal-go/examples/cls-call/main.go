@@ -32,14 +32,14 @@ func main() {
 	}
 
 	// Call the Cls function with args.
-	result, err := function.Remote([]any{"hello"}, nil)
+	result, err := function.Remote([]any{"Hello world!"}, nil)
 	if err != nil {
 		log.Fatalf("Failed to call Cls method: %v", err)
 	}
 	log.Printf("%v\n", result)
 
 	// Call the Cls function with kwargs.
-	result, err = function.Remote(nil, map[string]any{"s": "hello"})
+	result, err = function.Remote(nil, map[string]any{"s": "Hello world!"})
 	if err != nil {
 		log.Fatalf("Failed to call Cls method: %v", err)
 	}
