@@ -50,6 +50,7 @@ import "github.com/modal-labs/libmodal/modal-go"
 Examples:
 
 - [Call a deployed function](./modal-go/examples/function-call/main.go)
+- [Spawn a deployed function](./modal-go/examples/function-spawn/main.go)
 - [Call a deployed cls](./modal-go/examples/cls-call/main.go)
 - [Create a sandbox](./modal-go/examples/sandbox/main.go)
 - [Execute sandbox commands](./modal-go/examples/sandbox-exec/main.go)
