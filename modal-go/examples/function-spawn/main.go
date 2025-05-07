@@ -1,4 +1,5 @@
-// This example calls a function defined in `libmodal_test_support.py`.
+// This example spawns a function defined in `libmodal_test_support.py`, and
+// later gets its outputs.
 
 package main
 
