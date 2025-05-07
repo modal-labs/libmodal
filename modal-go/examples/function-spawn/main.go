@@ -1,0 +1,31 @@
+// This example calls a function defined in `libmodal_test_support.py`.
+
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+
+	"github.com/modal-labs/libmodal/modal-go"
+)
+
+func main() {
+	ctx := context.Background()
+
+	echo, err := modal.FunctionLookup(ctx, "libmodal-test-support", "echo_string", modal.LookupOptions{})
+	if err != nil {
+		log.Fatalf("Failed to lookup function: %v", err)
+	}
+
+	fc, err := echo.Spawn(nil, map[string]any{"s": "Hello world!"})
+	if err != nil {
+		log.Fatalf("Failed to spawn function: %v", err)
+	}
+
+	ret, err := fc.Get()
+	if err != nil {
+		log.Fatalf("Failed to get function results: %v", err)
+	}
+	fmt.Printf("%s\n", ret)
+}
