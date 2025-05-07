@@ -17,7 +17,7 @@ type FunctionCall struct {
 
 // Gets the ouptut for a FunctionCall
 func (fc *FunctionCall) Get() (any, error) {
-	return pollFunctionOutput(fc.ctx, fc.FunctionCallId)
+	return pollFunctionOutput(fc.ctx, &fc.FunctionCallId)
 }
 
 // Lookup a FunctionCall

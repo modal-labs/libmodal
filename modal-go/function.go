@@ -81,8 +81,8 @@ func pickleDeserialize(buffer []byte) (any, error) {
 	return result, nil
 }
 
-// Serializes inputs and creates a function call.
-func (f *Function) functionCallHelper(args []any, kwargs map[string]any, invocationType pb.FunctionCallInvocationType) (*pb.FunctionMapResponse, error) {
+// Serializes inputs, make a function call and return its ID
+func (f *Function) execFunctionCall(args []any, kwargs map[string]any, invocationType pb.FunctionCallInvocationType) (*string, error) {
 	payload, err := pickleSerialize(args, kwargs)
 	if err != nil {
 		return nil, err
@@ -122,26 +122,26 @@ func (f *Function) functionCallHelper(args []any, kwargs map[string]any, invocat
 		return nil, fmt.Errorf("FunctionMap error: %v", err)
 	}
 
-	return functionMapResponse, nil
+	functionCallId := functionMapResponse.GetFunctionCallId()
+	return &functionCallId, nil
 }
 
 // Execute a single input into a remote Function.
 func (f *Function) Remote(args []any, kwargs map[string]any) (any, error) {
 	invocationType := pb.FunctionCallInvocationType_FUNCTION_CALL_INVOCATION_TYPE_SYNC
-	functionMapResponse, err := f.functionCallHelper(args, kwargs, invocationType)
+	functionCallId, err := f.execFunctionCall(args, kwargs, invocationType)
 	if err != nil {
 		return nil, fmt.Errorf("FunctionMap error: %v", err)
 	}
 
-	functionCallId := functionMapResponse.GetFunctionCallId()
 	return pollFunctionOutput(f.ctx, functionCallId)
 }
 
 // Poll for ouputs for a given FunctionCall ID
-func pollFunctionOutput(ctx context.Context, functionCallId string) (any, error) {
+func pollFunctionOutput(ctx context.Context, functionCallId *string) (any, error) {
 	for {
 		response, err := client.FunctionGetOutputs(ctx, pb.FunctionGetOutputsRequest_builder{
-			FunctionCallId: functionCallId,
+			FunctionCallId: *functionCallId,
 			MaxValues:      1,
 			Timeout:        55,
 			LastEntryId:    "0-0",
@@ -164,12 +164,12 @@ func pollFunctionOutput(ctx context.Context, functionCallId string) (any, error)
 // Spawn a single input into a remote function.
 func (f *Function) Spawn(args []any, kwargs map[string]any) (*FunctionCall, error) {
 	invocationType := pb.FunctionCallInvocationType_FUNCTION_CALL_INVOCATION_TYPE_ASYNC
-	functionMapResponse, err := f.functionCallHelper(args, kwargs, invocationType)
+	functionCallId, err := f.execFunctionCall(args, kwargs, invocationType)
 	if err != nil {
 		return nil, fmt.Errorf("FunctionMap error: %v", err)
 	}
 	functionCall := FunctionCall{
-		FunctionCallId: functionMapResponse.GetFunctionCallId(),
+		FunctionCallId: *functionCallId,
 		ctx:            f.ctx,
 	}
 	return &functionCall, nil
