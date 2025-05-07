@@ -134,10 +134,11 @@ func (f *Function) Remote(args []any, kwargs map[string]any) (any, error) {
 	}
 
 	functionCallId := functionMapResponse.GetFunctionCallId()
-	return pollForOutput(f.ctx, functionCallId)
+	return pollFunctionOutput(f.ctx, functionCallId)
 }
 
-func pollForOutput(ctx context.Context, functionCallId string) (any, error) {
+// Poll for ouputs for a given FunctionCall ID
+func pollFunctionOutput(ctx context.Context, functionCallId string) (any, error) {
 	for {
 		response, err := client.FunctionGetOutputs(ctx, pb.FunctionGetOutputsRequest_builder{
 			FunctionCallId: functionCallId,
