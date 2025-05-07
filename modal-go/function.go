@@ -169,7 +169,6 @@ func (f *Function) Spawn(args []any, kwargs map[string]any) (*FunctionCall, erro
 	}
 	functionCall := FunctionCall{
 		FunctionCallId: functionMapResponse.GetFunctionCallId(),
-		function:       f,
 		ctx:            f.ctx,
 	}
 	return &functionCall, nil
