@@ -134,7 +134,7 @@ func (f *Function) Remote(args []any, kwargs map[string]any) (any, error) {
 	}
 
 	functionCallId := functionMapResponse.GetFunctionCallId()
-	return pollForOutput(functionCallId)
+	return pollForOutput(f.ctx, functionCallId)
 }
 
 func pollForOutput(ctx context.Context, functionCallId string) (any, error) {

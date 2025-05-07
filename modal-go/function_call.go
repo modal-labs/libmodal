@@ -33,11 +33,11 @@ func (fc *FunctionCall) Cancel(terminateContainers bool) error {
 }
 
 // Lookup a FunctionCall
-func FunctionCallLookup(ctx context.Context, functionCallId string) (FunctionCall, error) {
+func FunctionCallLookup(ctx context.Context, functionCallId string) (*FunctionCall, error) {
 	ctx = clientContext(ctx)
 	functionCall := FunctionCall{
 		FunctionCallId: functionCallId,
 		ctx:            ctx,
 	}
-	return functionCall, nil
+	return &functionCall, nil
 }
