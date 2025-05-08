@@ -26,14 +26,14 @@ func FunctionCallFromId(ctx context.Context, functionCallId string) (*FunctionCa
 	return &functionCall, nil
 }
 
-// GetOptions are options for getting outputs from Function Calls.
-type GetOptions struct {
+// FunctionCallGetOptions are options for getting outputs from Function Calls.
+type FunctionCallGetOptions struct {
 	Timeout time.Duration
 }
 
 // Get waits for the output of a FunctionCall.
 // If timeout > 0, the operation will be cancelled after the specified duration.
-func (fc *FunctionCall) Get(options GetOptions) (any, error) {
+func (fc *FunctionCall) Get(options FunctionCallGetOptions) (any, error) {
 	ctx := fc.ctx
 	if options.Timeout > 0 {
 		var cancel context.CancelFunc
@@ -44,13 +44,13 @@ func (fc *FunctionCall) Get(options GetOptions) (any, error) {
 	return pollFunctionOutput(ctx, fc.FunctionCallId)
 }
 
-// CancelOptions are options for cancelling Function Calls.
-type CancelOptions struct {
+// FunctionCallCancelOptions are options for cancelling Function Calls.
+type FunctionCallCancelOptions struct {
 	TerminateContainers bool
 }
 
 // Cancel cancels a FunctionCall.
-func (fc *FunctionCall) Cancel(options CancelOptions) error {
+func (fc *FunctionCall) Cancel(options FunctionCallCancelOptions) error {
 	_, err := client.FunctionCallCancel(fc.ctx, pb.FunctionCallCancelRequest_builder{
 		FunctionCallId:      fc.FunctionCallId,
 		TerminateContainers: options.TerminateContainers,

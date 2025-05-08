@@ -24,7 +24,7 @@ func main() {
 		log.Fatalf("Failed to spawn function: %w", err)
 	}
 
-	ret, err := fc.Get()
+	ret, err := fc.Get(modal.FunctionCallGetOptions{})
 	if err != nil {
 		log.Fatalf("Failed to get function results: %w", err)
 	}

@@ -24,7 +24,7 @@ func TestFunctionSpawn(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	// Get outputs.
-	result, err := functionCall.Get(modal.GetOptions{})
+	result, err := functionCall.Get(modal.FunctionCallGetOptions{})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(result).Should(gomega.Equal("output: hello"))
 
@@ -32,7 +32,7 @@ func TestFunctionSpawn(t *testing.T) {
 	functionCall, err = modal.FunctionCallFromId(context.Background(), functionCall.FunctionCallId)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	result, err = functionCall.Get(modal.GetOptions{})
+	result, err = functionCall.Get(modal.FunctionCallGetOptions{})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(result).Should(gomega.Equal("output: hello"))
 
@@ -47,12 +47,12 @@ func TestFunctionSpawn(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	// Cancel function call.
-	err = functionCall.Cancel(modal.CancelOptions{})
+	err = functionCall.Cancel(modal.FunctionCallCancelOptions{})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	// Attempting to get outputs for a cancelled function call
 	// is expected to return an error.
-	_, err = functionCall.Get(modal.GetOptions{})
+	_, err = functionCall.Get(modal.FunctionCallGetOptions{})
 	g.Expect(err).Should(gomega.HaveOccurred())
 
 	// Spawn function with long running input.
@@ -60,6 +60,6 @@ func TestFunctionSpawn(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	// Get is now expected to timeout.
-	_, err = functionCall.Get(modal.GetOptions{Timeout: 10 * time.Millisecond})
+	_, err = functionCall.Get(modal.FunctionCallGetOptions{Timeout: 10 * time.Millisecond})
 	g.Expect(err).Should(gomega.HaveOccurred())
 }
