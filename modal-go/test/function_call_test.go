@@ -23,7 +23,7 @@ func TestFunctionSpawn(t *testing.T) {
 	functionCall, err := function.Spawn(nil, map[string]any{"s": "hello"})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	// Get input later.
+	// Get outputs.
 	result, err := functionCall.Get(modal.GetOptions{})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(result).Should(gomega.Equal("output: hello"))
@@ -50,7 +50,7 @@ func TestFunctionSpawn(t *testing.T) {
 	err = functionCall.Cancel(modal.CancelOptions{})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	// Attempting to get the outputs for a cancelled function call
+	// Attempting to get outputs for a cancelled function call
 	// is expected to return an error.
 	_, err = functionCall.Get(modal.GetOptions{})
 	g.Expect(err).Should(gomega.HaveOccurred())
