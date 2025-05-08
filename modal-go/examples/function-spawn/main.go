@@ -16,17 +16,17 @@ func main() {
 
 	echo, err := modal.FunctionLookup(ctx, "libmodal-test-support", "echo_string", modal.LookupOptions{})
 	if err != nil {
-		log.Fatalf("Failed to lookup function: %v", err)
+		log.Fatalf("Failed to lookup function: %w", err)
 	}
 
 	fc, err := echo.Spawn(nil, map[string]any{"s": "Hello world!"})
 	if err != nil {
-		log.Fatalf("Failed to spawn function: %v", err)
+		log.Fatalf("Failed to spawn function: %w", err)
 	}
 
 	ret, err := fc.Get()
 	if err != nil {
-		log.Fatalf("Failed to get function results: %v", err)
+		log.Fatalf("Failed to get function results: %w", err)
 	}
 	fmt.Printf("%s\n", ret)
 }

@@ -119,7 +119,7 @@ func (f *Function) execFunctionCall(args []any, kwargs map[string]any, invocatio
 		PipelinedInputs:            functionInputs,
 	}.Build())
 	if err != nil {
-		return nil, fmt.Errorf("FunctionMap error: %v", err)
+		return nil, fmt.Errorf("FunctionMap error: %w", err)
 	}
 
 	functionCallId := functionMapResponse.GetFunctionCallId()
@@ -131,17 +131,17 @@ func (f *Function) Remote(args []any, kwargs map[string]any) (any, error) {
 	invocationType := pb.FunctionCallInvocationType_FUNCTION_CALL_INVOCATION_TYPE_SYNC
 	functionCallId, err := f.execFunctionCall(args, kwargs, invocationType)
 	if err != nil {
-		return nil, fmt.Errorf("FunctionMap error: %v", err)
+		return nil, err
 	}
 
-	return pollFunctionOutput(f.ctx, functionCallId)
+	return pollFunctionOutput(f.ctx, *functionCallId)
 }
 
 // Poll for ouputs for a given FunctionCall ID
-func pollFunctionOutput(ctx context.Context, functionCallId *string) (any, error) {
+func pollFunctionOutput(ctx context.Context, functionCallId string) (any, error) {
 	for {
 		response, err := client.FunctionGetOutputs(ctx, pb.FunctionGetOutputsRequest_builder{
-			FunctionCallId: *functionCallId,
+			FunctionCallId: functionCallId,
 			MaxValues:      1,
 			Timeout:        55,
 			LastEntryId:    "0-0",
@@ -149,7 +149,7 @@ func pollFunctionOutput(ctx context.Context, functionCallId *string) (any, error
 			RequestedAt:    timeNow(),
 		}.Build())
 		if err != nil {
-			return nil, fmt.Errorf("FunctionGetOutputs failed: %v", err)
+			return nil, fmt.Errorf("FunctionGetOutputs failed: %w", err)
 		}
 
 		// Output serialization may fail if any of the output items can't be deserialized
@@ -166,7 +166,7 @@ func (f *Function) Spawn(args []any, kwargs map[string]any) (*FunctionCall, erro
 	invocationType := pb.FunctionCallInvocationType_FUNCTION_CALL_INVOCATION_TYPE_ASYNC
 	functionCallId, err := f.execFunctionCall(args, kwargs, invocationType)
 	if err != nil {
-		return nil, fmt.Errorf("FunctionMap error: %v", err)
+		return nil, err
 	}
 	functionCall := FunctionCall{
 		FunctionCallId: *functionCallId,

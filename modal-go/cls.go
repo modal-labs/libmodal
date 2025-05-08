@@ -51,7 +51,7 @@ func ClsLookup(ctx context.Context, appName string, name string, options LookupO
 	parameterInfo := serviceFunction.GetHandleMetadata().GetClassParameterInfo()
 	schema := parameterInfo.GetSchema()
 	if len(schema) > 0 && parameterInfo.GetFormat() != pb.ClassParameterInfo_PARAM_SERIALIZATION_FORMAT_PROTO {
-		return nil, fmt.Errorf("unsupported parameter format: %v", parameterInfo.GetFormat())
+		return nil, fmt.Errorf("unsupported parameter format: %w", parameterInfo.GetFormat())
 	} else {
 		cls.schema = schema
 	}
@@ -195,7 +195,7 @@ func encodeParameter(paramSpec *pb.ClassParameterSpec, value any) (*pb.ClassPara
 		paramValue.SetBytesValue(bytesValue)
 
 	default:
-		return nil, fmt.Errorf("unsupported parameter type: %v", paramType)
+		return nil, fmt.Errorf("unsupported parameter type: %w", paramType)
 	}
 
 	return paramValue, nil

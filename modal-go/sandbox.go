@@ -76,7 +76,7 @@ func (sb *Sandbox) ensureTaskId() error {
 			return fmt.Errorf("Sandbox %s does not have a task ID, it may not be running", sb.SandboxId)
 		}
 		if resp.GetTaskResult() != nil {
-			return fmt.Errorf("Sandbox %s has already completed with result: %v", sb.SandboxId, resp.GetTaskResult())
+			return fmt.Errorf("Sandbox %s has already completed with result: %w", sb.SandboxId, resp.GetTaskResult())
 		}
 		sb.taskId = resp.GetTaskId()
 	}

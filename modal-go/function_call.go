@@ -3,6 +3,7 @@ package modal
 import (
 	"context"
 	"fmt"
+	"time"
 
 	pb "github.com/modal-labs/libmodal/modal-go/proto/modal_proto"
 )
@@ -15,13 +16,8 @@ type FunctionCall struct {
 	ctx            context.Context
 }
 
-// Gets the ouptut for a FunctionCall
-func (fc *FunctionCall) Get() (any, error) {
-	return pollFunctionOutput(fc.ctx, &fc.FunctionCallId)
-}
-
-// Lookup a FunctionCall
-func FunctionCallLookup(ctx context.Context, functionCallId string) (*FunctionCall, error) {
+// FunctionCallFromId looks up a FunctionCall.
+func FunctionCallFromId(ctx context.Context, functionCallId string) (*FunctionCall, error) {
 	ctx = clientContext(ctx)
 	functionCall := FunctionCall{
 		FunctionCallId: functionCallId,
@@ -30,14 +26,37 @@ func FunctionCallLookup(ctx context.Context, functionCallId string) (*FunctionCa
 	return &functionCall, nil
 }
 
-// Cancel a FunctionCall
-func (fc *FunctionCall) Cancel(terminateContainers bool) error {
+// GetOptions are options for getting outputs from Function Calls.
+type GetOptions struct {
+	Timeout time.Duration
+}
+
+// Get waits for the output of a FunctionCall.
+// If timeout > 0, the operation will be cancelled after the specified duration.
+func (fc *FunctionCall) Get(options GetOptions) (any, error) {
+	ctx := fc.ctx
+	if options.Timeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(fc.ctx, options.Timeout)
+		defer cancel()
+	}
+
+	return pollFunctionOutput(ctx, fc.FunctionCallId)
+}
+
+// CancelOptions are options for cancelling Function Calls.
+type CancelOptions struct {
+	TerminateContainers bool
+}
+
+// Cancel cancels a FunctionCall.
+func (fc *FunctionCall) Cancel(options CancelOptions) error {
 	_, err := client.FunctionCallCancel(fc.ctx, pb.FunctionCallCancelRequest_builder{
 		FunctionCallId:      fc.FunctionCallId,
-		TerminateContainers: terminateContainers,
+		TerminateContainers: options.TerminateContainers,
 	}.Build())
 	if err != nil {
-		return fmt.Errorf("FunctionCallCancel failed: %v", err)
+		return fmt.Errorf("FunctionCallCancel failed: %w", err)
 	}
 
 	return nil

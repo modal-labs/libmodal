@@ -15,18 +15,18 @@ func main() {
 
 	echo, err := modal.FunctionLookup(ctx, "libmodal-test-support", "echo_string", modal.LookupOptions{})
 	if err != nil {
-		log.Fatalf("Failed to lookup function: %v", err)
+		log.Fatalf("Failed to lookup function: %w", err)
 	}
 
 	ret, err := echo.Remote([]any{"Hello world!"}, nil)
 	if err != nil {
-		log.Fatalf("Failed to call function: %v", err)
+		log.Fatalf("Failed to call function: %w", err)
 	}
 	fmt.Printf("%s\n", ret)
 
 	ret, err = echo.Remote(nil, map[string]any{"s": "Hello world!"})
 	if err != nil {
-		log.Fatalf("Failed to call function with kwargs: %v", err)
+		log.Fatalf("Failed to call function with kwargs: %w", err)
 	}
 	log.Printf("%s\n", ret)
 }
