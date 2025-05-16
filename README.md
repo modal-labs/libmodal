@@ -74,6 +74,7 @@ To keep complexity manageable, we try to maintain identical behavior across lang
 - Code structure should be similar between folders.
 - Use a common set of gRPC primitives (retries, deadlines) and exceptions.
 - Complex types like streams must behave as close as possible.
+- Timeouts should use milliseconds in TypeScript, and `time.Duration` in Go.
 
 ## License
 
