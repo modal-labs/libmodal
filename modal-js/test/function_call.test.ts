@@ -15,21 +15,21 @@ test("FunctionSpawn", async () => {
   var resultKwargs = await functionCall.get();
   expect(resultKwargs).toBe("output: hello");
 
-  // Try the same again; results should still be available.
+  // Try the same again; same results should still be available.
   resultKwargs = await functionCall.get();
   expect(resultKwargs).toBe("output: hello");
 
-  // Looking function that takes a long time to complete.
+  // Lookup function that takes a long time to complete.
   const functionSleep_ = await Function_.lookup(
     "libmodal-test-support",
     "sleep",
   );
 
-  // Spawn function with long running input.
+  // Spawn with long running input.
   functionCall = await functionSleep_.spawn([], { t: 5 });
   expect(functionCall.functionCallId).toBeDefined();
 
-  // Get is now expected to timeout.
+  // Getting outputs with timeout raises error.
   const promise = functionCall.get({ timeout: 1 / 100 });
   await expect(promise).rejects.toThrowError(TimeoutError);
 });
