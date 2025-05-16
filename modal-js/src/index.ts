@@ -1,7 +1,7 @@
 export { App, type LookupOptions, type SandboxCreateOptions } from "./app";
 export { Cls, ClsInstance } from "./cls";
 export {
-  TimeoutError,
+  FunctionTimeoutError,
   RemoteError,
   InternalFailure,
   NotFoundError,

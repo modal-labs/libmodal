@@ -2,13 +2,13 @@ package modal
 
 // errors.go defines common error types for the public API.
 
-// TimeoutError is returned when a function execution exceeds the allowed time limit.
-type TimeoutError struct {
+// FunctionTimeoutError is returned when a function execution exceeds the allowed time limit.
+type FunctionTimeoutError struct {
 	Exception string
 }
 
-func (e TimeoutError) Error() string {
-	return "TimeoutError: " + e.Exception
+func (e FunctionTimeoutError) Error() string {
+	return "FunctionTimeoutError: " + e.Exception
 }
 
 // RemoteError represents an error on the Modal server, or a Python exception.

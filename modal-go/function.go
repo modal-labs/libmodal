@@ -197,7 +197,7 @@ func processResult(ctx context.Context, result *pb.GenericResult, dataFormat pb.
 
 	switch result.GetStatus() {
 	case pb.GenericResult_GENERIC_STATUS_TIMEOUT:
-		return nil, TimeoutError{result.GetException()}
+		return nil, FunctionTimeoutError{result.GetException()}
 	case pb.GenericResult_GENERIC_STATUS_INTERNAL_FAILURE:
 		return nil, InternalFailure{result.GetException()}
 	case pb.GenericResult_GENERIC_STATUS_SUCCESS:

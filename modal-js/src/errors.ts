@@ -1,8 +1,8 @@
 /** Function execution exceeds the allowed time limit. */
-export class TimeoutError extends Error {
+export class FunctionTimeoutError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = "TimeoutError";
+    this.name = "FunctionTimeoutError";
   }
 }
 
