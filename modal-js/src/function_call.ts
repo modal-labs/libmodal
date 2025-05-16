@@ -12,6 +12,10 @@ export type FunctionCallCancelOptions = {
   terminateContainers?: boolean;
 };
 
+/** Represents a Modal FunctionCall, Function Calls are
+Function invocations with a given input. They can be consumed
+asynchronously (see get()) or cancelled (see cancel()).
+*/
 export class FunctionCall {
   readonly functionCallId: string;
 
@@ -19,6 +23,7 @@ export class FunctionCall {
     this.functionCallId = functionCallId;
   }
 
+  // Get output for a FunctionCall ID.
   async get(options: FunctionCallGetOptions = {}): Promise<any> {
     const timeout = options.timeout;
 
@@ -42,6 +47,7 @@ export class FunctionCall {
     });
   }
 
+  // Cancel ongoing FunctionCall.
   async cancel(options: FunctionCallCancelOptions = {}) {
     await client.functionCallCancel({
       functionCallId: this.functionCallId,
