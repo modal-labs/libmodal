@@ -71,7 +71,7 @@ Tests are run against production, and you need to be authenticated with Modal to
 
 To keep complexity manageable, we try to maintain identical behavior across languages. This means:
 
-- When adding a feature, add it to all languages simultaneously, with tests.
+- When merging a feature or change into `main`, update it for all languages simultaneously, with tests.
 - Code structure should be similar between folders.
 - Use a common set of gRPC primitives (retries, deadlines) and exceptions.
 - Complex types like streams must behave as close as possible.
