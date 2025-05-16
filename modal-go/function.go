@@ -161,7 +161,7 @@ func pollFunctionOutput(ctx context.Context, functionCallId string) (any, error)
 	}
 }
 
-// Spawn a single input into a remote function.
+// Spawn starts running a single input on a remote function.
 func (f *Function) Spawn(args []any, kwargs map[string]any) (*FunctionCall, error) {
 	invocationType := pb.FunctionCallInvocationType_FUNCTION_CALL_INVOCATION_TYPE_ASYNC
 	functionCallId, err := f.execFunctionCall(args, kwargs, invocationType)
