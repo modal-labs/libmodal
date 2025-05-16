@@ -123,7 +123,7 @@ func clientContext(ctx context.Context) context.Context {
 	return metadata.AppendToOutgoingContext(
 		ctx,
 		"x-modal-client-type", clientType,
-		"x-modal-client-version", "0.74.25", // CLIENT VERSION
+		"x-modal-client-version", "1.0.0", // CLIENT VERSION: Behaves like this Python SDK version
 		"x-modal-token-id", defaultProfile.TokenId,
 		"x-modal-token-secret", defaultProfile.TokenSecret,
 	)

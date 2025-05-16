@@ -37,6 +37,7 @@ const (
 	ModalClient_AppSetObjects_FullMethodName                    = "/modal.client.ModalClient/AppSetObjects"
 	ModalClient_AppStop_FullMethodName                          = "/modal.client.ModalClient/AppStop"
 	ModalClient_AttemptAwait_FullMethodName                     = "/modal.client.ModalClient/AttemptAwait"
+	ModalClient_AttemptRetry_FullMethodName                     = "/modal.client.ModalClient/AttemptRetry"
 	ModalClient_AttemptStart_FullMethodName                     = "/modal.client.ModalClient/AttemptStart"
 	ModalClient_BlobCreate_FullMethodName                       = "/modal.client.ModalClient/BlobCreate"
 	ModalClient_BlobGet_FullMethodName                          = "/modal.client.ModalClient/BlobGet"
@@ -156,16 +157,20 @@ const (
 	ModalClient_TunnelStop_FullMethodName                       = "/modal.client.ModalClient/TunnelStop"
 	ModalClient_VolumeCommit_FullMethodName                     = "/modal.client.ModalClient/VolumeCommit"
 	ModalClient_VolumeCopyFiles_FullMethodName                  = "/modal.client.ModalClient/VolumeCopyFiles"
+	ModalClient_VolumeCopyFiles2_FullMethodName                 = "/modal.client.ModalClient/VolumeCopyFiles2"
 	ModalClient_VolumeDelete_FullMethodName                     = "/modal.client.ModalClient/VolumeDelete"
 	ModalClient_VolumeGetFile_FullMethodName                    = "/modal.client.ModalClient/VolumeGetFile"
+	ModalClient_VolumeGetFile2_FullMethodName                   = "/modal.client.ModalClient/VolumeGetFile2"
 	ModalClient_VolumeGetOrCreate_FullMethodName                = "/modal.client.ModalClient/VolumeGetOrCreate"
 	ModalClient_VolumeHeartbeat_FullMethodName                  = "/modal.client.ModalClient/VolumeHeartbeat"
 	ModalClient_VolumeList_FullMethodName                       = "/modal.client.ModalClient/VolumeList"
 	ModalClient_VolumeListFiles_FullMethodName                  = "/modal.client.ModalClient/VolumeListFiles"
+	ModalClient_VolumeListFiles2_FullMethodName                 = "/modal.client.ModalClient/VolumeListFiles2"
 	ModalClient_VolumePutFiles_FullMethodName                   = "/modal.client.ModalClient/VolumePutFiles"
 	ModalClient_VolumePutFiles2_FullMethodName                  = "/modal.client.ModalClient/VolumePutFiles2"
 	ModalClient_VolumeReload_FullMethodName                     = "/modal.client.ModalClient/VolumeReload"
 	ModalClient_VolumeRemoveFile_FullMethodName                 = "/modal.client.ModalClient/VolumeRemoveFile"
+	ModalClient_VolumeRemoveFile2_FullMethodName                = "/modal.client.ModalClient/VolumeRemoveFile2"
 	ModalClient_VolumeRename_FullMethodName                     = "/modal.client.ModalClient/VolumeRename"
 	ModalClient_WorkspaceNameLookup_FullMethodName              = "/modal.client.ModalClient/WorkspaceNameLookup"
 )
@@ -195,6 +200,7 @@ type ModalClientClient interface {
 	// These RPCs are experimental, not deployed to production, and can be changed / removed
 	// without needing to worry about backwards compatibility.
 	AttemptAwait(ctx context.Context, in *AttemptAwaitRequest, opts ...grpc.CallOption) (*AttemptAwaitResponse, error)
+	AttemptRetry(ctx context.Context, in *AttemptRetryRequest, opts ...grpc.CallOption) (*AttemptRetryResponse, error)
 	AttemptStart(ctx context.Context, in *AttemptStartRequest, opts ...grpc.CallOption) (*AttemptStartResponse, error)
 	// Blobs
 	BlobCreate(ctx context.Context, in *BlobCreateRequest, opts ...grpc.CallOption) (*BlobCreateResponse, error)
@@ -335,16 +341,20 @@ type ModalClientClient interface {
 	// Volumes
 	VolumeCommit(ctx context.Context, in *VolumeCommitRequest, opts ...grpc.CallOption) (*VolumeCommitResponse, error)
 	VolumeCopyFiles(ctx context.Context, in *VolumeCopyFilesRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	VolumeCopyFiles2(ctx context.Context, in *VolumeCopyFiles2Request, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	VolumeDelete(ctx context.Context, in *VolumeDeleteRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	VolumeGetFile(ctx context.Context, in *VolumeGetFileRequest, opts ...grpc.CallOption) (*VolumeGetFileResponse, error)
+	VolumeGetFile2(ctx context.Context, in *VolumeGetFile2Request, opts ...grpc.CallOption) (*VolumeGetFile2Response, error)
 	VolumeGetOrCreate(ctx context.Context, in *VolumeGetOrCreateRequest, opts ...grpc.CallOption) (*VolumeGetOrCreateResponse, error)
 	VolumeHeartbeat(ctx context.Context, in *VolumeHeartbeatRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	VolumeList(ctx context.Context, in *VolumeListRequest, opts ...grpc.CallOption) (*VolumeListResponse, error)
 	VolumeListFiles(ctx context.Context, in *VolumeListFilesRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[VolumeListFilesResponse], error)
+	VolumeListFiles2(ctx context.Context, in *VolumeListFiles2Request, opts ...grpc.CallOption) (grpc.ServerStreamingClient[VolumeListFiles2Response], error)
 	VolumePutFiles(ctx context.Context, in *VolumePutFilesRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	VolumePutFiles2(ctx context.Context, in *VolumePutFiles2Request, opts ...grpc.CallOption) (*VolumePutFiles2Response, error)
 	VolumeReload(ctx context.Context, in *VolumeReloadRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	VolumeRemoveFile(ctx context.Context, in *VolumeRemoveFileRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	VolumeRemoveFile2(ctx context.Context, in *VolumeRemoveFile2Request, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	VolumeRename(ctx context.Context, in *VolumeRenameRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	// Workspaces
 	WorkspaceNameLookup(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*WorkspaceNameLookupResponse, error)
@@ -531,6 +541,16 @@ func (c *modalClientClient) AttemptAwait(ctx context.Context, in *AttemptAwaitRe
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(AttemptAwaitResponse)
 	err := c.cc.Invoke(ctx, ModalClient_AttemptAwait_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *modalClientClient) AttemptRetry(ctx context.Context, in *AttemptRetryRequest, opts ...grpc.CallOption) (*AttemptRetryResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AttemptRetryResponse)
+	err := c.cc.Invoke(ctx, ModalClient_AttemptRetry_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1799,6 +1819,16 @@ func (c *modalClientClient) VolumeCopyFiles(ctx context.Context, in *VolumeCopyF
 	return out, nil
 }
 
+func (c *modalClientClient) VolumeCopyFiles2(ctx context.Context, in *VolumeCopyFiles2Request, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, ModalClient_VolumeCopyFiles2_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *modalClientClient) VolumeDelete(ctx context.Context, in *VolumeDeleteRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(emptypb.Empty)
@@ -1813,6 +1843,16 @@ func (c *modalClientClient) VolumeGetFile(ctx context.Context, in *VolumeGetFile
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(VolumeGetFileResponse)
 	err := c.cc.Invoke(ctx, ModalClient_VolumeGetFile_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *modalClientClient) VolumeGetFile2(ctx context.Context, in *VolumeGetFile2Request, opts ...grpc.CallOption) (*VolumeGetFile2Response, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(VolumeGetFile2Response)
+	err := c.cc.Invoke(ctx, ModalClient_VolumeGetFile2_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1868,6 +1908,25 @@ func (c *modalClientClient) VolumeListFiles(ctx context.Context, in *VolumeListF
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type ModalClient_VolumeListFilesClient = grpc.ServerStreamingClient[VolumeListFilesResponse]
 
+func (c *modalClientClient) VolumeListFiles2(ctx context.Context, in *VolumeListFiles2Request, opts ...grpc.CallOption) (grpc.ServerStreamingClient[VolumeListFiles2Response], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &ModalClient_ServiceDesc.Streams[10], ModalClient_VolumeListFiles2_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[VolumeListFiles2Request, VolumeListFiles2Response]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type ModalClient_VolumeListFiles2Client = grpc.ServerStreamingClient[VolumeListFiles2Response]
+
 func (c *modalClientClient) VolumePutFiles(ctx context.Context, in *VolumePutFilesRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(emptypb.Empty)
@@ -1902,6 +1961,16 @@ func (c *modalClientClient) VolumeRemoveFile(ctx context.Context, in *VolumeRemo
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(emptypb.Empty)
 	err := c.cc.Invoke(ctx, ModalClient_VolumeRemoveFile_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *modalClientClient) VolumeRemoveFile2(ctx context.Context, in *VolumeRemoveFile2Request, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, ModalClient_VolumeRemoveFile2_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1953,6 +2022,7 @@ type ModalClientServer interface {
 	// These RPCs are experimental, not deployed to production, and can be changed / removed
 	// without needing to worry about backwards compatibility.
 	AttemptAwait(context.Context, *AttemptAwaitRequest) (*AttemptAwaitResponse, error)
+	AttemptRetry(context.Context, *AttemptRetryRequest) (*AttemptRetryResponse, error)
 	AttemptStart(context.Context, *AttemptStartRequest) (*AttemptStartResponse, error)
 	// Blobs
 	BlobCreate(context.Context, *BlobCreateRequest) (*BlobCreateResponse, error)
@@ -2093,16 +2163,20 @@ type ModalClientServer interface {
 	// Volumes
 	VolumeCommit(context.Context, *VolumeCommitRequest) (*VolumeCommitResponse, error)
 	VolumeCopyFiles(context.Context, *VolumeCopyFilesRequest) (*emptypb.Empty, error)
+	VolumeCopyFiles2(context.Context, *VolumeCopyFiles2Request) (*emptypb.Empty, error)
 	VolumeDelete(context.Context, *VolumeDeleteRequest) (*emptypb.Empty, error)
 	VolumeGetFile(context.Context, *VolumeGetFileRequest) (*VolumeGetFileResponse, error)
+	VolumeGetFile2(context.Context, *VolumeGetFile2Request) (*VolumeGetFile2Response, error)
 	VolumeGetOrCreate(context.Context, *VolumeGetOrCreateRequest) (*VolumeGetOrCreateResponse, error)
 	VolumeHeartbeat(context.Context, *VolumeHeartbeatRequest) (*emptypb.Empty, error)
 	VolumeList(context.Context, *VolumeListRequest) (*VolumeListResponse, error)
 	VolumeListFiles(*VolumeListFilesRequest, grpc.ServerStreamingServer[VolumeListFilesResponse]) error
+	VolumeListFiles2(*VolumeListFiles2Request, grpc.ServerStreamingServer[VolumeListFiles2Response]) error
 	VolumePutFiles(context.Context, *VolumePutFilesRequest) (*emptypb.Empty, error)
 	VolumePutFiles2(context.Context, *VolumePutFiles2Request) (*VolumePutFiles2Response, error)
 	VolumeReload(context.Context, *VolumeReloadRequest) (*emptypb.Empty, error)
 	VolumeRemoveFile(context.Context, *VolumeRemoveFileRequest) (*emptypb.Empty, error)
+	VolumeRemoveFile2(context.Context, *VolumeRemoveFile2Request) (*emptypb.Empty, error)
 	VolumeRename(context.Context, *VolumeRenameRequest) (*emptypb.Empty, error)
 	// Workspaces
 	WorkspaceNameLookup(context.Context, *emptypb.Empty) (*WorkspaceNameLookupResponse, error)
@@ -2166,6 +2240,9 @@ func (UnimplementedModalClientServer) AppStop(context.Context, *AppStopRequest) 
 }
 func (UnimplementedModalClientServer) AttemptAwait(context.Context, *AttemptAwaitRequest) (*AttemptAwaitResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AttemptAwait not implemented")
+}
+func (UnimplementedModalClientServer) AttemptRetry(context.Context, *AttemptRetryRequest) (*AttemptRetryResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AttemptRetry not implemented")
 }
 func (UnimplementedModalClientServer) AttemptStart(context.Context, *AttemptStartRequest) (*AttemptStartResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AttemptStart not implemented")
@@ -2524,11 +2601,17 @@ func (UnimplementedModalClientServer) VolumeCommit(context.Context, *VolumeCommi
 func (UnimplementedModalClientServer) VolumeCopyFiles(context.Context, *VolumeCopyFilesRequest) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method VolumeCopyFiles not implemented")
 }
+func (UnimplementedModalClientServer) VolumeCopyFiles2(context.Context, *VolumeCopyFiles2Request) (*emptypb.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method VolumeCopyFiles2 not implemented")
+}
 func (UnimplementedModalClientServer) VolumeDelete(context.Context, *VolumeDeleteRequest) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method VolumeDelete not implemented")
 }
 func (UnimplementedModalClientServer) VolumeGetFile(context.Context, *VolumeGetFileRequest) (*VolumeGetFileResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method VolumeGetFile not implemented")
+}
+func (UnimplementedModalClientServer) VolumeGetFile2(context.Context, *VolumeGetFile2Request) (*VolumeGetFile2Response, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method VolumeGetFile2 not implemented")
 }
 func (UnimplementedModalClientServer) VolumeGetOrCreate(context.Context, *VolumeGetOrCreateRequest) (*VolumeGetOrCreateResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method VolumeGetOrCreate not implemented")
@@ -2542,6 +2625,9 @@ func (UnimplementedModalClientServer) VolumeList(context.Context, *VolumeListReq
 func (UnimplementedModalClientServer) VolumeListFiles(*VolumeListFilesRequest, grpc.ServerStreamingServer[VolumeListFilesResponse]) error {
 	return status.Errorf(codes.Unimplemented, "method VolumeListFiles not implemented")
 }
+func (UnimplementedModalClientServer) VolumeListFiles2(*VolumeListFiles2Request, grpc.ServerStreamingServer[VolumeListFiles2Response]) error {
+	return status.Errorf(codes.Unimplemented, "method VolumeListFiles2 not implemented")
+}
 func (UnimplementedModalClientServer) VolumePutFiles(context.Context, *VolumePutFilesRequest) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method VolumePutFiles not implemented")
 }
@@ -2553,6 +2639,9 @@ func (UnimplementedModalClientServer) VolumeReload(context.Context, *VolumeReloa
 }
 func (UnimplementedModalClientServer) VolumeRemoveFile(context.Context, *VolumeRemoveFileRequest) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method VolumeRemoveFile not implemented")
+}
+func (UnimplementedModalClientServer) VolumeRemoveFile2(context.Context, *VolumeRemoveFile2Request) (*emptypb.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method VolumeRemoveFile2 not implemented")
 }
 func (UnimplementedModalClientServer) VolumeRename(context.Context, *VolumeRenameRequest) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method VolumeRename not implemented")
@@ -2876,6 +2965,24 @@ func _ModalClient_AttemptAwait_Handler(srv interface{}, ctx context.Context, dec
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ModalClientServer).AttemptAwait(ctx, req.(*AttemptAwaitRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ModalClient_AttemptRetry_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AttemptRetryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ModalClientServer).AttemptRetry(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ModalClient_AttemptRetry_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ModalClientServer).AttemptRetry(ctx, req.(*AttemptRetryRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -4966,6 +5073,24 @@ func _ModalClient_VolumeCopyFiles_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ModalClient_VolumeCopyFiles2_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(VolumeCopyFiles2Request)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ModalClientServer).VolumeCopyFiles2(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ModalClient_VolumeCopyFiles2_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ModalClientServer).VolumeCopyFiles2(ctx, req.(*VolumeCopyFiles2Request))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _ModalClient_VolumeDelete_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(VolumeDeleteRequest)
 	if err := dec(in); err != nil {
@@ -4998,6 +5123,24 @@ func _ModalClient_VolumeGetFile_Handler(srv interface{}, ctx context.Context, de
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ModalClientServer).VolumeGetFile(ctx, req.(*VolumeGetFileRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ModalClient_VolumeGetFile2_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(VolumeGetFile2Request)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ModalClientServer).VolumeGetFile2(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ModalClient_VolumeGetFile2_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ModalClientServer).VolumeGetFile2(ctx, req.(*VolumeGetFile2Request))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -5067,6 +5210,17 @@ func _ModalClient_VolumeListFiles_Handler(srv interface{}, stream grpc.ServerStr
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type ModalClient_VolumeListFilesServer = grpc.ServerStreamingServer[VolumeListFilesResponse]
 
+func _ModalClient_VolumeListFiles2_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(VolumeListFiles2Request)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(ModalClientServer).VolumeListFiles2(m, &grpc.GenericServerStream[VolumeListFiles2Request, VolumeListFiles2Response]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type ModalClient_VolumeListFiles2Server = grpc.ServerStreamingServer[VolumeListFiles2Response]
+
 func _ModalClient_VolumePutFiles_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(VolumePutFilesRequest)
 	if err := dec(in); err != nil {
@@ -5135,6 +5289,24 @@ func _ModalClient_VolumeRemoveFile_Handler(srv interface{}, ctx context.Context,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ModalClientServer).VolumeRemoveFile(ctx, req.(*VolumeRemoveFileRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ModalClient_VolumeRemoveFile2_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(VolumeRemoveFile2Request)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ModalClientServer).VolumeRemoveFile2(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ModalClient_VolumeRemoveFile2_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ModalClientServer).VolumeRemoveFile2(ctx, req.(*VolumeRemoveFile2Request))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -5245,6 +5417,10 @@ var ModalClient_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "AttemptAwait",
 			Handler:    _ModalClient_AttemptAwait_Handler,
+		},
+		{
+			MethodName: "AttemptRetry",
+			Handler:    _ModalClient_AttemptRetry_Handler,
 		},
 		{
 			MethodName: "AttemptStart",
@@ -5691,12 +5867,20 @@ var ModalClient_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _ModalClient_VolumeCopyFiles_Handler,
 		},
 		{
+			MethodName: "VolumeCopyFiles2",
+			Handler:    _ModalClient_VolumeCopyFiles2_Handler,
+		},
+		{
 			MethodName: "VolumeDelete",
 			Handler:    _ModalClient_VolumeDelete_Handler,
 		},
 		{
 			MethodName: "VolumeGetFile",
 			Handler:    _ModalClient_VolumeGetFile_Handler,
+		},
+		{
+			MethodName: "VolumeGetFile2",
+			Handler:    _ModalClient_VolumeGetFile2_Handler,
 		},
 		{
 			MethodName: "VolumeGetOrCreate",
@@ -5725,6 +5909,10 @@ var ModalClient_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "VolumeRemoveFile",
 			Handler:    _ModalClient_VolumeRemoveFile_Handler,
+		},
+		{
+			MethodName: "VolumeRemoveFile2",
+			Handler:    _ModalClient_VolumeRemoveFile2_Handler,
 		},
 		{
 			MethodName: "VolumeRename",
@@ -5784,6 +5972,11 @@ var ModalClient_ServiceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "VolumeListFiles",
 			Handler:       _ModalClient_VolumeListFiles_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "VolumeListFiles2",
+			Handler:       _ModalClient_VolumeListFiles2_Handler,
 			ServerStreams: true,
 		},
 	},
