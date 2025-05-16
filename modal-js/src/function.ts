@@ -13,6 +13,7 @@ import {
 } from "../proto/modal_proto/api";
 import { LookupOptions } from "./app";
 import { client } from "./client";
+import { FunctionCall } from "./function_call";
 import { environmentName } from "./config";
 import {
   InternalFailure,
@@ -65,6 +66,32 @@ export class Function_ {
     args: any[] = [],
     kwargs: Record<string, any> = {},
   ): Promise<any> {
+    const functionCallId = await this.execFunctionCall(
+      args,
+      kwargs,
+      FunctionCallInvocationType.FUNCTION_CALL_INVOCATION_TYPE_SYNC,
+    );
+    return await pollFunctionOutput(functionCallId);
+  }
+
+  // Spawn a single input into a remote function.
+  async spawn(
+    args: any[] = [],
+    kwargs: Record<string, any> = {},
+  ): Promise<FunctionCall> {
+    const functionCallId = await this.execFunctionCall(
+      args,
+      kwargs,
+      FunctionCallInvocationType.FUNCTION_CALL_INVOCATION_TYPE_SYNC,
+    );
+    return new FunctionCall(functionCallId);
+  }
+
+  async execFunctionCall(
+    args: any[] = [],
+    kwargs: Record<string, any> = {},
+    invocationType: FunctionCallInvocationType = FunctionCallInvocationType.FUNCTION_CALL_INVOCATION_TYPE_SYNC,
+  ): Promise<string> {
     const payload = dumps([args, kwargs]);
 
     let argsBlobId: string | undefined = undefined;
@@ -76,8 +103,7 @@ export class Function_ {
     const functionMapResponse = await client.functionMap({
       functionId: this.functionId,
       functionCallType: FunctionCallType.FUNCTION_CALL_TYPE_UNARY,
-      functionCallInvocationType:
-        FunctionCallInvocationType.FUNCTION_CALL_INVOCATION_TYPE_SYNC,
+      functionCallInvocationType: invocationType,
       pipelinedInputs: [
         {
           idx: 0,
@@ -91,20 +117,24 @@ export class Function_ {
       ],
     });
 
-    while (true) {
-      const response = await client.functionGetOutputs({
-        functionCallId: functionMapResponse.functionCallId,
-        maxValues: 1,
-        timeout: 55,
-        lastEntryId: "0-0",
-        clearOnSuccess: true,
-        requestedAt: timeNow(),
-      });
+    return functionMapResponse.functionCallId;
+  }
+}
 
-      const outputs = response.outputs;
-      if (outputs.length > 0) {
-        return await processResult(outputs[0].result, outputs[0].dataFormat);
-      }
+export async function pollFunctionOutput(functionCallId: string): Promise<any> {
+  while (true) {
+    const response = await client.functionGetOutputs({
+      functionCallId: functionCallId,
+      maxValues: 1,
+      timeout: 55,
+      lastEntryId: "0-0",
+      clearOnSuccess: true,
+      requestedAt: timeNow(),
+    });
+
+    const outputs = response.outputs;
+    if (outputs.length > 0) {
+      return await processResult(outputs[0].result, outputs[0].dataFormat);
     }
   }
 }
