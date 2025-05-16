@@ -126,7 +126,7 @@ func (f *Function) execFunctionCall(args []any, kwargs map[string]any, invocatio
 	return &functionCallId, nil
 }
 
-// Execute a single input into a remote Function.
+// Remote executes a single input on a remote Function.
 func (f *Function) Remote(args []any, kwargs map[string]any) (any, error) {
 	invocationType := pb.FunctionCallInvocationType_FUNCTION_CALL_INVOCATION_TYPE_SYNC
 	functionCallId, err := f.execFunctionCall(args, kwargs, invocationType)
