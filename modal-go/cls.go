@@ -51,7 +51,7 @@ func ClsLookup(ctx context.Context, appName string, name string, options LookupO
 	parameterInfo := serviceFunction.GetHandleMetadata().GetClassParameterInfo()
 	schema := parameterInfo.GetSchema()
 	if len(schema) > 0 && parameterInfo.GetFormat() != pb.ClassParameterInfo_PARAM_SERIALIZATION_FORMAT_PROTO {
-		return nil, fmt.Errorf("unsupported parameter format: %w", parameterInfo.GetFormat())
+		return nil, fmt.Errorf("unsupported parameter format: %v", parameterInfo.GetFormat())
 	} else {
 		cls.schema = schema
 	}
