@@ -40,6 +40,21 @@ func TestFunctionCallLargeInput(t *testing.T) {
 	g.Expect(result).Should(gomega.Equal(int64(len)))
 }
 
+func TestFunctionCallInputPlane(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	function, err := modal.FunctionLookup(
+		context.Background(),
+		"libmodal-test-support", "input_plane", modal.LookupOptions{},
+	)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	result, err := function.Remote([]any{"hello"}, nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(result).Should(gomega.Equal("output: hello"))
+}
+
 func TestFunctionNotFound(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)

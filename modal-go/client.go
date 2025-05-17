@@ -68,7 +68,12 @@ var defaultConfig config
 // defaultProfile is resolved at package init from MODAL_PROFILE, ~/.modal.toml, etc.
 var defaultProfile Profile
 
+// client is the default Modal client that talks to the control plane.
 var client pb.ModalClientClient
+
+// clients is a map of server URL => client.
+// The us-east client talks to the control plane; all other clients talk to input planes.
+var clients = map[string]pb.ModalClientClient{}
 
 func init() {
 	var err error
@@ -78,25 +83,39 @@ func init() {
 		panic(err) // fail fast – credentials are required to proceed
 	}
 
-	_, client, err = newClient(defaultProfile)
+	client, err = getOrCreateClient(defaultProfile.ServerURL)
 	if err != nil {
 		panic(err)
 	}
 }
 
-// newClient dials api.modal.com with auth/timeout/retry interceptors installed.
+// getOrCreateClient returns a client for the given server URL, creating it if it doesn't exist.
+func getOrCreateClient(serverURL string) (pb.ModalClientClient, error) {
+	if client, ok := clients[serverURL]; ok {
+		return client, nil
+	}
+
+	_, client, err := createClient(serverURL)
+	if err != nil {
+		return nil, err
+	}
+	clients[serverURL] = client
+	return client, nil
+}
+
+// createClient dials the given server URL with auth/timeout/retry interceptors installed.
 // It returns (conn, stub). Close the conn when done.
-func newClient(profile Profile) (*grpc.ClientConn, pb.ModalClientClient, error) {
+func createClient(serverURL string) (*grpc.ClientConn, pb.ModalClientClient, error) {
 	var target string
 	var creds credentials.TransportCredentials
-	if strings.HasPrefix(profile.ServerURL, "https://") {
-		target = strings.TrimPrefix(profile.ServerURL, "https://")
+	if strings.HasPrefix(serverURL, "https://") {
+		target = strings.TrimPrefix(serverURL, "https://")
 		creds = credentials.NewTLS(&tls.Config{})
-	} else if strings.HasPrefix(profile.ServerURL, "http://") {
-		target = strings.TrimPrefix(profile.ServerURL, "http://")
+	} else if strings.HasPrefix(serverURL, "http://") {
+		target = strings.TrimPrefix(serverURL, "http://")
 		creds = insecure.NewCredentials()
 	} else {
-		return nil, nil, status.Errorf(codes.InvalidArgument, "invalid server URL: %s", profile.ServerURL)
+		return nil, nil, status.Errorf(codes.InvalidArgument, "invalid server URL: %s", serverURL)
 	}
 
 	conn, err := grpc.NewClient(

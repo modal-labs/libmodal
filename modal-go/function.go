@@ -15,7 +15,9 @@ import (
 
 	pickle "github.com/kisielk/og-rek"
 	pb "github.com/modal-labs/libmodal/modal-go/proto/modal_proto"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 )
@@ -32,9 +34,10 @@ func timeNowSeconds() float64 {
 
 // Function references a deployed Modal Function.
 type Function struct {
-	FunctionId string
-	MethodName *string // used for class methods
-	ctx        context.Context
+	FunctionId    string
+	MethodName    *string // used for class methods
+	ctx           context.Context
+	inputPlaneUrl *string
 }
 
 // FunctionLookup looks up an existing Function.
@@ -44,12 +47,13 @@ func FunctionLookup(ctx context.Context, appName string, name string, options *L
 	}
 	ctx = clientContext(ctx)
 
+	var header, trailer metadata.MD
 	resp, err := client.FunctionGet(ctx, pb.FunctionGetRequest_builder{
 		AppName:         appName,
 		ObjectTag:       name,
 		Namespace:       pb.DeploymentNamespace_DEPLOYMENT_NAMESPACE_WORKSPACE,
 		EnvironmentName: environmentName(options.Environment),
-	}.Build())
+	}.Build(), grpc.Header(&header), grpc.Trailer(&trailer))
 
 	if status, ok := status.FromError(err); ok && status.Code() == codes.NotFound {
 		return nil, NotFoundError{fmt.Sprintf("function '%s/%s' not found", appName, name)}
@@ -58,7 +62,22 @@ func FunctionLookup(ctx context.Context, appName string, name string, options *L
 		return nil, err
 	}
 
-	return &Function{FunctionId: resp.GetFunctionId(), ctx: ctx}, nil
+	// Attach x-modal-auth-token to all future requests.
+	authTokenArray := header.Get("x-modal-auth-token")
+	if len(authTokenArray) == 0 {
+		authTokenArray = trailer.Get("x-modal-auth-token")
+	}
+	if len(authTokenArray) > 0 {
+		authToken := authTokenArray[0]
+		ctx = metadata.AppendToOutgoingContext(ctx, "x-modal-auth-token", authToken)
+	}
+
+	var inputPlaneUrl *string
+	if resp.GetHandleMetadata().HasInputPlaneUrl() {
+		url := resp.GetHandleMetadata().GetInputPlaneUrl()
+		inputPlaneUrl = &url
+	}
+	return &Function{FunctionId: resp.GetFunctionId(), ctx: ctx, inputPlaneUrl: inputPlaneUrl}, nil
 }
 
 // Serialize Go data types to the Python pickle format.
@@ -115,6 +134,49 @@ func (f *Function) execFunctionCall(args []any, kwargs map[string]any, invocatio
 	}.Build()
 	functionInputs = append(functionInputs, functionInputItem)
 
+	if f.inputPlaneUrl != nil {
+		return f.remoteInputPlane(functionInputs)
+	}
+
+	return f.remoteControlPlane(functionInputs)
+}
+
+func (f *Function) remoteInputPlane(functionInputs []*pb.FunctionPutInputsItem) (any, error) {
+	if f.inputPlaneUrl == nil {
+		return nil, fmt.Errorf("input plane URL is not set")
+	}
+
+	client, err := getOrCreateClient(*f.inputPlaneUrl)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get client: %w", err)
+	}
+
+	attemptStartResponse, err := client.AttemptStart(f.ctx, pb.AttemptStartRequest_builder{
+		FunctionId: f.FunctionId,
+		Input:      functionInputs[0],
+	}.Build())
+	if err != nil {
+		return nil, fmt.Errorf("AttemptStart error: %v", err)
+	}
+
+	for {
+		response, err := client.AttemptAwait(f.ctx, pb.AttemptAwaitRequest_builder{
+			AttemptToken: attemptStartResponse.GetAttemptToken(),
+			RequestedAt:  timeNow(),
+			TimeoutSecs:  55,
+		}.Build())
+		if err != nil {
+			return nil, fmt.Errorf("AttemptAwait failed: %v", err)
+		}
+
+		output := response.GetOutput()
+		if output != nil {
+			return processResult(f.ctx, output.GetResult(), output.GetDataFormat())
+		}
+	}
+}
+
+func (f *Function) remoteControlPlane(functionInputs []*pb.FunctionPutInputsItem) (any, error) {
 	functionMapResponse, err := client.FunctionMap(f.ctx, pb.FunctionMapRequest_builder{
 		FunctionId:                 f.FunctionId,
 		FunctionCallType:           pb.FunctionCallType_FUNCTION_CALL_TYPE_UNARY,
@@ -176,8 +238,6 @@ func pollFunctionOutput(ctx context.Context, functionCallId string, timeout *tim
 			return nil, fmt.Errorf("FunctionGetOutputs failed: %w", err)
 		}
 
-		// Output serialization may fail if any of the output items can't be deserialized
-		// into a supported Go type. Users are expected to serialize outputs correctly.
 		outputs := response.GetOutputs()
 		if len(outputs) > 0 {
 			return processResult(ctx, outputs[0].GetResult(), outputs[0].GetDataFormat())
@@ -195,6 +255,9 @@ func pollFunctionOutput(ctx context.Context, functionCallId string, timeout *tim
 }
 
 // processResult processes the result from an invocation.
+//
+// Note that output serialization may fail if any of the output items can't be deserialized
+// into a supported Go type. Users are expected to serialize outputs correctly.
 func processResult(ctx context.Context, result *pb.GenericResult, dataFormat pb.DataFormat) (any, error) {
 	if result == nil {
 		return nil, RemoteError{"Received null result from invocation"}
