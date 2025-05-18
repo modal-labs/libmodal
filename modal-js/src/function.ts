@@ -2,6 +2,7 @@
 
 import { createHash } from "node:crypto";
 
+import type { FunctionPutInputsItem } from "../proto/modal_proto/api";
 import {
   DataFormat,
   DeploymentNamespace,
@@ -13,7 +14,8 @@ import {
   GenericResult_GenericStatus,
 } from "../proto/modal_proto/api";
 import type { LookupOptions } from "./app";
-import { client } from "./client";
+import { client, getOrCreateClient } from "./client";
+
 import { FunctionCall } from "./function_call";
 import { environmentName } from "./config";
 import {
@@ -39,11 +41,13 @@ function timeNowSeconds() {
 export class Function_ {
   readonly functionId: string;
   readonly methodName: string | undefined;
+  private readonly inputPlaneUrl: string | undefined;
 
   /** @ignore */
-  constructor(functionId: string, methodName?: string) {
+  constructor(functionId: string, methodName?: string, inputPlaneUrl?: string) {
     this.functionId = functionId;
     this.methodName = methodName;
+    this.inputPlaneUrl = inputPlaneUrl;
   }
 
   static async lookup(
@@ -58,7 +62,11 @@ export class Function_ {
         namespace: DeploymentNamespace.DEPLOYMENT_NAMESPACE_WORKSPACE,
         environmentName: environmentName(options.environment),
       });
-      return new Function_(resp.functionId);
+      return new Function_(
+        resp.functionId,
+        undefined,
+        resp.handleMetadata?.inputPlaneUrl,
+      );
     } catch (err) {
       if (err instanceof ClientError && err.code === Status.NOT_FOUND)
         throw new NotFoundError(`Function '${appName}/${name}' not found`);
@@ -105,21 +113,61 @@ export class Function_ {
     }
 
     // Single input sync invocation
+    const functionInputs = [
+      {
+        idx: 0,
+        input: {
+          args: argsBlobId ? undefined : payload,
+          argsBlobId,
+          dataFormat: DataFormat.DATA_FORMAT_PICKLE,
+          methodName: this.methodName,
+          finalInput: false, // This field isn't specified in the Python client, so it defaults to false.
+        },
+      },
+    ];
+
+    if (this.inputPlaneUrl !== undefined) {
+      return this.remoteInputPlane(functionInputs);
+    }
+    return this.remoteControlPlane(functionInputs, invocationType);
+  }
+
+  private async remoteInputPlane(
+    functionInputs: FunctionPutInputsItem[],
+  ): Promise<any> {
+    if (!this.inputPlaneUrl) {
+      throw new Error("Input plane URL is not set");
+    }
+    const client = getOrCreateClient(this.inputPlaneUrl);
+
+    const attemptStartResponse = await client.attemptStart({
+      functionId: this.functionId,
+      input: functionInputs[0],
+    });
+
+    while (true) {
+      const response = await client.attemptAwait({
+        attemptToken: attemptStartResponse.attemptToken,
+        requestedAt: timeNowSeconds(),
+        timeoutSecs: 55,
+      });
+
+      const output = response.output;
+      if (output) {
+        return await processResult(output.result, output.dataFormat);
+      }
+    }
+  }
+
+  private async remoteControlPlane(
+    functionInputs: FunctionPutInputsItem[],
+    invocationType: FunctionCallInvocationType = FunctionCallInvocationType.FUNCTION_CALL_INVOCATION_TYPE_SYNC,
+  ): Promise<any> {
     const functionMapResponse = await client.functionMap({
       functionId: this.functionId,
       functionCallType: FunctionCallType.FUNCTION_CALL_TYPE_UNARY,
       functionCallInvocationType: invocationType,
-      pipelinedInputs: [
-        {
-          idx: 0,
-          input: {
-            args: argsBlobId ? undefined : payload,
-            argsBlobId,
-            dataFormat: DataFormat.DATA_FORMAT_PICKLE,
-            methodName: this.methodName,
-          },
-        },
-      ],
+      pipelinedInputs: functionInputs,
     });
 
     return functionMapResponse.functionCallId;

@@ -27,6 +27,15 @@ test("FunctionCallLargeInput", async () => {
   expect(result).toBe(len);
 });
 
+test("FunctionCallInputPlane", async () => {
+  const function_ = await Function_.lookup(
+    "libmodal-test-support",
+    "input_plane",
+  );
+  const result = await function_.remote(["hello"]);
+  expect(result).toBe("output: hello");
+});
+
 test("FunctionNotFound", async () => {
   const promise = Function_.lookup(
     "libmodal-test-support",
