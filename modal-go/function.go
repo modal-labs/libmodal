@@ -81,8 +81,8 @@ func pickleDeserialize(buffer []byte) (any, error) {
 	return result, nil
 }
 
-// Execute a single input into a remote Function.
-func (f *Function) Remote(args []any, kwargs map[string]any) (any, error) {
+// Serializes inputs, make a function call and return its ID
+func (f *Function) execFunctionCall(args []any, kwargs map[string]any, invocationType pb.FunctionCallInvocationType) (*string, error) {
 	payload, err := pickleSerialize(args, kwargs)
 	if err != nil {
 		return nil, err
@@ -115,16 +115,33 @@ func (f *Function) Remote(args []any, kwargs map[string]any) (any, error) {
 	functionMapResponse, err := client.FunctionMap(f.ctx, pb.FunctionMapRequest_builder{
 		FunctionId:                 f.FunctionId,
 		FunctionCallType:           pb.FunctionCallType_FUNCTION_CALL_TYPE_UNARY,
-		FunctionCallInvocationType: pb.FunctionCallInvocationType_FUNCTION_CALL_INVOCATION_TYPE_SYNC,
+		FunctionCallInvocationType: invocationType,
 		PipelinedInputs:            functionInputs,
 	}.Build())
 	if err != nil {
-		return nil, fmt.Errorf("FunctionMap error: %v", err)
+		return nil, fmt.Errorf("FunctionMap error: %w", err)
 	}
 
+	functionCallId := functionMapResponse.GetFunctionCallId()
+	return &functionCallId, nil
+}
+
+// Remote executes a single input on a remote Function.
+func (f *Function) Remote(args []any, kwargs map[string]any) (any, error) {
+	invocationType := pb.FunctionCallInvocationType_FUNCTION_CALL_INVOCATION_TYPE_SYNC
+	functionCallId, err := f.execFunctionCall(args, kwargs, invocationType)
+	if err != nil {
+		return nil, err
+	}
+
+	return pollFunctionOutput(f.ctx, *functionCallId)
+}
+
+// Poll for ouputs for a given FunctionCall ID
+func pollFunctionOutput(ctx context.Context, functionCallId string) (any, error) {
 	for {
-		response, err := client.FunctionGetOutputs(f.ctx, pb.FunctionGetOutputsRequest_builder{
-			FunctionCallId: functionMapResponse.GetFunctionCallId(),
+		response, err := client.FunctionGetOutputs(ctx, pb.FunctionGetOutputsRequest_builder{
+			FunctionCallId: functionCallId,
 			MaxValues:      1,
 			Timeout:        55,
 			LastEntryId:    "0-0",
@@ -132,16 +149,30 @@ func (f *Function) Remote(args []any, kwargs map[string]any) (any, error) {
 			RequestedAt:    timeNow(),
 		}.Build())
 		if err != nil {
-			return nil, fmt.Errorf("FunctionGetOutputs failed: %v", err)
+			return nil, fmt.Errorf("FunctionGetOutputs failed: %w", err)
 		}
 
 		// Output serialization may fail if any of the output items can't be deserialized
 		// into a supported Go type. Users are expected to serialize outputs correctly.
 		outputs := response.GetOutputs()
 		if len(outputs) > 0 {
-			return processResult(f.ctx, outputs[0].GetResult(), outputs[0].GetDataFormat())
+			return processResult(ctx, outputs[0].GetResult(), outputs[0].GetDataFormat())
 		}
 	}
+}
+
+// Spawn starts running a single input on a remote function.
+func (f *Function) Spawn(args []any, kwargs map[string]any) (*FunctionCall, error) {
+	invocationType := pb.FunctionCallInvocationType_FUNCTION_CALL_INVOCATION_TYPE_ASYNC
+	functionCallId, err := f.execFunctionCall(args, kwargs, invocationType)
+	if err != nil {
+		return nil, err
+	}
+	functionCall := FunctionCall{
+		FunctionCallId: *functionCallId,
+		ctx:            f.ctx,
+	}
+	return &functionCall, nil
 }
 
 // processResult processes the result from an invocation.

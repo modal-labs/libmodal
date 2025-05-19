@@ -195,7 +195,7 @@ func encodeParameter(paramSpec *pb.ClassParameterSpec, value any) (*pb.ClassPara
 		paramValue.SetBytesValue(bytesValue)
 
 	default:
-		return nil, fmt.Errorf("unsupported parameter type: %v", paramType)
+		return nil, fmt.Errorf("unsupported parameter type: %w", paramType)
 	}
 
 	return paramValue, nil
