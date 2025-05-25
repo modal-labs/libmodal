@@ -28,14 +28,14 @@ func FunctionCallFromId(ctx context.Context, functionCallId string) (*FunctionCa
 
 // FunctionCallGetOptions are options for getting outputs from Function Calls.
 type FunctionCallGetOptions struct {
-	Timeout int // in seconds
+	Timeout time.Duration
 }
 
 // Get waits for the output of a FunctionCall.
 // If timeout > 0, the operation will be cancelled after the specified duration.
 func (fc *FunctionCall) Get(options FunctionCallGetOptions) (any, error) {
 	ctx := fc.ctx
-	timeoutSeconds := time.Duration(options.Timeout) * time.Second
+	timeoutSeconds := time.Duration(options.Timeout)
 	return pollFunctionOutput(ctx, fc.FunctionCallId, timeoutSeconds)
 }
 
