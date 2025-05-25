@@ -3,7 +3,6 @@ package test
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/modal-labs/libmodal/modal-go"
 	"github.com/onsi/gomega"
@@ -60,6 +59,6 @@ func TestFunctionSpawn(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	// Get is now expected to timeout.
-	_, err = functionCall.Get(modal.FunctionCallGetOptions{Timeout: 10 * time.Millisecond})
+	_, err = functionCall.Get(modal.FunctionCallGetOptions{Timeout: 1})
 	g.Expect(err).Should(gomega.HaveOccurred())
 }
