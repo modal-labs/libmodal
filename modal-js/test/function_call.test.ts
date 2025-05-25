@@ -30,6 +30,6 @@ test("FunctionSpawn", async () => {
   expect(functionCall.functionCallId).toBeDefined();
 
   // Getting outputs with timeout raises error.
-  const promise = functionCall.get({ timeout: 1 / 100 });
+  const promise = functionCall.get({ timeout: 1 });
   await expect(promise).rejects.toThrowError(TimeoutError);
 });

@@ -1,7 +1,7 @@
 // Manage existing Function Calls (look-ups, polling for output, cancellation).
 
 import { client } from "./client";
-import { pollFunctionOutput } from "./function";
+import { pollFunctionOutput, outputsTimeout } from "./function";
 import { TimeoutError } from "./errors";
 
 export type FunctionCallGetOptions = {
@@ -25,26 +25,8 @@ export class FunctionCall {
 
   // Get output for a FunctionCall ID.
   async get(options: FunctionCallGetOptions = {}): Promise<any> {
-    const timeout = options.timeout;
-
-    if (!timeout) return await pollFunctionOutput(this.functionCallId);
-
-    return new Promise(async (resolve, reject) => {
-      const timer = setTimeout(
-        () => reject(new TimeoutError(`timeout after ${timeout}s`)),
-        timeout * 1_000,
-      );
-
-      await pollFunctionOutput(this.functionCallId)
-        .then((result) => {
-          clearTimeout(timer);
-          resolve(result);
-        })
-        .catch((err) => {
-          clearTimeout(timer);
-          reject(err);
-        });
-    });
+    const timeout = options.timeout || outputsTimeout;
+    return await pollFunctionOutput(this.functionCallId, timeout);
   }
 
   // Cancel ongoing FunctionCall.
