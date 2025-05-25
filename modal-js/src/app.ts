@@ -17,7 +17,7 @@ export type LookupOptions = {
 export type SandboxCreateOptions = {
   cpu?: number; // in physical cores
   memory?: number; // in MiB
-  timeout?: number; // in seconds
+  timeout?: number; // in milliseconds
   command?: string[]; // default is ["sleep", "48h"]
 };
 
@@ -50,13 +50,21 @@ export class App {
     image: Image,
     options: SandboxCreateOptions = {},
   ): Promise<Sandbox> {
+    if (options.timeout && options.timeout % 1000 !== 0) {
+      // The gRPC API only accepts a whole number of seconds.
+      throw new Error(
+        `Timeout must be a multiple of 1000ms, got ${options.timeout}`,
+      );
+    }
+
     const createResp = await client.sandboxCreate({
       appId: this.appId,
       definition: {
         // Sleep default is implicit in image builder version <=2024.10
         entrypointArgs: options.command ?? ["sleep", "48h"],
         imageId: image.imageId,
-        timeoutSecs: options.timeout ?? 600,
+        timeoutSecs:
+          options.timeout != undefined ? options.timeout / 1000 : 600,
         networkAccess: {
           networkAccessType: NetworkAccess_NetworkAccessType.OPEN,
         },

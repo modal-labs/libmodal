@@ -24,7 +24,7 @@ function authMiddleware(profile: Profile): ClientMiddleware {
       "x-modal-client-type",
       String(ClientType.CLIENT_TYPE_LIBMODAL),
     );
-    options.metadata.set("x-modal-client-version", "0.74.25"); // CLIENT VERSION
+    options.metadata.set("x-modal-client-version", "1.0.0"); // CLIENT VERSION: Behaves like this Python SDK version
     options.metadata.set("x-modal-token-id", profile.tokenId);
     options.metadata.set("x-modal-token-secret", profile.tokenSecret);
     return yield* call.next(call.request, options);
