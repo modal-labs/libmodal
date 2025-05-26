@@ -26,7 +26,7 @@ const maxObjectSizeBytes int = 2 * 1024 * 1024 // 2 MiB
 // From: modal-client/modal/_utils/function_utils.py
 const OutputsTimeout time.Duration = time.Second * 55
 
-func timeNow() float64 {
+func timeNowSeconds() float64 {
 	return float64(time.Now().UnixNano()) / 1e9
 }
 
@@ -158,7 +158,7 @@ func pollFunctionOutput(ctx context.Context, functionCallId string, timeout time
 			Timeout:        float32(pollTimeout.Seconds()),
 			LastEntryId:    "0-0",
 			ClearOnSuccess: true,
-			RequestedAt:    timeNow(),
+			RequestedAt:    timeNowSeconds(),
 		}.Build())
 		if err != nil {
 			return nil, fmt.Errorf("FunctionGetOutputs failed: %w", err)
@@ -171,7 +171,6 @@ func pollFunctionOutput(ctx context.Context, functionCallId string, timeout time
 			return processResult(ctx, outputs[0].GetResult(), outputs[0].GetDataFormat())
 		}
 
-		// Check if we've exceeded the total timeout
 		remainingTime := timeout - time.Since(startTime)
 		if remainingTime <= 0 {
 			m := fmt.Sprintf("Timeout exceeded: %.1fs", timeout.Seconds())
@@ -180,8 +179,6 @@ func pollFunctionOutput(ctx context.Context, functionCallId string, timeout time
 
 		// Add a small delay before next poll to avoid overloading backend.
 		time.Sleep(50 * time.Millisecond)
-
-		// Update backend timeout for next poll
 		pollTimeout = minTimeout(OutputsTimeout, remainingTime)
 	}
 }

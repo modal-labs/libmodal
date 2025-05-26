@@ -35,7 +35,12 @@ type FunctionCallGetOptions struct {
 // If timeout > 0, the operation will be cancelled after the specified duration.
 func (fc *FunctionCall) Get(options FunctionCallGetOptions) (any, error) {
 	ctx := fc.ctx
-	timeoutSeconds := time.Duration(options.Timeout)
+
+	// Use default if not specified.
+	timeoutSeconds := options.Timeout
+	if options.Timeout == 0 {
+		timeoutSeconds = OutputsTimeout
+	}
 	return pollFunctionOutput(ctx, fc.FunctionCallId, timeoutSeconds)
 }
 
