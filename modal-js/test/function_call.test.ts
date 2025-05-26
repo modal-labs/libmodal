@@ -1,4 +1,4 @@
-import { Function_, TimeoutError } from "modal";
+import { Function_, FunctionTimeoutError } from "modal";
 import { expect, test } from "vitest";
 
 test("FunctionSpawn", async () => {
@@ -30,6 +30,6 @@ test("FunctionSpawn", async () => {
   expect(functionCall.functionCallId).toBeDefined();
 
   // Getting outputs with timeout raises error.
-  const promise = functionCall.get({ timeout: 1 });
-  await expect(promise).rejects.toThrowError(TimeoutError);
+  const promise = functionCall.get({ timeout: 1000 }); // 1000ms
+  await expect(promise).rejects.toThrowError(FunctionTimeoutError);
 });

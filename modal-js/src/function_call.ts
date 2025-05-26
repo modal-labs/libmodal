@@ -2,10 +2,9 @@
 
 import { client } from "./client";
 import { pollFunctionOutput, outputsTimeout } from "./function";
-import { TimeoutError } from "./errors";
 
 export type FunctionCallGetOptions = {
-  timeout?: number; // in seconds
+  timeout?: number; // in milliseconds
 };
 
 export type FunctionCallCancelOptions = {
@@ -38,7 +37,8 @@ export class FunctionCall {
   }
 }
 
-async function functionCallFromId(
+// functionCallFromId looks up a FunctionCall.
+export async function functionCallFromId(
   functionCallId: string,
 ): Promise<FunctionCall> {
   return new FunctionCall(functionCallId);

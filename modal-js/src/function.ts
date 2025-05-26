@@ -28,9 +28,9 @@ import { ClientError, Status } from "nice-grpc";
 const maxObjectSizeBytes = 2 * 1024 * 1024; // 2 MiB
 
 // From: modal-client/modal/_utils/function_utils.py
-export const outputsTimeout = 55; // in seconds
+export const outputsTimeout = 55 * 1000;
 
-function timeNow() {
+function timeNowSeconds() {
   return Date.now() / 1e3;
 }
 
@@ -126,22 +126,22 @@ export class Function_ {
 
 export async function pollFunctionOutput(
   functionCallId: string,
-  timeout: number,
+  timeout: number, // in milliseconds
 ): Promise<any> {
   const startTime = Date.now();
 
   // Calculate initial backend timeout
-  let pollTimeoutSeconds = Math.min(outputsTimeout, timeout);
+  let pollTimeout = Math.min(outputsTimeout, timeout);
 
   while (true) {
     try {
       const response = await client.functionGetOutputs({
         functionCallId: functionCallId,
         maxValues: 1,
-        timeout: pollTimeoutSeconds,
+        timeout: pollTimeout / 1000, // Backend needs seconds
         lastEntryId: "0-0",
         clearOnSuccess: true,
-        requestedAt: timeNow(),
+        requestedAt: timeNowSeconds(),
       });
 
       const outputs = response.outputs;
@@ -149,25 +149,25 @@ export async function pollFunctionOutput(
         return await processResult(outputs[0].result, outputs[0].dataFormat);
       }
 
-      // Small delay to avoid hammering the backend
-      await new Promise((resolve) => setTimeout(resolve, 100));
-
-      // Check if we've exceeded the total timeout
-      const elapsed = timeNow() - startTime;
-      const remaining = timeout - elapsed;
-
-      if (remaining <= 0) {
-        const message = `Timeout exceeded: ${timeout.toFixed(1)}s`;
+      const remainingTime = timeout - (Date.now() - startTime);
+      if (remainingTime <= 0) {
+        const message = `Timeout exceeded: ${(timeout / 1000).toFixed(1)}s`;
         throw new FunctionTimeoutError(message);
       }
 
-      // Update backend timeout for next poll
-      pollTimeoutSeconds = Math.min(outputsTimeout, remaining);
+      // Add a small delay before next poll to avoid overloading backend
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      pollTimeout = Math.min(outputsTimeout, remainingTime);
     } catch (error) {
-      throw error;
+      if (error instanceof FunctionTimeoutError) {
+        throw error;
+      }
+      throw new Error(`FunctionGetOutputs failed: ${error}`);
     }
   }
 }
+
 async function processResult(
   result: GenericResult | undefined,
   dataFormat: DataFormat,
