@@ -38,3 +38,4 @@ export {
   type StreamMode,
 } from "./sandbox";
 export { ModalReadStream, ModalWriteStream } from "./streams";
+export { Secret, type SecretFromNameOptions } from "./secret";

@@ -3,6 +3,7 @@ import {
   GenericResult,
   GenericResult_GenericStatus,
   ImageMetadata,
+  ImageRegistryConfig,
 } from "../proto/modal_proto/api";
 import { client } from "./client";
 import { imageBuilderVersion } from "./config";
@@ -20,11 +21,13 @@ export class Image {
 export async function fromRegistryInternal(
   appId: string,
   tag: string,
+  imageRegistryConfig?: ImageRegistryConfig,
 ): Promise<Image> {
   const resp = await client.imageGetOrCreate({
     appId,
     image: {
       dockerfileCommands: [`FROM ${tag}`],
+      imageRegistryConfig: imageRegistryConfig,
     },
     namespace: DeploymentNamespace.DEPLOYMENT_NAMESPACE_WORKSPACE,
     builderVersion: imageBuilderVersion(),
@@ -84,6 +87,5 @@ export async function fromRegistryInternal(
       `Image build for ${resp.imageId} failed with unknown status: ${result.status}`,
     );
   }
-
   return new Image(resp.imageId);
 }
