@@ -3,8 +3,10 @@ import {
   GenericResult,
   GenericResult_GenericStatus,
   ImageMetadata,
+  ImageRegistryConfig,
 } from "../proto/modal_proto/api";
 import { client } from "./client";
+import { Secret } from "./secret";
 
 export class Image {
   readonly imageId: string;
@@ -17,11 +19,13 @@ export class Image {
 export async function fromRegistryInternal(
   appId: string,
   tag: string,
+  imageRegistryConfig?: ImageRegistryConfig,
 ): Promise<Image> {
   const resp = await client.imageGetOrCreate({
     appId,
     image: {
       dockerfileCommands: [`FROM ${tag}`],
+      imageRegistryConfig: imageRegistryConfig,
     },
     namespace: DeploymentNamespace.DEPLOYMENT_NAMESPACE_WORKSPACE,
     builderVersion: "2024.10", // TODO: make this configurable
@@ -79,6 +83,5 @@ export async function fromRegistryInternal(
       `Image build for ${resp.imageId} failed with unknown status: ${result.status}`,
     );
   }
-
   return new Image(resp.imageId);
 }
