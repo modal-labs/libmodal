@@ -6,6 +6,7 @@ import {
   ImageRegistryConfig,
 } from "../proto/modal_proto/api";
 import { client } from "./client";
+import { imageBuilderVersion } from "./config";
 import { Secret } from "./secret";
 
 export class Image {
@@ -28,7 +29,7 @@ export async function fromRegistryInternal(
       imageRegistryConfig: imageRegistryConfig,
     },
     namespace: DeploymentNamespace.DEPLOYMENT_NAMESPACE_WORKSPACE,
-    builderVersion: "2024.10", // TODO: make this configurable
+    builderVersion: imageBuilderVersion(),
   });
 
   let result: GenericResult;
