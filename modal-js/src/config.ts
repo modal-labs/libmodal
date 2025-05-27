@@ -78,3 +78,7 @@ export const profile = getProfile(process.env["MODAL_PROFILE"] || undefined);
 export function environmentName(environment?: string): string {
   return environment || profile.environment || "";
 }
+
+export function imageBuilderVersion(version?: string): string {
+  return version || process.env.MODAL_IMAGE_BUILDER_VERSION || "2024.10";
+}

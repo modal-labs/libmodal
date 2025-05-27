@@ -5,6 +5,7 @@ import {
   ImageMetadata,
 } from "../proto/modal_proto/api";
 import { client } from "./client";
+import { imageBuilderVersion } from "./config";
 
 export class Image {
   readonly imageId: string;
@@ -24,7 +25,7 @@ export async function fromRegistryInternal(
       dockerfileCommands: [`FROM ${tag}`],
     },
     namespace: DeploymentNamespace.DEPLOYMENT_NAMESPACE_WORKSPACE,
-    builderVersion: "2024.10", // TODO: make this configurable
+    builderVersion: imageBuilderVersion(),
   });
 
   let result: GenericResult;
