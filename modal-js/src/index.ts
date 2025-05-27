@@ -14,3 +14,4 @@ export {
 } from "./function_call";
 export { Image } from "./image";
 export { Sandbox, type StdioBehavior, type StreamMode } from "./sandbox";
+export { Secret } from "./secret";
