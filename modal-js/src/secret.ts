@@ -5,9 +5,8 @@ import { ClientError, Status } from "nice-grpc";
 import { NotFoundError } from "./errors";
 
 export type SecretFromNameOptions = {
-  namespace?: DeploymentNamespace;
-  environment_name?: string;
-  required_keys?: string[];
+  environment?: string;
+  requiredKeys?: string[];
 };
 
 export class Secret {
@@ -17,18 +16,16 @@ export class Secret {
     this.secretId = secretId;
   }
 
-  static async from_name(
+  static async fromName(
     name: string,
     options?: SecretFromNameOptions,
   ): Promise<Secret> {
     try {
       const resp = await client.secretGetOrCreate({
         deploymentName: name,
-        namespace:
-          options?.namespace ??
-          DeploymentNamespace.DEPLOYMENT_NAMESPACE_WORKSPACE,
-        environmentName: configEnvironmentName(options?.environment_name),
-        requiredKeys: options?.required_keys ?? [],
+        namespace: DeploymentNamespace.DEPLOYMENT_NAMESPACE_WORKSPACE,
+        environmentName: configEnvironmentName(options?.environment),
+        requiredKeys: options?.requiredKeys ?? [],
       });
       return new Secret(resp.secretId);
     } catch (err) {

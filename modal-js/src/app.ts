@@ -89,7 +89,7 @@ export class App {
   async imageFromAwsEcr(tag: string, secret: Secret): Promise<Image> {
     if (!secret.secretId) {
       throw new Error(
-        "secret must be a reference to an existing Secret, e.g. `await Secret.from_name('my_secret')`",
+        "secret must be a reference to an existing Secret, e.g. `await Secret.fromName('my_secret')`",
       );
     }
 
