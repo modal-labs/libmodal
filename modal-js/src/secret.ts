@@ -30,7 +30,13 @@ export class Secret {
       return new Secret(resp.secretId);
     } catch (err) {
       if (err instanceof ClientError && err.code === Status.NOT_FOUND)
-        throw new NotFoundError(`Secret '${name}' not found`);
+        throw new NotFoundError(err.details);
+      if (
+        err instanceof ClientError &&
+        err.code === Status.FAILED_PRECONDITION &&
+        err.details.includes("Secret is missing key")
+      )
+        throw new NotFoundError(err.details);
       throw err;
     }
   }
