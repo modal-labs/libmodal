@@ -24,6 +24,10 @@ func TestCreateOneSandbox(t *testing.T) {
 
 	err = sb.Terminate()
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	exitcode, err := sb.Wait()
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(exitcode).To(gomega.Equal(int32(0)))
 }
 
 func TestPassCatToStdin(t *testing.T) {

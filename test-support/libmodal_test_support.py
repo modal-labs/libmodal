@@ -9,9 +9,11 @@ app = modal.App("libmodal-test-support")
 def echo_string(s: str) -> str:
     return "output: " + s
 
+
 @app.function(min_containers=1)
 def sleep(t: int) -> None:
     time.sleep(t)
+
 
 @app.function(min_containers=1)
 def bytelength(buf: bytes) -> int:

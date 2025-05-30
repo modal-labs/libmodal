@@ -29,6 +29,7 @@ npm install modal
 Examples:
 
 - [Call a deployed function](./modal-js/examples/function-call.ts)
+- [Spawn a deployed function](./modal-js/examples/function-spawn.ts)
 - [Call a deployed cls](./modal-js/examples/cls-call.ts)
 - [Create a sandbox](./modal-js/examples/sandbox.ts)
 - [Execute sandbox commands](./modal-js/examples/sandbox-exec.ts)

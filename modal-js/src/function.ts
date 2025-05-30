@@ -7,6 +7,7 @@ import {
   DeploymentNamespace,
   FunctionCallInvocationType,
   FunctionCallType,
+  FunctionGetOutputsResponse,
   GeneratorDone,
   GenericResult,
   GenericResult_GenericStatus,
@@ -28,7 +29,7 @@ import { ClientError, Status } from "nice-grpc";
 const maxObjectSizeBytes = 2 * 1024 * 1024; // 2 MiB
 
 // From: modal-client/modal/_utils/function_utils.py
-export const outputsTimeout = 55 * 1000;
+const outputsTimeout = 55 * 1000;
 
 function timeNowSeconds() {
   return Date.now() / 1e3;
@@ -74,7 +75,7 @@ export class Function_ {
       kwargs,
       FunctionCallInvocationType.FUNCTION_CALL_INVOCATION_TYPE_SYNC,
     );
-    return await pollFunctionOutput(functionCallId, outputsTimeout);
+    return await pollFunctionOutput(functionCallId);
   }
 
   // Spawn a single input into a remote function.
@@ -126,16 +127,18 @@ export class Function_ {
 
 export async function pollFunctionOutput(
   functionCallId: string,
-  timeout: number, // in milliseconds
+  timeout?: number, // in milliseconds
 ): Promise<any> {
   const startTime = Date.now();
-
-  // Calculate initial backend timeout
-  let pollTimeout = Math.min(outputsTimeout, timeout);
+  let pollTimeout = outputsTimeout;
+  if (timeout !== undefined) {
+    pollTimeout = Math.min(timeout, outputsTimeout);
+  }
 
   while (true) {
+    let response: FunctionGetOutputsResponse;
     try {
-      const response = await client.functionGetOutputs({
+      response = await client.functionGetOutputs({
         functionCallId: functionCallId,
         maxValues: 1,
         timeout: pollTimeout / 1000, // Backend needs seconds
@@ -143,27 +146,22 @@ export async function pollFunctionOutput(
         clearOnSuccess: true,
         requestedAt: timeNowSeconds(),
       });
+    } catch (err) {
+      throw new Error(`FunctionGetOutputs failed: ${err}`);
+    }
 
-      const outputs = response.outputs;
-      if (outputs.length > 0) {
-        return await processResult(outputs[0].result, outputs[0].dataFormat);
-      }
+    const outputs = response.outputs;
+    if (outputs.length > 0) {
+      return await processResult(outputs[0].result, outputs[0].dataFormat);
+    }
 
+    if (timeout !== undefined) {
       const remainingTime = timeout - (Date.now() - startTime);
       if (remainingTime <= 0) {
         const message = `Timeout exceeded: ${(timeout / 1000).toFixed(1)}s`;
         throw new FunctionTimeoutError(message);
       }
-
-      // Add a small delay before next poll to avoid overloading backend
-      await new Promise((resolve) => setTimeout(resolve, 50));
-
       pollTimeout = Math.min(outputsTimeout, remainingTime);
-    } catch (error) {
-      if (error instanceof FunctionTimeoutError) {
-        throw error;
-      }
-      throw new Error(`FunctionGetOutputs failed: ${error}`);
     }
   }
 }

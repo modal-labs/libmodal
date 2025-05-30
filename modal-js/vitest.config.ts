@@ -5,5 +5,6 @@ export default defineConfig({
     maxConcurrency: 10,
     slowTestThreshold: 5_000,
     testTimeout: 20_000,
+    reporters: ["verbose"],
   },
 });

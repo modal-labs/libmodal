@@ -16,7 +16,7 @@ type FunctionCall struct {
 	ctx            context.Context
 }
 
-// FunctionCallFromId looks up a FunctionCall.
+// FunctionCallFromId looks up a FunctionCall by ID.
 func FunctionCallFromId(ctx context.Context, functionCallId string) (*FunctionCall, error) {
 	ctx = clientContext(ctx)
 	functionCall := FunctionCall{
@@ -28,28 +28,17 @@ func FunctionCallFromId(ctx context.Context, functionCallId string) (*FunctionCa
 
 // FunctionCallGetOptions are options for getting outputs from Function Calls.
 type FunctionCallGetOptions struct {
-	Timeout time.Duration
+	// Timeout specifies the maximum duration to wait for the output.
+	// If nil, no timeout is applied. If set to 0, it will check if the function
+	// call is already completed.
+	Timeout *time.Duration
 }
 
 // Get waits for the output of a FunctionCall.
 // If timeout > 0, the operation will be cancelled after the specified duration.
 func (fc *FunctionCall) Get(options FunctionCallGetOptions) (any, error) {
 	ctx := fc.ctx
-
-	// Use default if not specified.
-	timeoutSeconds := options.Timeout
-	if options.Timeout == 0 {
-		timeoutSeconds = OutputsTimeout
-	}
-	return pollFunctionOutput(ctx, fc.FunctionCallId, timeoutSeconds)
-}
-
-// Helper function to find the minimum of two float32 values
-func minTimeout(a, b time.Duration) time.Duration {
-	if a < b {
-		return a
-	}
-	return b
+	return pollFunctionOutput(ctx, fc.FunctionCallId, options.Timeout)
 }
 
 // FunctionCallCancelOptions are options for cancelling Function Calls.

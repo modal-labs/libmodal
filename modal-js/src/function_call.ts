@@ -1,7 +1,7 @@
 // Manage existing Function Calls (look-ups, polling for output, cancellation).
 
 import { client } from "./client";
-import { pollFunctionOutput, outputsTimeout } from "./function";
+import { pollFunctionOutput } from "./function";
 
 export type FunctionCallGetOptions = {
   timeout?: number; // in milliseconds
@@ -11,10 +11,11 @@ export type FunctionCallCancelOptions = {
   terminateContainers?: boolean;
 };
 
-/** Represents a Modal FunctionCall, Function Calls are
-Function invocations with a given input. They can be consumed
-asynchronously (see get()) or cancelled (see cancel()).
-*/
+/**
+ * Represents a Modal FunctionCall. Function Calls are Function invocations with
+ * a given input. They can be consumed asynchronously (see `get()`) or cancelled
+ * (see `cancel()`).
+ */
 export class FunctionCall {
   readonly functionCallId: string;
 
@@ -22,24 +23,22 @@ export class FunctionCall {
     this.functionCallId = functionCallId;
   }
 
-  // Get output for a FunctionCall ID.
+  /** Create a new function call from ID. */
+  fromId(functionCallId: string): FunctionCall {
+    return new FunctionCall(functionCallId);
+  }
+
+  /** Get the result of a function call, optionally waiting with a timeout. */
   async get(options: FunctionCallGetOptions = {}): Promise<any> {
-    const timeout = options.timeout || outputsTimeout;
+    const timeout = options.timeout;
     return await pollFunctionOutput(this.functionCallId, timeout);
   }
 
-  // Cancel ongoing FunctionCall.
+  /** Cancel a running function call. */
   async cancel(options: FunctionCallCancelOptions = {}) {
     await client.functionCallCancel({
       functionCallId: this.functionCallId,
       terminateContainers: options.terminateContainers,
     });
   }
-}
-
-// functionCallFromId looks up a FunctionCall.
-export async function functionCallFromId(
-  functionCallId: string,
-): Promise<FunctionCall> {
-  return new FunctionCall(functionCallId);
 }

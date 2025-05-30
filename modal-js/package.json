@@ -26,7 +26,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "prepare": "scripts/gen-proto.sh",
-    "test": "vitest --reporter=verbose"
+    "test": "vitest"
   },
   "dependencies": {
     "long": "^5.3.1",

@@ -24,7 +24,7 @@ import (
 const maxObjectSizeBytes int = 2 * 1024 * 1024 // 2 MiB
 
 // From: modal-client/modal/_utils/function_utils.py
-const OutputsTimeout time.Duration = time.Second * 55
+const outputsTimeout time.Duration = time.Second * 55
 
 func timeNowSeconds() float64 {
 	return float64(time.Now().UnixNano()) / 1e9
@@ -137,21 +137,33 @@ func (f *Function) Remote(args []any, kwargs map[string]any) (any, error) {
 		return nil, err
 	}
 
-	return pollFunctionOutput(f.ctx, *functionCallId, OutputsTimeout)
+	return pollFunctionOutput(f.ctx, *functionCallId, nil)
 }
 
-// Poll for ouputs for a given FunctionCall ID
-func pollFunctionOutput(ctx context.Context, functionCallId string, timeout time.Duration) (any, error) {
+// Spawn starts running a single input on a remote function.
+func (f *Function) Spawn(args []any, kwargs map[string]any) (*FunctionCall, error) {
+	invocationType := pb.FunctionCallInvocationType_FUNCTION_CALL_INVOCATION_TYPE_ASYNC
+	functionCallId, err := f.execFunctionCall(args, kwargs, invocationType)
+	if err != nil {
+		return nil, err
+	}
+	functionCall := FunctionCall{
+		FunctionCallId: *functionCallId,
+		ctx:            f.ctx,
+	}
+	return &functionCall, nil
+}
+
+// Poll for ouputs for a given FunctionCall ID.
+func pollFunctionOutput(ctx context.Context, functionCallId string, timeout *time.Duration) (any, error) {
 	startTime := time.Now()
+	pollTimeout := outputsTimeout
+	if timeout != nil {
+		// Refresh backend call once per outputsTimeout.
+		pollTimeout = min(*timeout, outputsTimeout)
+	}
 
-	// Calculate initial backend timeout
-	pollTimeout := minTimeout(OutputsTimeout, timeout)
 	for {
-		// Context might have been cancelled. Check before next poll operation.
-		if err := ctx.Err(); err != nil {
-			return nil, err
-		}
-
 		response, err := client.FunctionGetOutputs(ctx, pb.FunctionGetOutputsRequest_builder{
 			FunctionCallId: functionCallId,
 			MaxValues:      1,
@@ -171,30 +183,15 @@ func pollFunctionOutput(ctx context.Context, functionCallId string, timeout time
 			return processResult(ctx, outputs[0].GetResult(), outputs[0].GetDataFormat())
 		}
 
-		remainingTime := timeout - time.Since(startTime)
-		if remainingTime <= 0 {
-			m := fmt.Sprintf("Timeout exceeded: %.1fs", timeout.Seconds())
-			return nil, FunctionTimeoutError{m}
+		if timeout != nil {
+			remainingTime := *timeout - time.Since(startTime)
+			if remainingTime <= 0 {
+				message := fmt.Sprintf("Timeout exceeded: %.1fs", timeout.Seconds())
+				return nil, FunctionTimeoutError{message}
+			}
+			pollTimeout = min(outputsTimeout, remainingTime)
 		}
-
-		// Add a small delay before next poll to avoid overloading backend.
-		time.Sleep(50 * time.Millisecond)
-		pollTimeout = minTimeout(OutputsTimeout, remainingTime)
 	}
-}
-
-// Spawn starts running a single input on a remote function.
-func (f *Function) Spawn(args []any, kwargs map[string]any) (*FunctionCall, error) {
-	invocationType := pb.FunctionCallInvocationType_FUNCTION_CALL_INVOCATION_TYPE_ASYNC
-	functionCallId, err := f.execFunctionCall(args, kwargs, invocationType)
-	if err != nil {
-		return nil, err
-	}
-	functionCall := FunctionCall{
-		FunctionCallId: *functionCallId,
-		ctx:            f.ctx,
-	}
-	return &functionCall, nil
 }
 
 // processResult processes the result from an invocation.
