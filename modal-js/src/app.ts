@@ -14,6 +14,10 @@ export type LookupOptions = {
   createIfMissing?: boolean;
 };
 
+export type DeleteOptions = {
+  environment?: string;
+};
+
 export type SandboxCreateOptions = {
   cpu?: number; // in physical cores
   memory?: number; // in MiB
