@@ -56,6 +56,8 @@ export async function fromRegistryInternal(
     result = resultJoined;
   }
 
+  void metadata; // Note: Currently unused.
+
   if (result.status === GenericResult_GenericStatus.GENERIC_STATUS_FAILURE) {
     throw new Error(
       `Image build for ${resp.imageId} failed with the exception:\n${result.exception}`,

@@ -8,11 +8,11 @@ test("FunctionSpawn", async () => {
   );
 
   // Spawn function with kwargs.
-  var functionCall = await function_.spawn([], { s: "hello" });
+  let functionCall = await function_.spawn([], { s: "hello" });
   expect(functionCall.functionCallId).toBeDefined();
 
   // Get results after spawn.
-  var resultKwargs = await functionCall.get();
+  let resultKwargs = await functionCall.get();
   expect(resultKwargs).toBe("output: hello");
 
   // Try the same again; same results should still be available.

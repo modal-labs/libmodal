@@ -65,6 +65,7 @@ const timeoutMiddleware: ClientMiddleware<TimeoutOptions> =
       clearTimeout(timer);
 
       if (timedOut) {
+        // eslint-disable-next-line no-unsafe-finally
         throw new ClientError(
           call.method.path,
           Status.DEADLINE_EXCEEDED,

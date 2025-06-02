@@ -56,7 +56,7 @@ export function getProfile(profileName?: string): Profile {
   }
   const profileData = profileName ? config[profileName] : {};
 
-  let profile: Partial<Profile> = {
+  const profile: Partial<Profile> = {
     serverUrl:
       process.env["MODAL_SERVER_URL"] ||
       profileData.server_url ||

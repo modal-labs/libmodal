@@ -3,7 +3,7 @@
 // Focus: JSON‑compatible primitives (null, bool, number, string, arrays, plain
 //         objects) plus Uint8Array.  The encoder can *emit* protocol 3, 4 or 5
 // (default 4).  The decoder can *read* any pickle whose first PROTO opcode is
-// 3, 4 or 5 **provided it only uses the opcodes below**.  This is *not* a full
+// 3, 4 or 5 **provided it only uses the opcodes below**.  This is *not* a full
 // Python pickler, but is more than good enough for lightweight data exchange.
 // -------------------------------------------------------------
 // Implemented opcodes

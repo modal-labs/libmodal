@@ -29,6 +29,9 @@ jobs:
       - run: npm run check
         working-directory: ./modal-js
 
+      - run: npm run lint
+        working-directory: ./modal-js
+
       - run: npm run build
         working-directory: ./modal-js
 

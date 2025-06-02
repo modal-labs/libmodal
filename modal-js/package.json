@@ -25,6 +25,7 @@
     "check": "tsc",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "lint": "eslint",
     "prepare": "scripts/gen-proto.sh",
     "test": "vitest"
   },
@@ -36,7 +37,10 @@
     "uuid": "^11.1.0"
   },
   "devDependencies": {
+    "@eslint/js": "^9.28.0",
     "@types/node": "^22.15.2",
+    "eslint": "^9.28.0",
+    "globals": "^16.2.0",
     "grpc-tools": "^1.13.0",
     "p-queue": "^8.1.0",
     "prettier": "^3.5.3",
@@ -44,6 +48,7 @@
     "tsup": "^8.4.0",
     "tsx": "^4.19.3",
     "typescript": "~5.8.3",
+    "typescript-eslint": "^8.33.1",
     "vitest": "^3.1.2"
   }
 }
