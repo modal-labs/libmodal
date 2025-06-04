@@ -1,13 +1,16 @@
 import { ClientError, Status } from "nice-grpc";
 import {
+  ImageRegistryConfig,
   NetworkAccess_NetworkAccessType,
   ObjectCreationType,
+  RegistryAuthType,
 } from "../proto/modal_proto/api";
 import { client } from "./client";
 import { environmentName } from "./config";
 import { fromRegistryInternal, Image } from "./image";
 import { Sandbox } from "./sandbox";
 import { NotFoundError } from "./errors";
+import { Secret } from "./secret";
 
 export type LookupOptions = {
   environment?: string;
@@ -81,5 +84,20 @@ export class App {
 
   async imageFromRegistry(tag: string): Promise<Image> {
     return await fromRegistryInternal(this.appId, tag);
+  }
+
+  async imageFromAwsEcr(tag: string, secret: Secret): Promise<Image> {
+    if (!secret.secretId) {
+      throw new Error(
+        "secret must be a reference to an existing Secret, e.g. `await Secret.fromName('my_secret')`",
+      );
+    }
+
+    const imageRegistryConfig = {
+      registryAuthType: RegistryAuthType.REGISTRY_AUTH_TYPE_AWS,
+      secretId: secret.secretId,
+    };
+
+    return await fromRegistryInternal(this.appId, tag, imageRegistryConfig);
   }
 }
