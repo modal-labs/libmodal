@@ -6,9 +6,11 @@ import {
 } from "../proto/modal_proto/api";
 import { client } from "./client";
 
+/** A container image, used for starting sandboxes. */
 export class Image {
   readonly imageId: string;
 
+  /** @ignore */
   constructor(imageId: string) {
     this.imageId = imageId;
   }

@@ -3,10 +3,12 @@
 import { client } from "./client";
 import { pollFunctionOutput } from "./function";
 
+/** Options for `FunctionCall.get()`. */
 export type FunctionCallGetOptions = {
   timeout?: number; // in milliseconds
 };
 
+/** Options for `FunctionCall.cancel()`. */
 export type FunctionCallCancelOptions = {
   terminateContainers?: boolean;
 };
@@ -19,6 +21,7 @@ export type FunctionCallCancelOptions = {
 export class FunctionCall {
   readonly functionCallId: string;
 
+  /** @ignore */
   constructor(functionCallId: string) {
     this.functionCallId = functionCallId;
   }

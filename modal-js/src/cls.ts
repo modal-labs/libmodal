@@ -19,6 +19,7 @@ export class Cls {
   #schema: ClassParameterSpec[];
   #methodNames: string[];
 
+  /** @ignore */
   constructor(
     serviceFunctionId: string,
     schema: ClassParameterSpec[],

@@ -13,4 +13,11 @@ export {
   type FunctionCallCancelOptions,
 } from "./function_call";
 export { Image } from "./image";
-export { Sandbox, type StdioBehavior, type StreamMode } from "./sandbox";
+export {
+  ContainerProcess,
+  ExecOptions,
+  Sandbox,
+  type StdioBehavior,
+  type StreamMode,
+} from "./sandbox";
+export { ModalReadStream, ModalWriteStream } from "./streams";

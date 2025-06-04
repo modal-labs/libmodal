@@ -40,6 +40,7 @@ export class Function_ {
   readonly functionId: string;
   readonly methodName: string | undefined;
 
+  /** @ignore */
   constructor(functionId: string, methodName?: string) {
     this.functionId = functionId;
     this.methodName = methodName;
@@ -70,7 +71,7 @@ export class Function_ {
     args: any[] = [],
     kwargs: Record<string, any> = {},
   ): Promise<any> {
-    const functionCallId = await this.execFunctionCall(
+    const functionCallId = await this.#execFunctionCall(
       args,
       kwargs,
       FunctionCallInvocationType.FUNCTION_CALL_INVOCATION_TYPE_SYNC,
@@ -83,7 +84,7 @@ export class Function_ {
     args: any[] = [],
     kwargs: Record<string, any> = {},
   ): Promise<FunctionCall> {
-    const functionCallId = await this.execFunctionCall(
+    const functionCallId = await this.#execFunctionCall(
       args,
       kwargs,
       FunctionCallInvocationType.FUNCTION_CALL_INVOCATION_TYPE_SYNC,
@@ -91,7 +92,7 @@ export class Function_ {
     return new FunctionCall(functionCallId);
   }
 
-  async execFunctionCall(
+  async #execFunctionCall(
     args: any[] = [],
     kwargs: Record<string, any> = {},
     invocationType: FunctionCallInvocationType = FunctionCallInvocationType.FUNCTION_CALL_INVOCATION_TYPE_SYNC,

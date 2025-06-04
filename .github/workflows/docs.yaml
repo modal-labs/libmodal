@@ -1,0 +1,51 @@
+name: Docs
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions: # required for GitHub Pages
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  js:
+    name: TypeDoc for modal-js
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          submodules: true
+
+      - uses: actions/setup-node@cdca7365b2dadb8aad0a33bc7601856ffabcc48e # v4
+        with:
+          node-version: "22"
+
+      - run: npm ci
+        working-directory: ./modal-js
+
+      - run: npm run docs
+        working-directory: ./modal-js
+
+      - name: Upload docs artifact
+        if: ${{ github.ref == 'refs/heads/main' }}
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./modal-js/docs
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: js
+    if: ${{ github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages # creates/updates the Pages env
+      url: ${{ steps.deploy.outputs.page_url }}
+
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4

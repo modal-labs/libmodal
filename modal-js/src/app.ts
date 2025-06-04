@@ -9,11 +9,13 @@ import { fromRegistryInternal, Image } from "./image";
 import { Sandbox } from "./sandbox";
 import { NotFoundError } from "./errors";
 
+/** Options for functions that find deployed Modal objects. */
 export type LookupOptions = {
   environment?: string;
   createIfMissing?: boolean;
 };
 
+/** Options for `App.createSandbox()`. */
 export type SandboxCreateOptions = {
   cpu?: number; // in physical cores
   memory?: number; // in MiB
@@ -21,9 +23,11 @@ export type SandboxCreateOptions = {
   command?: string[]; // default is ["sleep", "48h"]
 };
 
+/** Represents a deployed Modal App. */
 export class App {
   readonly appId: string;
 
+  /** @ignore */
   constructor(appId: string) {
     this.appId = appId;
   }
