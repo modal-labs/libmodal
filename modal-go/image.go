@@ -16,13 +16,14 @@ type Image struct {
 	ctx context.Context
 }
 
-func fromRegistryInternal(app *App, tag string) (*Image, error) {
+func fromRegistryInternal(app *App, tag string, imageRegistryConfig *pb.ImageRegistryConfig) (*Image, error) {
 	resp, err := client.ImageGetOrCreate(
 		app.ctx,
 		pb.ImageGetOrCreateRequest_builder{
 			AppId: app.AppId,
 			Image: pb.Image_builder{
-				DockerfileCommands: []string{`FROM ` + tag},
+				DockerfileCommands:  []string{`FROM ` + tag},
+				ImageRegistryConfig: imageRegistryConfig,
 			}.Build(),
 			Namespace:      pb.DeploymentNamespace_DEPLOYMENT_NAMESPACE_WORKSPACE,
 			BuilderVersion: "2024.10", // TODO: make this configurable
