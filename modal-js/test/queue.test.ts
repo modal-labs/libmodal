@@ -33,9 +33,6 @@ test("QueueSuite1", async () => {
   const results: number[] = [];
   for await (const item of queue.iterate()) {
     results.push(item);
-    if (results.length === 3) {
-      break;
-    }
   }
   expect(results).toEqual([1, 2, 3]);
   queue.closeEphemeral();
