@@ -38,11 +38,11 @@ const enum Op {
 
   SHORT_BINUNICODE = 0x8c, // \x8c len(1) data
   BINUNICODE = 0x58, // X len(4) data
-  BINUNICODE8 = 0x8a, // \x8a len(8) data (≥4)
+  BINUNICODE8 = 0x8d, // \x8d len(8) data (≥4)
 
-  SHORT_BINBYTES = 0x8e, // \x8e len(1) data (≥4)
+  SHORT_BINBYTES = 0x43, // C len(1) data (≥3)
   BINBYTES = 0x42, // B len(4) data (≥3)
-  BINBYTES8 = 0x8d, // \x8d len(8) data (≥4)
+  BINBYTES8 = 0x8e, // \x8e len(8) data (≥4)
 
   EMPTY_LIST = 0x5d, // ]
   APPEND = 0x61, // a
