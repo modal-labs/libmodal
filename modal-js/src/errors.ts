@@ -30,7 +30,7 @@ export class NotFoundError extends Error {
   }
 }
 
-/** The request was invalid. */
+/** A request or other operation was invalid. */
 export class InvalidError extends Error {
   constructor(message: string) {
     super(message);

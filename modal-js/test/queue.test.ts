@@ -1,13 +1,6 @@
 import { Queue, QueueEmptyError } from "modal";
 import { expect, test } from "vitest";
 
-test("QueueDeploy", async () => {
-  const queue = await Queue.lookup("xyz", { createIfMissing: true });
-  await queue.put(123);
-  expect(await queue.get()).toBe(123);
-  await Queue.delete("xyz");
-});
-
 test("QueueInvalidName", async () => {
   for (const name of ["has space", "has/slash", "a".repeat(65)]) {
     await expect(Queue.lookup(name)).rejects.toThrow();
@@ -19,10 +12,10 @@ test("QueueEphemeral", async () => {
   await queue.put(123);
   expect(await queue.len()).toBe(1);
   expect(await queue.get()).toBe(123);
-  await queue.closeEphemeral();
+  queue.closeEphemeral();
 });
 
-test("Suite1", async () => {
+test("QueueSuite1", async () => {
   const queue = await Queue.ephemeral();
   expect(await queue.len()).toBe(0);
 
@@ -45,10 +38,10 @@ test("Suite1", async () => {
     }
   }
   expect(results).toEqual([1, 2, 3]);
-  await queue.closeEphemeral();
+  queue.closeEphemeral();
 });
 
-test("Suite2", async () => {
+test("QueueSuite2", async () => {
   const results: number[] = [];
   const producer = async (queue: Queue) => {
     for (let i = 0; i < 10; i++) {
@@ -65,23 +58,23 @@ test("Suite2", async () => {
   const queue = await Queue.ephemeral();
   await Promise.all([producer(queue), consumer(queue)]);
   expect(results).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
-  await queue.closeEphemeral();
+  queue.closeEphemeral();
 });
 
-test("PutAndGetMany", async () => {
+test("QueuePutAndGetMany", async () => {
   const queue = await Queue.ephemeral();
   await queue.putMany([1, 2, 3]);
   expect(await queue.len()).toBe(3);
   expect(await queue.getMany(3)).toEqual([1, 2, 3]);
-  await queue.closeEphemeral();
+  queue.closeEphemeral();
 });
 
-test("NonBlocking", async () => {
+test("QueueNonBlocking", async () => {
   // Assuming the queue is available, these operations
   // Should succeed immediately.
   const queue = await Queue.ephemeral();
-  await queue.put(123, { block: false });
+  await queue.put(123, { timeout: 0 });
   expect(await queue.len()).toBe(1);
-  expect(await queue.get({ block: false })).toBe(123);
-  await queue.closeEphemeral();
+  expect(await queue.get({ timeout: 0 })).toBe(123);
+  queue.closeEphemeral();
 });

@@ -10,37 +10,57 @@ import { environmentName } from "./config";
 import { InvalidError, QueueEmptyError, QueueFullError } from "./errors";
 import { dumps, loads } from "./pickle";
 import { ClientError, Status } from "nice-grpc";
-import { DeleteOptions, LookupOptions } from "./app";
+import { DeleteOptions, EphemeralOptions, LookupOptions } from "./app";
 
 // From: modal/_object.py
-const empheralQueueHeartbeatSleep = 300;
+const ephemeralObjectHeartbeatSleep = 300_000; // 5 minutes
 
+/** Options to configure a `Queue.clear()` operation. */
 export type QueueClearOptions = {
+  /** Partition to clear, uses default partition if not set. */
   partition?: string;
+
+  /** Set to clear all queue partitions. */
   all?: boolean;
 };
 
+/** Options to configure a `Queue.get()` or `Queue.getMany()` operation. */
 export type QueueGetOptions = {
-  block?: boolean;
+  /** How long to wait if the queue is empty (default: indefinite). */
   timeout?: number;
+
+  /** Partition to fetch values from, uses default partition if not set. */
   partition?: string;
 };
 
+/** Options to configure a `Queue.put()` or `Queue.putMany()` operation. */
 export type QueuePutOptions = {
-  block?: boolean;
+  /** How long to wait if the queue is full (default: indefinite). */
   timeout?: number;
+
+  /** Partition to add items to, uses default partition if not set. */
   partition?: string;
+
+  /** TTL for the partition in seconds (default: 1 day). */
   partitionTtl?: number;
 };
 
+/** Options to configure a `Queue.len()` operation. */
 export type QueueLenOptions = {
+  /** Partition to compute length, uses default partition if not set. */
   partition?: string;
+
+  /** Return the total length across all partitions. */
   total?: boolean;
 };
 
+/** Options to configure a `Queue.iterate()` operation. */
 export type QueueIterateOptions = {
+  /** How long to wait between successive items before exiting iteration (default: 0). */
+  itemPollTimeout?: number;
+
+  /** Partition to iterate, uses default partition if not set. */
   partition?: string;
-  itemPollTimeout?: number; // in milliseconds
 };
 
 /**
@@ -48,13 +68,14 @@ export type QueueIterateOptions = {
  */
 export class Queue {
   readonly queueId: string;
-  readonly ephemeral: boolean;
-  readonly abortController?: AbortController;
+  readonly #ephemeral: boolean;
+  readonly #abortController?: AbortController;
 
+  /** @ignore */
   constructor(queueId: string, ephemeral: boolean = false) {
     this.queueId = queueId;
-    this.ephemeral = ephemeral;
-    this.abortController = ephemeral ? new AbortController() : undefined;
+    this.#ephemeral = ephemeral;
+    this.#abortController = ephemeral ? new AbortController() : undefined;
   }
 
   static #validatePartitionKey(partition: string | undefined): Uint8Array {
@@ -74,31 +95,25 @@ export class Queue {
    * Create a nameless, temporary queue.
    * You will need to call `closeEphemeral()` to delete the queue.
    */
-  static async ephemeral({
-    environment,
-  }: { environment?: string } = {}): Promise<Queue> {
+  static async ephemeral(options: EphemeralOptions = {}): Promise<Queue> {
     const resp = await client.queueGetOrCreate({
       objectCreationType: ObjectCreationType.OBJECT_CREATION_TYPE_EPHEMERAL,
-      environmentName: environmentName(environment),
+      environmentName: environmentName(options.environment),
     });
 
     const queue = new Queue(resp.queueId, true);
+    const signal = queue.#abortController!.signal;
     (async () => {
+      // Launch a background task to heartbeat the ephemeral queue.
       while (true) {
         await client.queueHeartbeat({ queueId: resp.queueId });
         await Promise.race([
           new Promise((resolve) =>
-            setTimeout(resolve, empheralQueueHeartbeatSleep),
+            setTimeout(resolve, ephemeralObjectHeartbeatSleep),
           ),
-          new Promise((_, reject) => {
-            queue.abortController!.signal.addEventListener(
-              "abort",
-              () => {
-                reject(new Error("Aborted"));
-              },
-              { once: true },
-            );
-          }).catch(() => {}),
+          new Promise((resolve) => {
+            signal.addEventListener("abort", resolve, { once: true });
+          }),
         ]);
       }
     })();
@@ -106,12 +121,10 @@ export class Queue {
     return queue;
   }
 
-  /**
-   * Delete the ephemeral queue.
-   */
-  async closeEphemeral(): Promise<void> {
-    if (this.ephemeral) {
-      this.abortController!.abort();
+  /** Delete the ephemeral queue. Only usable with `Queue.ephemeral()`. */
+  closeEphemeral(): void {
+    if (this.#ephemeral) {
+      this.#abortController!.abort();
     } else {
       throw new InvalidError("Queue is not ephemeral.");
     }
@@ -135,9 +148,7 @@ export class Queue {
     return new Queue(resp.queueId);
   }
 
-  /**
-   * Delete a queue by name.
-   */
+  /** Delete a queue by name. */
   static async delete(
     name: string,
     options: DeleteOptions = {},
@@ -146,279 +157,175 @@ export class Queue {
     await client.queueDelete({ queueId: queue.queueId });
   }
 
-  async #getNonblocking({
-    partition,
-    n_values,
-  }: {
-    partition?: string;
-    n_values: number;
-  }): Promise<any[]> {
-    const request = {
-      queueId: this.queueId,
-      partitionKey: Queue.#validatePartitionKey(partition),
-      timeout: 0,
-      nValues: n_values,
-    };
-
-    const response = await client.queueGet(request);
-    if (response.values) {
-      return response.values.map((value) => loads(value));
-    } else {
-      return [];
-    }
-  }
-
-  async #getBlocking({
-    partition,
-    timeout,
-    n_values,
-  }: {
-    partition?: string;
-    timeout?: number; // in milliseconds
-    n_values: number;
-  }): Promise<any[]> {
-    let deadline: number | undefined = undefined;
-    if (timeout !== undefined) {
-      deadline = Date.now() + timeout;
-    }
-
-    while (true) {
-      let requestTimeout = 50.0;
-      if (deadline) {
-        requestTimeout = Math.min(requestTimeout, deadline - Date.now());
-      }
-
-      const request = {
-        queueId: this.queueId,
-        partitionKey: Queue.#validatePartitionKey(partition),
-        timeout: requestTimeout,
-        nValues: n_values,
-      };
-
-      const response = await client.queueGet(request);
-
-      if (response.values && response.values.length > 0) {
-        return response.values.map((value) => loads(value));
-      }
-
-      if (deadline && Date.now() > deadline) {
-        break;
-      }
-    }
-
-    throw new QueueEmptyError("Queue is empty");
-  }
-
   /**
    * Remove all objects from a queue partition.
    */
-  async clear(
-    { partition, all }: QueueClearOptions = { all: false },
-  ): Promise<void> {
-    if (partition && all) {
+  async clear(options: QueueClearOptions = {}): Promise<void> {
+    if (options.partition && options.all) {
       throw new InvalidError(
         "Partition must be null when requesting to clear all.",
       );
     }
-
-    const request = {
+    await client.queueClear({
       queueId: this.queueId,
-      partitionKey: Queue.#validatePartitionKey(partition),
-      allPartitions: all,
-    };
-
-    await client.queueClear(request);
+      partitionKey: Queue.#validatePartitionKey(options.partition),
+      allPartitions: options.all,
+    });
   }
 
-  /**
-   * Remove and return an object from the queue.
-   */
-  async get({
-    block = true,
-    timeout,
-    partition,
-  }: QueueGetOptions = {}): Promise<any> {
-    const values = await this.getMany(1, { block, timeout, partition });
-    if (values.length !== 0) {
-      return values[0];
-    } else {
-      return null;
+  async #get(n: number, partition?: string, timeout?: number): Promise<any[]> {
+    const partitionKey = Queue.#validatePartitionKey(partition);
+
+    const startTime = Date.now();
+    let pollTimeout = 50_000;
+    if (timeout !== undefined) {
+      pollTimeout = Math.min(pollTimeout, timeout);
+    }
+
+    while (true) {
+      const response = await client.queueGet({
+        queueId: this.queueId,
+        partitionKey,
+        timeout: pollTimeout / 1000,
+        nValues: n,
+      });
+      if (response.values && response.values.length > 0) {
+        return response.values.map((value) => loads(value));
+      }
+      if (timeout !== undefined) {
+        const remainingTime = timeout - (Date.now() - startTime);
+        if (remainingTime <= 0) {
+          const message = `Queue ${this.queueId} did not return values within ${timeout}ms.`;
+          throw new QueueEmptyError(message);
+        }
+        pollTimeout = Math.min(pollTimeout, remainingTime);
+      }
     }
   }
 
   /**
-   * Remove and return up to `n_values` objects from the queue.
+   * Remove and return the next object from the queue.
+   *
+   * By default, this will wait until at least one item is present in the queue.
+   * If `timeout` is set, raises `QueueEmptyError` if no items are available
+   * within that timeout in milliseconds.
    */
-  async getMany(
-    n_values: number,
-    { block = true, timeout, partition }: QueueGetOptions = {},
-  ): Promise<any[]> {
-    if (block) {
-      return await this.#getBlocking({
-        partition,
-        timeout,
-        n_values,
-      });
-    } else {
-      if (timeout) {
-        throw new InvalidError("Cannot pass timeout and block = false.");
+  async get(options: QueueGetOptions = {}): Promise<any | null> {
+    const values = await this.#get(1, options.partition, options.timeout);
+    return values[0]; // Must have length >= 1 if returned.
+  }
+
+  /**
+   * Remove and return up to `n` objects from the queue.
+   *
+   * By default, this will wait until at least one item is present in the queue.
+   * If `timeout` is set, raises `QueueEmptyError` if no items are available
+   * within that timeout in milliseconds.
+   */
+  async getMany(n: number, options: QueueGetOptions = {}): Promise<any[]> {
+    return await this.#get(n, options.partition, options.timeout);
+  }
+
+  async #put(
+    values: any[],
+    timeout?: number,
+    partition?: string,
+    partitionTtl?: number,
+  ): Promise<void> {
+    const valuesEncoded = values.map((v) => dumps(v));
+    const partitionKey = Queue.#validatePartitionKey(partition);
+
+    let delay = 100;
+    const deadline = timeout ? Date.now() + timeout : undefined;
+    while (true) {
+      try {
+        await client.queuePut({
+          queueId: this.queueId,
+          values: valuesEncoded,
+          partitionKey,
+          partitionTtlSeconds: (partitionTtl ?? 24 * 3600 * 1000) / 1000,
+        });
+        break;
+      } catch (e) {
+        if (e instanceof ClientError && e.code === Status.RESOURCE_EXHAUSTED) {
+          // Queue is full, retry with exponential backoff up to the deadline.
+          delay = Math.min(delay * 2, 30_000);
+          if (deadline !== undefined) {
+            const timeRemaining = deadline - Date.now();
+            if (timeRemaining <= 0)
+              throw new QueueFullError(`Put failed on ${this.queueId}.`);
+            delay = Math.min(delay, timeRemaining);
+          }
+          await new Promise((resolve) => setTimeout(resolve, delay));
+        } else {
+          throw e;
+        }
       }
-      return await this.#getNonblocking({
-        partition,
-        n_values,
-      });
     }
   }
 
   /**
    * Add an object to the end of the queue.
+   *
+   * If the queue is full, this will retry with exponential backoff until the
+   * provided `timeout` is reached, or indefinitely if `timeout` is not set.
+   * Raises `QueueFullError` if the queue is still full after the timeout.
    */
-  async put(
-    v: any,
-    {
-      block = true,
-      timeout,
-      partition,
-      partitionTtl = 24 * 3600,
-    }: QueuePutOptions = {},
-  ): Promise<void> {
-    await this.putMany([v], { block, timeout, partition, partitionTtl });
+  async put(v: any, options: QueuePutOptions = {}): Promise<void> {
+    await this.#put(
+      [v],
+      options.timeout,
+      options.partition,
+      options.partitionTtl,
+    );
   }
 
   /**
    * Add several objects to the end of the queue.
+   *
+   * If the queue is full, this will retry with exponential backoff until the
+   * provided `timeout` is reached, or indefinitely if `timeout` is not set.
+   * Raises `QueueFullError` if the queue is still full after the timeout.
    */
-  async putMany(
-    vs: any[],
-    {
-      block = true,
-      timeout,
-      partition,
-      partitionTtl = 24 * 3600,
-    }: QueuePutOptions = {},
-  ): Promise<void> {
-    if (block) {
-      await this.#putManyBlocking({
-        partition,
-        partitionTtl,
-        vs,
-        timeout,
-      });
-    } else {
-      if (timeout) {
-        console.warn("Timeout is ignored for non-blocking put.");
-      }
-      await this.#putManyNonblocking({
-        partition,
-        partitionTtl,
-        vs,
-      });
-    }
+  async putMany(values: any[], options: QueuePutOptions = {}): Promise<void> {
+    await this.#put(
+      values,
+      options.timeout,
+      options.partition,
+      options.partitionTtl,
+    );
   }
 
-  async #putManyBlocking({
-    partition,
-    partitionTtl,
-    vs,
-    timeout,
-  }: {
-    partition?: string;
-    partitionTtl: number;
-    vs: any[];
-    timeout?: number;
-  }): Promise<void> {
-    const vs_encoded = vs.map((v) => dumps(v));
-    const request = {
-      queueId: this.queueId,
-      partitionKey: Queue.#validatePartitionKey(partition),
-      values: vs_encoded,
-      partitionTtlSeconds: partitionTtl,
-    };
-
-    try {
-      const retryOptions = {
-        additionalStatusCodes: [Status.RESOURCE_EXHAUSTED],
-        maxDelay: 30.0,
-        maxRetries: undefined,
-        totalTimeout: timeout,
-      };
-      await client.queuePut(request, retryOptions);
-    } catch (e) {
-      if (e instanceof ClientError && e.code === Status.RESOURCE_EXHAUSTED) {
-        throw new QueueFullError("Queue.put() tried to put to a full queue.");
-      } else {
-        throw e;
-      }
-    }
-  }
-
-  async #putManyNonblocking({
-    partition,
-    partitionTtl,
-    vs,
-  }: {
-    partition?: string;
-    partitionTtl: number;
-    vs: any[];
-  }): Promise<void> {
-    const vs_encoded = vs.map((v) => dumps(v));
-    const request = {
-      queueId: this.queueId,
-      partitionKey: Queue.#validatePartitionKey(partition),
-      values: vs_encoded,
-      partitionTtlSeconds: partitionTtl,
-    };
-
-    try {
-      await client.queuePut(request);
-    } catch (e) {
-      if (e instanceof ClientError && e.code === Status.RESOURCE_EXHAUSTED) {
-        throw new QueueFullError("Queue is full");
-      } else {
-        throw e;
-      }
-    }
-  }
-
-  /**
-   * Return the number of objects in the queue partition.
-   */
-  async len({
-    partition,
-    total = false,
-  }: QueueLenOptions = {}): Promise<number> {
-    if (partition && total) {
+  /** Return the number of objects in the queue. */
+  async len(options: QueueLenOptions = {}): Promise<number> {
+    if (options.partition && options.total) {
       throw new InvalidError(
         "Partition must be null when requesting total length.",
       );
     }
-
-    const request = {
+    const resp = await client.queueLen({
       queueId: this.queueId,
-      partitionKey: Queue.#validatePartitionKey(partition),
-      total,
-    };
-
-    const response = await client.queueLen(request);
-    return response.len;
+      partitionKey: Queue.#validatePartitionKey(options.partition),
+      total: options.total,
+    });
+    return resp.len;
   }
 
-  /**
-   * Iterate through items in a queue without mutation.
-   */
-  async *iterate({
-    partition,
-    itemPollTimeout = 0.0,
-  }: QueueIterateOptions = {}): AsyncGenerator<any, void, unknown> {
+  /** Iterate through items in a queue without mutation. */
+  async *iterate(
+    options: QueueIterateOptions = {},
+  ): AsyncGenerator<any, void, unknown> {
+    const { partition, itemPollTimeout = 0 } = options;
+
     let lastEntryId = undefined;
     const validatedPartitionKey = Queue.#validatePartitionKey(partition);
     let fetchDeadline = Date.now() + itemPollTimeout;
 
-    const MAX_POLL_DURATION = 30_000;
+    const maxPollDuration = 30_000;
     while (true) {
       const pollDuration = Math.max(
         0.0,
-        Math.min(MAX_POLL_DURATION, fetchDeadline - Date.now()),
+        Math.min(maxPollDuration, fetchDeadline - Date.now()),
       );
       const request: QueueNextItemsRequest = {
         queueId: this.queueId,

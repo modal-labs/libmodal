@@ -20,6 +20,11 @@ export type DeleteOptions = {
   environment?: string;
 };
 
+/** Options for constructors that create a temporary, nameless object. */
+export type EphemeralOptions = {
+  environment?: string;
+};
+
 /** Options for `App.createSandbox()`. */
 export type SandboxCreateOptions = {
   cpu?: number; // in physical cores
