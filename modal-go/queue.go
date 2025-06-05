@@ -353,14 +353,7 @@ func (q *Queue) Iterate(options *QueueIterateOptions) iter.Seq2[any, error] {
 
 		fetchDeadline := time.Now().Add(itemPoll)
 		for {
-			pollDuration := time.Until(fetchDeadline)
-			if pollDuration < 0 {
-				pollDuration = 0
-			}
-			if pollDuration > maxPoll {
-				pollDuration = maxPoll
-			}
-
+			pollDuration := max(0, min(maxPoll, time.Until(fetchDeadline)))
 			resp, err := client.QueueNextItems(q.ctx, pb.QueueNextItemsRequest_builder{
 				QueueId:         q.QueueId,
 				PartitionKey:    key,
