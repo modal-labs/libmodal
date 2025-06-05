@@ -8,23 +8,29 @@ import {
   toModalWriteStream,
 } from "./streams";
 
-// Stdin is always present, but this option allow you to drop stdout or stderr
-// if you don't need them. The default is "pipe", matching Node.js behavior.
-//
-// If behavior is set to "ignore", the output streams will be empty.
+/**
+ * Stdin is always present, but this option allow you to drop stdout or stderr
+ * if you don't need them. The default is "pipe", matching Node.js behavior.
+ *
+ * If behavior is set to "ignore", the output streams will be empty.
+ */
 export type StdioBehavior = "pipe" | "ignore";
 
-// Specifies the type of data that will be read from the sandbox or container
-// process. "text" means the data will be read as UTF-8 text, while "binary"
-// means the data will be read as raw bytes (Uint8Array).
+/**
+ * Specifies the type of data that will be read from the sandbox or container
+ * process. "text" means the data will be read as UTF-8 text, while "binary"
+ * means the data will be read as raw bytes (Uint8Array).
+ */
 export type StreamMode = "text" | "binary";
 
-type ExecOptions = {
+/** Options to configure a `Sandbox.exec()` operation. */
+export type ExecOptions = {
   mode?: StreamMode;
   stdout?: StdioBehavior;
   stderr?: StdioBehavior;
 };
 
+/** Sandboxes are secure, isolated containers in Modal that boot in seconds. */
 export class Sandbox {
   readonly sandboxId: string;
   stdin: ModalWriteStream<string>;
@@ -33,6 +39,7 @@ export class Sandbox {
 
   #taskId: string | undefined;
 
+  /** @ignore */
   constructor(sandboxId: string) {
     this.sandboxId = sandboxId;
 
@@ -110,7 +117,7 @@ export class Sandbox {
   }
 }
 
-class ContainerProcess<R extends string | Uint8Array = any> {
+export class ContainerProcess<R extends string | Uint8Array = any> {
   stdin: ModalWriteStream<R>;
   stdout: ModalReadStream<R>;
   stderr: ModalReadStream<R>;

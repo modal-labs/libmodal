@@ -17,4 +17,11 @@ export {
 } from "./function_call";
 export { Queue } from "./queue";
 export { Image } from "./image";
-export { Sandbox, type StdioBehavior, type StreamMode } from "./sandbox";
+export {
+  ContainerProcess,
+  ExecOptions,
+  Sandbox,
+  type StdioBehavior,
+  type StreamMode,
+} from "./sandbox";
+export { ModalReadStream, ModalWriteStream } from "./streams";
