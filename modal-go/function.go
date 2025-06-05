@@ -38,7 +38,10 @@ type Function struct {
 }
 
 // FunctionLookup looks up an existing Function.
-func FunctionLookup(ctx context.Context, appName string, name string, options LookupOptions) (*Function, error) {
+func FunctionLookup(ctx context.Context, appName string, name string, options *LookupOptions) (*Function, error) {
+	if options == nil {
+		options = &LookupOptions{}
+	}
 	ctx = clientContext(ctx)
 
 	resp, err := client.FunctionGet(ctx, pb.FunctionGetRequest_builder{

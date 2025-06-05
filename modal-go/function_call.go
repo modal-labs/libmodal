@@ -36,7 +36,10 @@ type FunctionCallGetOptions struct {
 
 // Get waits for the output of a FunctionCall.
 // If timeout > 0, the operation will be cancelled after the specified duration.
-func (fc *FunctionCall) Get(options FunctionCallGetOptions) (any, error) {
+func (fc *FunctionCall) Get(options *FunctionCallGetOptions) (any, error) {
+	if options == nil {
+		options = &FunctionCallGetOptions{}
+	}
 	ctx := fc.ctx
 	return pollFunctionOutput(ctx, fc.FunctionCallId, options.Timeout)
 }
@@ -47,7 +50,10 @@ type FunctionCallCancelOptions struct {
 }
 
 // Cancel cancels a FunctionCall.
-func (fc *FunctionCall) Cancel(options FunctionCallCancelOptions) error {
+func (fc *FunctionCall) Cancel(options *FunctionCallCancelOptions) error {
+	if options == nil {
+		options = &FunctionCallCancelOptions{}
+	}
 	_, err := client.FunctionCallCancel(fc.ctx, pb.FunctionCallCancelRequest_builder{
 		FunctionCallId:      fc.FunctionCallId,
 		TerminateContainers: options.TerminateContainers,

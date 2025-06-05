@@ -16,7 +16,7 @@ func TestFunctionSpawn(t *testing.T) {
 
 	function, err := modal.FunctionLookup(
 		context.Background(),
-		"libmodal-test-support", "echo_string", modal.LookupOptions{},
+		"libmodal-test-support", "echo_string", nil,
 	)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
@@ -25,7 +25,7 @@ func TestFunctionSpawn(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	// Get outputs.
-	result, err := functionCall.Get(modal.FunctionCallGetOptions{})
+	result, err := functionCall.Get(nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(result).Should(gomega.Equal("output: hello"))
 
@@ -33,14 +33,14 @@ func TestFunctionSpawn(t *testing.T) {
 	functionCall, err = modal.FunctionCallFromId(context.Background(), functionCall.FunctionCallId)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	result, err = functionCall.Get(modal.FunctionCallGetOptions{})
+	result, err = functionCall.Get(nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(result).Should(gomega.Equal("output: hello"))
 
 	// Looking function that takes a long time to complete.
 	sleep, err := modal.FunctionLookup(
 		context.Background(),
-		"libmodal-test-support", "sleep", modal.LookupOptions{},
+		"libmodal-test-support", "sleep", nil,
 	)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
@@ -48,12 +48,12 @@ func TestFunctionSpawn(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	// Cancel function call.
-	err = functionCall.Cancel(modal.FunctionCallCancelOptions{})
+	err = functionCall.Cancel(nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	// Attempting to get outputs for a cancelled function call
 	// is expected to return an error.
-	_, err = functionCall.Get(modal.FunctionCallGetOptions{})
+	_, err = functionCall.Get(nil)
 	g.Expect(err).Should(gomega.HaveOccurred())
 
 	// Spawn function with long running input.
@@ -62,7 +62,7 @@ func TestFunctionSpawn(t *testing.T) {
 
 	// Get is now expected to timeout.
 	timeout := 1 * time.Second
-	_, err = functionCall.Get(modal.FunctionCallGetOptions{Timeout: &timeout})
+	_, err = functionCall.Get(&modal.FunctionCallGetOptions{Timeout: &timeout})
 	g.Expect(err).Should(gomega.HaveOccurred())
 }
 
@@ -72,7 +72,7 @@ func TestFunctionCallGet0(t *testing.T) {
 
 	sleep, _ := modal.FunctionLookup(
 		context.Background(),
-		"libmodal-test-support", "sleep", modal.LookupOptions{},
+		"libmodal-test-support", "sleep", nil,
 	)
 
 	functionCall, err := sleep.Spawn([]any{0.5}, nil)
@@ -81,16 +81,16 @@ func TestFunctionCallGet0(t *testing.T) {
 	// Polling for output with timeout 0 should raise an error, since the
 	// function call has not finished yet.
 	timeout := 0 * time.Second
-	_, err = functionCall.Get(modal.FunctionCallGetOptions{Timeout: &timeout})
+	_, err = functionCall.Get(&modal.FunctionCallGetOptions{Timeout: &timeout})
 	g.Expect(err).Should(gomega.HaveOccurred())
 
 	// Wait for the function call to finish.
-	result, err := functionCall.Get(modal.FunctionCallGetOptions{})
+	result, err := functionCall.Get(nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(result).Should(gomega.Equal(pickle.None{}))
 
 	// Now we can get the result.
-	result, err = functionCall.Get(modal.FunctionCallGetOptions{Timeout: &timeout})
+	result, err = functionCall.Get(&modal.FunctionCallGetOptions{Timeout: &timeout})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(result).Should(gomega.Equal(pickle.None{}))
 }
