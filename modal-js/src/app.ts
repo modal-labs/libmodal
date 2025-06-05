@@ -15,6 +15,11 @@ export type LookupOptions = {
   createIfMissing?: boolean;
 };
 
+/** Options for deleting a named object. */
+export type DeleteOptions = {
+  environment?: string;
+};
+
 /** Options for `App.createSandbox()`. */
 export type SandboxCreateOptions = {
   cpu?: number; // in physical cores
