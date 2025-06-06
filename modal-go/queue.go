@@ -335,7 +335,7 @@ func (q *Queue) Len(options *QueueLenOptions) (int, error) {
 	return int(resp.GetLen()), nil
 }
 
-// Iterate yields items without mutating the queue.
+// Iterate yields items from the queue until it is empty.
 func (q *Queue) Iterate(options *QueueIterateOptions) iter.Seq2[any, error] {
 	if options == nil {
 		options = &QueueIterateOptions{}
