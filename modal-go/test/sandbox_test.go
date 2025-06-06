@@ -12,13 +12,13 @@ import (
 func TestCreateOneSandbox(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
-	app, err := modal.AppLookup(context.Background(), "libmodal-test", modal.LookupOptions{CreateIfMissing: true})
+	app, err := modal.AppLookup(context.Background(), "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	image, err := app.ImageFromRegistry("alpine:3.21")
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	sb, err := app.CreateSandbox(image, modal.SandboxOptions{})
+	sb, err := app.CreateSandbox(image, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(sb.SandboxId).ShouldNot(gomega.BeEmpty())
 
@@ -33,14 +33,14 @@ func TestCreateOneSandbox(t *testing.T) {
 func TestPassCatToStdin(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
-	app, err := modal.AppLookup(context.Background(), "libmodal-test", modal.LookupOptions{CreateIfMissing: true})
+	app, err := modal.AppLookup(context.Background(), "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	image, err := app.ImageFromRegistry("alpine:3.21")
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	// Spawn a sandbox running the "cat" command.
-	sb, err := app.CreateSandbox(image, modal.SandboxOptions{Command: []string{"cat"}})
+	sb, err := app.CreateSandbox(image, &modal.SandboxOptions{Command: []string{"cat"}})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	// Write to the sandbox's stdin and read from its stdout.
@@ -61,13 +61,13 @@ func TestPassCatToStdin(t *testing.T) {
 func TestIgnoreLargeStdout(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
-	app, err := modal.AppLookup(context.Background(), "libmodal-test", modal.LookupOptions{CreateIfMissing: true})
+	app, err := modal.AppLookup(context.Background(), "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	image, err := app.ImageFromRegistry("python:3.13-alpine")
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	sb, err := app.CreateSandbox(image, modal.SandboxOptions{})
+	sb, err := app.CreateSandbox(image, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	defer sb.Terminate()
 

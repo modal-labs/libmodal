@@ -12,10 +12,7 @@ func TestFunctionCall(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
-	function, err := modal.FunctionLookup(
-		context.Background(),
-		"libmodal-test-support", "echo_string", modal.LookupOptions{},
-	)
+	function, err := modal.FunctionLookup(context.Background(), "libmodal-test-support", "echo_string", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	// Represent Python kwargs.
@@ -33,10 +30,7 @@ func TestFunctionCallLargeInput(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
-	function, err := modal.FunctionLookup(
-		context.Background(),
-		"libmodal-test-support", "bytelength", modal.LookupOptions{},
-	)
+	function, err := modal.FunctionLookup(context.Background(), "libmodal-test-support", "bytelength", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	len := 3 * 1000 * 1000 // More than 2 MiB, offload to blob storage
@@ -50,9 +44,6 @@ func TestFunctionNotFound(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
-	_, err := modal.FunctionLookup(
-		context.Background(),
-		"libmodal-test-support", "not_a_real_function", modal.LookupOptions{},
-	)
+	_, err := modal.FunctionLookup(context.Background(), "libmodal-test-support", "not_a_real_function", nil)
 	g.Expect(err).Should(gomega.BeAssignableToTypeOf(modal.NotFoundError{}))
 }

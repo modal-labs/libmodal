@@ -15,6 +15,16 @@ export type LookupOptions = {
   createIfMissing?: boolean;
 };
 
+/** Options for deleting a named object. */
+export type DeleteOptions = {
+  environment?: string;
+};
+
+/** Options for constructors that create a temporary, nameless object. */
+export type EphemeralOptions = {
+  environment?: string;
+};
+
 /** Options for `App.createSandbox()`. */
 export type SandboxCreateOptions = {
   /** Reservation of physical CPU cores for the sandbox, can be fractional. */

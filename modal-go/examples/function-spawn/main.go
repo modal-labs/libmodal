@@ -13,7 +13,7 @@ import (
 func main() {
 	ctx := context.Background()
 
-	echo, err := modal.FunctionLookup(ctx, "libmodal-test-support", "echo_string", modal.LookupOptions{})
+	echo, err := modal.FunctionLookup(ctx, "libmodal-test-support", "echo_string", nil)
 	if err != nil {
 		log.Fatalf("Failed to lookup function: %v", err)
 	}
@@ -23,7 +23,7 @@ func main() {
 		log.Fatalf("Failed to spawn function: %v", err)
 	}
 
-	ret, err := fc.Get(modal.FunctionCallGetOptions{})
+	ret, err := fc.Get(nil)
 	if err != nil {
 		log.Fatalf("Failed to get function results: %v", err)
 	}

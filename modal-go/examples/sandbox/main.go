@@ -11,7 +11,7 @@ import (
 func main() {
 	ctx := context.Background()
 
-	app, err := modal.AppLookup(ctx, "libmodal-example", modal.LookupOptions{CreateIfMissing: true})
+	app, err := modal.AppLookup(ctx, "libmodal-example", &modal.LookupOptions{CreateIfMissing: true})
 	if err != nil {
 		log.Fatalf("Failed to lookup or create app: %v", err)
 	}
@@ -21,7 +21,7 @@ func main() {
 		log.Fatalf("Failed to create image from registry: %v", err)
 	}
 
-	sb, err := app.CreateSandbox(image, modal.SandboxOptions{
+	sb, err := app.CreateSandbox(image, &modal.SandboxOptions{
 		Command: []string{"cat"},
 	})
 	if err != nil {

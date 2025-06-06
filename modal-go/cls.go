@@ -23,7 +23,10 @@ type Cls struct {
 }
 
 // ClsLookup looks up an existing Cls on a deployed App.
-func ClsLookup(ctx context.Context, appName string, name string, options LookupOptions) (*Cls, error) {
+func ClsLookup(ctx context.Context, appName string, name string, options *LookupOptions) (*Cls, error) {
+	if options == nil {
+		options = &LookupOptions{}
+	}
 	ctx = clientContext(ctx)
 	cls := Cls{
 		methodNames: []string{},

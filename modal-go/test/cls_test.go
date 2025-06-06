@@ -12,10 +12,7 @@ func TestClsCall(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
-	cls, err := modal.ClsLookup(
-		context.Background(),
-		"libmodal-test-support", "EchoCls", modal.LookupOptions{},
-	)
+	cls, err := modal.ClsLookup(context.Background(), "libmodal-test-support", "EchoCls", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	instance, err := cls.Instance(nil)
@@ -32,10 +29,7 @@ func TestClsCall(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(result).Should(gomega.Equal("output: hello"))
 
-	cls, err = modal.ClsLookup(
-		context.Background(),
-		"libmodal-test-support", "EchoClsParametrized", modal.LookupOptions{},
-	)
+	cls, err = modal.ClsLookup(context.Background(), "libmodal-test-support", "EchoClsParametrized", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	instance, err = cls.Instance(map[string]any{"name": "hello-init"})
@@ -52,9 +46,6 @@ func TestClsNotFound(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
-	_, err := modal.ClsLookup(
-		context.Background(),
-		"libmodal-test-support", "NotRealClassName", modal.LookupOptions{},
-	)
+	_, err := modal.ClsLookup(context.Background(), "libmodal-test-support", "NotRealClassName", nil)
 	g.Expect(err).Should(gomega.BeAssignableToTypeOf(modal.NotFoundError{}))
 }

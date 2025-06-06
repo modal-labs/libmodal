@@ -29,3 +29,27 @@ export class NotFoundError extends Error {
     this.name = "NotFoundError";
   }
 }
+
+/** A request or other operation was invalid. */
+export class InvalidError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "InvalidError";
+  }
+}
+
+/** The queue is empty. */
+export class QueueEmptyError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "QueueEmptyError";
+  }
+}
+
+/** The queue is full. */
+export class QueueFullError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "QueueFullError";
+  }
+}

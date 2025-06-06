@@ -13,10 +13,7 @@ func main() {
 	ctx := context.Background()
 
 	// Lookup a deployed Cls.
-	cls, err := modal.ClsLookup(
-		ctx,
-		"libmodal-test-support", "EchoCls", modal.LookupOptions{},
-	)
+	cls, err := modal.ClsLookup(ctx, "libmodal-test-support", "EchoCls", nil)
 	if err != nil {
 		log.Fatalf("Failed to lookup Cls: %v", err)
 	}
