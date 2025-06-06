@@ -98,12 +98,13 @@ func QueueEphemeral(ctx context.Context, options *EphemeralOptions) (*Queue, err
 }
 
 // CloseEphemeral deletes an ephemeral queue, only used with QueueEphemeral.
-func (q *Queue) CloseEphemeral() error {
+func (q *Queue) CloseEphemeral() {
 	if q.ephemeral {
 		q.cancel() // will stop heartbeat
-		return nil
 	} else {
-		return InvalidError{fmt.Sprintf("queue %s is not ephemeral", q.QueueId)}
+		// We panic in this case because of invalid usage. In general, methods
+		// used with `defer` like CloseEphemeral should not return errors.
+		panic(fmt.Sprintf("queue %s is not ephemeral", q.QueueId))
 	}
 }
 
