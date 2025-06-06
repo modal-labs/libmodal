@@ -17,9 +17,19 @@ export type LookupOptions = {
 
 /** Options for `App.createSandbox()`. */
 export type SandboxCreateOptions = {
-  cpu?: number; // in physical cores
-  memory?: number; // in MiB
-  timeout?: number; // in milliseconds
+  /** Reservation of physical CPU cores for the sandbox, can be fractional. */
+  cpu?: number;
+
+  /** Reservation of memory in MiB. */
+  memory?: number;
+
+  /** Timeout of the sandbox container, defaults to 10 minutes. */
+  timeout?: number;
+
+  /**
+   * Sequence of program arguments for the main process.
+   * Default behavior is to sleep indefinitely until timeout or termination.
+   */
   command?: string[]; // default is ["sleep", "48h"]
 };
 
