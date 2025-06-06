@@ -15,6 +15,9 @@ import { DeleteOptions, EphemeralOptions, LookupOptions } from "./app";
 // From: modal/_object.py
 const ephemeralObjectHeartbeatSleep = 300_000; // 300 seconds
 
+const queueInitialPutBackoff = 100; // 100 milliseconds
+const queueDefaultPartitionTtl = 24 * 3600 * 1000; // 24 hours
+
 /** Options to configure a `Queue.clear()` operation. */
 export type QueueClearOptions = {
   /** Partition to clear, uses default partition if not set. */
@@ -235,7 +238,7 @@ export class Queue {
     const valuesEncoded = values.map((v) => dumps(v));
     const partitionKey = Queue.#validatePartitionKey(partition);
 
-    let delay = 100;
+    let delay = queueInitialPutBackoff;
     const deadline = timeout ? Date.now() + timeout : undefined;
     while (true) {
       try {
@@ -243,7 +246,8 @@ export class Queue {
           queueId: this.queueId,
           values: valuesEncoded,
           partitionKey,
-          partitionTtlSeconds: (partitionTtl || 24 * 3600 * 1000) / 1000,
+          partitionTtlSeconds:
+            (partitionTtl || queueDefaultPartitionTtl) / 1000,
         });
         break;
       } catch (e) {

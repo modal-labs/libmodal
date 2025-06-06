@@ -16,6 +16,9 @@ import (
 // From: modal/_object.py
 const ephemeralObjectHeartbeatSleep = 300 * time.Second
 
+const queueInitialPutBackoff = 100 * time.Millisecond
+const queueDefaultPartitionTtl = 24 * time.Hour
+
 func validatePartitionKey(partition string) ([]byte, error) {
 	if partition == "" {
 		return nil, nil // default partition
@@ -40,7 +43,7 @@ type QueueGetOptions struct {
 type QueuePutOptions struct {
 	Timeout      *time.Duration // max wait for space (nil = indefinitely)
 	Partition    string
-	PartitionTTL time.Duration // ttl for the *partition* (default 24h)
+	PartitionTtl time.Duration // ttl for the *partition* (default 24h)
 }
 
 type QueueLenOptions struct {
@@ -256,10 +259,10 @@ func (q *Queue) put(values []any, options *QueuePutOptions) error {
 		deadline = time.Now().Add(*options.Timeout)
 	}
 
-	delay := 100 * time.Millisecond
-	ttl := options.PartitionTTL
+	delay := queueInitialPutBackoff
+	ttl := options.PartitionTtl
 	if ttl == 0 {
-		ttl = 24 * time.Hour
+		ttl = queueDefaultPartitionTtl
 	}
 
 	for {
