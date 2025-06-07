@@ -56,6 +56,7 @@ type QueueIterateOptions struct {
 	Partition       string
 }
 
+// Queue is a distributed, FIFO queue for data flow in Modal apps.
 type Queue struct {
 	QueueId   string
 	cancel    context.CancelFunc // only for ephemeral queues
