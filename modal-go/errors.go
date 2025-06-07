@@ -37,3 +37,30 @@ type NotFoundError struct {
 func (e NotFoundError) Error() string {
 	return "NotFoundError: " + e.Exception
 }
+
+// InvalidError represents an invalid request or operation.
+type InvalidError struct {
+	Exception string
+}
+
+func (e InvalidError) Error() string {
+	return "InvalidError: " + e.Exception
+}
+
+// QueueEmptyError is returned when an operation is attempted on an empty queue.
+type QueueEmptyError struct {
+	Exception string
+}
+
+func (e QueueEmptyError) Error() string {
+	return "QueueEmptyError: " + e.Exception
+}
+
+// QueueFullError is returned when an operation is attempted on a full queue.
+type QueueFullError struct {
+	Exception string
+}
+
+func (e QueueFullError) Error() string {
+	return "QueueFullError: " + e.Exception
+}

@@ -13,7 +13,10 @@ import { ClientError, Status } from "nice-grpc";
 import { DeleteOptions, EphemeralOptions, LookupOptions } from "./app";
 
 // From: modal/_object.py
-const ephemeralObjectHeartbeatSleep = 300_000; // 5 minutes
+const ephemeralObjectHeartbeatSleep = 300_000; // 300 seconds
+
+const queueInitialPutBackoff = 100; // 100 milliseconds
+const queueDefaultPartitionTtl = 24 * 3600 * 1000; // 24 hours
 
 /** Options to configure a `Queue.clear()` operation. */
 export type QueueClearOptions = {
@@ -83,7 +86,7 @@ export class Queue {
       const partitionKey = new TextEncoder().encode(partition);
       if (partitionKey.length === 0 || partitionKey.length > 64) {
         throw new InvalidError(
-          "Queue partition key must be between 1 and 64 characters.",
+          "Queue partition key must be between 1 and 64 bytes.",
         );
       }
       return partitionKey;
@@ -193,12 +196,12 @@ export class Queue {
         return response.values.map((value) => loads(value));
       }
       if (timeout !== undefined) {
-        const remainingTime = timeout - (Date.now() - startTime);
-        if (remainingTime <= 0) {
+        const remaining = timeout - (Date.now() - startTime);
+        if (remaining <= 0) {
           const message = `Queue ${this.queueId} did not return values within ${timeout}ms.`;
           throw new QueueEmptyError(message);
         }
-        pollTimeout = Math.min(pollTimeout, remainingTime);
+        pollTimeout = Math.min(pollTimeout, remaining);
       }
     }
   }
@@ -235,7 +238,7 @@ export class Queue {
     const valuesEncoded = values.map((v) => dumps(v));
     const partitionKey = Queue.#validatePartitionKey(partition);
 
-    let delay = 100;
+    let delay = queueInitialPutBackoff;
     const deadline = timeout ? Date.now() + timeout : undefined;
     while (true) {
       try {
@@ -243,7 +246,8 @@ export class Queue {
           queueId: this.queueId,
           values: valuesEncoded,
           partitionKey,
-          partitionTtlSeconds: (partitionTtl ?? 24 * 3600 * 1000) / 1000,
+          partitionTtlSeconds:
+            (partitionTtl || queueDefaultPartitionTtl) / 1000,
         });
         break;
       } catch (e) {
@@ -251,10 +255,10 @@ export class Queue {
           // Queue is full, retry with exponential backoff up to the deadline.
           delay = Math.min(delay * 2, 30_000);
           if (deadline !== undefined) {
-            const timeRemaining = deadline - Date.now();
-            if (timeRemaining <= 0)
+            const remaining = deadline - Date.now();
+            if (remaining <= 0)
               throw new QueueFullError(`Put failed on ${this.queueId}.`);
-            delay = Math.min(delay, timeRemaining);
+            delay = Math.min(delay, remaining);
           }
           await new Promise((resolve) => setTimeout(resolve, delay));
         } else {
@@ -265,7 +269,7 @@ export class Queue {
   }
 
   /**
-   * Add an object to the end of the queue.
+   * Add an item to the end of the queue.
    *
    * If the queue is full, this will retry with exponential backoff until the
    * provided `timeout` is reached, or indefinitely if `timeout` is not set.
@@ -281,7 +285,7 @@ export class Queue {
   }
 
   /**
-   * Add several objects to the end of the queue.
+   * Add several items to the end of the queue.
    *
    * If the queue is full, this will retry with exponential backoff until the
    * provided `timeout` is reached, or indefinitely if `timeout` is not set.
