@@ -4,7 +4,8 @@ Both client libraries are pre-1.0, and they have separate versioning.
 
 ## Unreleased
 
-No changes yet.
+- Added support for creating images from AWS ECR with `App.imageFromAwsEcr()` (TS) / `App.ImageFromAwsEcr()` (Go).
+- Added support for accessing Modal secrets with `Secret.fromName()` (TS) / `modal.SecretFromName()` (Go).
 
 ## modal-js/v0.3.6, modal-go/v0.0.7
 
