@@ -2,17 +2,19 @@
 
 import { createHash } from "node:crypto";
 
+import type {
+  FunctionGetOutputsResponse,
+  GenericResult,
+} from "../proto/modal_proto/api";
 import {
   DataFormat,
   DeploymentNamespace,
   FunctionCallInvocationType,
   FunctionCallType,
-  FunctionGetOutputsResponse,
   GeneratorDone,
-  GenericResult,
   GenericResult_GenericStatus,
 } from "../proto/modal_proto/api";
-import { LookupOptions } from "./app";
+import type { LookupOptions } from "./app";
 import { client } from "./client";
 import { FunctionCall } from "./function_call";
 import { environmentName } from "./config";

@@ -27,7 +27,7 @@
     "docs:serve": "npm run docs && http-server ./docs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "lint": "eslint",
+    "lint": "eslint --ignore-pattern 'docs/*'",
     "prepare": "scripts/gen-proto.sh",
     "test": "vitest"
   },

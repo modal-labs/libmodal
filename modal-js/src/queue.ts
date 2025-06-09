@@ -1,16 +1,16 @@
 // Queue object, to be used with Modal Queues.
 
+import type { QueueNextItemsRequest } from "../proto/modal_proto/api";
 import {
   DeploymentNamespace,
   ObjectCreationType,
-  QueueNextItemsRequest,
 } from "../proto/modal_proto/api";
 import { client } from "./client";
 import { environmentName } from "./config";
 import { InvalidError, QueueEmptyError, QueueFullError } from "./errors";
 import { dumps, loads } from "./pickle";
 import { ClientError, Status } from "nice-grpc";
-import { DeleteOptions, EphemeralOptions, LookupOptions } from "./app";
+import type { DeleteOptions, EphemeralOptions, LookupOptions } from "./app";
 
 // From: modal/_object.py
 const ephemeralObjectHeartbeatSleep = 300_000; // 300 seconds

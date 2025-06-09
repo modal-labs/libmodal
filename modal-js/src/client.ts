@@ -1,9 +1,11 @@
 import { v4 as uuidv4 } from "uuid";
-import {
+import type {
   CallOptions,
-  ClientError,
   ClientMiddleware,
   ClientMiddlewareCall,
+} from "nice-grpc";
+import {
+  ClientError,
   createChannel,
   createClientFactory,
   Metadata,
@@ -11,7 +13,8 @@ import {
 } from "nice-grpc";
 
 import { ClientType, ModalClientDefinition } from "../proto/modal_proto/api";
-import { profile, Profile } from "./config";
+import type { Profile } from "./config";
+import { profile } from "./config";
 
 /** gRPC client middleware to add auth token to request. */
 function authMiddleware(profile: Profile): ClientMiddleware {

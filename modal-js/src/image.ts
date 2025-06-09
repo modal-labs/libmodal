@@ -1,9 +1,11 @@
-import {
-  DeploymentNamespace,
+import type {
   GenericResult,
-  GenericResult_GenericStatus,
   ImageMetadata,
   ImageRegistryConfig,
+} from "../proto/modal_proto/api";
+import {
+  DeploymentNamespace,
+  GenericResult_GenericStatus,
 } from "../proto/modal_proto/api";
 import { client } from "./client";
 import { imageBuilderVersion } from "./config";

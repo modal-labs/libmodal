@@ -30,6 +30,7 @@ export default defineConfig([
           ignoreRestSiblings: true,
         },
       ],
+      "@typescript-eslint/consistent-type-imports": "warn",
     },
   },
 ]);

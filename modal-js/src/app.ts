@@ -6,7 +6,8 @@ import {
 } from "../proto/modal_proto/api";
 import { client } from "./client";
 import { environmentName } from "./config";
-import { fromRegistryInternal, Image } from "./image";
+import type { Image } from "./image";
+import { fromRegistryInternal } from "./image";
 import { Sandbox } from "./sandbox";
 import { NotFoundError } from "./errors";
 import { Secret } from "./secret";

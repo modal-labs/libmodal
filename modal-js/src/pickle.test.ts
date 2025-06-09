@@ -1,5 +1,6 @@
 import { expect, test } from "vitest";
-import { dumps, loads, Protocol } from "./pickle";
+import type { Protocol } from "./pickle";
+import { dumps, loads } from "./pickle";
 
 test("PickleUnpickle", () => {
   const sample = {
