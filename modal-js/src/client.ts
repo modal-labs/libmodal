@@ -224,7 +224,9 @@ const retryMiddleware: ClientMiddleware<RetryOptions> =
 const clients: Record<string, ReturnType<typeof createClient>> = {};
 
 /** Returns a client for the given server URL, creating it if it doesn't exist. */
-export const getOrCreateClient = (serverURL: string): ReturnType<typeof createClient> => {
+export const getOrCreateClient = (
+  serverURL: string,
+): ReturnType<typeof createClient> => {
   if (serverURL in clients) {
     return clients[serverURL];
   }
@@ -246,7 +248,7 @@ const createClient = (serverURL: string) => {
     .use(retryMiddleware)
     .use(timeoutMiddleware)
     .create(ModalClientDefinition, channel);
-}
+};
 
 /** The default Modal client that talks to the control plane. */
 export const client = getOrCreateClient(profile.serverUrl);
