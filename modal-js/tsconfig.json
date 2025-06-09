@@ -13,5 +13,12 @@
       "modal": ["./src/index.ts"]
     }
   },
-  "include": ["src", "examples"]
+  "include": [
+    "src",
+    "examples",
+    "test",
+    "*.config.ts",
+    "vitest.config.ts",
+    "tsup.config.ts"
+  ]
 }

@@ -30,12 +30,7 @@ export {
   type QueuePutOptions,
 } from "./queue";
 export { Image } from "./image";
-export {
-  ContainerProcess,
-  ExecOptions,
-  Sandbox,
-  type StdioBehavior,
-  type StreamMode,
-} from "./sandbox";
-export { ModalReadStream, ModalWriteStream } from "./streams";
+export type { ExecOptions, StdioBehavior, StreamMode } from "./sandbox";
+export { ContainerProcess, Sandbox } from "./sandbox";
+export type { ModalReadStream, ModalWriteStream } from "./streams";
 export { Secret, type SecretFromNameOptions } from "./secret";
