@@ -10,6 +10,7 @@ interface Config {
     token_id?: string;
     token_secret?: string;
     environment?: string;
+    imageBuilderVersion?: string;
     active?: boolean;
   };
 }
@@ -20,6 +21,7 @@ export interface Profile {
   tokenId: string;
   tokenSecret: string;
   environment?: string;
+  imageBuilderVersion?: string;
 }
 
 async function readConfigFile(): Promise<Config> {
@@ -64,6 +66,9 @@ export function getProfile(profileName?: string): Profile {
     tokenId: process.env["MODAL_TOKEN_ID"] || profileData.token_id,
     tokenSecret: process.env["MODAL_TOKEN_SECRET"] || profileData.token_secret,
     environment: process.env["MODAL_ENVIRONMENT"] || profileData.environment,
+    imageBuilderVersion:
+      process.env["MODAL_IMAGE_BUILDER_VERSION"] ||
+      profileData.imageBuilderVersion,
   };
   if (!profile.tokenId || !profile.tokenSecret) {
     throw new Error(
@@ -80,5 +85,5 @@ export function environmentName(environment?: string): string {
 }
 
 export function imageBuilderVersion(version?: string): string {
-  return version || process.env.MODAL_IMAGE_BUILDER_VERSION || "2024.10";
+  return version || profile.imageBuilderVersion || "2024.10";
 }
