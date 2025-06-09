@@ -12,7 +12,7 @@ func TestImageFromRegistry(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
-	app, err := modal.AppLookup(context.Background(), "libmodal-test", modal.LookupOptions{CreateIfMissing: true})
+	app, err := modal.AppLookup(context.Background(), "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	image, err := app.ImageFromRegistry("alpine:3.21")
@@ -24,7 +24,7 @@ func TestImageFromAwsEcr(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
-	app, err := modal.AppLookup(context.Background(), "libmodal-test", modal.LookupOptions{CreateIfMissing: true})
+	app, err := modal.AppLookup(context.Background(), "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	secret, err := modal.SecretFromName(context.Background(), "aws-ecr-private-registry-test-secret", &modal.SecretFromNameOptions{
