@@ -17,7 +17,6 @@ func main() {
 	}
 
 	secret, err := modal.SecretFromName(ctx, "aws-ecr-private-registry-test-secret", &modal.SecretFromNameOptions{
-		Environment:  "libmodal",
 		RequiredKeys: []string{"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"},
 	})
 	if err != nil {
