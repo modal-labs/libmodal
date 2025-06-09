@@ -1,6 +1,6 @@
-import modal
 import time
 
+import modal
 
 app = modal.App("libmodal-test-support")
 
@@ -20,10 +20,9 @@ def bytelength(buf: bytes) -> int:
     return len(buf)
 
 
-# TODO(nathan): re-enable once input plane is enabled in prod
-# @app.function(min_containers=1, experimental_options={"input_plane_region": "us-west"})
-# def input_plane(s: str) -> str:
-#     return "output: " + s
+@app.function(min_containers=1, experimental_options={"input_plane_region": "us-west"})
+def input_plane(s: str) -> str:
+    return "output: " + s
 
 
 @app.cls(min_containers=1)
