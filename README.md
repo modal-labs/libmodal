@@ -32,6 +32,7 @@ Examples:
 - [Spawn a deployed function](./modal-js/examples/function-spawn.ts)
 - [Call a deployed cls](./modal-js/examples/cls-call.ts)
 - [Create a sandbox](./modal-js/examples/sandbox.ts)
+- [Create a sandbox using a private image from AWS ECR](./modal-js/examples/sandbox-private-image.ts)
 - [Execute sandbox commands](./modal-js/examples/sandbox-exec.ts)
 
 ### Go (`modal-go/`)
@@ -54,6 +55,7 @@ Examples:
 - [Spawn a deployed function](./modal-go/examples/function-spawn/main.go)
 - [Call a deployed cls](./modal-go/examples/cls-call/main.go)
 - [Create a sandbox](./modal-go/examples/sandbox/main.go)
+- [Create a sandbox using a private image from AWS ECR](./modal-go/examples/sandbox-private-image/main.go)
 - [Execute sandbox commands](./modal-go/examples/sandbox-exec/main.go)
 
 ### Python
