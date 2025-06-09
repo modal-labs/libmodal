@@ -22,6 +22,16 @@ type LookupOptions struct {
 	CreateIfMissing bool
 }
 
+// DeleteOptions are options for deleting a named object.
+type DeleteOptions struct {
+	Environment string // Environment to delete the object from.
+}
+
+// EphemeralOptions are options for creating a temporary, nameless object.
+type EphemeralOptions struct {
+	Environment string // Environment to create the object in.
+}
+
 // SandboxOptions are options for creating a Modal Sandbox.
 type SandboxOptions struct {
 	CPU     float64       // CPU request in physical cores.
