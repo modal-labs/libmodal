@@ -14,19 +14,21 @@ import (
 
 // Profile holds a fully-resolved configuration ready for use by the client.
 type Profile struct {
-	ServerURL   string // e.g. https://api.modal.com:443
-	TokenId     string
-	TokenSecret string
-	Environment string // optional
+	ServerURL           string // e.g. https://api.modal.com:443
+	TokenId             string
+	TokenSecret         string
+	Environment         string // optional
+	ImageBuilderVersion string // optional
 }
 
 // rawProfile mirrors the TOML structure on disk.
 type rawProfile struct {
-	ServerURL   string `toml:"server_url"`
-	TokenId     string `toml:"token_id"`
-	TokenSecret string `toml:"token_secret"`
-	Environment string `toml:"environment"`
-	Active      bool   `toml:"active"`
+	ServerURL           string `toml:"server_url"`
+	TokenId             string `toml:"token_id"`
+	TokenSecret         string `toml:"token_secret"`
+	Environment         string `toml:"environment"`
+	ImageBuilderVersion string `toml:"image_builder_version"`
+	Active              bool   `toml:"active"`
 }
 
 type config map[string]rawProfile
@@ -87,16 +89,18 @@ func GetProfile(name string) (Profile, error) {
 	tokenId := firstNonEmpty(os.Getenv("MODAL_TOKEN_ID"), raw.TokenId)
 	tokenSecret := firstNonEmpty(os.Getenv("MODAL_TOKEN_SECRET"), raw.TokenSecret)
 	environment := firstNonEmpty(os.Getenv("MODAL_ENVIRONMENT"), raw.Environment)
+	imageBuilderVersion := firstNonEmpty(os.Getenv("MODAL_IMAGE_BUILDER_VERSION"), raw.ImageBuilderVersion)
 
 	if tokenId == "" || tokenSecret == "" {
 		return Profile{}, fmt.Errorf("profile %q missing token_id or token_secret (env-vars take precedence)", name)
 	}
 
 	return Profile{
-		ServerURL:   serverURL,
-		TokenId:     tokenId,
-		TokenSecret: tokenSecret,
-		Environment: environment,
+		ServerURL:           serverURL,
+		TokenId:             tokenId,
+		TokenSecret:         tokenSecret,
+		Environment:         environment,
+		ImageBuilderVersion: imageBuilderVersion,
 	}, nil
 }
 
@@ -111,4 +115,8 @@ func firstNonEmpty(values ...string) string {
 
 func environmentName(environment string) string {
 	return firstNonEmpty(environment, defaultProfile.Environment)
+}
+
+func imageBuilderVersion(version string) string {
+	return firstNonEmpty(version, defaultProfile.ImageBuilderVersion)
 }

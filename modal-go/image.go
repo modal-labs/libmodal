@@ -26,7 +26,7 @@ func fromRegistryInternal(app *App, tag string, imageRegistryConfig *pb.ImageReg
 				ImageRegistryConfig: imageRegistryConfig,
 			}.Build(),
 			Namespace:      pb.DeploymentNamespace_DEPLOYMENT_NAMESPACE_WORKSPACE,
-			BuilderVersion: "2024.10", // TODO: make this configurable
+			BuilderVersion: imageBuilderVersion(""),
 		}.Build(),
 	)
 	if err != nil {
