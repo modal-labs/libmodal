@@ -29,7 +29,10 @@
     "format:check": "prettier --check .",
     "lint": "eslint",
     "prepare": "scripts/gen-proto.sh",
-    "test": "vitest"
+    "test": "vitest",
+    "preversion": "(git update-index --really-refresh && git diff-index --quiet HEAD) || (echo 'You must commit all changes before running npm version' && exit 1)",
+    "version": "npm run build && git add package.json package-lock.json && git commit -m \"modal-js/v$npm_package_version\" && git tag modal-js/v$npm_package_version",
+    "postversion": "git push && git push --tags && npm publish"
   },
   "dependencies": {
     "long": "^5.3.1",

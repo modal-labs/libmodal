@@ -40,23 +40,16 @@ This gRPC library depends on the `protobuf-ts` package, which is not compatible 
 
 ## How to publish
 
-Make sure that you're on a clean commit, and all version numbers have been updated.
+Make sure that you're on a clean commit, then:
 
 ```bash
-VERSION=0.0.X
-
-git tag modal-go/v$VERSION
-git push --tags
-GOPROXY=proxy.golang.org go list -m github.com/modal-labs/libmodal/modal-go@v$VERSION
+npm version patch  # will build, bump the version, commit, tag, push, and npm publish
 ```
 
 ```bash
-VERSION=0.0.X
+GO_VERSION=0.0.X
 
-# Note: Edit package.json first
-npm run build
-npm publish
-
-git tag modal-js/v$VERSION
+git tag modal-go/v$GO_VERSION
 git push --tags
+GOPROXY=proxy.golang.org go list -m github.com/modal-labs/libmodal/modal-go@v$GO_VERSION
 ```
