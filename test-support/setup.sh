@@ -27,3 +27,10 @@ modal secret create --force libmodal-aws-ecr-test \
   AWS_SECRET_ACCESS_KEY="$(echo "$ecr_test_secret" | jq -r '.AWS_SECRET_ACCESS_KEY')" \
   AWS_REGION=us-east-1 \
   >/dev/null
+
+echo "Deploying libmodal-gcp-artifact-registry-test..."
+ecr_test_secret=$(aws secretsmanager get-secret-value \
+  --secret-id test/libmodal/GcpArtifactRegistryTest --query 'SecretString' --output text)
+modal secret create --force libmodal-gcp-artifact-registry-test \
+  SERVICE_ACCOUNT_JSON="$(echo "$ecr_test_secret" | jq -r '.SERVICE_ACCOUNT_JSON')" \
+  >/dev/null

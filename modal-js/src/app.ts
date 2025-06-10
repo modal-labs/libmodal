@@ -135,4 +135,22 @@ export class App {
 
     return await fromRegistryInternal(this.appId, tag, imageRegistryConfig);
   }
+
+  async imageFromGcpArtifactRegistry(
+    tag: string,
+    secret: Secret,
+  ): Promise<Image> {
+    if (!(secret instanceof Secret)) {
+      throw new TypeError(
+        "secret must be a reference to an existing Secret, e.g. `await Secret.fromName('my_secret')`",
+      );
+    }
+
+    const imageRegistryConfig = {
+      registryAuthType: RegistryAuthType.REGISTRY_AUTH_TYPE_GCP,
+      secretId: secret.secretId,
+    };
+
+    return await fromRegistryInternal(this.appId, tag, imageRegistryConfig);
+  }
 }

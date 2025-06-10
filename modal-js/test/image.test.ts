@@ -37,3 +37,17 @@ test("ImageFromAwsEcr", async () => {
   expect(image.imageId).toBeTruthy();
   expect(image.imageId).toMatch(/^im-/);
 });
+
+test("ImageFromGcpArtifactRegistry", { timeout: 30_000 }, async () => {
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
+  expect(app.appId).toBeTruthy();
+
+  const image = await app.imageFromGcpArtifactRegistry(
+    "us-east1-docker.pkg.dev/modal-prod-367916/private-repo-test/my-image",
+    await Secret.fromName("libmodal-gcp-artifact-registry-test", {
+      requiredKeys: ["SERVICE_ACCOUNT_JSON"],
+    }),
+  );
+  expect(image.imageId).toBeTruthy();
+  expect(image.imageId).toMatch(/^im-/);
+});

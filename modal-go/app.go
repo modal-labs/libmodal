@@ -105,7 +105,7 @@ func (app *App) CreateSandbox(image *Image, options *SandboxOptions) (*Sandbox, 
 	return newSandbox(app.ctx, createResp.GetSandboxId()), nil
 }
 
-// ImageFromRegistry creates an Image from a registry tag, optionally with authentication options.
+// ImageFromRegistry creates an Image from a registry tag.
 func (app *App) ImageFromRegistry(tag string, options *ImageFromRegistryOptions) (*Image, error) {
 	if options == nil {
 		options = &ImageFromRegistryOptions{}
@@ -120,10 +120,19 @@ func (app *App) ImageFromRegistry(tag string, options *ImageFromRegistryOptions)
 	return fromRegistryInternal(app, tag, imageRegistryConfig)
 }
 
-// ImageFromAwsEcr creates an Image from an AWS ECR tag, and secret for auth.
+// ImageFromAwsEcr creates an Image from an AWS ECR tag.
 func (app *App) ImageFromAwsEcr(tag string, secret *Secret) (*Image, error) {
 	imageRegistryConfig := pb.ImageRegistryConfig_builder{
 		RegistryAuthType: pb.RegistryAuthType_REGISTRY_AUTH_TYPE_AWS,
+		SecretId:         secret.SecretId,
+	}.Build()
+	return fromRegistryInternal(app, tag, imageRegistryConfig)
+}
+
+// ImageFromGcpArtifactRegistry creates an Image from a GCP Artifact Registry tag.
+func (app *App) ImageFromGcpArtifactRegistry(tag string, secret *Secret) (*Image, error) {
+	imageRegistryConfig := pb.ImageRegistryConfig_builder{
+		RegistryAuthType: pb.RegistryAuthType_REGISTRY_AUTH_TYPE_GCP,
 		SecretId:         secret.SecretId,
 	}.Build()
 	return fromRegistryInternal(app, tag, imageRegistryConfig)
