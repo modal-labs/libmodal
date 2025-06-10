@@ -6,6 +6,7 @@ import type {
   FunctionGetOutputsItem,
   FunctionPutInputsItem,
   GenericResult,
+  ModalClientClient,
 } from "../proto/modal_proto/api";
 import {
   DataFormat,
@@ -178,24 +179,24 @@ export class Function_ {
 export class FunctionOutputPoller {
   functionCallId?: string;
   attemptToken?: string;
-  client: any;
+  client: ModalClientClient;
 
   static fromFunctionCallId(
-    client: any,
+    client: ModalClientClient,
     functionCallId: string,
   ): FunctionOutputPoller {
     return new FunctionOutputPoller(client, functionCallId, undefined);
   }
 
   static fromAttemptToken(
-    client: any,
+    client: ModalClientClient,
     attemptToken: string,
   ): FunctionOutputPoller {
     return new FunctionOutputPoller(client, undefined, attemptToken);
   }
 
   private constructor(
-    client: any,
+    client: ModalClientClient,
     functionCallId?: string,
     attemptToken?: string,
   ) {
