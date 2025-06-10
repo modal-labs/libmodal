@@ -104,7 +104,7 @@ func pickleDeserialize(buffer []byte) (any, error) {
 }
 
 // Serializes inputs, make a function call and return its ID
-func (f *Function) execFunctionCall(args []any, kwargs map[string]any, invocationType pb.FunctionCallInvocationType) (*string, error) {
+func (f *Function) execFunctionCall(args []any, kwargs map[string]any, invocationType pb.FunctionCallInvocationType) (*FunctionOutputPoller, error) {
 	payload, err := pickleSerialize(pickle.Tuple{args, kwargs})
 	if err != nil {
 		return nil, err
@@ -138,10 +138,10 @@ func (f *Function) execFunctionCall(args []any, kwargs map[string]any, invocatio
 		return f.remoteInputPlane(functionInputs)
 	}
 
-	return f.remoteControlPlane(functionInputs)
+	return f.remoteControlPlane(functionInputs, invocationType)
 }
 
-func (f *Function) remoteInputPlane(functionInputs []*pb.FunctionPutInputsItem) (any, error) {
+func (f *Function) remoteInputPlane(functionInputs []*pb.FunctionPutInputsItem) (*FunctionOutputPoller, error) {
 	if f.inputPlaneUrl == nil {
 		return nil, fmt.Errorf("input plane URL is not set")
 	}
@@ -158,25 +158,14 @@ func (f *Function) remoteInputPlane(functionInputs []*pb.FunctionPutInputsItem) 
 	if err != nil {
 		return nil, fmt.Errorf("AttemptStart error: %v", err)
 	}
-
-	for {
-		response, err := client.AttemptAwait(f.ctx, pb.AttemptAwaitRequest_builder{
-			AttemptToken: attemptStartResponse.GetAttemptToken(),
-			RequestedAt:  timeNow(),
-			TimeoutSecs:  55,
-		}.Build())
-		if err != nil {
-			return nil, fmt.Errorf("AttemptAwait failed: %v", err)
-		}
-
-		output := response.GetOutput()
-		if output != nil {
-			return processResult(f.ctx, output.GetResult(), output.GetDataFormat())
-		}
+	functionOutputPoller := FunctionOutputPoller{
+		AttemptToken: attemptStartResponse.GetAttemptToken(),
+		client:       client,
 	}
+	return &functionOutputPoller, nil
 }
 
-func (f *Function) remoteControlPlane(functionInputs []*pb.FunctionPutInputsItem) (any, error) {
+func (f *Function) remoteControlPlane(functionInputs []*pb.FunctionPutInputsItem, invocationType pb.FunctionCallInvocationType) (*FunctionOutputPoller, error) {
 	functionMapResponse, err := client.FunctionMap(f.ctx, pb.FunctionMapRequest_builder{
 		FunctionId:                 f.FunctionId,
 		FunctionCallType:           pb.FunctionCallType_FUNCTION_CALL_TYPE_UNARY,
@@ -188,36 +177,45 @@ func (f *Function) remoteControlPlane(functionInputs []*pb.FunctionPutInputsItem
 	}
 
 	functionCallId := functionMapResponse.GetFunctionCallId()
-	return &functionCallId, nil
+	functionOutputPoller := FunctionOutputPoller{
+		FunctionCallId: functionCallId,
+		client:         client,
+	}
+	return &functionOutputPoller, nil
 }
 
 // Remote executes a single input on a remote Function.
 func (f *Function) Remote(args []any, kwargs map[string]any) (any, error) {
 	invocationType := pb.FunctionCallInvocationType_FUNCTION_CALL_INVOCATION_TYPE_SYNC
-	functionCallId, err := f.execFunctionCall(args, kwargs, invocationType)
+	functionOutputPoller, err := f.execFunctionCall(args, kwargs, invocationType)
 	if err != nil {
 		return nil, err
 	}
 
-	return pollFunctionOutput(f.ctx, *functionCallId, nil)
+	return functionOutputPoller.Poll(f.ctx, nil)
 }
 
 // Spawn starts running a single input on a remote function.
 func (f *Function) Spawn(args []any, kwargs map[string]any) (*FunctionCall, error) {
 	invocationType := pb.FunctionCallInvocationType_FUNCTION_CALL_INVOCATION_TYPE_ASYNC
-	functionCallId, err := f.execFunctionCall(args, kwargs, invocationType)
+	functionOutputPoller, err := f.execFunctionCall(args, kwargs, invocationType)
 	if err != nil {
 		return nil, err
 	}
 	functionCall := FunctionCall{
-		FunctionCallId: *functionCallId,
-		ctx:            f.ctx,
+		FunctionOutputPoller: functionOutputPoller,
+		ctx:                  f.ctx,
 	}
 	return &functionCall, nil
 }
 
-// Poll for ouputs for a given FunctionCall ID.
-func pollFunctionOutput(ctx context.Context, functionCallId string, timeout *time.Duration) (any, error) {
+type FunctionOutputPoller struct {
+	FunctionCallId string
+	AttemptToken   string
+	client         pb.ModalClientClient
+}
+
+func (f *FunctionOutputPoller) Poll(ctx context.Context, timeout *time.Duration) (any, error) {
 	startTime := time.Now()
 	pollTimeout := outputsTimeout
 	if timeout != nil {
@@ -226,19 +224,16 @@ func pollFunctionOutput(ctx context.Context, functionCallId string, timeout *tim
 	}
 
 	for {
-		response, err := client.FunctionGetOutputs(ctx, pb.FunctionGetOutputsRequest_builder{
-			FunctionCallId: functionCallId,
-			MaxValues:      1,
-			Timeout:        float32(pollTimeout.Seconds()),
-			LastEntryId:    "0-0",
-			ClearOnSuccess: true,
-			RequestedAt:    timeNowSeconds(),
-		}.Build())
+		var outputs []*pb.FunctionGetOutputsItem
+		var err error
+		if f.AttemptToken != "" {
+			outputs, err = f.pollInputPlane(ctx, pollTimeout)
+		} else {
+			outputs, err = f.pollControlPlane(ctx, pollTimeout)
+		}
 		if err != nil {
 			return nil, fmt.Errorf("FunctionGetOutputs failed: %w", err)
 		}
-
-		outputs := response.GetOutputs()
 		if len(outputs) > 0 {
 			return processResult(ctx, outputs[0].GetResult(), outputs[0].GetDataFormat())
 		}
@@ -252,6 +247,35 @@ func pollFunctionOutput(ctx context.Context, functionCallId string, timeout *tim
 			pollTimeout = min(outputsTimeout, remainingTime)
 		}
 	}
+}
+
+func (f *FunctionOutputPoller) pollControlPlane(ctx context.Context, timeout time.Duration) ([]*pb.FunctionGetOutputsItem, error) {
+	response, err := f.client.FunctionGetOutputs(ctx, pb.FunctionGetOutputsRequest_builder{
+		FunctionCallId: f.FunctionCallId,
+		MaxValues:      1,
+		Timeout:        float32(timeout.Seconds()),
+		LastEntryId:    "0-0",
+		ClearOnSuccess: true,
+		RequestedAt:    timeNowSeconds(),
+	}.Build())
+	if err != nil {
+		return nil, fmt.Errorf("FunctionGetOutputs failed: %w", err)
+	}
+
+	return response.GetOutputs(), nil
+}
+
+func (f *FunctionOutputPoller) pollInputPlane(ctx context.Context, timeout time.Duration) ([]*pb.FunctionGetOutputsItem, error) {
+	response, err := client.AttemptAwait(ctx, pb.AttemptAwaitRequest_builder{
+		AttemptToken: f.AttemptToken,
+		RequestedAt:  timeNowSeconds(),
+		TimeoutSecs:  float32(timeout.Seconds()),
+	}.Build())
+	if err != nil {
+		return nil, fmt.Errorf("AttemptAwait failed: %v", err)
+	}
+
+	return []*pb.FunctionGetOutputsItem{response.GetOutput()}, nil
 }
 
 // processResult processes the result from an invocation.

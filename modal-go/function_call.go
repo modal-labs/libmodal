@@ -12,16 +12,16 @@ import (
 // Function invocations with a given input. They can be consumed
 // asynchronously (see Get()) or cancelled (see Cancel()).
 type FunctionCall struct {
-	FunctionCallId string
-	ctx            context.Context
+	FunctionOutputPoller *FunctionOutputPoller
+	ctx                  context.Context
 }
 
 // FunctionCallFromId looks up a FunctionCall by ID.
-func FunctionCallFromId(ctx context.Context, functionCallId string) (*FunctionCall, error) {
+func FunctionCallFromPoller(ctx context.Context, functionOutputPoller *FunctionOutputPoller) (*FunctionCall, error) {
 	ctx = clientContext(ctx)
 	functionCall := FunctionCall{
-		FunctionCallId: functionCallId,
-		ctx:            ctx,
+		FunctionOutputPoller: functionOutputPoller,
+		ctx:                  ctx,
 	}
 	return &functionCall, nil
 }
@@ -41,7 +41,7 @@ func (fc *FunctionCall) Get(options *FunctionCallGetOptions) (any, error) {
 		options = &FunctionCallGetOptions{}
 	}
 	ctx := fc.ctx
-	return pollFunctionOutput(ctx, fc.FunctionCallId, options.Timeout)
+	return fc.FunctionOutputPoller.Poll(ctx, options.Timeout)
 }
 
 // FunctionCallCancelOptions are options for cancelling Function Calls.
@@ -55,7 +55,7 @@ func (fc *FunctionCall) Cancel(options *FunctionCallCancelOptions) error {
 		options = &FunctionCallCancelOptions{}
 	}
 	_, err := client.FunctionCallCancel(fc.ctx, pb.FunctionCallCancelRequest_builder{
-		FunctionCallId:      fc.FunctionCallId,
+		FunctionCallId:      fc.FunctionOutputPoller.FunctionCallId,
 		TerminateContainers: options.TerminateContainers,
 	}.Build())
 	if err != nil {

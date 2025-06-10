@@ -30,7 +30,7 @@ func TestFunctionSpawn(t *testing.T) {
 	g.Expect(result).Should(gomega.Equal("output: hello"))
 
 	// Create FunctionCall instance and get output again.
-	functionCall, err = modal.FunctionCallFromId(context.Background(), functionCall.FunctionCallId)
+	functionCall, err = modal.FunctionCallFromPoller(context.Background(), functionCall.FunctionOutputPoller)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	result, err = functionCall.Get(nil)
