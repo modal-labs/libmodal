@@ -1,7 +1,7 @@
 // Manage existing Function Calls (look-ups, polling for output, cancellation).
 
 import { client } from "./client";
-import { pollFunctionOutput } from "./function";
+import type { FunctionOutputPoller } from "./function";
 
 /** Options for `FunctionCall.get()`. */
 export type FunctionCallGetOptions = {
@@ -19,28 +19,28 @@ export type FunctionCallCancelOptions = {
  * (see `cancel()`).
  */
 export class FunctionCall {
-  readonly functionCallId: string;
+  readonly functionOutputPoller: FunctionOutputPoller;
 
   /** @ignore */
-  constructor(functionCallId: string) {
-    this.functionCallId = functionCallId;
+  constructor(functionOutputPoller: FunctionOutputPoller) {
+    this.functionOutputPoller = functionOutputPoller;
   }
 
   /** Create a new function call from ID. */
-  fromId(functionCallId: string): FunctionCall {
-    return new FunctionCall(functionCallId);
+  static fromPoller(functionOutputPoller: FunctionOutputPoller): FunctionCall {
+    return new FunctionCall(functionOutputPoller);
   }
 
   /** Get the result of a function call, optionally waiting with a timeout. */
   async get(options: FunctionCallGetOptions = {}): Promise<any> {
     const timeout = options.timeout;
-    return await pollFunctionOutput(this.functionCallId, timeout);
+    return await this.functionOutputPoller.poll(timeout);
   }
 
   /** Cancel a running function call. */
   async cancel(options: FunctionCallCancelOptions = {}) {
     await client.functionCallCancel({
-      functionCallId: this.functionCallId,
+      functionCallId: this.functionOutputPoller.functionCallId,
       terminateContainers: options.terminateContainers,
     });
   }

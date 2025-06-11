@@ -2,18 +2,23 @@
 
 import { createHash } from "node:crypto";
 
+import type {
+  FunctionGetOutputsItem,
+  FunctionPutInputsItem,
+  GenericResult,
+  ModalClientClient,
+} from "../proto/modal_proto/api";
 import {
   DataFormat,
   DeploymentNamespace,
   FunctionCallInvocationType,
   FunctionCallType,
-  FunctionGetOutputsResponse,
   GeneratorDone,
-  GenericResult,
   GenericResult_GenericStatus,
 } from "../proto/modal_proto/api";
 import type { LookupOptions } from "./app";
-import { client } from "./client";
+import { client, getOrCreateClient } from "./client";
+
 import { FunctionCall } from "./function_call";
 import { environmentName } from "./config";
 import {
@@ -39,11 +44,13 @@ function timeNowSeconds() {
 export class Function_ {
   readonly functionId: string;
   readonly methodName: string | undefined;
+  private readonly inputPlaneUrl: string | undefined;
 
   /** @ignore */
-  constructor(functionId: string, methodName?: string) {
+  constructor(functionId: string, methodName?: string, inputPlaneUrl?: string) {
     this.functionId = functionId;
     this.methodName = methodName;
+    this.inputPlaneUrl = inputPlaneUrl;
   }
 
   static async lookup(
@@ -58,7 +65,11 @@ export class Function_ {
         namespace: DeploymentNamespace.DEPLOYMENT_NAMESPACE_WORKSPACE,
         environmentName: environmentName(options.environment),
       });
-      return new Function_(resp.functionId);
+      return new Function_(
+        resp.functionId,
+        undefined,
+        resp.handleMetadata?.inputPlaneUrl,
+      );
     } catch (err) {
       if (err instanceof ClientError && err.code === Status.NOT_FOUND)
         throw new NotFoundError(`Function '${appName}/${name}' not found`);
@@ -71,12 +82,12 @@ export class Function_ {
     args: any[] = [],
     kwargs: Record<string, any> = {},
   ): Promise<any> {
-    const functionCallId = await this.#execFunctionCall(
+    const functionOutputPoller = await this.#execFunctionCall(
       args,
       kwargs,
       FunctionCallInvocationType.FUNCTION_CALL_INVOCATION_TYPE_SYNC,
     );
-    return await pollFunctionOutput(functionCallId);
+    return await functionOutputPoller.poll();
   }
 
   // Spawn a single input into a remote function.
@@ -84,19 +95,19 @@ export class Function_ {
     args: any[] = [],
     kwargs: Record<string, any> = {},
   ): Promise<FunctionCall> {
-    const functionCallId = await this.#execFunctionCall(
+    const functionOutputPoller = await this.#execFunctionCall(
       args,
       kwargs,
       FunctionCallInvocationType.FUNCTION_CALL_INVOCATION_TYPE_SYNC,
     );
-    return new FunctionCall(functionCallId);
+    return FunctionCall.fromPoller(functionOutputPoller);
   }
 
   async #execFunctionCall(
     args: any[] = [],
     kwargs: Record<string, any> = {},
     invocationType: FunctionCallInvocationType = FunctionCallInvocationType.FUNCTION_CALL_INVOCATION_TYPE_SYNC,
-  ): Promise<string> {
+  ): Promise<FunctionOutputPoller> {
     const payload = dumps([args, kwargs]);
 
     let argsBlobId: string | undefined = undefined;
@@ -105,64 +116,156 @@ export class Function_ {
     }
 
     // Single input sync invocation
+    const functionInputs = [
+      {
+        idx: 0,
+        input: {
+          args: argsBlobId ? undefined : payload,
+          argsBlobId,
+          dataFormat: DataFormat.DATA_FORMAT_PICKLE,
+          methodName: this.methodName,
+          finalInput: false, // This field isn't specified in the Python client, so it defaults to false.
+        },
+      },
+    ];
+
+    if (this.inputPlaneUrl !== undefined) {
+      return this.remoteInputPlane(functionInputs);
+    }
+    return this.remoteControlPlane(functionInputs, invocationType);
+  }
+
+  private async remoteInputPlane(
+    functionInputs: FunctionPutInputsItem[],
+  ): Promise<any> {
+    if (!this.inputPlaneUrl) {
+      throw new Error("Input plane URL is not set");
+    }
+    const client = getOrCreateClient(this.inputPlaneUrl);
+
+    const attemptStartResponse = await client.attemptStart({
+      functionId: this.functionId,
+      input: functionInputs[0],
+    });
+    return FunctionOutputPoller.fromAttemptToken(
+      client,
+      attemptStartResponse.attemptToken,
+    );
+  }
+
+  private async remoteControlPlane(
+    functionInputs: FunctionPutInputsItem[],
+    invocationType: FunctionCallInvocationType = FunctionCallInvocationType.FUNCTION_CALL_INVOCATION_TYPE_SYNC,
+  ): Promise<any> {
     const functionMapResponse = await client.functionMap({
       functionId: this.functionId,
       functionCallType: FunctionCallType.FUNCTION_CALL_TYPE_UNARY,
       functionCallInvocationType: invocationType,
-      pipelinedInputs: [
-        {
-          idx: 0,
-          input: {
-            args: argsBlobId ? undefined : payload,
-            argsBlobId,
-            dataFormat: DataFormat.DATA_FORMAT_PICKLE,
-            methodName: this.methodName,
-          },
-        },
-      ],
+      pipelinedInputs: functionInputs,
     });
 
-    return functionMapResponse.functionCallId;
+    return FunctionOutputPoller.fromFunctionCallId(
+      client,
+      functionMapResponse.functionCallId,
+    );
   }
 }
 
-export async function pollFunctionOutput(
-  functionCallId: string,
-  timeout?: number, // in milliseconds
-): Promise<any> {
-  const startTime = Date.now();
-  let pollTimeout = outputsTimeout;
-  if (timeout !== undefined) {
-    pollTimeout = Math.min(timeout, outputsTimeout);
+/**
+ * The `FunctionOutputPoller` class is responsible for polling the outputs of a remote function call.
+ * When an instance is created using one of the static factory methods, it is configured to poll either
+ * the input plane or the control plane.
+ */
+export class FunctionOutputPoller {
+  functionCallId?: string;
+  attemptToken?: string;
+  client: ModalClientClient;
+
+  static fromFunctionCallId(
+    client: ModalClientClient,
+    functionCallId: string,
+  ): FunctionOutputPoller {
+    return new FunctionOutputPoller(client, functionCallId, undefined);
   }
 
-  while (true) {
-    let response: FunctionGetOutputsResponse;
+  static fromAttemptToken(
+    client: ModalClientClient,
+    attemptToken: string,
+  ): FunctionOutputPoller {
+    return new FunctionOutputPoller(client, undefined, attemptToken);
+  }
+
+  private constructor(
+    client: ModalClientClient,
+    functionCallId?: string,
+    attemptToken?: string,
+  ) {
+    if (!functionCallId && !attemptToken) {
+      throw new Error("Either functionCallId or attemptToken must be provided");
+    }
+    this.client = client;
+    this.functionCallId = functionCallId;
+    this.attemptToken = attemptToken;
+  }
+
+  async poll(
+    timeout?: number, // in milliseconds
+  ): Promise<any> {
+    const startTime = Date.now();
+    let pollTimeout = outputsTimeout;
+    if (timeout !== undefined) {
+      pollTimeout = Math.min(timeout, outputsTimeout);
+    }
+
+    while (true) {
+      const outputs = this.attemptToken
+        ? await this.#pollInputPlane(pollTimeout)
+        : await this.#pollControlPlane(pollTimeout);
+      if (outputs.length > 0) {
+        return await processResult(outputs[0].result, outputs[0].dataFormat);
+      }
+
+      if (timeout !== undefined) {
+        const remainingTime = timeout - (Date.now() - startTime);
+        if (remainingTime <= 0) {
+          const message = `Timeout exceeded: ${(timeout / 1000).toFixed(1)}s`;
+          throw new FunctionTimeoutError(message);
+        }
+        pollTimeout = Math.min(outputsTimeout, remainingTime);
+      }
+    }
+  }
+
+  async #pollControlPlane(
+    timeout: number, // in milliseconds
+  ): Promise<FunctionGetOutputsItem[]> {
     try {
-      response = await client.functionGetOutputs({
-        functionCallId: functionCallId,
+      const response = await this.client.functionGetOutputs({
+        functionCallId: this.functionCallId,
         maxValues: 1,
-        timeout: pollTimeout / 1000, // Backend needs seconds
+        timeout: timeout / 1000, // Backend needs seconds
         lastEntryId: "0-0",
         clearOnSuccess: true,
         requestedAt: timeNowSeconds(),
       });
+      return response.outputs;
     } catch (err) {
       throw new Error(`FunctionGetOutputs failed: ${err}`);
     }
+  }
 
-    const outputs = response.outputs;
-    if (outputs.length > 0) {
-      return await processResult(outputs[0].result, outputs[0].dataFormat);
-    }
-
-    if (timeout !== undefined) {
-      const remainingTime = timeout - (Date.now() - startTime);
-      if (remainingTime <= 0) {
-        const message = `Timeout exceeded: ${(timeout / 1000).toFixed(1)}s`;
-        throw new FunctionTimeoutError(message);
-      }
-      pollTimeout = Math.min(outputsTimeout, remainingTime);
+  async #pollInputPlane(
+    timeout: number, // in milliseconds
+  ): Promise<FunctionGetOutputsItem[]> {
+    try {
+      const response = await this.client.attemptAwait({
+        attemptToken: this.attemptToken,
+        requestedAt: timeNowSeconds(),
+        timeoutSecs: timeout / 1000, // Convert to seconds
+      });
+      return response.output ? [response.output] : [];
+    } catch (err) {
+      throw new Error(`AttemptAwait failed: ${err}`);
     }
   }
 }
