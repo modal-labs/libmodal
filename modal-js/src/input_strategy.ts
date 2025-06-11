@@ -9,10 +9,12 @@ import {
 import { client } from "./client";
 
 /**
- * There are two strategies for handling inputs:
- * 1. ControlPlaneStrategy: Send inputs to the control plane (the old way)
- * 2. InputPlaneStrategy: Send inputs to the input plane (the new way)
- * In the spirit of being forward looking, the interface matches the new input plane API.
+ * This abstraction exists so that we can easily send inputs to either the control plane or the input plane.
+ * Function definitions that inlcude an option like this `experimental_options={"input_plane_region": "us-west"}`
+ * are sent to the input plane, otherwise they are sent to the control plane.
+ *
+ * Once the input plane is no longer experimental, and all user traffic has been moved to it, we can remove
+ * this abstraction.
  */
 export interface InputStrategy {
   attemptStart(): Promise<void>;
