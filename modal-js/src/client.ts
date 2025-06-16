@@ -13,6 +13,8 @@ import {
 import { ClientType, ModalClientDefinition } from "../proto/modal_proto/api";
 import { type Profile, profile } from "./config";
 
+let modalAuthToken: string | undefined;
+
 /** gRPC client middleware to add auth token to request. */
 function authMiddleware(profile: Profile): ClientMiddleware {
   return async function* authMiddleware<Request, Response>(
@@ -27,6 +29,30 @@ function authMiddleware(profile: Profile): ClientMiddleware {
     options.metadata.set("x-modal-client-version", "1.0.0"); // CLIENT VERSION: Behaves like this Python SDK version
     options.metadata.set("x-modal-token-id", profile.tokenId);
     options.metadata.set("x-modal-token-secret", profile.tokenSecret);
+    if (modalAuthToken) {
+      options.metadata.set("x-modal-auth-token", modalAuthToken);
+    }
+
+    const prevOnHeader = options.onHeader;
+    options.onHeader = (header) => {
+      const token = header.get("x-modal-auth-token");
+      if (token) {
+        modalAuthToken = token;
+      }
+      if (prevOnHeader) {
+        prevOnHeader(header);
+      }
+    };
+    const prevOnTrailer = options.onTrailer;
+    options.onTrailer = (trailer) => {
+      const token = trailer.get("x-modal-auth-token");
+      if (token) {
+        modalAuthToken = token;
+      }
+      if (prevOnTrailer) {
+        prevOnTrailer(trailer);
+      }
+    };
     return yield* call.next(call.request, options);
   };
 }
@@ -190,15 +216,37 @@ const retryMiddleware: ClientMiddleware<RetryOptions> =
     }
   };
 
-// Ref: https://github.com/modal-labs/modal-client/blob/main/modal/_utils/grpc_utils.py
-const channel = createChannel(profile.serverUrl, undefined, {
-  "grpc.max_receive_message_length": 100 * 1024 * 1024,
-  "grpc.max_send_message_length": 100 * 1024 * 1024,
-  "grpc-node.flow_control_window": 64 * 1024 * 1024,
-});
+/**
+ * Map of server URL => client.
+ * The us-east client talks to the control plane; all other clients talk to input planes.
+ */
+const clients: Record<string, ReturnType<typeof createClient>> = {};
 
-export const client = createClientFactory()
-  .use(authMiddleware(profile))
-  .use(retryMiddleware)
-  .use(timeoutMiddleware)
-  .create(ModalClientDefinition, channel);
+/** Returns a client for the given server URL, creating it if it doesn't exist. */
+export const getOrCreateClient = (
+  serverURL: string,
+): ReturnType<typeof createClient> => {
+  if (serverURL in clients) {
+    return clients[serverURL];
+  }
+
+  clients[serverURL] = createClient(serverURL);
+  return clients[serverURL];
+};
+
+const createClient = (serverURL: string) => {
+  // Ref: https://github.com/modal-labs/modal-client/blob/main/modal/_utils/grpc_utils.py
+  const channel = createChannel(serverURL, undefined, {
+    "grpc.max_receive_message_length": 100 * 1024 * 1024,
+    "grpc.max_send_message_length": 100 * 1024 * 1024,
+    "grpc-node.flow_control_window": 64 * 1024 * 1024,
+  });
+
+  return createClientFactory()
+    .use(authMiddleware(profile))
+    .use(retryMiddleware)
+    .use(timeoutMiddleware)
+    .create(ModalClientDefinition, channel);
+};
+
+export const client = getOrCreateClient(profile.serverUrl);
