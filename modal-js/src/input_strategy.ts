@@ -10,7 +10,7 @@ import { client } from "./client";
 
 /**
  * This abstraction exists so that we can easily send inputs to either the control plane or the input plane.
- * Function definitions that inlcude an option like this `experimental_options={"input_plane_region": "us-west"}`
+ * Function definitions that include an option like this `experimental_options={"input_plane_region": "us-west"}`
  * are sent to the input plane, otherwise they are sent to the control plane.
  *
  * Once the input plane is no longer experimental, and all user traffic has been moved to it, we can remove
