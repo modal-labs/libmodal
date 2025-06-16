@@ -73,7 +73,12 @@ var defaultProfile Profile
 // clientProfile is the actual profile, from defaultProfile + InitializeClient().
 var clientProfile Profile
 
+// client is the default Modal client that talks to the control plane.
 var client pb.ModalClientClient
+
+// clients is a map of server URL => client.
+// The us-east client talks to the control plane; all other clients talk to input planes.
+var clients = map[string]pb.ModalClientClient{}
 
 func init() {
 	defaultConfig, _ = readConfigFile()
@@ -108,7 +113,21 @@ func InitializeClient(options ClientOptions) error {
 	return err
 }
 
-// newClient dials api.modal.com with auth/timeout/retry interceptors installed.
+// getOrCreateClient returns a client for the given server URL, creating it if it doesn't exist.
+func getOrCreateClient(serverURL string) (pb.ModalClientClient, error) {
+	if client, ok := clients[serverURL]; ok {
+		return client, nil
+	}
+
+	_, client, err := newClient(nil)
+	if err != nil {
+		return nil, err
+	}
+	clients[serverURL] = client
+	return client, nil
+}
+
+// newClient dials the given server URL with auth/timeout/retry interceptors installed.
 // It returns (conn, stub). Close the conn when done.
 func newClient(profile Profile) (*grpc.ClientConn, pb.ModalClientClient, error) {
 	var target string
