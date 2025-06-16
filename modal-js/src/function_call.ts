@@ -1,7 +1,8 @@
 // Manage existing Function Calls (look-ups, polling for output, cancellation).
 
 import { client } from "./client";
-import type { FunctionOutputPoller } from "./function";
+import { pollFunctionOutput } from "./function";
+import { ControlPlaneStrategy } from "./input_strategy";
 
 /** Options for `FunctionCall.get()`. */
 export type FunctionCallGetOptions = {
@@ -19,28 +20,28 @@ export type FunctionCallCancelOptions = {
  * (see `cancel()`).
  */
 export class FunctionCall {
-  readonly functionOutputPoller: FunctionOutputPoller;
+  readonly inputStrategy: ControlPlaneStrategy;
 
   /** @ignore */
-  constructor(functionOutputPoller: FunctionOutputPoller) {
-    this.functionOutputPoller = functionOutputPoller;
+  constructor(inputStrategy: ControlPlaneStrategy) {
+    this.inputStrategy = inputStrategy;
   }
 
   /** Create a new function call from ID. */
-  static fromPoller(functionOutputPoller: FunctionOutputPoller): FunctionCall {
-    return new FunctionCall(functionOutputPoller);
+  static fromInputStrategy(inputStrategy: ControlPlaneStrategy): FunctionCall {
+    return new FunctionCall(inputStrategy);
   }
 
   /** Get the result of a function call, optionally waiting with a timeout. */
   async get(options: FunctionCallGetOptions = {}): Promise<any> {
     const timeout = options.timeout;
-    return await this.functionOutputPoller.poll(timeout);
+    return await pollFunctionOutput(this.inputStrategy, timeout);
   }
 
   /** Cancel a running function call. */
   async cancel(options: FunctionCallCancelOptions = {}) {
     await client.functionCallCancel({
-      functionCallId: this.functionOutputPoller.functionCallId,
+      functionCallId: this.inputStrategy.functionCallId,
       terminateContainers: options.terminateContainers,
     });
   }

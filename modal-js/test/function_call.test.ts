@@ -9,7 +9,7 @@ test("FunctionSpawn", async () => {
 
   // Spawn function with kwargs.
   let functionCall = await function_.spawn([], { s: "hello" });
-  expect(functionCall.functionOutputPoller.functionCallId).toBeDefined();
+  expect(functionCall.inputStrategy.functionCallId).toBeDefined();
 
   // Get results after spawn.
   let resultKwargs = await functionCall.get();
@@ -24,7 +24,7 @@ test("FunctionSpawn", async () => {
 
   // Spawn with long running input.
   functionCall = await sleep.spawn([], { t: 5 });
-  expect(functionCall.functionOutputPoller.functionCallId).toBeDefined();
+  expect(functionCall.inputStrategy.functionCallId).toBeDefined();
 
   // Getting outputs with timeout raises error.
   const promise = functionCall.get({ timeout: 1000 }); // 1000ms
