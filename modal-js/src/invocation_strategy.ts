@@ -27,13 +27,13 @@ export interface InvocationStrategy {
    * Executes the function call remotely and waits for the output.
    * @returns A promise that resolves to the function output item.
    */
-  remote(input: FunctionPutInputsItem): Promise<FunctionGetOutputsItem>;
+  remote(): Promise<FunctionGetOutputsItem>;
 
   /**
    * Spawns the function call asynchronously.
    * @returns A promise that resolves to the function call ID.
    */
-  spawn(input: FunctionPutInputsItem): Promise<string>;
+  spawn(): Promise<string>;
 }
 
 /**
@@ -41,22 +41,24 @@ export interface InvocationStrategy {
  */
 export class ControlPlaneStrategy implements InvocationStrategy {
   private readonly functionId: string;
+  private readonly input: FunctionPutInputsItem;
 
-  constructor(functionId: string) {
+  constructor(functionId: string, input: FunctionPutInputsItem) {
     this.functionId = functionId;
+    this.input = input;
   }
 
-  async remote(input: FunctionPutInputsItem): Promise<FunctionGetOutputsItem> {
+  async remote(): Promise<FunctionGetOutputsItem> {
     const functionCallId = await this.#execFunctionCall(
-      input,
+      this.input,
       FunctionCallInvocationType.FUNCTION_CALL_INVOCATION_TYPE_SYNC,
     );
     return await pollControlPlaneForOutput(functionCallId);
   }
 
-  async spawn(input: FunctionPutInputsItem): Promise<string> {
+  async spawn(): Promise<string> {
     return await this.#execFunctionCall(
-      input,
+      this.input,
       FunctionCallInvocationType.FUNCTION_CALL_INVOCATION_TYPE_ASYNC,
     );
   }

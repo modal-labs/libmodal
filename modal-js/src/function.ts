@@ -16,7 +16,6 @@ import { dumps } from "./pickle";
 import { ClientError, Status } from "nice-grpc";
 import {
   ControlPlaneStrategy,
-  InvocationStrategy,
   pollControlPlaneForOutput,
 } from "./invocation_strategy";
 
@@ -27,13 +26,11 @@ const maxObjectSizeBytes = 2 * 1024 * 1024; // 2 MiB
 export class Function_ {
   readonly functionId: string;
   readonly methodName: string | undefined;
-  private readonly invocationStrategy: InvocationStrategy;
 
   /** @ignore */
   constructor(functionId: string, methodName?: string) {
     this.functionId = functionId;
     this.methodName = methodName;
-    this.invocationStrategy = new ControlPlaneStrategy(this.functionId);
   }
 
   static async lookup(
@@ -62,7 +59,8 @@ export class Function_ {
     kwargs: Record<string, any> = {},
   ): Promise<any> {
     const input = await this.#createInput(args, kwargs);
-    return await this.invocationStrategy.remote(input);
+    const invocationStrategy = new ControlPlaneStrategy(this.functionId, input);
+    return await invocationStrategy.remote();
   }
 
   // Spawn a single input into a remote function.
@@ -71,7 +69,8 @@ export class Function_ {
     kwargs: Record<string, any> = {},
   ): Promise<FunctionCall> {
     const input = await this.#createInput(args, kwargs);
-    const functionCallId = await this.invocationStrategy.spawn(input);
+    const invocationStrategy = new ControlPlaneStrategy(this.functionId, input);
+    const functionCallId = await invocationStrategy.spawn();
     return new FunctionCall(functionCallId);
   }
 
