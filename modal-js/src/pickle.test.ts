@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { dumps, loads, type Protocol } from "./pickle";
-import { Buffer } from "buffer";
+import { Buffer } from "node:buffer";
 
 test("PickleUnpickle", () => {
   const sample = {
