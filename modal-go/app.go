@@ -98,13 +98,14 @@ func (app *App) CreateSandbox(image *Image, options *SandboxOptions) (*Sandbox, 
 
 // ImageFromRegistry creates an Image from a registry tag.
 func (app *App) ImageFromRegistry(tag string) (*Image, error) {
-	return fromRegistryInternal(app, tag, &pb.ImageRegistryConfig{})
+	return fromRegistryInternal(app, tag, nil)
 }
 
 // ImageFromAwsEcr creates an Image from an AWS ECR tag, and secret for auth.
 func (app *App) ImageFromAwsEcr(tag string, secret *Secret) (*Image, error) {
-	imageRegistryConfig := &pb.ImageRegistryConfig{}
-	imageRegistryConfig.SetRegistryAuthType(pb.RegistryAuthType_REGISTRY_AUTH_TYPE_AWS)
-	imageRegistryConfig.SetSecretId(secret.SecretId)
+	imageRegistryConfig := pb.ImageRegistryConfig_builder{
+		RegistryAuthType: pb.RegistryAuthType_REGISTRY_AUTH_TYPE_AWS,
+		SecretId:         secret.SecretId,
+	}.Build()
 	return fromRegistryInternal(app, tag, imageRegistryConfig)
 }

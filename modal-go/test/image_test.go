@@ -27,8 +27,7 @@ func TestImageFromAwsEcr(t *testing.T) {
 	app, err := modal.AppLookup(context.Background(), "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	secret, err := modal.SecretFromName(context.Background(), "aws-ecr-private-registry-test-secret", &modal.SecretFromNameOptions{
-		Environment:  "libmodal",
+	secret, err := modal.SecretFromName(context.Background(), "libmodal-aws-ecr-test", &modal.SecretFromNameOptions{
 		RequiredKeys: []string{"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"},
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())

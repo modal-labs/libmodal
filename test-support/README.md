@@ -1,18 +1,19 @@
 # Test support for libmodal
 
-Sign in to a Modal account, which you'll use for running the test programs.
+Sign in to Modal, which you'll use for running the test programs.
 
-Then deploy the apps in this folder using the Python client:
+Then deploy the apps and secrets in this folder using the Python client. This
+requires being signed in to AWS (Modal Labs account):
 
 ```bash
-modal deploy libmodal_test_support.py
+test-support/setup.sh
 ```
 
-This deployed app will be called from tests in each language.
+Now you can run tests in each language.
 
 ```bash
 # JavaScript
-cd modal-js && npm test
+cd modal-js && npm run build && npm test
 
 # Go
 cd modal-go && go test -v -count=1 -parallel=10 ./test

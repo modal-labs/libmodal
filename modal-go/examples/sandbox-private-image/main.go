@@ -16,7 +16,7 @@ func main() {
 		log.Fatalf("Failed to lookup or create app: %v", err)
 	}
 
-	secret, err := modal.SecretFromName(ctx, "aws-ecr-private-registry-test-secret", &modal.SecretFromNameOptions{
+	secret, err := modal.SecretFromName(ctx, "libmodal-aws-ecr-test", &modal.SecretFromNameOptions{
 		RequiredKeys: []string{"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"},
 	})
 	if err != nil {

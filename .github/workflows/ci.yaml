@@ -44,11 +44,13 @@ jobs:
           uv python install
           uv pip install modal
 
-      - run: modal deploy test-support/libmodal_test_support.py
+      - run: test-support/setup.sh
         env:
           MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
           MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
           MODAL_ENVIRONMENT: libmodal
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
       - run: npm test
         working-directory: ./modal-js
@@ -75,11 +77,13 @@ jobs:
           uv python install
           uv pip install modal
 
-      - run: modal deploy test-support/libmodal_test_support.py
+      - run: test-support/setup.sh
         env:
           MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
           MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
           MODAL_ENVIRONMENT: libmodal
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
       - name: Set up Go
         uses: actions/setup-go@v5

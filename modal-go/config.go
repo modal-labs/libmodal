@@ -118,5 +118,5 @@ func environmentName(environment string) string {
 }
 
 func imageBuilderVersion(version string) string {
-	return firstNonEmpty(version, defaultProfile.ImageBuilderVersion)
+	return firstNonEmpty(version, defaultProfile.ImageBuilderVersion, "2024.10")
 }

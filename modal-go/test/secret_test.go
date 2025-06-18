@@ -11,7 +11,7 @@ import (
 func TestSecretFromName(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
-	secret, err := modal.SecretFromName(context.Background(), "test-secret", nil)
+	secret, err := modal.SecretFromName(context.Background(), "libmodal-test-secret", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(secret.SecretId).Should(gomega.HavePrefix("st-"))
 
@@ -19,26 +19,16 @@ func TestSecretFromName(t *testing.T) {
 	g.Expect(err).Should(gomega.MatchError(gomega.ContainSubstring("Secret 'missing-secret' not found")))
 }
 
-func TestSecretFromNameWithEnvironment(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-	secret, err := modal.SecretFromName(context.Background(), "test-secret", &modal.SecretFromNameOptions{
-		Environment: "libmodal",
-	})
-	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(secret.SecretId).Should(gomega.HavePrefix("st-"))
-}
-
 func TestSecretFromNameWithRequiredKeys(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
-	secret, err := modal.SecretFromName(context.Background(), "test-secret", &modal.SecretFromNameOptions{
+	secret, err := modal.SecretFromName(context.Background(), "libmodal-test-secret", &modal.SecretFromNameOptions{
 		RequiredKeys: []string{"a", "b", "c"},
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(secret.SecretId).Should(gomega.HavePrefix("st-"))
 
-	_, err = modal.SecretFromName(context.Background(), "test-secret", &modal.SecretFromNameOptions{
+	_, err = modal.SecretFromName(context.Background(), "libmodal-test-secret", &modal.SecretFromNameOptions{
 		RequiredKeys: []string{"a", "b", "c", "missing-key"},
 	})
 	g.Expect(err).Should(gomega.MatchError(gomega.ContainSubstring("Secret is missing key(s): missing-key")))
