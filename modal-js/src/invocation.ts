@@ -30,18 +30,17 @@ export interface Invocation {
    */
   await(): Promise<any>;
 
-  retry(): Promise<void>;
+  retry(retryCount: number): Promise<void>;
 }
 
 /**
- * Implementation of InvocationStrategy which sends inputs to the control plane.
+ * Implementation of Invocation which sends inputs to the control plane.
  */
 export class ControlPlaneInvocation implements Invocation {
   readonly functionCallId: string;
   private readonly input?: FunctionInput;
   private readonly functionCallJwt?: string;
   private inputJwt?: string;
-  private retryCount: number = 0;
 
   private constructor(
     functionCallId: string,
@@ -81,7 +80,7 @@ export class ControlPlaneInvocation implements Invocation {
     return await pollControlPlaneForOutput(this.functionCallId, timeout);
   }
 
-  async retry(): Promise<void> {
+  async retry(retryCount: number): Promise<void> {
     // we do not expect this to happen
     if (!this.input) {
       throw new Error("Cannot retry function invocation - input missing");
@@ -90,7 +89,7 @@ export class ControlPlaneInvocation implements Invocation {
     const retryItem: FunctionRetryInputsItem = {
       inputJwt: this.inputJwt!,
       input: this.input,
-      retryCount: this.retryCount,
+      retryCount: retryCount,
     };
 
     const functionRetryResponse = await client.functionRetryInputs({
@@ -98,7 +97,6 @@ export class ControlPlaneInvocation implements Invocation {
       inputs: [retryItem],
     });
     this.inputJwt = functionRetryResponse.inputJwts[0];
-    this.retryCount += 1;
   }
 
   private static async execFunctionCall(

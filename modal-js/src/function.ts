@@ -5,22 +5,23 @@ import { createHash } from "node:crypto";
 import {
   DataFormat,
   DeploymentNamespace,
-  FunctionPutInputsItem,
+  FunctionCallInvocationType,
+  FunctionInput,
 } from "../proto/modal_proto/api";
 import type { LookupOptions } from "./app";
 import { client } from "./client";
 import { FunctionCall } from "./function_call";
 import { environmentName } from "./config";
-import { NotFoundError } from "./errors";
+import { InternalFailure, NotFoundError } from "./errors";
 import { dumps } from "./pickle";
 import { ClientError, Status } from "nice-grpc";
-import {
-  ControlPlaneStrategy,
-  pollControlPlaneForOutput,
-} from "./invocation_strategy";
+import { ControlPlaneInvocation } from "./invocation";
 
 // From: modal/_utils/blob_utils.py
 const maxObjectSizeBytes = 2 * 1024 * 1024; // 2 MiB
+
+// From: client/modal/_functions.py
+const maxSystemRetries = 8;
 
 /** Represents a deployed Modal Function, which can be invoked remotely. */
 export class Function_ {
@@ -59,8 +60,25 @@ export class Function_ {
     kwargs: Record<string, any> = {},
   ): Promise<any> {
     const input = await this.#createInput(args, kwargs);
-    const invocationStrategy = new ControlPlaneStrategy(this.functionId, input);
-    return await invocationStrategy.remote();
+    const invocation = await ControlPlaneInvocation.create(
+      this.functionId,
+      input,
+      FunctionCallInvocationType.FUNCTION_CALL_INVOCATION_TYPE_SYNC,
+    );
+    // TODO(ryan): Add tests for retries.
+    let retryCount = 0;
+    while (true) {
+      try {
+        return await invocation.await();
+      } catch (err) {
+        if (err instanceof InternalFailure && retryCount <= maxSystemRetries) {
+          await invocation.retry(retryCount);
+          retryCount++;
+        } else {
+          throw err;
+        }
+      }
+    }
   }
 
   // Spawn a single input into a remote function.
@@ -69,15 +87,18 @@ export class Function_ {
     kwargs: Record<string, any> = {},
   ): Promise<FunctionCall> {
     const input = await this.#createInput(args, kwargs);
-    const invocationStrategy = new ControlPlaneStrategy(this.functionId, input);
-    const functionCallId = await invocationStrategy.spawn();
-    return new FunctionCall(functionCallId);
+    const invocation = await ControlPlaneInvocation.create(
+      this.functionId,
+      input,
+      FunctionCallInvocationType.FUNCTION_CALL_INVOCATION_TYPE_ASYNC,
+    );
+    return new FunctionCall(invocation.functionCallId);
   }
 
   async #createInput(
     args: any[] = [],
     kwargs: Record<string, any> = {},
-  ): Promise<FunctionPutInputsItem> {
+  ): Promise<FunctionInput> {
     const payload = dumps([args, kwargs]);
 
     let argsBlobId: string | undefined = undefined;
@@ -87,23 +108,13 @@ export class Function_ {
 
     // Single input sync invocation
     return {
-      idx: 0,
-      input: {
-        args: argsBlobId ? undefined : payload,
-        argsBlobId,
-        dataFormat: DataFormat.DATA_FORMAT_PICKLE,
-        methodName: this.methodName,
-        finalInput: false, // This field isn't specified in the Python client, so it defaults to false.
-      },
+      args: argsBlobId ? undefined : payload,
+      argsBlobId,
+      dataFormat: DataFormat.DATA_FORMAT_PICKLE,
+      methodName: this.methodName,
+      finalInput: false, // This field isn't specified in the Python client, so it defaults to false.
     };
   }
-}
-
-export async function pollFunctionOutput(
-  functionCallId: string,
-  timeout?: number, // in milliseconds
-): Promise<any> {
-  return pollControlPlaneForOutput(functionCallId, timeout);
 }
 
 async function blobUpload(data: Uint8Array): Promise<string> {

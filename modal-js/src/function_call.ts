@@ -1,7 +1,7 @@
 // Manage existing Function Calls (look-ups, polling for output, cancellation).
 
 import { client } from "./client";
-import { pollFunctionOutput } from "./function";
+import { ControlPlaneInvocation } from "./invocation";
 
 /** Options for `FunctionCall.get()`. */
 export type FunctionCallGetOptions = {
@@ -34,7 +34,10 @@ export class FunctionCall {
   /** Get the result of a function call, optionally waiting with a timeout. */
   async get(options: FunctionCallGetOptions = {}): Promise<any> {
     const timeout = options.timeout;
-    return await pollFunctionOutput(this.functionCallId, timeout);
+    const invocation = ControlPlaneInvocation.fromFunctionCallId(
+      this.functionCallId,
+    );
+    return invocation.await(timeout);
   }
 
   /** Cancel a running function call. */
