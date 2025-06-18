@@ -37,7 +37,7 @@ export class FunctionCall {
     const invocation = ControlPlaneInvocation.fromFunctionCallId(
       this.functionCallId,
     );
-    return invocation.await(timeout);
+    return invocation.awaitOutput(timeout);
   }
 
   /** Cancel a running function call. */

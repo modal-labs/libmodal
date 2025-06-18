@@ -4,7 +4,6 @@ import {
   FunctionCallType,
   FunctionGetOutputsResponse,
   FunctionInput,
-  FunctionMapResponse,
   FunctionRetryInputsItem,
   GeneratorDone,
   GenericResult,
@@ -24,12 +23,7 @@ const outputsTimeout = 55 * 1000;
  * For now, we support just the control plane, and will add support for the input plane soon.
  */
 export interface Invocation {
-  /**
-   * Spawns the function call asynchronously.
-   * @returns A promise that resolves to the function call ID.
-   */
-  await(): Promise<any>;
-
+  awaitOutput(timeout?: number): Promise<any>;
   retry(retryCount: number): Promise<void>;
 }
 
@@ -59,11 +53,18 @@ export class ControlPlaneInvocation implements Invocation {
     input: FunctionInput,
     invocationType: FunctionCallInvocationType,
   ) {
-    const functionMapResponse = await ControlPlaneInvocation.execFunctionCall(
-      functionId,
-      input,
-      invocationType,
-    );
+    const functionPutInputsItem = {
+      idx: 0,
+      input: input,
+    };
+
+    const functionMapResponse = await client.functionMap({
+      functionId: functionId,
+      functionCallType: FunctionCallType.FUNCTION_CALL_TYPE_UNARY,
+      functionCallInvocationType: invocationType,
+      pipelinedInputs: [functionPutInputsItem],
+    });
+
     return new ControlPlaneInvocation(
       functionMapResponse.functionCallId,
       input,
@@ -76,8 +77,8 @@ export class ControlPlaneInvocation implements Invocation {
     return new ControlPlaneInvocation(functionCallId);
   }
 
-  async await(timeout?: number): Promise<any> {
-    return await pollControlPlaneForOutput(this.functionCallId, timeout);
+  async awaitOutput(timeout?: number): Promise<any> {
+    return await pollFunctionOutput(this.functionCallId, timeout);
   }
 
   async retry(retryCount: number): Promise<void> {
@@ -98,31 +99,13 @@ export class ControlPlaneInvocation implements Invocation {
     });
     this.inputJwt = functionRetryResponse.inputJwts[0];
   }
-
-  private static async execFunctionCall(
-    functionId: string,
-    input: FunctionInput,
-    invocationType: FunctionCallInvocationType,
-  ): Promise<FunctionMapResponse> {
-    const functionPutInputsItem = {
-      idx: 0,
-      input: input,
-    };
-    // Single input sync invocation
-    return await client.functionMap({
-      functionId: functionId,
-      functionCallType: FunctionCallType.FUNCTION_CALL_TYPE_UNARY,
-      functionCallInvocationType: invocationType,
-      pipelinedInputs: [functionPutInputsItem],
-    });
-  }
 }
 
 function timeNowSeconds() {
   return Date.now() / 1e3;
 }
 
-export async function pollControlPlaneForOutput(
+export async function pollFunctionOutput(
   functionCallId: string,
   timeout?: number, // in milliseconds
 ): Promise<any> {

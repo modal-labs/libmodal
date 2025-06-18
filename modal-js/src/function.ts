@@ -69,7 +69,7 @@ export class Function_ {
     let retryCount = 0;
     while (true) {
       try {
-        return await invocation.await();
+        return await invocation.awaitOutput();
       } catch (err) {
         if (err instanceof InternalFailure && retryCount <= maxSystemRetries) {
           await invocation.retry(retryCount);
