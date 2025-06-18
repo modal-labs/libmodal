@@ -1,6 +1,6 @@
-import modal
 import time
 
+import modal
 
 app = modal.App("libmodal-test-support")
 
@@ -18,6 +18,11 @@ def sleep(t: int) -> None:
 @app.function(min_containers=1)
 def bytelength(buf: bytes) -> int:
     return len(buf)
+
+
+@app.function(min_containers=1, experimental_options={"input_plane_region": "us-west"})
+def input_plane(s: str) -> str:
+    return "output: " + s
 
 
 @app.cls(min_containers=1)
