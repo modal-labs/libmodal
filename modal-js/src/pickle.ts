@@ -11,7 +11,7 @@
 //   Numbers:  BININT1, BININT2, BININT4 (aka BININT), BINFLOAT
 //   Text:     SHORT_BINUNICODE, BINUNICODE, BINUNICODE8
 //   Bytes:    SHORT_BINBYTES,  BINBYTES,  BINBYTES8
-//   Containers: EMPTY_LIST, APPEND, EMPTY_DICT, SETITEM
+//   Containers: EMPTY_LIST, APPEND, EMPTY_DICT, SETITEM, MARK, SETITEMS, APPENDS
 //   Memo:     MEMOIZE   (≥4), BINPUT/LONG_BINPUT + BINGET/LONG_BINGET (≤3)
 //   Frames:   FRAME (proto‑5) – we just skip the announced length.
 // -------------------------------------------------------------
