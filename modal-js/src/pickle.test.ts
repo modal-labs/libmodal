@@ -67,6 +67,7 @@ describe("Python compatibility", () => {
       const buf = Buffer.from(b64, "base64");
       const val = loads(new Uint8Array(buf));
       expect(val).toEqual(expected);
+      expect(loads(dumps(val, 4))).toEqual(val);
     });
   }
 });
