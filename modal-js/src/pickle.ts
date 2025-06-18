@@ -48,6 +48,7 @@ const enum Op {
   APPEND = 0x61, // a
   EMPTY_DICT = 0x7d, // }
   SETITEM = 0x73, // s
+  MARK = 0x28, // (  (mark stack position)
 
   // Memo / frame machinery
   BINPUT = 0x71, // q  idx(1)
@@ -56,6 +57,8 @@ const enum Op {
   LONG_BINGET = 0x6a, // j  idx(4)
   MEMOIZE = 0x94, // \x94 (≥4)
   FRAME = 0x95, // \x95 size(8) (proto‑5)
+  APPENDS = 0x65, // e
+  SETITEMS = 0x75, // u
 }
 
 // ─── Binary helpers ─────────────────────────────────────────
@@ -117,6 +120,15 @@ class Reader {
     const lo = this.uint32LE() >>> 0;
     const hi = this.uint32LE() >>> 0;
     return hi * 2 ** 32 + lo;
+  }
+  int32LE() {
+    const v = new DataView(
+      this.buf.buffer,
+      this.buf.byteOffset + this.pos,
+      4,
+    ).getInt32(0, true);
+    this.pos += 4;
+    return v;
   }
   float64BE() {
     const v = new DataView(
@@ -276,6 +288,9 @@ export function loads(buf: Uint8Array): any {
     void size; // silence tsclint
   }
 
+  // Unique marker for stack operations (cannot be confused with user data)
+  const MARK = Symbol("pickle-mark");
+
   while (!r.eof()) {
     const op = r.byte();
     switch (op) {
@@ -302,8 +317,7 @@ export function loads(buf: Uint8Array): any {
         break;
       }
       case Op.BININT4: {
-        const n = r.uint32LE();
-        push(n >>> 31 ? n - 0x1_0000_0000 : n);
+        push(r.int32LE());
         break;
       }
       case Op.BINFLOAT:
@@ -384,6 +398,51 @@ export function loads(buf: Uint8Array): any {
       case Op.FRAME: {
         const _size = r.uint64LE();
         /* ignore */ break;
+      }
+
+      case Op.MARK:
+        push(MARK);
+        break;
+
+      case Op.APPENDS: {
+        // Pops all items after the last MARK and appends them to the list below the MARK
+        // Find the last MARK
+        const markIndex = stack.lastIndexOf(MARK);
+        if (markIndex === -1) {
+          throw new PickleError("APPENDS without MARK");
+        }
+        const lst = stack[markIndex - 1];
+        if (!Array.isArray(lst)) {
+          throw new PickleError("APPENDS expects a list below MARK");
+        }
+        const items = stack.slice(markIndex + 1);
+        lst.push(...items);
+        stack.length = markIndex - 1; // Remove everything after the list
+        push(lst);
+        break;
+      }
+
+      case Op.SETITEMS: {
+        // Sets multiple key-value pairs in a dict after the last MARK
+        // Find the last MARK
+        const markIndex = stack.lastIndexOf(MARK);
+        if (markIndex === -1) {
+          throw new PickleError("SETITEMS without MARK");
+        }
+        const d = stack[markIndex - 1];
+        if (typeof d !== "object" || d === null || Array.isArray(d)) {
+          throw new PickleError("SETITEMS expects a dict below MARK");
+        }
+        const items = stack.slice(markIndex + 1);
+        // Set key-value pairs (items come in pairs: key, value, key, value, ...)
+        for (let i = 0; i < items.length; i += 2) {
+          if (i + 1 < items.length) {
+            d[items[i]] = items[i + 1];
+          }
+        }
+        stack.length = markIndex - 1; // Remove everything after the dict
+        push(d);
+        break;
       }
 
       default:
