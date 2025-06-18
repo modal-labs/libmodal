@@ -2,9 +2,10 @@ import {
   DataFormat,
   FunctionCallInvocationType,
   FunctionCallType,
-  FunctionGetOutputsItem,
   FunctionGetOutputsResponse,
-  FunctionPutInputsItem,
+  FunctionInput,
+  FunctionMapResponse,
+  FunctionRetryInputsItem,
   GeneratorDone,
   GenericResult,
   GenericResult_GenericStatus,
@@ -22,60 +23,100 @@ const outputsTimeout = 55 * 1000;
  * For the input plane, we call the AttemptStart, AttemptRetry, and AttemptAwait RPCs.
  * For now, we support just the control plane, and will add support for the input plane soon.
  */
-export interface InvocationStrategy {
-  /**
-   * Executes the function call remotely and waits for the output.
-   * @returns A promise that resolves to the function output item.
-   */
-  remote(): Promise<FunctionGetOutputsItem>;
-
+export interface Invocation {
   /**
    * Spawns the function call asynchronously.
    * @returns A promise that resolves to the function call ID.
    */
-  spawn(): Promise<string>;
+  await(): Promise<any>;
+
+  retry(): Promise<void>;
 }
 
 /**
  * Implementation of InvocationStrategy which sends inputs to the control plane.
  */
-export class ControlPlaneStrategy implements InvocationStrategy {
-  private readonly functionId: string;
-  private readonly input: FunctionPutInputsItem;
+export class ControlPlaneInvocation implements Invocation {
+  readonly functionCallId: string;
+  private readonly input?: FunctionInput;
+  private readonly functionCallJwt?: string;
+  private inputJwt?: string;
+  private retryCount: number = 0;
 
-  constructor(functionId: string, input: FunctionPutInputsItem) {
-    this.functionId = functionId;
+  private constructor(
+    functionCallId: string,
+    input?: FunctionInput,
+    functionCallJwt?: string,
+    inputJwt?: string,
+  ) {
+    this.functionCallId = functionCallId;
     this.input = input;
+    this.functionCallJwt = functionCallJwt;
+    this.inputJwt = inputJwt;
   }
 
-  async remote(): Promise<FunctionGetOutputsItem> {
-    const functionCallId = await this.#execFunctionCall(
-      this.input,
-      FunctionCallInvocationType.FUNCTION_CALL_INVOCATION_TYPE_SYNC,
-    );
-    return await pollControlPlaneForOutput(functionCallId);
-  }
-
-  async spawn(): Promise<string> {
-    return await this.#execFunctionCall(
-      this.input,
-      FunctionCallInvocationType.FUNCTION_CALL_INVOCATION_TYPE_ASYNC,
-    );
-  }
-
-  async #execFunctionCall(
-    input: FunctionPutInputsItem,
+  static async create(
+    functionId: string,
+    input: FunctionInput,
     invocationType: FunctionCallInvocationType,
-  ): Promise<string> {
+  ) {
+    const functionMapResponse = await ControlPlaneInvocation.execFunctionCall(
+      functionId,
+      input,
+      invocationType,
+    );
+    return new ControlPlaneInvocation(
+      functionMapResponse.functionCallId,
+      input,
+      functionMapResponse.functionCallJwt,
+      functionMapResponse.pipelinedInputs[0].inputJwt,
+    );
+  }
+
+  static fromFunctionCallId(functionCallId: string) {
+    return new ControlPlaneInvocation(functionCallId);
+  }
+
+  async await(timeout?: number): Promise<any> {
+    return await pollControlPlaneForOutput(this.functionCallId, timeout);
+  }
+
+  async retry(): Promise<void> {
+    // we do not expect this to happen
+    if (!this.input) {
+      throw new Error("Cannot retry function invocation - input missing");
+    }
+
+    const retryItem: FunctionRetryInputsItem = {
+      inputJwt: this.inputJwt!,
+      input: this.input,
+      retryCount: this.retryCount,
+    };
+
+    const functionRetryResponse = await client.functionRetryInputs({
+      functionCallJwt: this.functionCallJwt,
+      inputs: [retryItem],
+    });
+    this.inputJwt = functionRetryResponse.inputJwts[0];
+    this.retryCount += 1;
+  }
+
+  private static async execFunctionCall(
+    functionId: string,
+    input: FunctionInput,
+    invocationType: FunctionCallInvocationType,
+  ): Promise<FunctionMapResponse> {
+    const functionPutInputsItem = {
+      idx: 0,
+      input: input,
+    };
     // Single input sync invocation
-    const functionMapResponse = await client.functionMap({
-      functionId: this.functionId,
+    return await client.functionMap({
+      functionId: functionId,
       functionCallType: FunctionCallType.FUNCTION_CALL_TYPE_UNARY,
       functionCallInvocationType: invocationType,
-      pipelinedInputs: [input],
+      pipelinedInputs: [functionPutInputsItem],
     });
-
-    return functionMapResponse.functionCallId;
   }
 }
 
