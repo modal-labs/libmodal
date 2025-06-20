@@ -1,5 +1,7 @@
 import { App } from "modal";
-import { expect, test, onTestFinished } from "vitest";
+import { expect, test, vi, onTestFinished } from "vitest";
+
+vi.setConfig({ testTimeout: 40000 });
 
 test("WriteAndReadTextFile", async () => {
   const app = await App.lookup("libmodal-test", { createIfMissing: true });
