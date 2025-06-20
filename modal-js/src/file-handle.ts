@@ -1,8 +1,5 @@
-import {
-  SeekWhence,
-  ContainerFilesystemExecRequest,
-} from "../proto/modal_proto/api";
-import { client } from "./client";
+import { SeekWhence } from "../proto/modal_proto/api";
+import { client, isRetryableGrpc } from "./client";
 
 /** File open modes supported by the filesystem API. */
 export type FileMode = "r" | "w" | "a" | "r+" | "w+" | "a+";
@@ -46,26 +43,38 @@ export class FileHandle {
       await this.seek(options.position);
     }
 
-    const request: ContainerFilesystemExecRequest = {
+    const resp = await client.containerFilesystemExec({
       fileReadRequest: {
         fileDescriptor: this.#fileDescriptor,
         n: options?.length ?? undefined,
       },
       taskId: this.#taskId,
-    };
-
-    const resp = await client.containerFilesystemExec(request);
-
-    // Get the output stream to read the actual data
-    const outputIterator = client.containerFilesystemExecGetOutput({
-      execId: resp.execId,
-      timeout: 55,
     });
+    await this._wait(resp.execId);
 
-    const chunks: Uint8Array[] = [];
-    for await (const batch of outputIterator) {
-      chunks.push(...batch.output);
-      if (batch.eof) break;
+    let retries = 10;
+    let completed = false;
+    let chunks: Uint8Array[] = [];
+
+    while (!completed) {
+      chunks.length = 0;
+      try {
+        const outputIterator = client.containerFilesystemExecGetOutput({
+          execId: resp.execId,
+          timeout: 55,
+        });
+        for await (const batch of outputIterator) {
+          chunks.push(...batch.output);
+          if (batch.eof) {
+            completed = true;
+            break;
+          }
+        }
+      } catch (err) {
+        if (isRetryableGrpc(err) && retries > 0) {
+          retries--;
+        } else throw err;
+      }
     }
 
     // Concatenate all chunks into a single Uint8Array
@@ -98,15 +107,14 @@ export class FileHandle {
     const bytes =
       typeof data === "string" ? new TextEncoder().encode(data) : data;
 
-    const request: any = {
+    const req = await client.containerFilesystemExec({
       fileWriteRequest: {
         fileDescriptor: this.#fileDescriptor,
         data: bytes,
       },
       taskId: this.#taskId,
-    };
-
-    await client.containerFilesystemExec(request);
+    });
+    await this._wait(req.execId);
   }
 
   /**
@@ -114,7 +122,7 @@ export class FileHandle {
    * @param offset - Offset to seek to
    */
   async seek(offset: number): Promise<void> {
-    await client.containerFilesystemExec({
+    const req = await client.containerFilesystemExec({
       fileSeekRequest: {
         fileDescriptor: this.#fileDescriptor,
         offset: offset,
@@ -122,29 +130,55 @@ export class FileHandle {
       },
       taskId: this.#taskId,
     });
+    await this._wait(req.execId);
   }
 
   /**
    * Flush any buffered data to the file.
    */
   async flush(): Promise<void> {
-    await client.containerFilesystemExec({
+    const req = await client.containerFilesystemExec({
       fileFlushRequest: {
         fileDescriptor: this.#fileDescriptor,
       },
       taskId: this.#taskId,
     });
+
+    await this._wait(req.execId);
   }
 
   /**
    * Close the file handle.
    */
   async close(): Promise<void> {
-    await client.containerFilesystemExec({
+    const req = await client.containerFilesystemExec({
       fileCloseRequest: {
         fileDescriptor: this.#fileDescriptor,
       },
       taskId: this.#taskId,
     });
+    await this._wait(req.execId);
+  }
+
+  async _wait(execId: string): Promise<void> {
+    let retries = 10;
+    let completed = false;
+    while (!completed) {
+      try {
+        const outputIterator = client.containerFilesystemExecGetOutput({
+          execId,
+          timeout: 55,
+        });
+        for await (const batch of outputIterator) {
+          if (batch.eof) {
+            completed = true;
+            break;
+          }
+        }
+      } catch (err) {
+        if (isRetryableGrpc(err) && retries > 0) retries--;
+        else throw err;
+      }
+    }
   }
 }
