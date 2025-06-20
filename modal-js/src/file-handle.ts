@@ -1,4 +1,4 @@
-import { SeekWhence, ContainerFilesystemExecRequest } from "../proto/modal_proto/api";
+import { SeekWhence, ContainerFilesystemExecRequest, seekWhenceFromJSON } from "../proto/modal_proto/api";
 import { client } from "./client";
 
 /** File open modes supported by the filesystem API. */
@@ -30,7 +30,6 @@ export class FileHandle {
 
   /**
    * Read data from the file.
-   * @param options - Options for the read operation
    * @returns Promise that resolves to the read data as Uint8Array or string
    */
   async read(): Promise<Uint8Array>;
@@ -110,17 +109,15 @@ export class FileHandle {
   /**
    * Seek to a specific position in the file.
    * @param offset - Offset to seek to
-   * @param whence - Where to seek from (SEEK_SET, SEEK_CUR, SEEK_END)
    */
   async seek(
     offset: number,
-    whence: SeekWhence = SeekWhence.SEEK_SET,
   ): Promise<void> {
     await client.containerFilesystemExec({
       fileSeekRequest: {
         fileDescriptor: this.#fileDescriptor,
-        offset,
-        whence,
+        offset: offset,
+        whence: SeekWhence.SEEK_SET,
       },
       taskId: this.#taskId,
     });
