@@ -1,4 +1,4 @@
-import { SeekWhence } from "../proto/modal_proto/api";
+import { seekWhenceFromJSON } from "../proto/modal_proto/api";
 import { client, isRetryableGrpc } from "./client";
 
 /** File open modes supported by the filesystem API. */
@@ -120,13 +120,14 @@ export class FileHandle {
   /**
    * Seek to a specific position in the file.
    * @param offset - Offset to seek to
+   * @param whence - 0 for aboslute file positioning, 1 for relative to the current position and 2 for relative to the file's end.
    */
-  async seek(offset: number): Promise<void> {
+  async seek(offset: number, whence: number = 0): Promise<void> {
     const req = await client.containerFilesystemExec({
       fileSeekRequest: {
         fileDescriptor: this.#fileDescriptor,
         offset: offset,
-        whence: SeekWhence.SEEK_SET,
+        whence: seekWhenceFromJSON(whence),
       },
       taskId: this.#taskId,
     });
