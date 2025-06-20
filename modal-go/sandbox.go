@@ -64,6 +64,32 @@ func (sb *Sandbox) Exec(command []string, opts ExecOptions) (*ContainerProcess, 
 	return newContainerProcess(sb.ctx, resp.GetExecId(), opts), nil
 }
 
+// Open opens a file in the sandbox filesystem.
+// The mode parameter follows the same conventions as os.OpenFile:
+// "r" for read-only, "w" for write-only (truncates), "a" for append, etc.
+func (sb *Sandbox) Open(path, mode string) (*File, error) {
+	if err := sb.ensureTaskId(); err != nil {
+		return nil, err
+	}
+
+	resp, err := client.ContainerFilesystemExec(sb.ctx, pb.ContainerFilesystemExecRequest_builder{
+		FileOpenRequest: pb.ContainerFileOpenRequest_builder{
+			Path: path,
+			Mode: mode,
+		}.Build(),
+		TaskId: sb.taskId,
+	}.Build())
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.GetFileDescriptor() == "" {
+		return nil, fmt.Errorf("failed to open file %s with mode %s", path, mode)
+	}
+
+	return newFile(sb.ctx, resp.GetFileDescriptor(), sb.taskId), nil
+}
+
 func (sb *Sandbox) ensureTaskId() error {
 	if sb.taskId == "" {
 		resp, err := client.SandboxGetTaskId(sb.ctx, pb.SandboxGetTaskIdRequest_builder{
