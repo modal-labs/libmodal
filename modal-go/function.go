@@ -118,19 +118,19 @@ func (f *Function) Remote(args []any, kwargs map[string]any) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	invocation, err := CreateControlPlaneInvocation(f.ctx, f.FunctionId, input, pb.FunctionCallInvocationType_FUNCTION_CALL_INVOCATION_TYPE_SYNC)
+	invocation, err := createControlPlaneInvocation(f.ctx, f.FunctionId, input, pb.FunctionCallInvocationType_FUNCTION_CALL_INVOCATION_TYPE_SYNC)
 	if err != nil {
 		return nil, err
 	}
 	// TODO(ryan): Add tests for retries.
 	retryCount := uint32(0)
 	for {
-		output, err := invocation.AwaitOutput(nil)
+		output, err := invocation.awaitOutput(nil)
 		if err == nil {
 			return output, nil
 		}
 		if errors.As(err, &InternalFailure{}) && retryCount <= maxSystemRetries {
-			if retryErr := invocation.Retry(retryCount); retryErr != nil {
+			if retryErr := invocation.retry(retryCount); retryErr != nil {
 				return nil, retryErr
 			}
 			retryCount++
@@ -146,7 +146,7 @@ func (f *Function) Spawn(args []any, kwargs map[string]any) (*FunctionCall, erro
 	if err != nil {
 		return nil, err
 	}
-	invocation, err := CreateControlPlaneInvocation(f.ctx, f.FunctionId, input, pb.FunctionCallInvocationType_FUNCTION_CALL_INVOCATION_TYPE_SYNC)
+	invocation, err := createControlPlaneInvocation(f.ctx, f.FunctionId, input, pb.FunctionCallInvocationType_FUNCTION_CALL_INVOCATION_TYPE_SYNC)
 	if err != nil {
 		return nil, err
 	}

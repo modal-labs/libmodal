@@ -41,8 +41,8 @@ func (fc *FunctionCall) Get(options *FunctionCallGetOptions) (any, error) {
 		options = &FunctionCallGetOptions{}
 	}
 	ctx := fc.ctx
-	invocation := ControlPlaneInvocationFromFunctionCallId(ctx, fc.FunctionCallId)
-	return invocation.AwaitOutput(options.Timeout)
+	invocation := controlPlaneInvocationFromFunctionCallId(ctx, fc.FunctionCallId)
+	return invocation.awaitOutput(options.Timeout)
 }
 
 // FunctionCallCancelOptions are options for cancelling Function Calls.

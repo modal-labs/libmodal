@@ -11,13 +11,8 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-type Invocation interface {
-	AwaitOutput(timeout *time.Duration) (any, error)
-	Retry(retryCount int) error
-}
-
-// ControlPlaneInvocation implements the Invocation interface.
-type ControlPlaneInvocation struct {
+// controlPlaneInvocation implements the invocation interface.
+type controlPlaneInvocation struct {
 	FunctionCallId  string
 	input           *pb.FunctionInput
 	functionCallJwt string
@@ -25,8 +20,8 @@ type ControlPlaneInvocation struct {
 	ctx             context.Context
 }
 
-// CreateControlPlaneInvocation executes a function call and returns a new ControlPlaneInvocation.
-func CreateControlPlaneInvocation(ctx context.Context, functionId string, input *pb.FunctionInput, invocationType pb.FunctionCallInvocationType) (*ControlPlaneInvocation, error) {
+// createControlPlaneInvocation executes a function call and returns a new controlPlaneInvocation.
+func createControlPlaneInvocation(ctx context.Context, functionId string, input *pb.FunctionInput, invocationType pb.FunctionCallInvocationType) (*controlPlaneInvocation, error) {
 	functionPutInputsItem := pb.FunctionPutInputsItem_builder{
 		Idx:   0,
 		Input: input,
@@ -42,7 +37,7 @@ func CreateControlPlaneInvocation(ctx context.Context, functionId string, input 
 		return nil, err
 	}
 
-	return &ControlPlaneInvocation{
+	return &controlPlaneInvocation{
 		FunctionCallId:  functionMapResponse.GetFunctionCallId(),
 		input:           input,
 		functionCallJwt: functionMapResponse.GetFunctionCallJwt(),
@@ -51,16 +46,16 @@ func CreateControlPlaneInvocation(ctx context.Context, functionId string, input 
 	}, nil
 }
 
-// ControlPlaneInvocationFromFunctionCallId creates a ControlPlaneInvocation from a function call ID.
-func ControlPlaneInvocationFromFunctionCallId(ctx context.Context, functionCallId string) *ControlPlaneInvocation {
-	return &ControlPlaneInvocation{FunctionCallId: functionCallId, ctx: ctx}
+// controlPlaneInvocationFromFunctionCallId creates a controlPlaneInvocation from a function call ID.
+func controlPlaneInvocationFromFunctionCallId(ctx context.Context, functionCallId string) *controlPlaneInvocation {
+	return &controlPlaneInvocation{FunctionCallId: functionCallId, ctx: ctx}
 }
 
-func (c *ControlPlaneInvocation) AwaitOutput(timeout *time.Duration) (any, error) {
+func (c *controlPlaneInvocation) awaitOutput(timeout *time.Duration) (any, error) {
 	return pollFunctionOutput(c.ctx, c.FunctionCallId, timeout)
 }
 
-func (c *ControlPlaneInvocation) Retry(retryCount uint32) error {
+func (c *controlPlaneInvocation) retry(retryCount uint32) error {
 	if c.input == nil {
 		return fmt.Errorf("cannot retry function invocation - input missing")
 	}
