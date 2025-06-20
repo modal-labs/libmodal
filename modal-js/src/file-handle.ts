@@ -1,4 +1,4 @@
-import { SeekWhence } from "../proto/modal_proto/api";
+import { SeekWhence, ContainerFilesystemExecRequest } from "../proto/modal_proto/api";
 import { client } from "./client";
 
 /** File open modes supported by the filesystem API. */
@@ -44,16 +44,13 @@ export class FileHandle {
       await this.seek(options.position);
     }
 
-    const request: any = {
+    const request: ContainerFilesystemExecRequest = {
       fileReadRequest: {
         fileDescriptor: this.#fileDescriptor,
+        n: options?.length ?? undefined
       },
       taskId: this.#taskId,
     };
-
-    if (options?.length !== undefined) {
-      request.fileReadRequest.n = options.length;
-    }
 
     const resp = await client.containerFilesystemExec(request);
 
