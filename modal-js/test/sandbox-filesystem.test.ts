@@ -107,9 +107,10 @@ test("ReadWithPositionOption", async () => {
   const readHandle = await sb.open("/tmp/position.txt", "r");
   const content = await readHandle.read({
     length: 5,
+    position: 7,
     encoding: "utf8",
   });
-  expect(content).toBe("Hello");
+  expect(content).toBe("world");
   await readHandle.close();
 });
 
