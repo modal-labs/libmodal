@@ -47,3 +47,16 @@ func TestFunctionNotFound(t *testing.T) {
 	_, err := modal.FunctionLookup(context.Background(), "libmodal-test-support", "not_a_real_function", nil)
 	g.Expect(err).Should(gomega.BeAssignableToTypeOf(modal.NotFoundError{}))
 }
+
+func TestFunctionCallInputPlane(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	function, err := modal.FunctionLookup(context.Background(), "libmodal-test-support", "input_plane", nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	// Try the same, but with args.
+	result, err := function.Remote([]any{"hello"}, nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(result).Should(gomega.Equal("output: hello"))
+}

@@ -15,7 +15,11 @@ import { environmentName } from "./config";
 import { InternalFailure, NotFoundError } from "./errors";
 import { dumps } from "./pickle";
 import { ClientError, Status } from "nice-grpc";
-import { ControlPlaneInvocation } from "./invocation";
+import {
+  ControlPlaneInvocation,
+  InputPlaneInvocation,
+  Invocation,
+} from "./invocation";
 
 // From: modal/_utils/blob_utils.py
 const maxObjectSizeBytes = 2 * 1024 * 1024; // 2 MiB
@@ -27,11 +31,13 @@ const maxSystemRetries = 8;
 export class Function_ {
   readonly functionId: string;
   readonly methodName: string | undefined;
+  readonly inputPlaneUrl: string | undefined;
 
   /** @ignore */
-  constructor(functionId: string, methodName?: string) {
+  constructor(functionId: string, methodName?: string, inputPlaneUrl?: string) {
     this.functionId = functionId;
     this.methodName = methodName;
+    this.inputPlaneUrl = inputPlaneUrl;
   }
 
   static async lookup(
@@ -46,7 +52,11 @@ export class Function_ {
         namespace: DeploymentNamespace.DEPLOYMENT_NAMESPACE_WORKSPACE,
         environmentName: environmentName(options.environment),
       });
-      return new Function_(resp.functionId);
+      return new Function_(
+        resp.functionId,
+        undefined,
+        resp.handleMetadata?.inputPlaneUrl,
+      );
     } catch (err) {
       if (err instanceof ClientError && err.code === Status.NOT_FOUND)
         throw new NotFoundError(`Function '${appName}/${name}' not found`);
@@ -60,11 +70,7 @@ export class Function_ {
     kwargs: Record<string, any> = {},
   ): Promise<any> {
     const input = await this.#createInput(args, kwargs);
-    const invocation = await ControlPlaneInvocation.create(
-      this.functionId,
-      input,
-      FunctionCallInvocationType.FUNCTION_CALL_INVOCATION_TYPE_SYNC,
-    );
+    const invocation = await this.#createRemoteInvocation(input);
     // TODO(ryan): Add tests for retries.
     let retryCount = 0;
     while (true) {
@@ -79,6 +85,22 @@ export class Function_ {
         }
       }
     }
+  }
+
+  async #createRemoteInvocation(input: FunctionInput): Promise<Invocation> {
+    if (this.inputPlaneUrl) {
+      return await InputPlaneInvocation.create(
+        this.inputPlaneUrl,
+        this.functionId,
+        input,
+      );
+    }
+
+    return await ControlPlaneInvocation.create(
+      this.functionId,
+      input,
+      FunctionCallInvocationType.FUNCTION_CALL_INVOCATION_TYPE_SYNC,
+    );
   }
 
   // Spawn a single input into a remote function.
