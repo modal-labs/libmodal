@@ -54,7 +54,7 @@ export class FileHandle {
 
     let retries = 10;
     let completed = false;
-    let chunks: Uint8Array[] = [];
+    const chunks: Uint8Array[] = [];
 
     while (!completed) {
       chunks.length = 0;
