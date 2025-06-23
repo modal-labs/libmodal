@@ -107,8 +107,8 @@ export class FileHandle {
       offset += chunk.length;
     }
 
-    // Return text or binary based on encoding option
     if (is_utf8) {
+      // At this point, we can assume that `position` and `length` is not set.
       return new TextDecoder().decode(result);
     }
     return result;
