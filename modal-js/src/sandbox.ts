@@ -4,7 +4,7 @@ import {
   FileHandle,
   type FileMode,
   waitContainerFilesystemExec,
-} from "./file-handle";
+} from "./file_handle";
 import {
   type ModalReadStream,
   type ModalWriteStream,
@@ -68,29 +68,13 @@ export class Sandbox {
    * @returns Promise that resolves to a FileHandle
    */
   async open(path: string, mode: FileMode = "r"): Promise<FileHandle> {
-    if (this.#taskId === undefined) {
-      const resp = await client.sandboxGetTaskId({
-        sandboxId: this.sandboxId,
-      });
-      if (!resp.taskId) {
-        throw new Error(
-          `Sandbox ${this.sandboxId} does not have a task ID. It may not be running.`,
-        );
-      }
-      if (resp.taskResult) {
-        throw new Error(
-          `Sandbox ${this.sandboxId} has already completed with result: ${resp.taskResult}`,
-        );
-      }
-      this.#taskId = resp.taskId;
-    }
-
+    const taskId = await this.#getTaskId();
     const resp = await client.containerFilesystemExec({
       fileOpenRequest: {
         path,
         mode,
       },
-      taskId: this.#taskId,
+      taskId: taskId,
     });
     await waitContainerFilesystemExec(resp.execId);
 
@@ -98,7 +82,7 @@ export class Sandbox {
       throw new Error(`Failed to open file ${path} with mode ${mode}`);
     }
 
-    return new FileHandle(resp.fileDescriptor, this.#taskId);
+    return new FileHandle(resp.fileDescriptor, taskId);
   }
 
   async exec(
@@ -119,6 +103,17 @@ export class Sandbox {
       stderr?: StdioBehavior;
     },
   ): Promise<ContainerProcess> {
+    const taskId = await this.#getTaskId();
+
+    const resp = await client.containerExec({
+      taskId: taskId,
+      command,
+    });
+
+    return new ContainerProcess(resp.execId, options);
+  }
+
+  async #getTaskId(): Promise<string> {
     if (this.#taskId === undefined) {
       const resp = await client.sandboxGetTaskId({
         sandboxId: this.sandboxId,
@@ -135,13 +130,7 @@ export class Sandbox {
       }
       this.#taskId = resp.taskId;
     }
-
-    const resp = await client.containerExec({
-      taskId: this.#taskId,
-      command,
-    });
-
-    return new ContainerProcess(resp.execId, options);
+    return this.#taskId
   }
 
   async terminate(): Promise<void> {
