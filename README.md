@@ -82,4 +82,4 @@ To keep complexity manageable, we try to maintain identical behavior across lang
 
 ## License
 
-Code is released under the [MIT license](./LICENSE).
+Code is released under [a permissive license](./LICENSE).

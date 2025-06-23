@@ -2,7 +2,7 @@
   "name": "modal",
   "version": "0.3.7",
   "description": "Modal client library for JavaScript",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "homepage": "https://modal.com/docs",
   "repository": "github:modal-labs/libmodal",
   "bugs": "https://github.com/modal-labs/libmodal/issues",
