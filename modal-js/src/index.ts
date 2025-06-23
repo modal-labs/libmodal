@@ -34,4 +34,9 @@ export type { ExecOptions, StdioBehavior, StreamMode } from "./sandbox";
 export { ContainerProcess, Sandbox } from "./sandbox";
 export type { ModalReadStream, ModalWriteStream } from "./streams";
 export { Secret, type SecretFromNameOptions } from "./secret";
-export { FileHandle, type FileMode, type ReadOptions, type WriteOptions } from "./file_handle";
+export {
+  FileHandle,
+  type FileMode,
+  type ReadOptions,
+  type WriteOptions,
+} from "./file_handle";
