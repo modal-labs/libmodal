@@ -1,5 +1,6 @@
 import { FileDescriptor } from "../proto/modal_proto/api";
 import { client, isRetryableGrpc } from "./client";
+import { FileHandle, type FileMode, waitContainerFilesystemExec } from "./file-handle";
 import {
   type ModalReadStream,
   type ModalWriteStream,
@@ -54,6 +55,46 @@ export class Sandbox {
         outputStreamSb(sandboxId, FileDescriptor.FILE_DESCRIPTOR_STDERR),
       ).pipeThrough(new TextDecoderStream()),
     );
+  }
+
+  /**
+   * Open a file in the sandbox filesystem.
+   * @param path - Path to the file to open
+   * @param mode - File open mode (r, w, a, r+, w+, a+)
+   * @returns Promise that resolves to a FileHandle
+   */
+  async open(path: string, mode: FileMode = "r"): Promise<FileHandle> {
+    if (this.#taskId === undefined) {
+      const resp = await client.sandboxGetTaskId({
+        sandboxId: this.sandboxId,
+      });
+      if (!resp.taskId) {
+        throw new Error(
+          `Sandbox ${this.sandboxId} does not have a task ID. It may not be running.`,
+        );
+      }
+      if (resp.taskResult) {
+        throw new Error(
+          `Sandbox ${this.sandboxId} has already completed with result: ${resp.taskResult}`,
+        );
+      }
+      this.#taskId = resp.taskId;
+    }
+
+    const resp = await client.containerFilesystemExec({
+      fileOpenRequest: {
+        path,
+        mode,
+      },
+      taskId: this.#taskId,
+    });
+    await waitContainerFilesystemExec(resp.execId);
+
+    if (!resp.fileDescriptor) {
+      throw new Error(`Failed to open file ${path} with mode ${mode}`);
+    }
+
+    return new FileHandle(resp.fileDescriptor, this.#taskId);
   }
 
   async exec(
