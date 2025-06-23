@@ -1,6 +1,6 @@
 import { FileDescriptor } from "../proto/modal_proto/api";
 import { client, isRetryableGrpc } from "./client";
-import { FileHandle, type FileMode } from "./file-handle";
+import { FileHandle, type FileMode, waitContainerFilesystemExec } from "./file-handle";
 import {
   type ModalReadStream,
   type ModalWriteStream,
@@ -88,6 +88,7 @@ export class Sandbox {
       },
       taskId: this.#taskId,
     });
+    await waitContainerFilesystemExec(resp.execId);
 
     if (!resp.fileDescriptor) {
       throw new Error(`Failed to open file ${path} with mode ${mode}`);

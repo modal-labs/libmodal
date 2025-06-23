@@ -50,7 +50,6 @@ export class FileHandle {
       },
       taskId: this.#taskId,
     });
-    await this._wait(resp.execId);
 
     let retries = 10;
     let completed = false;
@@ -68,6 +67,14 @@ export class FileHandle {
           if (batch.eof) {
             completed = true;
             break;
+          }
+          if (batch.error !== undefined) {
+            if (retries > 0) {
+              retries--;
+              break;
+            } else {
+              throw new Error(batch.error.errorMessage);
+            }
           }
         }
       } catch (err) {
@@ -114,7 +121,7 @@ export class FileHandle {
       },
       taskId: this.#taskId,
     });
-    await this._wait(req.execId);
+    await waitContainerFilesystemExec(req.execId);
   }
 
   /**
@@ -131,7 +138,7 @@ export class FileHandle {
       },
       taskId: this.#taskId,
     });
-    await this._wait(req.execId);
+    await waitContainerFilesystemExec(req.execId);
   }
 
   /**
@@ -144,8 +151,7 @@ export class FileHandle {
       },
       taskId: this.#taskId,
     });
-
-    await this._wait(req.execId);
+    await waitContainerFilesystemExec(req.execId);
   }
 
   /**
@@ -158,10 +164,11 @@ export class FileHandle {
       },
       taskId: this.#taskId,
     });
-    await this._wait(req.execId);
+    await waitContainerFilesystemExec(req.execId);
   }
+}
 
-  async _wait(execId: string): Promise<void> {
+export async function waitContainerFilesystemExec(execId: string): Promise<void> {
     let retries = 10;
     let completed = false;
     while (!completed) {
@@ -175,11 +182,19 @@ export class FileHandle {
             completed = true;
             break;
           }
+          if (batch.error !== undefined) {
+            if (retries > 0) {
+              retries--;
+              break;
+            } else {
+              throw new Error(batch.error.errorMessage);
+            }
+          }
         }
       } catch (err) {
-        if (isRetryableGrpc(err) && retries > 0) retries--;
-        else throw err;
+        if (isRetryableGrpc(err) && retries > 0) {
+          retries--;
+        } else throw err;
       }
     }
-  }
 }

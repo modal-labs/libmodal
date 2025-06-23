@@ -1,7 +1,6 @@
 import { App } from "modal";
-import { expect, test, vi, onTestFinished } from "vitest";
+import { expect, test, onTestFinished } from "vitest";
 
-vi.setConfig({ testTimeout: 40000 });
 
 test("WriteAndReadTextFile", async () => {
   const app = await App.lookup("libmodal-test", { createIfMissing: true });
@@ -17,7 +16,7 @@ test("WriteAndReadTextFile", async () => {
   await writeHandle.close();
 
   const readHandle = await sb.open("/tmp/test.txt", "r");
-  const content = await readHandle.read({ encoding: "utf8" });
+  const content = await readHandle.read({encoding: "utf8"});
   expect(content).toBe("Hello, Modal filesystem!");
   await readHandle.close();
 });
@@ -63,7 +62,7 @@ test("AppendToFile", async () => {
 
   // Read the entire file
   const readHandle = await sb.open("/tmp/append.txt", "r");
-  const content = await readHandle.read({ encoding: "utf8" });
+  const content = await readHandle.read( { encoding: "utf8" } );
   expect(content).toBe("Initial content\nAppended content\n");
   await readHandle.close();
 });
