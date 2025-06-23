@@ -1,10 +1,6 @@
 import { FileDescriptor } from "../proto/modal_proto/api";
 import { client, isRetryableGrpc } from "./client";
-import {
-  FileHandle,
-  type FileMode,
-  waitContainerFilesystemExec,
-} from "./file_handle";
+import { FileHandle, type FileMode, runFilesystemExec } from "./file_handle";
 import {
   type ModalReadStream,
   type ModalWriteStream,
@@ -69,20 +65,20 @@ export class Sandbox {
    */
   async open(path: string, mode: FileMode = "r"): Promise<FileHandle> {
     const taskId = await this.#getTaskId();
-    const resp = await client.containerFilesystemExec({
+    const resp = await runFilesystemExec({
       fileOpenRequest: {
         path,
         mode,
       },
       taskId: taskId,
     });
-    await waitContainerFilesystemExec(resp.execId);
+    const fileDescriptor = resp.response.fileDescriptor;
 
-    if (!resp.fileDescriptor) {
+    if (!fileDescriptor) {
       throw new Error(`Failed to open file ${path} with mode ${mode}`);
     }
 
-    return new FileHandle(resp.fileDescriptor, taskId);
+    return new FileHandle(fileDescriptor, taskId);
   }
 
   async exec(
@@ -130,7 +126,7 @@ export class Sandbox {
       }
       this.#taskId = resp.taskId;
     }
-    return this.#taskId
+    return this.#taskId;
   }
 
   async terminate(): Promise<void> {

@@ -1,4 +1,9 @@
-import { SeekWhence } from "../proto/modal_proto/api";
+import {
+  SeekWhence,
+  ContainerFilesystemExecRequest,
+  DeepPartial,
+  ContainerFilesystemExecResponse,
+} from "../proto/modal_proto/api";
 import { client, isRetryableGrpc } from "./client";
 import { InvalidError, RemoteError } from "./errors";
 
@@ -57,45 +62,14 @@ export class FileHandle {
       throw new InvalidError("length can only be set if encoding is 'utf8'");
     }
 
-    const resp = await client.containerFilesystemExec({
+    const resp = await runFilesystemExec({
       fileReadRequest: {
         fileDescriptor: this.#fileDescriptor,
         n: options?.length ?? undefined,
       },
       taskId: this.#taskId,
     });
-
-    let retries = 10;
-    let completed = false;
-    const chunks: Uint8Array[] = [];
-
-    while (!completed) {
-      chunks.length = 0;
-      try {
-        const outputIterator = client.containerFilesystemExecGetOutput({
-          execId: resp.execId,
-          timeout: 55,
-        });
-        for await (const batch of outputIterator) {
-          chunks.push(...batch.output);
-          if (batch.eof) {
-            completed = true;
-            break;
-          }
-          if (batch.error !== undefined) {
-            if (retries > 0) {
-              retries--;
-              break;
-            }
-            throw new RemoteError(batch.error.errorMessage);
-          }
-        }
-      } catch (err) {
-        if (isRetryableGrpc(err) && retries > 0) {
-          retries--;
-        } else throw err;
-      }
-    }
+    const chunks = resp.chunks;
 
     // Concatenate all chunks into a single Uint8Array
     const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
@@ -132,14 +106,13 @@ export class FileHandle {
 
     const bytes = is_utf8 ? new TextEncoder().encode(data) : data;
 
-    const req = await client.containerFilesystemExec({
+    await runFilesystemExec({
       fileWriteRequest: {
         fileDescriptor: this.#fileDescriptor,
         data: bytes,
       },
       taskId: this.#taskId,
     });
-    await waitContainerFilesystemExec(req.execId);
   }
 
   /**
@@ -147,7 +120,7 @@ export class FileHandle {
    * @param offset - Offset to seek to
    */
   async #seek(offset: number): Promise<void> {
-    const req = await client.containerFilesystemExec({
+    await runFilesystemExec({
       fileSeekRequest: {
         fileDescriptor: this.#fileDescriptor,
         offset: offset,
@@ -155,48 +128,53 @@ export class FileHandle {
       },
       taskId: this.#taskId,
     });
-    await waitContainerFilesystemExec(req.execId);
   }
 
   /**
    * Flush any buffered data to the file.
    */
   async flush(): Promise<void> {
-    const req = await client.containerFilesystemExec({
+    await runFilesystemExec({
       fileFlushRequest: {
         fileDescriptor: this.#fileDescriptor,
       },
       taskId: this.#taskId,
     });
-    await waitContainerFilesystemExec(req.execId);
   }
 
   /**
    * Close the file handle.
    */
   async close(): Promise<void> {
-    const req = await client.containerFilesystemExec({
+    await runFilesystemExec({
       fileCloseRequest: {
         fileDescriptor: this.#fileDescriptor,
       },
       taskId: this.#taskId,
     });
-    await waitContainerFilesystemExec(req.execId);
   }
 }
 
-export async function waitContainerFilesystemExec(
-  execId: string,
-): Promise<void> {
+export async function runFilesystemExec(
+  request: DeepPartial<ContainerFilesystemExecRequest>,
+): Promise<{
+  chunks: Uint8Array[];
+  response: ContainerFilesystemExecResponse;
+}> {
+  const response = await client.containerFilesystemExec(request);
+
+  const chunks: Uint8Array[] = [];
   let retries = 10;
   let completed = false;
   while (!completed) {
+    chunks.length = 0;
     try {
       const outputIterator = client.containerFilesystemExecGetOutput({
-        execId,
+        execId: response.execId,
         timeout: 55,
       });
       for await (const batch of outputIterator) {
+        chunks.push(...batch.output);
         if (batch.eof) {
           completed = true;
           break;
@@ -215,4 +193,5 @@ export async function waitContainerFilesystemExec(
       } else throw err;
     }
   }
+  return { chunks, response };
 }
