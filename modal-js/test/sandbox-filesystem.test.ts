@@ -1,7 +1,6 @@
 import { App } from "modal";
 import { expect, test, onTestFinished } from "vitest";
 
-
 test("WriteAndReadTextFile", async () => {
   const app = await App.lookup("libmodal-test", { createIfMissing: true });
   const image = await app.imageFromRegistry("alpine:3.21");
@@ -16,7 +15,7 @@ test("WriteAndReadTextFile", async () => {
   await writeHandle.close();
 
   const readHandle = await sb.open("/tmp/test.txt", "r");
-  const content = await readHandle.read({encoding: "utf8"});
+  const content = await readHandle.read({ encoding: "utf8" });
   expect(content).toBe("Hello, Modal filesystem!");
   await readHandle.close();
 });
@@ -62,7 +61,7 @@ test("AppendToFile", async () => {
 
   // Read the entire file
   const readHandle = await sb.open("/tmp/append.txt", "r");
-  const content = await readHandle.read( { encoding: "utf8" } );
+  const content = await readHandle.read({ encoding: "utf8" });
   expect(content).toBe("Initial content\nAppended content\n");
   await readHandle.close();
 });
@@ -84,8 +83,8 @@ test("ReadPartialFile", async () => {
 
   // Read first 10 bytes
   const readHandle = await sb.open("/tmp/partial.txt", "r");
-  const partial = await readHandle.read({ length: 10, encoding: "utf8" });
-  expect(partial).toBe("Hello, thi");
+  const partial = await readHandle.read({ length: 10, encoding: "binary" });
+  expect(partial).toStrictEqual(new TextEncoder().encode("Hello, thi"));
   await readHandle.close();
 });
 
@@ -107,10 +106,36 @@ test("ReadWithPositionOption", async () => {
   const content = await readHandle.read({
     length: 5,
     position: 7,
-    encoding: "utf8",
+    encoding: "binary",
   });
-  expect(content).toBe("world");
+  expect(content).toStrictEqual(new TextEncoder().encode("world"));
   await readHandle.close();
+});
+
+test("ReadWithPositionErrors", async () => {
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
+  const image = await app.imageFromRegistry("alpine:3.21");
+  const sb = await app.createSandbox(image);
+  onTestFinished(async () => {
+    await sb.terminate();
+  });
+
+  // Write a file
+  const writeHandle = await sb.open("/tmp/position.txt", "w");
+  await writeHandle.write("Hello, world! This is a test.");
+  await writeHandle.close();
+
+  const readHandle = await sb.open("/tmp/position.txt", "r");
+  onTestFinished(async () => {
+    await readHandle.close();
+  });
+
+  await expect(
+    readHandle.read({ position: 7, encoding: "utf8" }),
+  ).rejects.toThrow("position can only be set if encoding is 'utf8'");
+  await expect(
+    readHandle.read({ length: 5, encoding: "utf8" }),
+  ).rejects.toThrow("length can only be set if encoding is 'utf8'");
 });
 
 test("WriteWithPositionOption", async () => {
@@ -128,7 +153,7 @@ test("WriteWithPositionOption", async () => {
 
   // Write at position 7
   const updateHandle = await sb.open("/tmp/write-position.txt", "r+");
-  await updateHandle.write("Modal", { position: 7 });
+  await updateHandle.write(new TextEncoder().encode("Modal"), { position: 7 });
   await updateHandle.close();
 
   // Read the result

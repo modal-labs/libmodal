@@ -1,6 +1,10 @@
 import { FileDescriptor } from "../proto/modal_proto/api";
 import { client, isRetryableGrpc } from "./client";
-import { FileHandle, type FileMode, waitContainerFilesystemExec } from "./file-handle";
+import {
+  FileHandle,
+  type FileMode,
+  waitContainerFilesystemExec,
+} from "./file-handle";
 import {
   type ModalReadStream,
   type ModalWriteStream,

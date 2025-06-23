@@ -1,17 +1,22 @@
 import { seekWhenceFromJSON } from "../proto/modal_proto/api";
 import { client, isRetryableGrpc } from "./client";
+import { InvalidError } from "./errors";
 
 /** File open modes supported by the filesystem API. */
 export type FileMode = "r" | "w" | "a" | "r+" | "w+" | "a+";
 
-/** Options for file operations. */
-export type FileOptions = {
+export type ReadOptions = {
   /** Number of bytes to read. If not specified, reads until end of file. */
   length?: number;
-  /** Position to seek to before reading/writing. */
+  /** Position to seek to before reading. */
   position?: number;
   /** Encoding for text operations. Defaults to 'binary' for Uint8Array. */
   encoding?: "utf8" | "binary";
+};
+
+export type WriteOptions = {
+  /** Position to seek to before writing. */
+  position?: number;
 };
 
 /**
@@ -33,14 +38,23 @@ export class FileHandle {
    * @returns Promise that resolves to the read data as Uint8Array or string
    */
   async read(): Promise<Uint8Array>;
-  async read(options: FileOptions & { encoding: "utf8" }): Promise<string>;
+  async read(options: ReadOptions & { encoding: "utf8" }): Promise<string>;
   async read(
-    options: FileOptions & { encoding?: "binary" },
+    options: ReadOptions & { encoding: "binary" },
   ): Promise<Uint8Array>;
-  async read(options?: FileOptions): Promise<Uint8Array | string> {
+  async read(options?: ReadOptions): Promise<Uint8Array | string> {
     // Handle position seeking if specified
+    const is_utf8 = options?.encoding === "utf8";
     if (options?.position !== undefined) {
-      await this.seek(options.position);
+      if (is_utf8)
+        throw new InvalidError(
+          "position can only be set if encoding is 'utf8'",
+        );
+      await this.#seek(options.position);
+    }
+
+    if (options?.length !== undefined && is_utf8) {
+      throw new InvalidError("length can only be set if encoding is 'utf8'");
     }
 
     const resp = await client.containerFilesystemExec({
@@ -94,7 +108,7 @@ export class FileHandle {
     }
 
     // Return text or binary based on encoding option
-    if (options?.encoding === "utf8") {
+    if (is_utf8) {
       return new TextDecoder().decode(result);
     }
     return result;
@@ -105,14 +119,19 @@ export class FileHandle {
    * @param data - Data to write (string or Uint8Array)
    * @param options - Options for the write operation
    */
-  async write(data: string | Uint8Array, options?: FileOptions): Promise<void> {
+  async write(
+    data: string | Uint8Array,
+    options?: WriteOptions,
+  ): Promise<void> {
     // Handle position seeking if specified
+    const is_utf8 = typeof data === "string";
     if (options?.position !== undefined) {
-      await this.seek(options.position);
+      if (is_utf8)
+        throw new InvalidError("Position can only be set if with binary data");
+      await this.#seek(options.position);
     }
 
-    const bytes =
-      typeof data === "string" ? new TextEncoder().encode(data) : data;
+    const bytes = is_utf8 ? new TextEncoder().encode(data) : data;
 
     const req = await client.containerFilesystemExec({
       fileWriteRequest: {
@@ -129,7 +148,7 @@ export class FileHandle {
    * @param offset - Offset to seek to
    * @param whence - 0 for aboslute file positioning, 1 for relative to the current position and 2 for relative to the file's end.
    */
-  async seek(offset: number, whence: number = 0): Promise<void> {
+  async #seek(offset: number, whence: number = 0): Promise<void> {
     const req = await client.containerFilesystemExec({
       fileSeekRequest: {
         fileDescriptor: this.#fileDescriptor,
@@ -168,33 +187,35 @@ export class FileHandle {
   }
 }
 
-export async function waitContainerFilesystemExec(execId: string): Promise<void> {
-    let retries = 10;
-    let completed = false;
-    while (!completed) {
-      try {
-        const outputIterator = client.containerFilesystemExecGetOutput({
-          execId,
-          timeout: 55,
-        });
-        for await (const batch of outputIterator) {
-          if (batch.eof) {
-            completed = true;
+export async function waitContainerFilesystemExec(
+  execId: string,
+): Promise<void> {
+  let retries = 10;
+  let completed = false;
+  while (!completed) {
+    try {
+      const outputIterator = client.containerFilesystemExecGetOutput({
+        execId,
+        timeout: 55,
+      });
+      for await (const batch of outputIterator) {
+        if (batch.eof) {
+          completed = true;
+          break;
+        }
+        if (batch.error !== undefined) {
+          if (retries > 0) {
+            retries--;
             break;
-          }
-          if (batch.error !== undefined) {
-            if (retries > 0) {
-              retries--;
-              break;
-            } else {
-              throw new Error(batch.error.errorMessage);
-            }
+          } else {
+            throw new Error(batch.error.errorMessage);
           }
         }
-      } catch (err) {
-        if (isRetryableGrpc(err) && retries > 0) {
-          retries--;
-        } else throw err;
       }
+    } catch (err) {
+      if (isRetryableGrpc(err) && retries > 0) {
+        retries--;
+      } else throw err;
     }
+  }
 }
