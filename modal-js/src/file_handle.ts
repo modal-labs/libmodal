@@ -1,6 +1,6 @@
 import { SeekWhence } from "../proto/modal_proto/api";
 import { client, isRetryableGrpc } from "./client";
-import { InvalidError } from "./errors";
+import { InvalidError, RemoteError } from "./errors";
 
 /** File open modes supported by the filesystem API. */
 export type FileMode = "r" | "w" | "a" | "r+" | "w+" | "a+";
@@ -86,9 +86,8 @@ export class FileHandle {
             if (retries > 0) {
               retries--;
               break;
-            } else {
-              throw new Error(batch.error.errorMessage);
             }
+            throw new RemoteError(batch.error.errorMessage);
           }
         }
       } catch (err) {
@@ -206,9 +205,8 @@ export async function waitContainerFilesystemExec(
           if (retries > 0) {
             retries--;
             break;
-          } else {
-            throw new Error(batch.error.errorMessage);
           }
+          throw new RemoteError(batch.error.errorMessage);
         }
       }
     } catch (err) {
