@@ -38,10 +38,18 @@ async function readConfigFile(): Promise<Config> {
   }
 }
 
-// Top-level await on module startup.
-const config: Config = await readConfigFile();
+let config: Config | undefined;
+
+(async function initialize() {
+  config = await readConfigFile();
+})();
 
 export function getProfile(profileName?: string): Profile {
+  if (!config) {
+    // This should never happen unless someone deletes the `initialize` function from above
+    throw new Error(`Not initialized`);
+  }
+
   profileName = profileName || process.env["MODAL_PROFILE"] || undefined;
   if (!profileName) {
     for (const [name, profileData] of Object.entries(config)) {
