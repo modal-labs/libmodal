@@ -34,3 +34,12 @@ test("FunctionNotFound", async () => {
   );
   await expect(promise).rejects.toThrowError(NotFoundError);
 });
+
+test("FunctionCallInputPlane", async () => {
+  const function_ = await Function_.lookup(
+    "libmodal-test-support",
+    "input_plane",
+  );
+  const result = await function_.remote(["hello"]);
+  expect(result).toBe("output: hello");
+});

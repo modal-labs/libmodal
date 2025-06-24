@@ -10,6 +10,8 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 	"net/http"
 	"time"
 
@@ -34,9 +36,10 @@ func timeNowSeconds() float64 {
 
 // Function references a deployed Modal Function.
 type Function struct {
-	FunctionId string
-	MethodName *string // used for class methods
-	ctx        context.Context
+	FunctionId    string
+	MethodName    *string // used for class methods
+	InputPlaneURL *string // if nil, use control plane
+	ctx           context.Context
 }
 
 // FunctionLookup looks up an existing Function.
@@ -46,12 +49,13 @@ func FunctionLookup(ctx context.Context, appName string, name string, options *L
 	}
 	ctx = clientContext(ctx)
 
+	var header, trailer metadata.MD
 	resp, err := client.FunctionGet(ctx, pb.FunctionGetRequest_builder{
 		AppName:         appName,
 		ObjectTag:       name,
 		Namespace:       pb.DeploymentNamespace_DEPLOYMENT_NAMESPACE_WORKSPACE,
 		EnvironmentName: environmentName(options.Environment),
-	}.Build())
+	}.Build(), grpc.Header(&header), grpc.Trailer(&trailer))
 
 	if status, ok := status.FromError(err); ok && status.Code() == codes.NotFound {
 		return nil, NotFoundError{fmt.Sprintf("function '%s/%s' not found", appName, name)}
@@ -60,7 +64,22 @@ func FunctionLookup(ctx context.Context, appName string, name string, options *L
 		return nil, err
 	}
 
-	return &Function{FunctionId: resp.GetFunctionId(), ctx: ctx}, nil
+	// Attach x-modal-auth-token to all future requests.
+	authTokenArray := header.Get("x-modal-auth-token")
+	if len(authTokenArray) == 0 {
+		authTokenArray = trailer.Get("x-modal-auth-token")
+	}
+	if len(authTokenArray) > 0 {
+		authToken := authTokenArray[0]
+		ctx = metadata.AppendToOutgoingContext(ctx, "x-modal-auth-token", authToken)
+	}
+	var inputPlaneUrl *string
+	if meta := resp.GetHandleMetadata(); meta != nil {
+		if url := meta.GetInputPlaneUrl(); url != "" {
+			inputPlaneUrl = &url
+		}
+	}
+	return &Function{FunctionId: resp.GetFunctionId(), InputPlaneURL: inputPlaneUrl, ctx: ctx}, nil
 }
 
 // Serialize Go data types to the Python pickle format.
@@ -118,7 +137,7 @@ func (f *Function) Remote(args []any, kwargs map[string]any) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	invocation, err := createControlPlaneInvocation(f.ctx, f.FunctionId, input, pb.FunctionCallInvocationType_FUNCTION_CALL_INVOCATION_TYPE_SYNC)
+	invocation, err := f.createRemoteInvocation(input)
 	if err != nil {
 		return nil, err
 	}
@@ -138,6 +157,14 @@ func (f *Function) Remote(args []any, kwargs map[string]any) (any, error) {
 		}
 		return nil, err
 	}
+}
+
+// createRemoteInvocation creates an Invocation using either the input plane or control plane.
+func (f *Function) createRemoteInvocation(input *pb.FunctionInput) (invocation, error) {
+	if f.InputPlaneURL != nil {
+		return createInputPlaneInvocation(f.ctx, *f.InputPlaneURL, f.FunctionId, input)
+	}
+	return createControlPlaneInvocation(f.ctx, f.FunctionId, input, pb.FunctionCallInvocationType_FUNCTION_CALL_INVOCATION_TYPE_SYNC)
 }
 
 // Spawn starts running a single input on a remote function.
