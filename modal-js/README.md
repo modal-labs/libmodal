@@ -15,7 +15,7 @@ See the [documentation and examples](https://github.com/modal-labs/libmodal?tab=
 
 ## Requirements
 
-Node 22 or higher, in [ES modules](https://gist.github.com/sindresorhus/a39789f98801d908bbc7ff3ecc99d99c) mode.
+Node 22 or higher. We bundle both ES Modules and CommonJS formats, so you can load the package with either `import` or `require()` in any project.
 
 ## Installation
 
