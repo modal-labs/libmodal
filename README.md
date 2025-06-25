@@ -34,6 +34,7 @@ Examples:
 - [Create a sandbox](./modal-js/examples/sandbox.ts)
 - [Create a sandbox using a private image from AWS ECR](./modal-js/examples/sandbox-private-image.ts)
 - [Execute sandbox commands](./modal-js/examples/sandbox-exec.ts)
+- [Execute sandbox filesystem commands](./modal-js/examples/sandbox-filesystem.ts)
 
 ### Go (`modal-go/`)
 
