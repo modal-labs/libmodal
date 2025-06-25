@@ -1,27 +1,17 @@
 import {
-  SeekWhence,
   ContainerFilesystemExecRequest,
   DeepPartial,
   ContainerFilesystemExecResponse,
 } from "../proto/modal_proto/api";
 import { client, isRetryableGrpc } from "./client";
-import { InvalidError, RemoteError } from "./errors";
+import { RemoteError } from "./errors";
 
 /** File open modes supported by the filesystem API. */
 export type FileMode = "r" | "w" | "a" | "r+" | "w+" | "a+";
 
 export type ReadOptions = {
-  /** Number of bytes to read. If not specified, reads until end of file. */
-  length?: number;
-  /** Position to seek to before reading. */
-  position?: number;
-  /** Encoding for text operations. Defaults to 'binary' for Uint8Array. */
+  /** Encoding for text operations. Defaults to 'utf8' for Uint8Array. */
   encoding?: "utf8" | "binary";
-};
-
-export type WriteOptions = {
-  /** Position to seek to before writing. */
-  position?: number;
 };
 
 /**
@@ -48,24 +38,13 @@ export class FileHandle {
     options: ReadOptions & { encoding: "binary" },
   ): Promise<Uint8Array>;
   async read(options?: ReadOptions): Promise<Uint8Array | string> {
-    // Handle position seeking if specified
-    const is_utf8 = options?.encoding === "utf8";
-    if (options?.position !== undefined) {
-      if (is_utf8)
-        throw new InvalidError(
-          "position can only be set if encoding is 'utf8'",
-        );
-      await this.#seek(options.position);
-    }
-
-    if (options?.length !== undefined && is_utf8) {
-      throw new InvalidError("length can only be set if encoding is 'utf8'");
-    }
+    // Default encoding to 'utf8' if not specified
+    const encoding = options?.encoding ?? "utf8";
+    const is_utf8 = encoding === "utf8";
 
     const resp = await runFilesystemExec({
       fileReadRequest: {
         fileDescriptor: this.#fileDescriptor,
-        n: options?.length ?? undefined,
       },
       taskId: this.#taskId,
     });
@@ -92,17 +71,9 @@ export class FileHandle {
    * @param data - Data to write (string or Uint8Array)
    * @param options - Options for the write operation
    */
-  async write(
-    data: string | Uint8Array,
-    options?: WriteOptions,
-  ): Promise<void> {
+  async write(data: string | Uint8Array): Promise<void> {
     // Handle position seeking if specified
     const is_utf8 = typeof data === "string";
-    if (options?.position !== undefined) {
-      if (is_utf8)
-        throw new InvalidError("Position can only be set if with binary data");
-      await this.#seek(options.position);
-    }
 
     const bytes = is_utf8 ? new TextEncoder().encode(data) : data;
 
@@ -110,21 +81,6 @@ export class FileHandle {
       fileWriteRequest: {
         fileDescriptor: this.#fileDescriptor,
         data: bytes,
-      },
-      taskId: this.#taskId,
-    });
-  }
-
-  /**
-   * Seek to a specific position in the file.
-   * @param offset - Offset to seek to
-   */
-  async #seek(offset: number): Promise<void> {
-    await runFilesystemExec({
-      fileSeekRequest: {
-        fileDescriptor: this.#fileDescriptor,
-        offset: offset,
-        whence: SeekWhence.SEEK_SET,
       },
       taskId: this.#taskId,
     });

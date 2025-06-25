@@ -41,7 +41,7 @@ test("WriteAndReadBinaryFile", async () => {
   await readHandle.close();
 });
 
-test("AppendToFile", async () => {
+test("AppendToFileUTF8", async () => {
   const app = await App.lookup("libmodal-test", { createIfMissing: true });
   const image = await app.imageFromRegistry("alpine:3.21");
   const sb = await app.createSandbox(image);
@@ -61,12 +61,12 @@ test("AppendToFile", async () => {
 
   // Read the entire file
   const readHandle = await sb.open("/tmp/append.txt", "r");
-  const content = await readHandle.read({ encoding: "utf8" });
+  const content = await readHandle.read();
   expect(content).toBe("Initial content\nAppended content\n");
   await readHandle.close();
 });
 
-test("ReadPartialFile", async () => {
+test("AppendToFileBinary", async () => {
   const app = await App.lookup("libmodal-test", { createIfMissing: true });
   const image = await app.imageFromRegistry("alpine:3.21");
   const sb = await app.createSandbox(image);
@@ -74,92 +74,25 @@ test("ReadPartialFile", async () => {
     await sb.terminate();
   });
 
-  // Write a file
-  const writeHandle = await sb.open("/tmp/partial.txt", "w");
-  await writeHandle.write(
-    "Hello, this is a longer test file with multiple lines.",
-  );
-  await writeHandle.close();
-
-  // Read first 10 bytes
-  const readHandle = await sb.open("/tmp/partial.txt", "r");
-  const partial = await readHandle.read({ length: 10, encoding: "binary" });
-  expect(partial).toStrictEqual(new TextEncoder().encode("Hello, thi"));
-  await readHandle.close();
-});
-
-test("ReadWithPositionOption", async () => {
-  const app = await App.lookup("libmodal-test", { createIfMissing: true });
-  const image = await app.imageFromRegistry("alpine:3.21");
-  const sb = await app.createSandbox(image);
-  onTestFinished(async () => {
-    await sb.terminate();
-  });
-
-  // Write a file
-  const writeHandle = await sb.open("/tmp/position.txt", "w");
-  await writeHandle.write("Hello, world! This is a test.");
-  await writeHandle.close();
-
-  // Read from position 7 using the position option
-  const readHandle = await sb.open("/tmp/position.txt", "r");
-  const content = await readHandle.read({
-    length: 5,
-    position: 7,
-    encoding: "binary",
-  });
-  expect(content).toStrictEqual(new TextEncoder().encode("world"));
-  await readHandle.close();
-});
-
-test("ReadWithPositionErrors", async () => {
-  const app = await App.lookup("libmodal-test", { createIfMissing: true });
-  const image = await app.imageFromRegistry("alpine:3.21");
-  const sb = await app.createSandbox(image);
-  onTestFinished(async () => {
-    await sb.terminate();
-  });
-
-  // Write a file
-  const writeHandle = await sb.open("/tmp/position.txt", "w");
-  await writeHandle.write("Hello, world! This is a test.");
-  await writeHandle.close();
-
-  const readHandle = await sb.open("/tmp/position.txt", "r");
-  onTestFinished(async () => {
-    await readHandle.close();
-  });
-
-  await expect(
-    readHandle.read({ position: 7, encoding: "utf8" }),
-  ).rejects.toThrow("position can only be set if encoding is 'utf8'");
-  await expect(
-    readHandle.read({ length: 5, encoding: "utf8" }),
-  ).rejects.toThrow("length can only be set if encoding is 'utf8'");
-});
-
-test("WriteWithPositionOption", async () => {
-  const app = await App.lookup("libmodal-test", { createIfMissing: true });
-  const image = await app.imageFromRegistry("alpine:3.21");
-  const sb = await app.createSandbox(image);
-  onTestFinished(async () => {
-    await sb.terminate();
-  });
-
+  const testData = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
   // Write initial content
-  const writeHandle = await sb.open("/tmp/write-position.txt", "w");
-  await writeHandle.write("Hello, world!");
+  const writeHandle = await sb.open("/tmp/append.txt", "w");
+  await writeHandle.write(testData);
   await writeHandle.close();
 
-  // Write at position 7
-  const updateHandle = await sb.open("/tmp/write-position.txt", "r+");
-  await updateHandle.write(new TextEncoder().encode("Modal"), { position: 7 });
-  await updateHandle.close();
+  // Append more content
+  const moreTestData = new Uint8Array([7, 8, 9, 10]);
+  const appendHandle = await sb.open("/tmp/append.txt", "a");
+  await appendHandle.write(moreTestData);
+  await appendHandle.close();
 
-  // Read the result
-  const readHandle = await sb.open("/tmp/write-position.txt", "r");
-  const content = await readHandle.read({ encoding: "utf8" });
-  expect(content).toBe("Hello, Modal!");
+  // Read the entire file
+  const readHandle = await sb.open("/tmp/append.txt", "r");
+  const content = await readHandle.read({ encoding: "binary" });
+  const expectedData = new Uint8Array([
+    1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 7, 8, 9, 10,
+  ]);
+  expect(content).toEqual(expectedData);
   await readHandle.close();
 });
 
@@ -202,7 +135,7 @@ test("MultipleFileOperations", async () => {
 
   // Read both files
   const read1 = await sb.open("/tmp/file1.txt", "r");
-  const content1 = await read1.read({ encoding: "utf8" });
+  const content1 = await read1.read();
   await read1.close();
 
   const read2 = await sb.open("/tmp/file2.txt", "r");
