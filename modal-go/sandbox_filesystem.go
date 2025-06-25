@@ -2,23 +2,22 @@ package modal
 
 import (
 	"context"
-	"fmt"
 	"io"
 
 	pb "github.com/modal-labs/libmodal/modal-go/proto/modal_proto"
 )
 
-// File represents an open file in the sandbox filesystem.
+// SandboxFile represents an open file in the sandbox filesystem.
 // It implements io.Reader, io.Writer, io.Seeker, and io.Closer interfaces.
-type File struct {
+type SandboxFile struct {
 	fileDescriptor string
 	taskId         string
 	ctx            context.Context
 }
 
 // newFile creates a new File object.
-func newFile(ctx context.Context, fileDescriptor, taskId string) *File {
-	return &File{
+func newSandboxFile(ctx context.Context, fileDescriptor, taskId string) *SandboxFile {
+	return &SandboxFile{
 		fileDescriptor: fileDescriptor,
 		taskId:         taskId,
 		ctx:            ctx,
@@ -27,7 +26,7 @@ func newFile(ctx context.Context, fileDescriptor, taskId string) *File {
 
 // Read reads up to len(p) bytes from the file into p.
 // It returns the number of bytes read and any error encountered.
-func (f *File) Read(p []byte) (n int, err error) {
+func (f *SandboxFile) Read(p []byte) (n int, err error) {
 	nBytes := uint32(len(p))
 	resp, err := client.ContainerFilesystemExec(f.ctx, pb.ContainerFilesystemExecRequest_builder{
 		FileReadRequest: pb.ContainerFileReadRequest_builder{
@@ -80,7 +79,7 @@ func (f *File) Read(p []byte) (n int, err error) {
 
 // Write writes len(p) bytes from p to the file.
 // It returns the number of bytes written and any error encountered.
-func (f *File) Write(p []byte) (n int, err error) {
+func (f *SandboxFile) Write(p []byte) (n int, err error) {
 	_, err = client.ContainerFilesystemExec(f.ctx, pb.ContainerFilesystemExecRequest_builder{
 		FileWriteRequest: pb.ContainerFileWriteRequest_builder{
 			FileDescriptor: f.fileDescriptor,
@@ -94,39 +93,8 @@ func (f *File) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-// Seek sets the offset for the next Read or Write on file to offset,
-// interpreted according to whence: 0 means relative to the origin of the file,
-// 1 means relative to the current offset, and 2 means relative to the end.
-func (f *File) Seek(offset int64, whence int) (int64, error) {
-	var seekWhence pb.SeekWhence
-	switch whence {
-	case 0:
-		seekWhence = pb.SeekWhence_SEEK_SET
-	case 1:
-		seekWhence = pb.SeekWhence_SEEK_CUR
-	case 2:
-		seekWhence = pb.SeekWhence_SEEK_END
-	default:
-		return 0, fmt.Errorf("invalid whence value: %d", whence)
-	}
-
-	offset32 := int32(offset)
-	_, err := client.ContainerFilesystemExec(f.ctx, pb.ContainerFilesystemExecRequest_builder{
-		FileSeekRequest: pb.ContainerFileSeekRequest_builder{
-			FileDescriptor: f.fileDescriptor,
-			Offset:         offset32,
-			Whence:         seekWhence,
-		}.Build(),
-		TaskId: f.taskId,
-	}.Build())
-	if err != nil {
-		return 0, err
-	}
-	return offset, nil
-}
-
 // Flush flushes any buffered data to the file.
-func (f *File) Flush() error {
+func (f *SandboxFile) Flush() error {
 	_, err := client.ContainerFilesystemExec(f.ctx, pb.ContainerFilesystemExecRequest_builder{
 		FileFlushRequest: pb.ContainerFileFlushRequest_builder{
 			FileDescriptor: f.fileDescriptor,
@@ -137,7 +105,7 @@ func (f *File) Flush() error {
 }
 
 // Close closes the file, rendering it unusable for I/O.
-func (f *File) Close() error {
+func (f *SandboxFile) Close() error {
 	_, err := client.ContainerFilesystemExec(f.ctx, pb.ContainerFilesystemExecRequest_builder{
 		FileCloseRequest: pb.ContainerFileCloseRequest_builder{
 			FileDescriptor: f.fileDescriptor,
@@ -148,11 +116,11 @@ func (f *File) Close() error {
 }
 
 // ReadAll reads from the file until an error or EOF and returns the data it read.
-func (f *File) ReadAll() ([]byte, error) {
+func (f *SandboxFile) ReadAll() ([]byte, error) {
 	return io.ReadAll(f)
 }
 
 // WriteString writes the contents of the string s to the file.
-func (f *File) WriteString(s string) (n int, err error) {
+func (f *SandboxFile) WriteString(s string) (n int, err error) {
 	return f.Write([]byte(s))
 }
