@@ -2,6 +2,7 @@ package modal
 
 import (
 	"context"
+	"fmt"
 	"io"
 
 	pb "github.com/modal-labs/libmodal/modal-go/proto/modal_proto"
@@ -16,12 +17,28 @@ type SandboxFile struct {
 }
 
 // newFile creates a new File object.
-func newSandboxFile(ctx context.Context, fileDescriptor, taskId string) *SandboxFile {
+func newSandboxFile(ctx context.Context, taskId, path, mode string) (*SandboxFile, error) {
+	resp, err := client.ContainerFilesystemExec(ctx, pb.ContainerFilesystemExecRequest_builder{
+		FileOpenRequest: pb.ContainerFileOpenRequest_builder{
+			Path: path,
+			Mode: mode,
+		}.Build(),
+		TaskId: taskId,
+	}.Build())
+
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.GetFileDescriptor() == "" {
+		return nil, fmt.Errorf("failed to open file %s with mode %s", path, mode)
+	}
+
 	return &SandboxFile{
-		fileDescriptor: fileDescriptor,
+		fileDescriptor: resp.GetFileDescriptor(),
 		taskId:         taskId,
 		ctx:            ctx,
-	}
+	}, nil
 }
 
 // Read reads up to len(p) bytes from the file into p.
@@ -114,3 +131,5 @@ func (f *SandboxFile) Close() error {
 	}.Build())
 	return err
 }
+
+//
