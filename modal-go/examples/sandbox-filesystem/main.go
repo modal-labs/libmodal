@@ -22,9 +22,7 @@ func main() {
 		log.Fatalf("Failed to create image from registry: %v", err)
 	}
 
-	sb, err := app.CreateSandbox(image, &modal.SandboxOptions{
-		Command: []string{"sleep", "3600"}, // Keep sandbox alive
-	})
+	sb, err := app.CreateSandbox(image, &modal.SandboxOptions{})
 	if err != nil {
 		log.Fatalf("Failed to create sandbox: %v", err)
 	}
@@ -42,12 +40,7 @@ func main() {
 		log.Fatalf("Failed to open file for writing: %v", err)
 	}
 
-	_, err = writeFile.WriteString("Hello, Modal filesystem!\n")
-	if err != nil {
-		log.Fatalf("Failed to write to file: %v", err)
-	}
-
-	_, err = writeFile.WriteString("This is a test file.\n")
+	_, err = writeFile.Write([]byte("Hello, Modal filesystem!\n"))
 	if err != nil {
 		log.Fatalf("Failed to write to file: %v", err)
 	}
@@ -57,40 +50,18 @@ func main() {
 	}
 
 	// Read the file
-	readFile, err := sb.Open("/tmp/example.txt", "r")
+	reader, err := sb.Open("/tmp/example.txt", "r")
 	if err != nil {
 		log.Fatalf("Failed to open file for reading: %v", err)
 	}
 
-	content, err := readFile.ReadAll()
+	content, err := io.ReadAll(reader)
 	if err != nil {
 		log.Fatalf("Failed to read file: %v", err)
 	}
 
 	fmt.Printf("File content:\n%s", string(content))
-	if err := readFile.Close(); err != nil {
-		log.Fatalf("Failed to close file: %v", err)
-	}
-
-	// Demonstrate seeking
-	seekFile, err := sb.Open("/tmp/example.txt", "r")
-	if err != nil {
-		log.Fatalf("Failed to open file for seeking: %v", err)
-	}
-
-	_, err = seekFile.Seek(7, 0) // Seek to position 7 from beginning
-	if err != nil {
-		log.Fatalf("Failed to seek in file: %v", err)
-	}
-
-	buffer := make([]byte, 5)
-	n, err := seekFile.Read(buffer)
-	if err != nil && err != io.EOF {
-		log.Fatalf("Failed to read from position: %v", err)
-	}
-
-	fmt.Printf("From position 7: %s\n", string(buffer[:n]))
-	if err := seekFile.Close(); err != nil {
+	if err := reader.Close(); err != nil {
 		log.Fatalf("Failed to close file: %v", err)
 	}
 }

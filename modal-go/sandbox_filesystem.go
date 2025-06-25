@@ -27,9 +27,9 @@ func newSandboxFile(ctx context.Context, fileDescriptor, taskId string) *Sandbox
 
 // Read reads up to len(p) bytes from the file into p.
 // It returns the number of bytes read and any error encountered.
-func (f *SandboxFile) Read(p []byte) (n int, err error) {
+func (f *SandboxFile) Read(p []byte) (int, error) {
 	nBytes := uint32(len(p))
-	resp, err := runFilesystemExec(f.ctx, pb.ContainerFilesystemExecRequest_builder{
+	resp, err := client.ContainerFilesystemExec(f.ctx, pb.ContainerFilesystemExecRequest_builder{
 		FileReadRequest: pb.ContainerFileReadRequest_builder{
 			FileDescriptor: f.fileDescriptor,
 			N:              &nBytes,
@@ -121,50 +121,25 @@ func runFilesystemExec(ctx context.Context, req *pb.ContainerFilesystemExecReque
 	if err != nil {
 		return nil, err
 	}
+	outputIterator, err := client.ContainerFilesystemExecGetOutput(ctx, pb.ContainerFilesystemExecGetOutputRequest_builder{
+		ExecId:  resp.GetExecId(),
+		Timeout: 55,
+	}.Build())
+	if err != nil {
+		return nil, err
+	}
 
-	retries := 10
-	completed := false
-
-	for !completed {
-		outputIterator, err := client.ContainerFilesystemExecGetOutput(ctx, pb.ContainerFilesystemExecGetOutputRequest_builder{
-			ExecId:  resp.GetExecId(),
-			Timeout: 55,
-		}.Build())
-		if err != nil {
-			if retries > 0 {
-				retries--
-				continue
-			}
-			return nil, err
+	for {
+		batch, err := outputIterator.Recv()
+		if err == io.EOF {
+			return resp, nil
 		}
-		for {
-			batch, err := outputIterator.Recv()
-			if err == io.EOF {
-				completed = true
-				break
-			}
-			// Invalid error
-			if err != nil {
-				if retries > 0 {
-					retries--
-					break
-				}
-				return nil, err
-			}
+		if batch.GetEof() {
+			return resp, nil
+		}
 
-			if batch.GetEof() {
-				completed = true
-				break
-			}
-
-			if batch.GetError() != nil {
-				if retries > 0 {
-					retries--
-					break
-				}
-				return nil, fmt.Errorf("filesystem exec error: %s", batch.GetError().GetErrorMessage())
-			}
+		if batch.GetError() != nil {
+			return nil, fmt.Errorf("filesystem exec error: %s", batch.GetError().GetErrorMessage())
 		}
 	}
-	return resp, nil
 }
