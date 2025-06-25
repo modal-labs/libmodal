@@ -53,7 +53,6 @@ try {
   const readData = await readBinaryHandle.read({ encoding: "binary" });
   console.log("Binary data:", readData);
   await readBinaryHandle.close();
-
 } catch (error) {
   console.error("Filesystem operation failed:", error);
 } finally {
