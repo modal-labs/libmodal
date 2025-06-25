@@ -17,35 +17,19 @@ type SandboxFile struct {
 }
 
 // newFile creates a new File object.
-func newSandboxFile(ctx context.Context, taskId, path, mode string) (*SandboxFile, error) {
-	resp, err := client.ContainerFilesystemExec(ctx, pb.ContainerFilesystemExecRequest_builder{
-		FileOpenRequest: pb.ContainerFileOpenRequest_builder{
-			Path: path,
-			Mode: mode,
-		}.Build(),
-		TaskId: taskId,
-	}.Build())
-
-	if err != nil {
-		return nil, err
-	}
-
-	if resp.GetFileDescriptor() == "" {
-		return nil, fmt.Errorf("failed to open file %s with mode %s", path, mode)
-	}
-
+func newSandboxFile(ctx context.Context, fileDescriptor, taskId string) *SandboxFile {
 	return &SandboxFile{
-		fileDescriptor: resp.GetFileDescriptor(),
+		fileDescriptor: fileDescriptor,
 		taskId:         taskId,
 		ctx:            ctx,
-	}, nil
+	}
 }
 
 // Read reads up to len(p) bytes from the file into p.
 // It returns the number of bytes read and any error encountered.
 func (f *SandboxFile) Read(p []byte) (n int, err error) {
 	nBytes := uint32(len(p))
-	resp, err := client.ContainerFilesystemExec(f.ctx, pb.ContainerFilesystemExecRequest_builder{
+	resp, err := runFilesystemExec(f.ctx, pb.ContainerFilesystemExecRequest_builder{
 		FileReadRequest: pb.ContainerFileReadRequest_builder{
 			FileDescriptor: f.fileDescriptor,
 			N:              &nBytes,
@@ -97,7 +81,7 @@ func (f *SandboxFile) Read(p []byte) (n int, err error) {
 // Write writes len(p) bytes from p to the file.
 // It returns the number of bytes written and any error encountered.
 func (f *SandboxFile) Write(p []byte) (n int, err error) {
-	_, err = client.ContainerFilesystemExec(f.ctx, pb.ContainerFilesystemExecRequest_builder{
+	_, err = runFilesystemExec(f.ctx, pb.ContainerFilesystemExecRequest_builder{
 		FileWriteRequest: pb.ContainerFileWriteRequest_builder{
 			FileDescriptor: f.fileDescriptor,
 			Data:           p,
@@ -112,7 +96,7 @@ func (f *SandboxFile) Write(p []byte) (n int, err error) {
 
 // Flush flushes any buffered data to the file.
 func (f *SandboxFile) Flush() error {
-	_, err := client.ContainerFilesystemExec(f.ctx, pb.ContainerFilesystemExecRequest_builder{
+	_, err := runFilesystemExec(f.ctx, pb.ContainerFilesystemExecRequest_builder{
 		FileFlushRequest: pb.ContainerFileFlushRequest_builder{
 			FileDescriptor: f.fileDescriptor,
 		}.Build(),
@@ -123,7 +107,7 @@ func (f *SandboxFile) Flush() error {
 
 // Close closes the file, rendering it unusable for I/O.
 func (f *SandboxFile) Close() error {
-	_, err := client.ContainerFilesystemExec(f.ctx, pb.ContainerFilesystemExecRequest_builder{
+	_, err := runFilesystemExec(f.ctx, pb.ContainerFilesystemExecRequest_builder{
 		FileCloseRequest: pb.ContainerFileCloseRequest_builder{
 			FileDescriptor: f.fileDescriptor,
 		}.Build(),
@@ -132,4 +116,55 @@ func (f *SandboxFile) Close() error {
 	return err
 }
 
-//
+func runFilesystemExec(ctx context.Context, req *pb.ContainerFilesystemExecRequest) (*pb.ContainerFilesystemExecResponse, error) {
+	resp, err := client.ContainerFilesystemExec(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	retries := 10
+	completed := false
+
+	for !completed {
+		outputIterator, err := client.ContainerFilesystemExecGetOutput(ctx, pb.ContainerFilesystemExecGetOutputRequest_builder{
+			ExecId:  resp.GetExecId(),
+			Timeout: 55,
+		}.Build())
+		if err != nil {
+			if retries > 0 {
+				retries--
+				continue
+			}
+			return nil, err
+		}
+		for {
+			batch, err := outputIterator.Recv()
+			if err == io.EOF {
+				completed = true
+				break
+			}
+			// Invalid error
+			if err != nil {
+				if retries > 0 {
+					retries--
+					break
+				}
+				return nil, err
+			}
+
+			if batch.GetEof() {
+				completed = true
+				break
+			}
+
+			if batch.GetError() != nil {
+				if retries > 0 {
+					retries--
+					break
+				}
+				return nil, fmt.Errorf("filesystem exec error: %s", batch.GetError().GetErrorMessage())
+			}
+		}
+	}
+	return resp, nil
+}
