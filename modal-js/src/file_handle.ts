@@ -69,7 +69,6 @@ export class FileHandle {
   /**
    * Write data to the file.
    * @param data - Data to write (string or Uint8Array)
-   * @param options - Options for the write operation
    */
   async write(data: string | Uint8Array): Promise<void> {
     // Handle position seeking if specified
