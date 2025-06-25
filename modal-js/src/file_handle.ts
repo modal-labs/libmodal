@@ -10,7 +10,7 @@ import { RemoteError } from "./errors";
 export type FileMode = "r" | "w" | "a" | "r+" | "w+" | "a+";
 
 export type ReadOptions = {
-  /** Encoding for text operations. Defaults to 'utf8' for Uint8Array. */
+  /** Encoding for text operations. Defaults to 'utf8' for utf8 encoded data. */
   encoding?: "utf8" | "binary";
 };
 
