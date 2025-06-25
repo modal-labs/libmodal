@@ -114,13 +114,3 @@ func (f *SandboxFile) Close() error {
 	}.Build())
 	return err
 }
-
-// ReadAll reads from the file until an error or EOF and returns the data it read.
-func (f *SandboxFile) ReadAll() ([]byte, error) {
-	return io.ReadAll(f)
-}
-
-// WriteString writes the contents of the string s to the file.
-func (f *SandboxFile) WriteString(s string) (n int, err error) {
-	return f.Write([]byte(s))
-}
