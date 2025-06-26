@@ -2,6 +2,7 @@ package modal
 
 import (
 	"context"
+	"fmt"
 	"io"
 
 	pb "github.com/modal-labs/libmodal/modal-go/proto/modal_proto"
@@ -81,6 +82,7 @@ func runFilesystemExec(ctx context.Context, req *pb.ContainerFilesystemExecReque
 	retries := 10
 	totalRead := 0
 
+	fmt.Println(req)
 	for {
 		outputIterator, err := client.ContainerFilesystemExecGetOutput(ctx, pb.ContainerFilesystemExecGetOutputRequest_builder{
 			ExecId:  resp.GetExecId(),
@@ -96,6 +98,7 @@ func runFilesystemExec(ctx context.Context, req *pb.ContainerFilesystemExecReque
 
 		for {
 			batch, err := outputIterator.Recv()
+			fmt.Printf("batch: %v, err: %v\n", batch, err)
 			if err == io.EOF {
 				return totalRead, resp, io.EOF
 			}
@@ -120,7 +123,7 @@ func runFilesystemExec(ctx context.Context, req *pb.ContainerFilesystemExecReque
 			}
 
 			if batch.GetEof() {
-				return totalRead, resp, io.EOF
+				return totalRead, resp, nil
 			}
 		}
 	}

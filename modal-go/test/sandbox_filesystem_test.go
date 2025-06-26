@@ -10,7 +10,7 @@ import (
 	"github.com/onsi/gomega"
 )
 
-func create_sandbox(g *gomega.WithT) *modal.Sandbox {
+func createSandbox(g *gomega.WithT) *modal.Sandbox {
 	app, err := modal.AppLookup(context.Background(), "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
@@ -23,7 +23,7 @@ func create_sandbox(g *gomega.WithT) *modal.Sandbox {
 	return sb
 }
 
-func terminate_sandbox(g *gomega.WithT, sb *modal.Sandbox) {
+func terminateSandbox(g *gomega.WithT, sb *modal.Sandbox) {
 	err := sb.Terminate()
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 }
@@ -31,8 +31,8 @@ func terminate_sandbox(g *gomega.WithT, sb *modal.Sandbox) {
 func TestSandboxWriteAndReadBinaryFile(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
-	sb := create_sandbox(g)
-	defer terminate_sandbox(g, sb)
+	sb := createSandbox(g)
+	defer terminateSandbox(g, sb)
 
 	writer, err := sb.Open("/tmp/test.bin", "w")
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -60,8 +60,8 @@ func TestSandboxWriteAndReadBinaryFile(t *testing.T) {
 func TestSandboxAppendToFileBinary(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
-	sb := create_sandbox(g)
-	defer terminate_sandbox(g, sb)
+	sb := createSandbox(g)
+	defer terminateSandbox(g, sb)
 
 	writer, err := sb.Open("/tmp/append.txt", "w")
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -92,8 +92,8 @@ func TestSandboxAppendToFileBinary(t *testing.T) {
 func TestSandboxFileFlush(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
-	sb := create_sandbox(g)
-	defer terminate_sandbox(g, sb)
+	sb := createSandbox(g)
+	defer terminateSandbox(g, sb)
 
 	writer, err := sb.Open("/tmp/flush.txt", "w")
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -121,8 +121,8 @@ func TestSandboxFileFlush(t *testing.T) {
 func TestSandboxMultipleFileOperations(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
-	sb := create_sandbox(g)
-	defer terminate_sandbox(g, sb)
+	sb := createSandbox(g)
+	defer terminateSandbox(g, sb)
 
 	// Create multiple files
 	content1 := []byte("File 1 content")
@@ -166,8 +166,8 @@ func TestSandboxMultipleFileOperations(t *testing.T) {
 func TestSandboxFileOpenModes(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
-	sb := create_sandbox(g)
-	defer terminate_sandbox(g, sb)
+	sb := createSandbox(g)
+	defer terminateSandbox(g, sb)
 
 	// Test write mode (truncates)
 	content1 := []byte("Initial content")
@@ -213,12 +213,12 @@ func TestSandboxFileOpenModes(t *testing.T) {
 func TestSandboxLargeFileOperations(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
-	sb := create_sandbox(g)
-	defer terminate_sandbox(g, sb)
+	sb := createSandbox(g)
+	defer terminateSandbox(g, sb)
 
 	xByte := []byte{'x'}
 	// FIX: Does not work for 1000 bytes
-	largeData := bytes.Repeat(xByte, 500)
+	largeData := bytes.Repeat(xByte, 1000)
 
 	writer, err := sb.Open("/tmp/large.txt", "w")
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
