@@ -7,18 +7,18 @@ import { client, isRetryableGrpc } from "./client";
 import { RemoteError } from "./errors";
 
 /** File open modes supported by the filesystem API. */
-export type FileMode = "r" | "w" | "a" | "r+" | "w+" | "a+";
+export type SandboxFileMode = "r" | "w" | "a" | "r+" | "w+" | "a+";
 
-export type ReadOptions = {
+export type SandboxReadOptions = {
   /** Encoding for text operations. Defaults to 'utf8' for utf8 encoded data. */
   encoding?: "utf8" | "binary";
 };
 
 /**
- * FileHandle represents an open file in the sandbox filesystem.
+ * SandboxFileHandle represents an open file in the sandbox filesystem.
  * Provides read/write operations similar to Node.js `fsPromises.FileHandle`.
  */
-export class FileHandle {
+export class SandboxFileHandle {
   readonly #fileDescriptor: string;
   readonly #taskId: string;
 
@@ -33,11 +33,13 @@ export class FileHandle {
    * @returns Promise that resolves to the read data as Uint8Array or string
    */
   async read(): Promise<Uint8Array>;
-  async read(options: ReadOptions & { encoding: "utf8" }): Promise<string>;
   async read(
-    options: ReadOptions & { encoding: "binary" },
+    options: SandboxReadOptions & { encoding: "utf8" },
+  ): Promise<string>;
+  async read(
+    options: SandboxReadOptions & { encoding: "binary" },
   ): Promise<Uint8Array>;
-  async read(options?: ReadOptions): Promise<Uint8Array | string> {
+  async read(options?: SandboxReadOptions): Promise<Uint8Array | string> {
     // Default encoding to 'utf8' if not specified
     const encoding = options?.encoding ?? "utf8";
     const is_utf8 = encoding === "utf8";
