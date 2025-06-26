@@ -4,7 +4,7 @@ import {
   ContainerFilesystemExecResponse,
 } from "../proto/modal_proto/api";
 import { client, isRetryableGrpc } from "./client";
-import { SandboxFileSystemError } from "./errors";
+import { SandboxFilesystemError } from "./errors";
 
 /** File open modes supported by the filesystem API. */
 export type SandboxFileMode = "r" | "w" | "a" | "r+" | "w+" | "a+";
@@ -115,7 +115,7 @@ export async function runFilesystemExec(
             retries--;
             break;
           }
-          throw new SandboxFileSystemError(batch.error.errorMessage);
+          throw new SandboxFilesystemError(batch.error.errorMessage);
         }
       }
     } catch (err) {

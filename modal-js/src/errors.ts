@@ -55,9 +55,9 @@ export class QueueFullError extends Error {
 }
 
 /** Errors from invalid Sandbox FileSystem operations. */
-export class SandboxFileSystemError extends Error {
+export class SandboxFilesystemError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = "SandboxFileSystemError";
+    this.name = "SandboxFilesystemError";
   }
 }
