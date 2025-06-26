@@ -37,5 +37,4 @@ export { Secret, type SecretFromNameOptions } from "./secret";
 export {
   SandboxFileHandle,
   type SandboxFileMode,
-  type SandboxReadOptions,
 } from "./sandbox_filehandle";

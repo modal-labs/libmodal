@@ -1,25 +1,6 @@
 import { App } from "modal";
 import { expect, test, onTestFinished } from "vitest";
 
-test("WriteAndReadTextFile", async () => {
-  const app = await App.lookup("libmodal-test", { createIfMissing: true });
-  const image = await app.imageFromRegistry("alpine:3.21");
-  const sb = await app.createSandbox(image);
-  onTestFinished(async () => {
-    await sb.terminate();
-  });
-
-  const writeHandle = await sb.open("/tmp/test.txt", "w");
-  expect(writeHandle).toBeTruthy();
-  await writeHandle.write("Hello, Modal filesystem!");
-  await writeHandle.close();
-
-  const readHandle = await sb.open("/tmp/test.txt", "r");
-  const content = await readHandle.read({ encoding: "utf8" });
-  expect(content).toBe("Hello, Modal filesystem!");
-  await readHandle.close();
-});
-
 test("WriteAndReadBinaryFile", async () => {
   const app = await App.lookup("libmodal-test", { createIfMissing: true });
   const image = await app.imageFromRegistry("alpine:3.21");
@@ -36,33 +17,8 @@ test("WriteAndReadBinaryFile", async () => {
 
   // Read binary data
   const readHandle = await sb.open("/tmp/test.bin", "r");
-  const readData = await readHandle.read({ encoding: "binary" });
+  const readData = await readHandle.read();
   expect(readData).toEqual(testData);
-  await readHandle.close();
-});
-
-test("AppendToFileUTF8", async () => {
-  const app = await App.lookup("libmodal-test", { createIfMissing: true });
-  const image = await app.imageFromRegistry("alpine:3.21");
-  const sb = await app.createSandbox(image);
-  onTestFinished(async () => {
-    await sb.terminate();
-  });
-
-  // Write initial content
-  const writeHandle = await sb.open("/tmp/append.txt", "w");
-  await writeHandle.write("Initial content\n");
-  await writeHandle.close();
-
-  // Append more content
-  const appendHandle = await sb.open("/tmp/append.txt", "a");
-  await appendHandle.write("Appended content\n");
-  await appendHandle.close();
-
-  // Read the entire file
-  const readHandle = await sb.open("/tmp/append.txt", "r");
-  const content = await readHandle.read();
-  expect(content).toBe("Initial content\nAppended content\n");
   await readHandle.close();
 });
 
@@ -88,7 +44,7 @@ test("AppendToFileBinary", async () => {
 
   // Read the entire file
   const readHandle = await sb.open("/tmp/append.txt", "r");
-  const content = await readHandle.read({ encoding: "binary" });
+  const content = await readHandle.read();
   const expectedData = new Uint8Array([
     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 7, 8, 9, 10,
   ]);
@@ -104,15 +60,17 @@ test("FileHandleFlush", async () => {
     await sb.terminate();
   });
 
+  const encodedData = new TextEncoder().encode("Test data")
+
   const handle = await sb.open("/tmp/flush.txt", "w");
-  await handle.write("Test data");
+  await handle.write(encodedData);
   await handle.flush(); // Ensure data is written to disk
   await handle.close();
 
   // Verify the data was written
   const readHandle = await sb.open("/tmp/flush.txt", "r");
-  const content = await readHandle.read({ encoding: "utf8" });
-  expect(content).toBe("Test data");
+  const content = await readHandle.read();
+  expect(content).toEqual(encodedData);
   await readHandle.close();
 });
 
@@ -125,25 +83,29 @@ test("MultipleFileOperations", async () => {
   });
 
   // Create multiple files
+  const encoder = new TextEncoder()
+  const content1 = encoder.encode("File 1 content")
   const handle1 = await sb.open("/tmp/file1.txt", "w");
-  await handle1.write("File 1 content");
+  await handle1.write(content1);
   await handle1.close();
 
+
   const handle2 = await sb.open("/tmp/file2.txt", "w");
-  await handle2.write("File 2 content");
+  const content2 = encoder.encode("File 2 content");
+  await handle2.write(content2);
   await handle2.close();
 
   // Read both files
   const read1 = await sb.open("/tmp/file1.txt", "r");
-  const content1 = await read1.read();
+  const readContent1 = await read1.read();
   await read1.close();
 
   const read2 = await sb.open("/tmp/file2.txt", "r");
-  const content2 = await read2.read({ encoding: "utf8" });
+  const readContent2 = await read2.read();
   await read2.close();
 
-  expect(content1).toBe("File 1 content");
-  expect(content2).toBe("File 2 content");
+  expect(readContent1).toEqual(content1);
+  expect(readContent2).toEqual(content2);
 });
 
 test("FileOpenModes", async () => {
@@ -155,25 +117,29 @@ test("FileOpenModes", async () => {
   });
 
   // Test write mode (truncates)
+  const encoder = new TextEncoder()
+  const content1 = encoder.encode("Initial content")
   const writeHandle = await sb.open("/tmp/modes.txt", "w");
-  await writeHandle.write("Initial content");
+  await writeHandle.write(content1);
   await writeHandle.close();
 
   // Test read mode
   const readHandle = await sb.open("/tmp/modes.txt", "r");
-  const content1 = await readHandle.read({ encoding: "utf8" });
-  expect(content1).toBe("Initial content");
+  const readContent1 = await readHandle.read();
+  expect(readContent1).toEqual(content1);
   await readHandle.close();
 
   // Test append mode
+  const appendContent = encoder.encode(" appended")
   const appendHandle = await sb.open("/tmp/modes.txt", "a");
-  await appendHandle.write(" appended");
+  await appendHandle.write(appendContent);
   await appendHandle.close();
 
   // Verify append worked
+  const expectedContent = encoder.encode("Initial content appended")
   const finalRead = await sb.open("/tmp/modes.txt", "r");
-  const finalContent = await finalRead.read({ encoding: "utf8" });
-  expect(finalContent).toBe("Initial content appended");
+  const finalContent = await finalRead.read();
+  expect(finalContent).toEqual(expectedContent);
   await finalRead.close();
 });
 
@@ -186,7 +152,8 @@ test("LargeFileOperations", async () => {
   });
 
   // Create a larger file
-  const largeData = "x".repeat(1000);
+  const encoder = new TextEncoder()
+  const largeData = encoder.encode("x".repeat(1000));
 
   const writeHandle = await sb.open("/tmp/large.txt", "w");
   await writeHandle.write(largeData);
@@ -194,8 +161,8 @@ test("LargeFileOperations", async () => {
 
   // Read it back
   const readHandle = await sb.open("/tmp/large.txt", "r");
-  const content = await readHandle.read({ encoding: "utf8" });
-  expect(content).toBe(largeData);
+  const content = await readHandle.read();
+  expect(content).toEqual(largeData);
   expect(content.length).toBe(1000);
   await readHandle.close();
 });

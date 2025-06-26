@@ -9,11 +9,6 @@ import { RemoteError } from "./errors";
 /** File open modes supported by the filesystem API. */
 export type SandboxFileMode = "r" | "w" | "a" | "r+" | "w+" | "a+";
 
-export type SandboxReadOptions = {
-  /** Encoding for text operations. Defaults to 'utf8' for utf8 encoded data. */
-  encoding?: "utf8" | "binary";
-};
-
 /**
  * SandboxFileHandle represents an open file in the sandbox filesystem.
  * Provides read/write operations similar to Node.js `fsPromises.FileHandle`.
@@ -32,18 +27,7 @@ export class SandboxFileHandle {
    * Read data from the file.
    * @returns Promise that resolves to the read data as Uint8Array or string
    */
-  async read(): Promise<Uint8Array>;
-  async read(
-    options: SandboxReadOptions & { encoding: "utf8" },
-  ): Promise<string>;
-  async read(
-    options: SandboxReadOptions & { encoding: "binary" },
-  ): Promise<Uint8Array>;
-  async read(options?: SandboxReadOptions): Promise<Uint8Array | string> {
-    // Default encoding to 'utf8' if not specified
-    const encoding = options?.encoding ?? "utf8";
-    const is_utf8 = encoding === "utf8";
-
+  async read(): Promise<Uint8Array> {
     const resp = await runFilesystemExec({
       fileReadRequest: {
         fileDescriptor: this.#fileDescriptor,
@@ -61,10 +45,6 @@ export class SandboxFileHandle {
       offset += chunk.length;
     }
 
-    if (is_utf8) {
-      // At this point, we can assume that `position` and `length` is not set.
-      return new TextDecoder().decode(result);
-    }
     return result;
   }
 
@@ -72,16 +52,11 @@ export class SandboxFileHandle {
    * Write data to the file.
    * @param data - Data to write (string or Uint8Array)
    */
-  async write(data: string | Uint8Array): Promise<void> {
-    // Handle position seeking if specified
-    const is_utf8 = typeof data === "string";
-
-    const bytes = is_utf8 ? new TextEncoder().encode(data) : data;
-
+  async write(data: Uint8Array): Promise<void> {
     await runFilesystemExec({
       fileWriteRequest: {
         fileDescriptor: this.#fileDescriptor,
-        data: bytes,
+        data: data,
       },
       taskId: this.#taskId,
     });
@@ -124,7 +99,6 @@ export async function runFilesystemExec(
   let retries = 10;
   let completed = false;
   while (!completed) {
-    chunks.length = 0;
     try {
       const outputIterator = client.containerFilesystemExecGetOutput({
         execId: response.execId,
