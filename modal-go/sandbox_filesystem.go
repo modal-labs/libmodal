@@ -2,7 +2,6 @@ package modal
 
 import (
 	"context"
-	"fmt"
 	"io"
 
 	pb "github.com/modal-labs/libmodal/modal-go/proto/modal_proto"
@@ -16,79 +15,31 @@ type SandboxFile struct {
 	ctx            context.Context
 }
 
-// newFile creates a new File object.
-func newSandboxFile(ctx context.Context, fileDescriptor, taskId string) *SandboxFile {
-	return &SandboxFile{
-		fileDescriptor: fileDescriptor,
-		taskId:         taskId,
-		ctx:            ctx,
-	}
-}
-
 // Read reads up to len(p) bytes from the file into p.
 // It returns the number of bytes read and any error encountered.
 func (f *SandboxFile) Read(p []byte) (int, error) {
 	nBytes := uint32(len(p))
-	resp, err := client.ContainerFilesystemExec(f.ctx, pb.ContainerFilesystemExecRequest_builder{
+	totalRead, _, err := runFilesystemExec(f.ctx, pb.ContainerFilesystemExecRequest_builder{
 		FileReadRequest: pb.ContainerFileReadRequest_builder{
 			FileDescriptor: f.fileDescriptor,
 			N:              &nBytes,
 		}.Build(),
 		TaskId: f.taskId,
-	}.Build())
-	if err != nil {
-		return 0, err
-	}
-
-	// Get the output stream to read the actual data
-	outputIterator, err := client.ContainerFilesystemExecGetOutput(f.ctx, pb.ContainerFilesystemExecGetOutputRequest_builder{
-		ExecId:  resp.GetExecId(),
-		Timeout: 55,
-	}.Build())
-	if err != nil {
-		return 0, err
-	}
-
-	var totalRead int
-	for {
-		batch, err := outputIterator.Recv()
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			return totalRead, err
-		}
-
-		for _, chunk := range batch.GetOutput() {
-			copyLen := copy(p[totalRead:], chunk)
-			totalRead += copyLen
-			if totalRead >= len(p) {
-				return totalRead, nil
-			}
-		}
-
-		if batch.GetEof() {
-			break
-		}
-	}
-
-	if totalRead == 0 {
-		return 0, io.EOF
-	}
-	return totalRead, nil
+	}.Build(), p)
+	return totalRead, err
 }
 
 // Write writes len(p) bytes from p to the file.
 // It returns the number of bytes written and any error encountered.
 func (f *SandboxFile) Write(p []byte) (n int, err error) {
-	_, err = runFilesystemExec(f.ctx, pb.ContainerFilesystemExecRequest_builder{
+	_, _, err = runFilesystemExec(f.ctx, pb.ContainerFilesystemExecRequest_builder{
 		FileWriteRequest: pb.ContainerFileWriteRequest_builder{
 			FileDescriptor: f.fileDescriptor,
 			Data:           p,
 		}.Build(),
 		TaskId: f.taskId,
-	}.Build())
-	if err != nil {
+	}.Build(), []byte{})
+	if err != nil && err != io.EOF {
 		return 0, err
 	}
 	return len(p), nil
@@ -96,50 +47,81 @@ func (f *SandboxFile) Write(p []byte) (n int, err error) {
 
 // Flush flushes any buffered data to the file.
 func (f *SandboxFile) Flush() error {
-	_, err := runFilesystemExec(f.ctx, pb.ContainerFilesystemExecRequest_builder{
+	_, _, err := runFilesystemExec(f.ctx, pb.ContainerFilesystemExecRequest_builder{
 		FileFlushRequest: pb.ContainerFileFlushRequest_builder{
 			FileDescriptor: f.fileDescriptor,
 		}.Build(),
 		TaskId: f.taskId,
-	}.Build())
-	return err
+	}.Build(), []byte{})
+	if err != nil && err != io.EOF {
+		return err
+	}
+	return nil
 }
 
 // Close closes the file, rendering it unusable for I/O.
 func (f *SandboxFile) Close() error {
-	_, err := runFilesystemExec(f.ctx, pb.ContainerFilesystemExecRequest_builder{
+	_, _, err := runFilesystemExec(f.ctx, pb.ContainerFilesystemExecRequest_builder{
 		FileCloseRequest: pb.ContainerFileCloseRequest_builder{
 			FileDescriptor: f.fileDescriptor,
 		}.Build(),
 		TaskId: f.taskId,
-	}.Build())
-	return err
+	}.Build(), []byte{})
+	if err != nil && err != io.EOF {
+		return err
+	}
+	return nil
 }
 
-func runFilesystemExec(ctx context.Context, req *pb.ContainerFilesystemExecRequest) (*pb.ContainerFilesystemExecResponse, error) {
+func runFilesystemExec(ctx context.Context, req *pb.ContainerFilesystemExecRequest, p []byte) (int, *pb.ContainerFilesystemExecResponse, error) {
 	resp, err := client.ContainerFilesystemExec(ctx, req)
 	if err != nil {
-		return nil, err
+		return 0, nil, err
 	}
-	outputIterator, err := client.ContainerFilesystemExecGetOutput(ctx, pb.ContainerFilesystemExecGetOutputRequest_builder{
-		ExecId:  resp.GetExecId(),
-		Timeout: 55,
-	}.Build())
-	if err != nil {
-		return nil, err
-	}
+	retries := 10
+	totalRead := 0
 
 	for {
-		batch, err := outputIterator.Recv()
-		if err == io.EOF {
-			return resp, nil
-		}
-		if batch.GetEof() {
-			return resp, nil
+		outputIterator, err := client.ContainerFilesystemExecGetOutput(ctx, pb.ContainerFilesystemExecGetOutputRequest_builder{
+			ExecId:  resp.GetExecId(),
+			Timeout: 55,
+		}.Build())
+		if err != nil {
+			if isRetryableGrpc(err) && retries > 0 {
+				retries--
+				continue
+			}
+			return 0, nil, err
 		}
 
-		if batch.GetError() != nil {
-			return nil, fmt.Errorf("filesystem exec error: %s", batch.GetError().GetErrorMessage())
+		for {
+			batch, err := outputIterator.Recv()
+			if err == io.EOF {
+				return totalRead, resp, io.EOF
+			}
+			if err != nil {
+				if isRetryableGrpc(err) && retries > 0 {
+					retries--
+					break
+				}
+				return 0, nil, err
+			}
+			if batch.GetError() != nil {
+				if retries > 0 {
+					retries--
+					break
+				}
+				return 0, nil, RemoteError{batch.GetError().GetErrorMessage()}
+			}
+
+			for _, chunk := range batch.GetOutput() {
+				copyLen := copy(p[totalRead:], chunk)
+				totalRead += copyLen
+			}
+
+			if batch.GetEof() {
+				return totalRead, resp, io.EOF
+			}
 		}
 	}
 }

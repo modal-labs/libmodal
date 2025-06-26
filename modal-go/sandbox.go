@@ -72,22 +72,24 @@ func (sb *Sandbox) Open(path, mode string) (*SandboxFile, error) {
 		return nil, err
 	}
 
-	resp, err := runFilesystemExec(sb.ctx, pb.ContainerFilesystemExecRequest_builder{
+	_, resp, err := runFilesystemExec(sb.ctx, pb.ContainerFilesystemExecRequest_builder{
 		FileOpenRequest: pb.ContainerFileOpenRequest_builder{
 			Path: path,
 			Mode: mode,
 		}.Build(),
 		TaskId: sb.taskId,
-	}.Build())
-	if err != nil {
+	}.Build(), []byte{})
+
+	// io.EOF is a valid error
+	if err != nil && err != io.EOF {
 		return nil, err
 	}
 
-	if resp.GetFileDescriptor() == "" {
-		return nil, fmt.Errorf("failed to open file %s with mode %s", path, mode)
-	}
-
-	return newSandboxFile(sb.ctx, resp.GetFileDescriptor(), sb.taskId), nil
+	return &SandboxFile{
+		fileDescriptor: resp.GetFileDescriptor(),
+		taskId:         sb.taskId,
+		ctx:            sb.ctx,
+	}, nil
 }
 
 func (sb *Sandbox) ensureTaskId() error {

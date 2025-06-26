@@ -57,7 +57,7 @@ Examples:
 - [Create a sandbox](./modal-go/examples/sandbox/main.go)
 - [Create a sandbox using a private image from AWS ECR](./modal-go/examples/sandbox-private-image/main.go)
 - [Execute sandbox commands](./modal-go/examples/sandbox-exec/main.go)
-- [Execute sandbox filesystem commands](./modal-go/examples/sandbox-filesystem/main.go)
+- [Access sandbox filesystem](./modal-go/examples/sandbox-filesystem/main.go)
 
 ### Python
 

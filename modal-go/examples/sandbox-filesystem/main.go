@@ -56,7 +56,7 @@ func main() {
 	}
 
 	content, err := io.ReadAll(reader)
-	if err != nil {
+	if err != nil && err != io.EOF {
 		log.Fatalf("Failed to read file: %v", err)
 	}
 
