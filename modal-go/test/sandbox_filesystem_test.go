@@ -155,7 +155,7 @@ func TestSandboxMultipleFileOperations(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	readContent2, err := io.ReadAll(reader2)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	err = reader1.Close()
+	err = reader2.Close()
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	g.Expect(readContent1).Should(gomega.Equal(content1))

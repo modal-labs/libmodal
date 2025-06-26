@@ -113,10 +113,6 @@ func runFilesystemExec(ctx context.Context, req *pb.ContainerFilesystemExecReque
 				return 0, nil, err
 			}
 			if batch.GetError() != nil {
-				if retries > 0 {
-					retries--
-					break
-				}
 				return 0, nil, SandboxFileSystemError{batch.GetError().GetErrorMessage()}
 			}
 
