@@ -10,10 +10,10 @@ import { RemoteError } from "./errors";
 export type SandboxFileMode = "r" | "w" | "a" | "r+" | "w+" | "a+";
 
 /**
- * SandboxFileHandle represents an open file in the sandbox filesystem.
+ * SandboxFile represents an open file in the sandbox filesystem.
  * Provides read/write operations similar to Node.js `fsPromises.FileHandle`.
  */
-export class SandboxFileHandle {
+export class SandboxFile {
   readonly #fileDescriptor: string;
   readonly #taskId: string;
 
@@ -25,7 +25,7 @@ export class SandboxFileHandle {
 
   /**
    * Read data from the file.
-   * @returns Promise that resolves to the read data as Uint8Array or string
+   * @returns Promise that resolves to the read data as Uint8Array
    */
   async read(): Promise<Uint8Array> {
     const resp = await runFilesystemExec({

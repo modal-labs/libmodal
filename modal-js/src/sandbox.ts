@@ -2,7 +2,7 @@ import { FileDescriptor } from "../proto/modal_proto/api";
 import { client, isRetryableGrpc } from "./client";
 import {
   runFilesystemExec,
-  SandboxFileHandle,
+  SandboxFile,
   SandboxFileMode,
 } from "./sandbox_filehandle";
 import {
@@ -65,12 +65,9 @@ export class Sandbox {
    * Open a file in the sandbox filesystem.
    * @param path - Path to the file to open
    * @param mode - File open mode (r, w, a, r+, w+, a+)
-   * @returns Promise that resolves to a SandboxFileHandle
+   * @returns Promise that resolves to a SandboxFile
    */
-  async open(
-    path: string,
-    mode: SandboxFileMode = "r",
-  ): Promise<SandboxFileHandle> {
+  async open(path: string, mode: SandboxFileMode = "r"): Promise<SandboxFile> {
     const taskId = await this.#getTaskId();
     const resp = await runFilesystemExec({
       fileOpenRequest: {
@@ -79,13 +76,9 @@ export class Sandbox {
       },
       taskId: taskId,
     });
-    const fileDescriptor = resp.response.fileDescriptor;
-
-    if (!fileDescriptor) {
-      throw new Error(`Failed to open file ${path} with mode ${mode}`);
-    }
-
-    return new SandboxFileHandle(fileDescriptor, taskId);
+    // For Open request, the file descriptor is always set
+    const fileDescriptor = resp.response.fileDescriptor as string;
+    return new SandboxFile(fileDescriptor, taskId);
   }
 
   async exec(

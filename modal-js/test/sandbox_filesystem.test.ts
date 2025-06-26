@@ -60,7 +60,7 @@ test("FileHandleFlush", async () => {
     await sb.terminate();
   });
 
-  const encodedData = new TextEncoder().encode("Test data")
+  const encodedData = new TextEncoder().encode("Test data");
 
   const handle = await sb.open("/tmp/flush.txt", "w");
   await handle.write(encodedData);
@@ -83,12 +83,11 @@ test("MultipleFileOperations", async () => {
   });
 
   // Create multiple files
-  const encoder = new TextEncoder()
-  const content1 = encoder.encode("File 1 content")
+  const encoder = new TextEncoder();
+  const content1 = encoder.encode("File 1 content");
   const handle1 = await sb.open("/tmp/file1.txt", "w");
   await handle1.write(content1);
   await handle1.close();
-
 
   const handle2 = await sb.open("/tmp/file2.txt", "w");
   const content2 = encoder.encode("File 2 content");
@@ -117,8 +116,8 @@ test("FileOpenModes", async () => {
   });
 
   // Test write mode (truncates)
-  const encoder = new TextEncoder()
-  const content1 = encoder.encode("Initial content")
+  const encoder = new TextEncoder();
+  const content1 = encoder.encode("Initial content");
   const writeHandle = await sb.open("/tmp/modes.txt", "w");
   await writeHandle.write(content1);
   await writeHandle.close();
@@ -130,13 +129,13 @@ test("FileOpenModes", async () => {
   await readHandle.close();
 
   // Test append mode
-  const appendContent = encoder.encode(" appended")
+  const appendContent = encoder.encode(" appended");
   const appendHandle = await sb.open("/tmp/modes.txt", "a");
   await appendHandle.write(appendContent);
   await appendHandle.close();
 
   // Verify append worked
-  const expectedContent = encoder.encode("Initial content appended")
+  const expectedContent = encoder.encode("Initial content appended");
   const finalRead = await sb.open("/tmp/modes.txt", "r");
   const finalContent = await finalRead.read();
   expect(finalContent).toEqual(expectedContent);
@@ -152,7 +151,7 @@ test("LargeFileOperations", async () => {
   });
 
   // Create a larger file
-  const encoder = new TextEncoder()
+  const encoder = new TextEncoder();
   const largeData = encoder.encode("x".repeat(1000));
 
   const writeHandle = await sb.open("/tmp/large.txt", "w");
