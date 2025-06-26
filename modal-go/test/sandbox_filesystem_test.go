@@ -49,7 +49,7 @@ func TestSandboxWriteAndReadBinaryFile(t *testing.T) {
 
 	output := make([]byte, 10)
 	n, err = reader.Read(output)
-	g.Expect(err).Should(gomega.Equal(io.EOF))
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(n).Should(gomega.Equal(10))
 	g.Expect(output).Should(gomega.Equal(text))
 
@@ -217,7 +217,6 @@ func TestSandboxLargeFileOperations(t *testing.T) {
 	defer terminateSandbox(g, sb)
 
 	xByte := []byte{'x'}
-	// FIX: Does not work for 1000 bytes
 	largeData := bytes.Repeat(xByte, 1000)
 
 	writer, err := sb.Open("/tmp/large.txt", "w")

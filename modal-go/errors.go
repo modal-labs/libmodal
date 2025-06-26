@@ -64,3 +64,12 @@ type QueueFullError struct {
 func (e QueueFullError) Error() string {
 	return "QueueFullError: " + e.Exception
 }
+
+// SandboxFileSystemError is returned when an operation is attempted on a full queue.
+type SandboxFileSystemError struct {
+	Exception string
+}
+
+func (e SandboxFileSystemError) Error() string {
+	return "SandboxFileSystemError: " + e.Exception
+}

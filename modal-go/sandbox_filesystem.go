@@ -2,7 +2,6 @@ package modal
 
 import (
 	"context"
-	"fmt"
 	"io"
 
 	pb "github.com/modal-labs/libmodal/modal-go/proto/modal_proto"
@@ -27,7 +26,13 @@ func (f *SandboxFile) Read(p []byte) (int, error) {
 		}.Build(),
 		TaskId: f.taskId,
 	}.Build(), p)
-	return totalRead, err
+	if err != nil {
+		return 0, err
+	}
+	if totalRead < int(nBytes) {
+		return totalRead, io.EOF
+	}
+	return totalRead, nil
 }
 
 // Write writes len(p) bytes from p to the file.
@@ -39,8 +44,8 @@ func (f *SandboxFile) Write(p []byte) (n int, err error) {
 			Data:           p,
 		}.Build(),
 		TaskId: f.taskId,
-	}.Build(), []byte{})
-	if err != nil && err != io.EOF {
+	}.Build(), nil)
+	if err != nil {
 		return 0, err
 	}
 	return len(p), nil
@@ -53,8 +58,8 @@ func (f *SandboxFile) Flush() error {
 			FileDescriptor: f.fileDescriptor,
 		}.Build(),
 		TaskId: f.taskId,
-	}.Build(), []byte{})
-	if err != nil && err != io.EOF {
+	}.Build(), nil)
+	if err != nil {
 		return err
 	}
 	return nil
@@ -67,8 +72,8 @@ func (f *SandboxFile) Close() error {
 			FileDescriptor: f.fileDescriptor,
 		}.Build(),
 		TaskId: f.taskId,
-	}.Build(), []byte{})
-	if err != nil && err != io.EOF {
+	}.Build(), nil)
+	if err != nil {
 		return err
 	}
 	return nil
@@ -82,7 +87,6 @@ func runFilesystemExec(ctx context.Context, req *pb.ContainerFilesystemExecReque
 	retries := 10
 	totalRead := 0
 
-	fmt.Println(req)
 	for {
 		outputIterator, err := client.ContainerFilesystemExecGetOutput(ctx, pb.ContainerFilesystemExecGetOutputRequest_builder{
 			ExecId:  resp.GetExecId(),
@@ -98,9 +102,8 @@ func runFilesystemExec(ctx context.Context, req *pb.ContainerFilesystemExecReque
 
 		for {
 			batch, err := outputIterator.Recv()
-			fmt.Printf("batch: %v, err: %v\n", batch, err)
 			if err == io.EOF {
-				return totalRead, resp, io.EOF
+				break
 			}
 			if err != nil {
 				if isRetryableGrpc(err) && retries > 0 {
@@ -114,7 +117,7 @@ func runFilesystemExec(ctx context.Context, req *pb.ContainerFilesystemExecReque
 					retries--
 					break
 				}
-				return 0, nil, RemoteError{batch.GetError().GetErrorMessage()}
+				return 0, nil, SandboxFileSystemError{batch.GetError().GetErrorMessage()}
 			}
 
 			for _, chunk := range batch.GetOutput() {
