@@ -20,8 +20,8 @@ console.log("Started sandbox:", sb.sandboxId);
 try {
   // Write a file
   const writeHandle = await sb.open("/tmp/example.txt", "w");
-  const encoder = new TextEncoder()
-  const deocder = new TextDecoder()
+  const encoder = new TextEncoder();
+  const deocder = new TextDecoder();
 
   await writeHandle.write(encoder.encode("Hello, Modal filesystem!\n"));
   await writeHandle.write(encoder.encode("This is line 2.\n"));

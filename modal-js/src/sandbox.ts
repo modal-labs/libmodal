@@ -4,7 +4,7 @@ import {
   runFilesystemExec,
   SandboxFile,
   SandboxFileMode,
-} from "./sandbox_filehandle";
+} from "./sandbox_filesystem";
 import {
   type ModalReadStream,
   type ModalWriteStream,
