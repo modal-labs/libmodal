@@ -48,7 +48,7 @@ func TestWriteAndReadTextFile(t *testing.T) {
 
 	output := make([]byte, 12)
 	n, err = reader.Read(output)
-	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(err).Should(gomega.Equal(io.EOF))
 	g.Expect(n).Should(gomega.Equal(12))
 	g.Expect(output).Should(gomega.Equal(text[0:12]))
 
