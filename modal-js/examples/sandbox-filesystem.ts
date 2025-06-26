@@ -5,7 +5,7 @@ import { App } from "modal";
  *
  * This example shows how to:
  * - Open files for reading and writing
- * - Read file contents as text and binary data
+ * - Read file contents as binary data
  * - Write data to files
  * - Close file handles
  */
@@ -28,7 +28,7 @@ try {
   await writeHandle.write(encoder.encode("And this is line 3.\n"));
   await writeHandle.close();
 
-  // Read the entire file as text
+  // Read the entire file as binary
   const readHandle = await sb.open("/tmp/example.txt", "r");
   const content = await readHandle.read();
   console.log("File content:", deocder.decode(content));
@@ -39,7 +39,7 @@ try {
   await appendHandle.write(encoder.encode("This line was appended.\n"));
   await appendHandle.close();
 
-  // Read with 'utf8' (the default)
+  // Read with binary
   const seekHandle = await sb.open("/tmp/example.txt", "r");
   const appendedContent = await seekHandle.read();
   console.log("File with appended:", deocder.decode(appendedContent));
