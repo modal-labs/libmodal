@@ -53,3 +53,11 @@ export class QueueFullError extends Error {
     this.name = "QueueFullError";
   }
 }
+
+/** Errors from invalid Sandbox FileSystem operations. */
+export class SandboxFileSystemError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "SandboxFileSystemError";
+  }
+}
