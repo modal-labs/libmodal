@@ -40,6 +40,7 @@ export default defineConfig([
       // We added this lint because `tsx` gets confused when you export types
       // without using the `type` keyword.
       "@typescript-eslint/consistent-type-exports": "error",
+      "object-shorthand": "warn",
     },
   },
 ]);

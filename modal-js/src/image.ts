@@ -27,7 +27,7 @@ export async function fromRegistryInternal(
     appId,
     image: {
       dockerfileCommands: [`FROM ${tag}`],
-      imageRegistryConfig: imageRegistryConfig,
+      imageRegistryConfig,
     },
     namespace: DeploymentNamespace.DEPLOYMENT_NAMESPACE_WORKSPACE,
     builderVersion: imageBuilderVersion(),

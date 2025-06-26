@@ -55,11 +55,11 @@ export class ControlPlaneInvocation implements Invocation {
   ) {
     const functionPutInputsItem = {
       idx: 0,
-      input: input,
+      input,
     };
 
     const functionMapResponse = await client.functionMap({
-      functionId: functionId,
+      functionId,
       functionCallType: FunctionCallType.FUNCTION_CALL_TYPE_UNARY,
       functionCallInvocationType: invocationType,
       pipelinedInputs: [functionPutInputsItem],
@@ -90,7 +90,7 @@ export class ControlPlaneInvocation implements Invocation {
     const retryItem: FunctionRetryInputsItem = {
       inputJwt: this.inputJwt!,
       input: this.input,
-      retryCount: retryCount,
+      retryCount,
     };
 
     const functionRetryResponse = await client.functionRetryInputs({
@@ -119,7 +119,7 @@ export async function pollFunctionOutput(
     let response: FunctionGetOutputsResponse;
     try {
       response = await client.functionGetOutputs({
-        functionCallId: functionCallId,
+        functionCallId,
         maxValues: 1,
         timeout: pollTimeout / 1000, // Backend needs seconds
         lastEntryId: "0-0",
