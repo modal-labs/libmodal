@@ -80,7 +80,6 @@ func (sb *Sandbox) Open(path, mode string) (*SandboxFile, error) {
 		TaskId: sb.taskId,
 	}.Build(), nil)
 
-	// io.EOF is a valid error
 	if err != nil {
 		return nil, err
 	}
