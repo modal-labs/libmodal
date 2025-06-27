@@ -74,7 +74,7 @@ export class Sandbox {
         path,
         mode,
       },
-      taskId: taskId,
+      taskId,
     });
     // For Open request, the file descriptor is always set
     const fileDescriptor = resp.response.fileDescriptor as string;
@@ -102,7 +102,7 @@ export class Sandbox {
     const taskId = await this.#getTaskId();
 
     const resp = await client.containerExec({
-      taskId: taskId,
+      taskId,
       command,
     });
 

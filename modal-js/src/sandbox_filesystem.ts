@@ -56,7 +56,7 @@ export class SandboxFile {
     await runFilesystemExec({
       fileWriteRequest: {
         fileDescriptor: this.#fileDescriptor,
-        data: data,
+        data,
       },
       taskId: this.#taskId,
     });
