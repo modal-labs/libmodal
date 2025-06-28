@@ -3,7 +3,7 @@ import {
   DeepPartial,
   ContainerFilesystemExecResponse,
 } from "../proto/modal_proto/api";
-import { defaultClient, isRetryableGrpc } from "./client";
+import { ModalClient, isRetryableGrpc } from "./client";
 import { SandboxFilesystemError } from "./errors";
 
 /** File open modes supported by the filesystem API. */
@@ -16,11 +16,13 @@ export type SandboxFileMode = "r" | "w" | "a" | "r+" | "w+" | "a+";
 export class SandboxFile {
   readonly #fileDescriptor: string;
   readonly #taskId: string;
+  readonly #client: ModalClient;
 
   /** @ignore */
-  constructor(fileDescriptor: string, taskId: string) {
+  constructor(fileDescriptor: string, taskId: string, client: ModalClient) {
     this.#fileDescriptor = fileDescriptor;
     this.#taskId = taskId;
+    this.#client = client;
   }
 
   /**
@@ -28,7 +30,7 @@ export class SandboxFile {
    * @returns Promise that resolves to the read data as Uint8Array
    */
   async read(): Promise<Uint8Array> {
-    const resp = await runFilesystemExec({
+    const resp = await runFilesystemExec(this.#client, {
       fileReadRequest: {
         fileDescriptor: this.#fileDescriptor,
       },
@@ -53,7 +55,7 @@ export class SandboxFile {
    * @param data - Data to write (string or Uint8Array)
    */
   async write(data: Uint8Array): Promise<void> {
-    await runFilesystemExec({
+    await runFilesystemExec(this.#client, {
       fileWriteRequest: {
         fileDescriptor: this.#fileDescriptor,
         data,
@@ -66,7 +68,7 @@ export class SandboxFile {
    * Flush any buffered data to the file.
    */
   async flush(): Promise<void> {
-    await runFilesystemExec({
+    await runFilesystemExec(this.#client, {
       fileFlushRequest: {
         fileDescriptor: this.#fileDescriptor,
       },
@@ -78,7 +80,7 @@ export class SandboxFile {
    * Close the file handle.
    */
   async close(): Promise<void> {
-    await runFilesystemExec({
+    await runFilesystemExec(this.#client, {
       fileCloseRequest: {
         fileDescriptor: this.#fileDescriptor,
       },
@@ -88,23 +90,23 @@ export class SandboxFile {
 }
 
 export async function runFilesystemExec(
+  client: ModalClient,
   request: DeepPartial<ContainerFilesystemExecRequest>,
 ): Promise<{
   chunks: Uint8Array[];
   response: ContainerFilesystemExecResponse;
 }> {
-  const response = await defaultClient.stub.containerFilesystemExec(request);
+  const response = await client.stub.containerFilesystemExec(request);
 
   const chunks: Uint8Array[] = [];
   let retries = 10;
   let completed = false;
   while (!completed) {
     try {
-      const outputIterator =
-        defaultClient.stub.containerFilesystemExecGetOutput({
-          execId: response.execId,
-          timeout: 55,
-        });
+      const outputIterator = client.stub.containerFilesystemExecGetOutput({
+        execId: response.execId,
+        timeout: 55,
+      });
       for await (const batch of outputIterator) {
         chunks.push(...batch.output);
         if (batch.eof) {

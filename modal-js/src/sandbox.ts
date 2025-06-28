@@ -1,5 +1,5 @@
 import { FileDescriptor } from "../proto/modal_proto/api";
-import { defaultClient, isRetryableGrpc } from "./client";
+import { ModalClient, isRetryableGrpc } from "./client";
 import {
   runFilesystemExec,
   SandboxFile,
@@ -33,6 +33,7 @@ export type ExecOptions = {
   mode?: StreamMode;
   stdout?: StdioBehavior;
   stderr?: StdioBehavior;
+  client?: ModalClient;
 };
 
 /** Sandboxes are secure, isolated containers in Modal that boot in seconds. */
@@ -43,20 +44,30 @@ export class Sandbox {
   stderr: ModalReadStream<string>;
 
   #taskId: string | undefined;
+  #client: ModalClient;
 
   /** @ignore */
-  constructor(sandboxId: string) {
+  constructor(sandboxId: string, client: ModalClient) {
     this.sandboxId = sandboxId;
+    this.#client = client;
 
-    this.stdin = toModalWriteStream(inputStreamSb(sandboxId));
+    this.stdin = toModalWriteStream(inputStreamSb(sandboxId, client));
     this.stdout = toModalReadStream(
       streamConsumingIter(
-        outputStreamSb(sandboxId, FileDescriptor.FILE_DESCRIPTOR_STDOUT),
+        outputStreamSb(
+          sandboxId,
+          FileDescriptor.FILE_DESCRIPTOR_STDOUT,
+          client,
+        ),
       ).pipeThrough(new TextDecoderStream()),
     );
     this.stderr = toModalReadStream(
       streamConsumingIter(
-        outputStreamSb(sandboxId, FileDescriptor.FILE_DESCRIPTOR_STDERR),
+        outputStreamSb(
+          sandboxId,
+          FileDescriptor.FILE_DESCRIPTOR_STDERR,
+          client,
+        ),
       ).pipeThrough(new TextDecoderStream()),
     );
   }
@@ -69,7 +80,7 @@ export class Sandbox {
    */
   async open(path: string, mode: SandboxFileMode = "r"): Promise<SandboxFile> {
     const taskId = await this.#getTaskId();
-    const resp = await runFilesystemExec({
+    const resp = await runFilesystemExec(this.#client, {
       fileOpenRequest: {
         path,
         mode,
@@ -78,7 +89,7 @@ export class Sandbox {
     });
     // For Open request, the file descriptor is always set
     const fileDescriptor = resp.response.fileDescriptor as string;
-    return new SandboxFile(fileDescriptor, taskId);
+    return new SandboxFile(fileDescriptor, taskId, this.#client);
   }
 
   async exec(
@@ -101,17 +112,17 @@ export class Sandbox {
   ): Promise<ContainerProcess> {
     const taskId = await this.#getTaskId();
 
-    const resp = await defaultClient.stub.containerExec({
+    const resp = await this.#client.stub.containerExec({
       taskId,
       command,
     });
 
-    return new ContainerProcess(resp.execId, options);
+    return new ContainerProcess(resp.execId, this.#client, options);
   }
 
   async #getTaskId(): Promise<string> {
     if (this.#taskId === undefined) {
-      const resp = await defaultClient.stub.sandboxGetTaskId({
+      const resp = await this.#client.stub.sandboxGetTaskId({
         sandboxId: this.sandboxId,
       });
       if (!resp.taskId) {
@@ -130,13 +141,13 @@ export class Sandbox {
   }
 
   async terminate(): Promise<void> {
-    await defaultClient.stub.sandboxTerminate({ sandboxId: this.sandboxId });
+    await this.#client.stub.sandboxTerminate({ sandboxId: this.sandboxId });
     this.#taskId = undefined; // Reset task ID after termination
   }
 
   async wait(): Promise<number> {
     while (true) {
-      const resp = await defaultClient.stub.sandboxWait({
+      const resp = await this.#client.stub.sandboxWait({
         sandboxId: this.sandboxId,
         timeout: 55,
       });
@@ -154,18 +165,19 @@ export class ContainerProcess<R extends string | Uint8Array = any> {
   returncode: number | null = null;
 
   readonly #execId: string;
+  readonly #client: ModalClient;
 
-  constructor(execId: string, options?: ExecOptions) {
+  constructor(execId: string, client: ModalClient, options?: ExecOptions) {
     const mode = options?.mode ?? "text";
     const stdout = options?.stdout ?? "pipe";
     const stderr = options?.stderr ?? "pipe";
 
     this.#execId = execId;
-
-    this.stdin = toModalWriteStream(inputStreamCp<R>(execId));
+    this.#client = client;
+    this.stdin = toModalWriteStream(inputStreamCp<R>(execId, client));
 
     let stdoutStream = streamConsumingIter(
-      outputStreamCp(execId, FileDescriptor.FILE_DESCRIPTOR_STDOUT),
+      outputStreamCp(execId, FileDescriptor.FILE_DESCRIPTOR_STDOUT, client),
     );
     if (stdout === "ignore") {
       stdoutStream.cancel();
@@ -173,7 +185,7 @@ export class ContainerProcess<R extends string | Uint8Array = any> {
     }
 
     let stderrStream = streamConsumingIter(
-      outputStreamCp(execId, FileDescriptor.FILE_DESCRIPTOR_STDERR),
+      outputStreamCp(execId, FileDescriptor.FILE_DESCRIPTOR_STDERR, client),
     );
     if (stderr === "ignore") {
       stderrStream.cancel();
@@ -196,7 +208,7 @@ export class ContainerProcess<R extends string | Uint8Array = any> {
   /** Wait for process completion and return the exit code. */
   async wait(): Promise<number> {
     while (true) {
-      const resp = await defaultClient.stub.containerExecWait({
+      const resp = await this.#client.stub.containerExecWait({
         execId: this.#execId,
         timeout: 55,
       });
@@ -211,13 +223,14 @@ export class ContainerProcess<R extends string | Uint8Array = any> {
 async function* outputStreamSb(
   sandboxId: string,
   fileDescriptor: FileDescriptor,
+  client: ModalClient,
 ): AsyncIterable<Uint8Array> {
   let lastIndex = "0-0";
   let completed = false;
   let retries = 10;
   while (!completed) {
     try {
-      const outputIterator = defaultClient.stub.sandboxGetLogs({
+      const outputIterator = client.stub.sandboxGetLogs({
         sandboxId,
         fileDescriptor,
         timeout: 55,
@@ -242,13 +255,14 @@ async function* outputStreamSb(
 async function* outputStreamCp(
   execId: string,
   fileDescriptor: FileDescriptor,
+  client: ModalClient,
 ): AsyncIterable<Uint8Array> {
   let lastIndex = 0;
   let completed = false;
   let retries = 10;
   while (!completed) {
     try {
-      const outputIterator = defaultClient.stub.containerExecGetOutput({
+      const outputIterator = client.stub.containerExecGetOutput({
         execId,
         fileDescriptor,
         timeout: 55,
@@ -272,11 +286,14 @@ async function* outputStreamCp(
   }
 }
 
-function inputStreamSb(sandboxId: string): WritableStream<string> {
+function inputStreamSb(
+  sandboxId: string,
+  client: ModalClient,
+): WritableStream<string> {
   let index = 1;
   return new WritableStream<string>({
     async write(chunk) {
-      await defaultClient.stub.sandboxStdinWrite({
+      await client.stub.sandboxStdinWrite({
         sandboxId,
         input: encodeIfString(chunk),
         index,
@@ -284,7 +301,7 @@ function inputStreamSb(sandboxId: string): WritableStream<string> {
       index++;
     },
     async close() {
-      await defaultClient.stub.sandboxStdinWrite({
+      await client.stub.sandboxStdinWrite({
         sandboxId,
         index,
         eof: true,
@@ -295,11 +312,12 @@ function inputStreamSb(sandboxId: string): WritableStream<string> {
 
 function inputStreamCp<R extends string | Uint8Array>(
   execId: string,
+  client: ModalClient,
 ): WritableStream<R> {
   let messageIndex = 1;
   return new WritableStream<R>({
     async write(chunk) {
-      await defaultClient.stub.containerExecPutInput({
+      await client.stub.containerExecPutInput({
         execId,
         input: {
           message: encodeIfString(chunk),
@@ -309,7 +327,7 @@ function inputStreamCp<R extends string | Uint8Array>(
       messageIndex++;
     },
     async close() {
-      await defaultClient.stub.containerExecPutInput({
+      await client.stub.containerExecPutInput({
         execId,
         input: {
           messageIndex,

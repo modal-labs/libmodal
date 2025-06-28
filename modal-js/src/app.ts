@@ -60,14 +60,15 @@ export class App {
   /** Lookup a deployed app by name, or create if it does not exist. */
   static async lookup(name: string, options: LookupOptions = {}): Promise<App> {
     try {
-      const resp = await defaultClient.stub.appGetOrCreate({
+      const client = options.client ?? defaultClient;
+      const resp = await client.stub.appGetOrCreate({
         appName: name,
         environmentName: environmentName(options.environment),
         objectCreationType: options.createIfMissing
           ? ObjectCreationType.OBJECT_CREATION_TYPE_CREATE_IF_MISSING
           : ObjectCreationType.OBJECT_CREATION_TYPE_UNSPECIFIED,
       });
-      return new App(resp.appId, options.client);
+      return new App(resp.appId, client);
     } catch (err) {
       if (err instanceof ClientError && err.code === Status.NOT_FOUND)
         throw new NotFoundError(`App '${name}' not found`);
@@ -86,7 +87,8 @@ export class App {
       );
     }
 
-    const createResp = await defaultClient.stub.sandboxCreate({
+    const client = this.#client ?? defaultClient;
+    const createResp = await client.stub.sandboxCreate({
       appId: this.appId,
       definition: {
         // Sleep default is implicit in image builder version <=2024.10
@@ -105,7 +107,7 @@ export class App {
       },
     });
 
-    return new Sandbox(createResp.sandboxId);
+    return new Sandbox(createResp.sandboxId, client);
   }
 
   async imageFromRegistry(tag: string): Promise<Image> {
