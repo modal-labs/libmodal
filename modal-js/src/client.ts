@@ -4,6 +4,7 @@ import {
   ClientError,
   ClientMiddleware,
   ClientMiddlewareCall,
+  type Client,
   createChannel,
   createClientFactory,
   Metadata,
@@ -197,8 +198,21 @@ const channel = createChannel(profile.serverUrl, undefined, {
   "grpc-node.flow_control_window": 64 * 1024 * 1024,
 });
 
-export const client = createClientFactory()
-  .use(authMiddleware(profile))
-  .use(retryMiddleware)
-  .use(timeoutMiddleware)
-  .create(ModalClientDefinition, channel);
+export class ModalClient {
+  stub: Client<ModalClientDefinition>;
+
+  constructor(options: { tokenId?: string; tokenSecret?: string } = {}) {
+    const { tokenId, tokenSecret } = options;
+
+    const profileToUse =
+      tokenId && tokenSecret ? { ...profile, tokenId, tokenSecret } : profile;
+
+    this.stub = createClientFactory()
+      .use(authMiddleware(profileToUse))
+      .use(retryMiddleware)
+      .use(timeoutMiddleware)
+      .create(ModalClientDefinition, channel);
+  }
+}
+
+export const client = new ModalClient();
