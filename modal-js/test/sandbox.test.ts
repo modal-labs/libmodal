@@ -48,3 +48,22 @@ test("IgnoreLargeStdout", async () => {
     await sb.terminate();
   }
 });
+
+test("SandboxExecOptions", async () => {
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
+  const image = await app.imageFromRegistry("alpine:3.21");
+
+  const sb = await app.createSandbox(image);
+  try {
+    // Test with a custom working directory and timeout.
+    const p = await sb.exec(["pwd"], {
+      workdir: "/tmp",
+      timeout: 5,
+    });
+
+    expect(await p.stdout.readText()).toBe("/tmp\n");
+    expect(await p.wait()).toBe(0);
+  } finally {
+    await sb.terminate();
+  }
+});

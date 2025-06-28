@@ -4,7 +4,7 @@ Both client libraries are pre-1.0, and they have separate versioning.
 
 ## Unreleased
 
-No unreleased changes.
+- Added `workdir` and `timeout` options to `ExecOptions` for Sandbox processes.
 
 ## modal-js/v0.3.9, modal-go/v0.0.9
 

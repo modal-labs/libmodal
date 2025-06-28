@@ -83,3 +83,32 @@ func TestIgnoreLargeStdout(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(exitCode).To(gomega.Equal(int32(0)))
 }
+
+func TestSandboxExecOptions(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	app, err := modal.AppLookup(context.Background(), "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	image, err := app.ImageFromRegistry("alpine:3.21")
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	sb, err := app.CreateSandbox(image, nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	defer sb.Terminate()
+
+	// Test with a custom working directory and timeout.
+	p, err := sb.Exec([]string{"pwd"}, modal.ExecOptions{
+		Workdir: "/tmp",
+		Timeout: 5,
+	})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	output, err := io.ReadAll(p.Stdout)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(string(output)).To(gomega.Equal("/tmp\n"))
+
+	exitCode, err := p.Wait()
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(exitCode).To(gomega.Equal(int32(0)))
+}

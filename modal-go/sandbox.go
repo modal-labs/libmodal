@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"sync"
+	"time"
 
 	"github.com/djherbis/buffer"
 	"github.com/djherbis/nio/v3"
@@ -24,8 +25,14 @@ const (
 
 // ExecOptions defines options for executing commands in a sandbox.
 type ExecOptions struct {
+	// Stdout defines whether to pipe or ignore standard output.
 	Stdout StdioBehavior
+	// Stderr defines whether to pipe or ignore standard error.
 	Stderr StdioBehavior
+	// Workdir is the working directory to run the command in.
+	Workdir string
+	// Timeout is the timeout for command execution. Defaults to 0 (no timeout).
+	Timeout time.Duration
 }
 
 // Sandbox represents a Modal sandbox, which can run commands and manage
@@ -54,9 +61,15 @@ func (sb *Sandbox) Exec(command []string, opts ExecOptions) (*ContainerProcess, 
 	if err := sb.ensureTaskId(); err != nil {
 		return nil, err
 	}
+	var workdir *string
+	if opts.Workdir != "" {
+		workdir = &opts.Workdir
+	}
 	resp, err := client.ContainerExec(sb.ctx, pb.ContainerExecRequest_builder{
-		TaskId:  sb.taskId,
-		Command: command,
+		TaskId:      sb.taskId,
+		Command:     command,
+		Workdir:     workdir,
+		TimeoutSecs: uint32(opts.Timeout.Seconds()),
 	}.Build())
 	if err != nil {
 		return nil, err
