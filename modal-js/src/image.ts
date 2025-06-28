@@ -23,7 +23,7 @@ export async function fromRegistryInternal(
   tag: string,
   imageRegistryConfig?: ImageRegistryConfig,
 ): Promise<Image> {
-  const resp = await client.imageGetOrCreate({
+  const resp = await client.stub.imageGetOrCreate({
     appId,
     image: {
       dockerfileCommands: [`FROM ${tag}`],
@@ -45,7 +45,7 @@ export async function fromRegistryInternal(
     let lastEntryId = "";
     let resultJoined: GenericResult | undefined = undefined;
     while (!resultJoined) {
-      for await (const item of client.imageJoinStreaming({
+      for await (const item of client.stub.imageJoinStreaming({
         imageId: resp.imageId,
         timeout: 55,
         lastEntryId,

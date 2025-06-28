@@ -57,7 +57,7 @@ export class App {
   /** Lookup a deployed app by name, or create if it does not exist. */
   static async lookup(name: string, options: LookupOptions = {}): Promise<App> {
     try {
-      const resp = await client.appGetOrCreate({
+      const resp = await client.stub.appGetOrCreate({
         appName: name,
         environmentName: environmentName(options.environment),
         objectCreationType: options.createIfMissing
@@ -83,7 +83,7 @@ export class App {
       );
     }
 
-    const createResp = await client.sandboxCreate({
+    const createResp = await client.stub.sandboxCreate({
       appId: this.appId,
       definition: {
         // Sleep default is implicit in image builder version <=2024.10

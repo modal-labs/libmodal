@@ -25,7 +25,7 @@ export class Secret {
     options?: SecretFromNameOptions,
   ): Promise<Secret> {
     try {
-      const resp = await client.secretGetOrCreate({
+      const resp = await client.stub.secretGetOrCreate({
         deploymentName: name,
         namespace: DeploymentNamespace.DEPLOYMENT_NAMESPACE_WORKSPACE,
         environmentName: configEnvironmentName(options?.environment),

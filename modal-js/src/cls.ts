@@ -37,7 +37,7 @@ export class Cls {
   ): Promise<Cls> {
     try {
       const serviceFunctionName = `${name}.*`;
-      const serviceFunction = await client.functionGet({
+      const serviceFunction = await client.stub.functionGet({
         appName,
         objectTag: serviceFunctionName,
         namespace: DeploymentNamespace.DEPLOYMENT_NAMESPACE_WORKSPACE,
@@ -93,7 +93,7 @@ export class Cls {
   /** Bind parameters to the Cls function. */
   async #bindParameters(params: Record<string, any>): Promise<string> {
     const serializedParams = encodeParameterSet(this.#schema, params);
-    const bindResp = await client.functionBindParams({
+    const bindResp = await client.stub.functionBindParams({
       functionId: this.#serviceFunctionId,
       serializedParams,
     });

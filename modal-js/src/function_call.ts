@@ -42,7 +42,7 @@ export class FunctionCall {
 
   /** Cancel a running function call. */
   async cancel(options: FunctionCallCancelOptions = {}) {
-    await client.functionCallCancel({
+    await client.stub.functionCallCancel({
       functionCallId: this.functionCallId,
       terminateContainers: options.terminateContainers,
     });

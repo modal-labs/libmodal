@@ -93,14 +93,14 @@ export async function runFilesystemExec(
   chunks: Uint8Array[];
   response: ContainerFilesystemExecResponse;
 }> {
-  const response = await client.containerFilesystemExec(request);
+  const response = await client.stub.containerFilesystemExec(request);
 
   const chunks: Uint8Array[] = [];
   let retries = 10;
   let completed = false;
   while (!completed) {
     try {
-      const outputIterator = client.containerFilesystemExecGetOutput({
+      const outputIterator = client.stub.containerFilesystemExecGetOutput({
         execId: response.execId,
         timeout: 55,
       });
