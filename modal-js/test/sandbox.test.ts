@@ -58,7 +58,7 @@ test("SandboxExecOptions", async () => {
     // Test with a custom working directory and timeout.
     const p = await sb.exec(["pwd"], {
       workdir: "/tmp",
-      timeout: 5,
+      timeout: 5000,
     });
 
     expect(await p.stdout.readText()).toBe("/tmp\n");
