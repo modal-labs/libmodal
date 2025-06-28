@@ -33,6 +33,7 @@ export type ExecOptions = {
   mode?: StreamMode;
   stdout?: StdioBehavior;
   stderr?: StdioBehavior;
+  workdir?: string;
 };
 
 /** Sandboxes are secure, isolated containers in Modal that boot in seconds. */
@@ -95,6 +96,7 @@ export class Sandbox {
     command: string[],
     options?: {
       mode?: StreamMode;
+      workdir?: string;
       stdout?: StdioBehavior;
       stderr?: StdioBehavior;
     },
@@ -104,6 +106,7 @@ export class Sandbox {
     const resp = await client.containerExec({
       taskId,
       command,
+      workdir: options?.workdir,
     });
 
     return new ContainerProcess(resp.execId, options);
