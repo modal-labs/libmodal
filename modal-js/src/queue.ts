@@ -6,7 +6,7 @@ import {
   QueueNextItemsRequest,
 } from "../proto/modal_proto/api";
 import type { DeleteOptions, EphemeralOptions, LookupOptions } from "./app";
-import { client } from "./client";
+import { defaultClient } from "./client";
 import { environmentName } from "./config";
 import { InvalidError, QueueEmptyError, QueueFullError } from "./errors";
 import { dumps, loads } from "./pickle";
@@ -99,7 +99,7 @@ export class Queue {
    * You will need to call `closeEphemeral()` to delete the queue.
    */
   static async ephemeral(options: EphemeralOptions = {}): Promise<Queue> {
-    const resp = await client.stub.queueGetOrCreate({
+    const resp = await defaultClient.stub.queueGetOrCreate({
       objectCreationType: ObjectCreationType.OBJECT_CREATION_TYPE_EPHEMERAL,
       environmentName: environmentName(options.environment),
     });
@@ -109,7 +109,7 @@ export class Queue {
     (async () => {
       // Launch a background task to heartbeat the ephemeral queue.
       while (true) {
-        await client.stub.queueHeartbeat({ queueId: resp.queueId });
+        await defaultClient.stub.queueHeartbeat({ queueId: resp.queueId });
         await Promise.race([
           new Promise((resolve) =>
             setTimeout(resolve, ephemeralObjectHeartbeatSleep),
@@ -140,7 +140,7 @@ export class Queue {
     name: string,
     options: LookupOptions = {},
   ): Promise<Queue> {
-    const resp = await client.stub.queueGetOrCreate({
+    const resp = await defaultClient.stub.queueGetOrCreate({
       deploymentName: name,
       objectCreationType: options.createIfMissing
         ? ObjectCreationType.OBJECT_CREATION_TYPE_CREATE_IF_MISSING
@@ -157,7 +157,7 @@ export class Queue {
     options: DeleteOptions = {},
   ): Promise<void> {
     const queue = await Queue.lookup(name, options);
-    await client.stub.queueDelete({ queueId: queue.queueId });
+    await defaultClient.stub.queueDelete({ queueId: queue.queueId });
   }
 
   /**
@@ -169,7 +169,7 @@ export class Queue {
         "Partition must be null when requesting to clear all.",
       );
     }
-    await client.stub.queueClear({
+    await defaultClient.stub.queueClear({
       queueId: this.queueId,
       partitionKey: Queue.#validatePartitionKey(options.partition),
       allPartitions: options.all,
@@ -186,7 +186,7 @@ export class Queue {
     }
 
     while (true) {
-      const response = await client.stub.queueGet({
+      const response = await defaultClient.stub.queueGet({
         queueId: this.queueId,
         partitionKey,
         timeout: pollTimeout / 1000,
@@ -242,7 +242,7 @@ export class Queue {
     const deadline = timeout ? Date.now() + timeout : undefined;
     while (true) {
       try {
-        await client.stub.queuePut({
+        await defaultClient.stub.queuePut({
           queueId: this.queueId,
           values: valuesEncoded,
           partitionKey,
@@ -307,7 +307,7 @@ export class Queue {
         "Partition must be null when requesting total length.",
       );
     }
-    const resp = await client.stub.queueLen({
+    const resp = await defaultClient.stub.queueLen({
       queueId: this.queueId,
       partitionKey: Queue.#validatePartitionKey(options.partition),
       total: options.total,
@@ -338,7 +338,7 @@ export class Queue {
         lastEntryId: lastEntryId || "",
       };
 
-      const response = await client.stub.queueNextItems(request);
+      const response = await defaultClient.stub.queueNextItems(request);
       if (response.items && response.items.length > 0) {
         for (const item of response.items) {
           yield loads(item.value);

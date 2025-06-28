@@ -4,7 +4,7 @@ import {
   ObjectCreationType,
   RegistryAuthType,
 } from "../proto/modal_proto/api";
-import { client } from "./client";
+import { defaultClient, ModalClient } from "./client";
 import { environmentName } from "./config";
 import { fromRegistryInternal, type Image } from "./image";
 import { Sandbox } from "./sandbox";
@@ -15,6 +15,7 @@ import { Secret } from "./secret";
 export type LookupOptions = {
   environment?: string;
   createIfMissing?: boolean;
+  client?: ModalClient;
 };
 
 /** Options for deleting a named object. */
@@ -48,23 +49,25 @@ export type SandboxCreateOptions = {
 /** Represents a deployed Modal App. */
 export class App {
   readonly appId: string;
+  #client: ModalClient | null;
 
   /** @ignore */
-  constructor(appId: string) {
+  constructor(appId: string, client?: ModalClient) {
     this.appId = appId;
+    this.#client = client ?? null;
   }
 
   /** Lookup a deployed app by name, or create if it does not exist. */
   static async lookup(name: string, options: LookupOptions = {}): Promise<App> {
     try {
-      const resp = await client.stub.appGetOrCreate({
+      const resp = await defaultClient.stub.appGetOrCreate({
         appName: name,
         environmentName: environmentName(options.environment),
         objectCreationType: options.createIfMissing
           ? ObjectCreationType.OBJECT_CREATION_TYPE_CREATE_IF_MISSING
           : ObjectCreationType.OBJECT_CREATION_TYPE_UNSPECIFIED,
       });
-      return new App(resp.appId);
+      return new App(resp.appId, options.client);
     } catch (err) {
       if (err instanceof ClientError && err.code === Status.NOT_FOUND)
         throw new NotFoundError(`App '${name}' not found`);
@@ -83,7 +86,7 @@ export class App {
       );
     }
 
-    const createResp = await client.stub.sandboxCreate({
+    const createResp = await defaultClient.stub.sandboxCreate({
       appId: this.appId,
       definition: {
         // Sleep default is implicit in image builder version <=2024.10

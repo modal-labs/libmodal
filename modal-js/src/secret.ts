@@ -1,5 +1,5 @@
 import { DeploymentNamespace } from "../proto/modal_proto/api";
-import { client } from "./client";
+import { defaultClient } from "./client";
 import { environmentName as configEnvironmentName } from "./config";
 import { ClientError, Status } from "nice-grpc";
 import { NotFoundError } from "./errors";
@@ -25,7 +25,7 @@ export class Secret {
     options?: SecretFromNameOptions,
   ): Promise<Secret> {
     try {
-      const resp = await client.stub.secretGetOrCreate({
+      const resp = await defaultClient.stub.secretGetOrCreate({
         deploymentName: name,
         namespace: DeploymentNamespace.DEPLOYMENT_NAMESPACE_WORKSPACE,
         environmentName: configEnvironmentName(options?.environment),

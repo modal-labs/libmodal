@@ -215,4 +215,4 @@ export class ModalClient {
   }
 }
 
-export const client = new ModalClient();
+export const defaultClient = new ModalClient();

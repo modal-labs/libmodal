@@ -9,7 +9,7 @@ import {
   FunctionInput,
 } from "../proto/modal_proto/api";
 import type { LookupOptions } from "./app";
-import { client } from "./client";
+import { defaultClient } from "./client";
 import { FunctionCall } from "./function_call";
 import { environmentName } from "./config";
 import { InternalFailure, NotFoundError } from "./errors";
@@ -40,7 +40,7 @@ export class Function_ {
     options: LookupOptions = {},
   ): Promise<Function_> {
     try {
-      const resp = await client.stub.functionGet({
+      const resp = await defaultClient.stub.functionGet({
         appName,
         objectTag: name,
         namespace: DeploymentNamespace.DEPLOYMENT_NAMESPACE_WORKSPACE,
@@ -120,7 +120,7 @@ export class Function_ {
 async function blobUpload(data: Uint8Array): Promise<string> {
   const contentMd5 = createHash("md5").update(data).digest("base64");
   const contentSha256 = createHash("sha256").update(data).digest("base64");
-  const resp = await client.stub.blobCreate({
+  const resp = await defaultClient.stub.blobCreate({
     contentMd5,
     contentSha256Base64: contentSha256,
     contentLength: data.length,

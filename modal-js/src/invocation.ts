@@ -9,7 +9,7 @@ import {
   GenericResult,
   GenericResult_GenericStatus,
 } from "../proto/modal_proto/api";
-import { client } from "./client";
+import { defaultClient } from "./client";
 import { FunctionTimeoutError, InternalFailure, RemoteError } from "./errors";
 import { loads } from "./pickle";
 
@@ -58,7 +58,7 @@ export class ControlPlaneInvocation implements Invocation {
       input,
     };
 
-    const functionMapResponse = await client.stub.functionMap({
+    const functionMapResponse = await defaultClient.stub.functionMap({
       functionId,
       functionCallType: FunctionCallType.FUNCTION_CALL_TYPE_UNARY,
       functionCallInvocationType: invocationType,
@@ -93,7 +93,7 @@ export class ControlPlaneInvocation implements Invocation {
       retryCount,
     };
 
-    const functionRetryResponse = await client.stub.functionRetryInputs({
+    const functionRetryResponse = await defaultClient.stub.functionRetryInputs({
       functionCallJwt: this.functionCallJwt,
       inputs: [retryItem],
     });
@@ -118,7 +118,7 @@ export async function pollFunctionOutput(
   while (true) {
     let response: FunctionGetOutputsResponse;
     try {
-      response = await client.stub.functionGetOutputs({
+      response = await defaultClient.stub.functionGetOutputs({
         functionCallId,
         maxValues: 1,
         timeout: pollTimeout / 1000, // Backend needs seconds
@@ -178,7 +178,7 @@ async function processResult(
 }
 
 async function blobDownload(blobId: string): Promise<Uint8Array> {
-  const resp = await client.stub.blobGet({ blobId });
+  const resp = await defaultClient.stub.blobGet({ blobId });
   const s3resp = await fetch(resp.downloadUrl);
   if (!s3resp.ok) {
     throw new Error(`Failed to download blob: ${s3resp.statusText}`);

@@ -1,5 +1,5 @@
 import { FileDescriptor } from "../proto/modal_proto/api";
-import { client, isRetryableGrpc } from "./client";
+import { defaultClient, isRetryableGrpc } from "./client";
 import {
   runFilesystemExec,
   SandboxFile,
@@ -101,7 +101,7 @@ export class Sandbox {
   ): Promise<ContainerProcess> {
     const taskId = await this.#getTaskId();
 
-    const resp = await client.stub.containerExec({
+    const resp = await defaultClient.stub.containerExec({
       taskId,
       command,
     });
@@ -111,7 +111,7 @@ export class Sandbox {
 
   async #getTaskId(): Promise<string> {
     if (this.#taskId === undefined) {
-      const resp = await client.stub.sandboxGetTaskId({
+      const resp = await defaultClient.stub.sandboxGetTaskId({
         sandboxId: this.sandboxId,
       });
       if (!resp.taskId) {
@@ -130,13 +130,13 @@ export class Sandbox {
   }
 
   async terminate(): Promise<void> {
-    await client.stub.sandboxTerminate({ sandboxId: this.sandboxId });
+    await defaultClient.stub.sandboxTerminate({ sandboxId: this.sandboxId });
     this.#taskId = undefined; // Reset task ID after termination
   }
 
   async wait(): Promise<number> {
     while (true) {
-      const resp = await client.stub.sandboxWait({
+      const resp = await defaultClient.stub.sandboxWait({
         sandboxId: this.sandboxId,
         timeout: 55,
       });
@@ -196,7 +196,7 @@ export class ContainerProcess<R extends string | Uint8Array = any> {
   /** Wait for process completion and return the exit code. */
   async wait(): Promise<number> {
     while (true) {
-      const resp = await client.stub.containerExecWait({
+      const resp = await defaultClient.stub.containerExecWait({
         execId: this.#execId,
         timeout: 55,
       });
@@ -217,7 +217,7 @@ async function* outputStreamSb(
   let retries = 10;
   while (!completed) {
     try {
-      const outputIterator = client.stub.sandboxGetLogs({
+      const outputIterator = defaultClient.stub.sandboxGetLogs({
         sandboxId,
         fileDescriptor,
         timeout: 55,
@@ -248,7 +248,7 @@ async function* outputStreamCp(
   let retries = 10;
   while (!completed) {
     try {
-      const outputIterator = client.stub.containerExecGetOutput({
+      const outputIterator = defaultClient.stub.containerExecGetOutput({
         execId,
         fileDescriptor,
         timeout: 55,
@@ -276,7 +276,7 @@ function inputStreamSb(sandboxId: string): WritableStream<string> {
   let index = 1;
   return new WritableStream<string>({
     async write(chunk) {
-      await client.stub.sandboxStdinWrite({
+      await defaultClient.stub.sandboxStdinWrite({
         sandboxId,
         input: encodeIfString(chunk),
         index,
@@ -284,7 +284,7 @@ function inputStreamSb(sandboxId: string): WritableStream<string> {
       index++;
     },
     async close() {
-      await client.stub.sandboxStdinWrite({
+      await defaultClient.stub.sandboxStdinWrite({
         sandboxId,
         index,
         eof: true,
@@ -299,7 +299,7 @@ function inputStreamCp<R extends string | Uint8Array>(
   let messageIndex = 1;
   return new WritableStream<R>({
     async write(chunk) {
-      await client.stub.containerExecPutInput({
+      await defaultClient.stub.containerExecPutInput({
         execId,
         input: {
           message: encodeIfString(chunk),
@@ -309,7 +309,7 @@ function inputStreamCp<R extends string | Uint8Array>(
       messageIndex++;
     },
     async close() {
-      await client.stub.containerExecPutInput({
+      await defaultClient.stub.containerExecPutInput({
         execId,
         input: {
           messageIndex,

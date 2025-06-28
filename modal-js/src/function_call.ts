@@ -1,6 +1,6 @@
 // Manage existing Function Calls (look-ups, polling for output, cancellation).
 
-import { client } from "./client";
+import { defaultClient } from "./client";
 import { ControlPlaneInvocation } from "./invocation";
 
 /** Options for `FunctionCall.get()`. */
@@ -42,7 +42,7 @@ export class FunctionCall {
 
   /** Cancel a running function call. */
   async cancel(options: FunctionCallCancelOptions = {}) {
-    await client.stub.functionCallCancel({
+    await defaultClient.stub.functionCallCancel({
       functionCallId: this.functionCallId,
       terminateContainers: options.terminateContainers,
     });

@@ -3,7 +3,7 @@ import {
   DeepPartial,
   ContainerFilesystemExecResponse,
 } from "../proto/modal_proto/api";
-import { client, isRetryableGrpc } from "./client";
+import { defaultClient, isRetryableGrpc } from "./client";
 import { SandboxFilesystemError } from "./errors";
 
 /** File open modes supported by the filesystem API. */
@@ -93,17 +93,18 @@ export async function runFilesystemExec(
   chunks: Uint8Array[];
   response: ContainerFilesystemExecResponse;
 }> {
-  const response = await client.stub.containerFilesystemExec(request);
+  const response = await defaultClient.stub.containerFilesystemExec(request);
 
   const chunks: Uint8Array[] = [];
   let retries = 10;
   let completed = false;
   while (!completed) {
     try {
-      const outputIterator = client.stub.containerFilesystemExecGetOutput({
-        execId: response.execId,
-        timeout: 55,
-      });
+      const outputIterator =
+        defaultClient.stub.containerFilesystemExecGetOutput({
+          execId: response.execId,
+          timeout: 55,
+        });
       for await (const batch of outputIterator) {
         chunks.push(...batch.output);
         if (batch.eof) {

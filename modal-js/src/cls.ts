@@ -9,7 +9,7 @@ import {
 } from "../proto/modal_proto/api";
 import type { LookupOptions } from "./app";
 import { NotFoundError } from "./errors";
-import { client } from "./client";
+import { defaultClient } from "./client";
 import { environmentName } from "./config";
 import { Function_ } from "./function";
 
@@ -37,7 +37,7 @@ export class Cls {
   ): Promise<Cls> {
     try {
       const serviceFunctionName = `${name}.*`;
-      const serviceFunction = await client.stub.functionGet({
+      const serviceFunction = await defaultClient.stub.functionGet({
         appName,
         objectTag: serviceFunctionName,
         namespace: DeploymentNamespace.DEPLOYMENT_NAMESPACE_WORKSPACE,
@@ -93,7 +93,7 @@ export class Cls {
   /** Bind parameters to the Cls function. */
   async #bindParameters(params: Record<string, any>): Promise<string> {
     const serializedParams = encodeParameterSet(this.#schema, params);
-    const bindResp = await client.stub.functionBindParams({
+    const bindResp = await defaultClient.stub.functionBindParams({
       functionId: this.#serviceFunctionId,
       serializedParams,
     });
