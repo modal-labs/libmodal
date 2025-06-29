@@ -33,7 +33,8 @@
     "lint": "eslint",
     "prepare": "scripts/gen-proto.sh",
     "test": "vitest",
-    "version": "npm run build && git add package.json package-lock.json && git commit -m \"modal-js/v$npm_package_version\"",
+    "version": "npm run check && git add package.json package-lock.json && git commit -m \"modal-js/v$npm_package_version\"",
+    "prepublishOnly": "npm run build && git push",
     "postpublish": "git tag modal-js/v$npm_package_version && git push --tags"
   },
   "dependencies": {

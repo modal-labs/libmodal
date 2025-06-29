@@ -43,7 +43,8 @@ This gRPC library depends on the `protobuf-ts` package, which is not compatible 
 Update `CHANGELOG.md`. Make sure that you're on a clean commit, then:
 
 ```bash
-npm version patch  # will build, bump the version, commit, tag, push, and npm publish
+npm version patch  # or 'minor' - makes a commit, check changes look good!
+npm publish  # publish to npm, add git tag, push
 ```
 
 ```bash
