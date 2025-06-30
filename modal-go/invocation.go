@@ -16,9 +16,6 @@ type invocation interface {
 	retry(retryCount uint32) error
 }
 
-// getOutput is a function type that takes a timeout and returns a FunctionGetOutputsItem or nil, and an error.
-type getOutput func(timeout time.Duration) (*pb.FunctionGetOutputsItem, error)
-
 // controlPlaneInvocation implements the invocation interface.
 type controlPlaneInvocation struct {
 	FunctionCallId  string
@@ -118,7 +115,7 @@ func createInputPlaneInvocation(ctx context.Context, inputPlaneURL string, funct
 		Idx:   0,
 		Input: input,
 	}.Build()
-	client, err := getOrCreateClient(inputPlaneURL)
+	client, err := getOrCreateInputPlaneClient(inputPlaneURL)
 	if err != nil {
 		return nil, err
 	}
@@ -171,7 +168,13 @@ func (i *inputPlaneInvocation) retry(retryCount uint32) error {
 	return nil
 }
 
-// pollFunctionOutput repeatedly fetches the output for a given function call, waiting until a result is available or a timeout occurs.
+// getOutput is a function type that takes a timeout and returns a FunctionGetOutputsItem or nil, and an error.
+// Used by `pollForOutputs` to fetch from either the control plane or the input plane, depending on the implementation.
+type getOutput func(timeout time.Duration) (*pb.FunctionGetOutputsItem, error)
+
+// pollFunctionOutput repeatedly tries to fetch an output using the provided `getOutput` function, and the specified
+// timeout value. We use a timeout value of 55 seconds if the caller does not specify a timeout value, or if the
+// specified timeout value is greater than 55 seconds.
 func pollFunctionOutput(ctx context.Context, getOutput getOutput, timeout *time.Duration) (any, error) {
 	startTime := time.Now()
 	pollTimeout := outputsTimeout

@@ -10,8 +10,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/metadata"
 	"net/http"
 	"time"
 
@@ -53,13 +51,12 @@ func FunctionLookup(ctx context.Context, appName string, name string, options *L
 		return nil, err
 	}
 
-	var header, trailer metadata.MD
 	resp, err := client.FunctionGet(ctx, pb.FunctionGetRequest_builder{
 		AppName:         appName,
 		ObjectTag:       name,
 		Namespace:       pb.DeploymentNamespace_DEPLOYMENT_NAMESPACE_WORKSPACE,
 		EnvironmentName: environmentName(options.Environment),
-	}.Build(), grpc.Header(&header), grpc.Trailer(&trailer))
+	}.Build())
 
 	if status, ok := status.FromError(err); ok && status.Code() == codes.NotFound {
 		return nil, NotFoundError{fmt.Sprintf("function '%s/%s' not found", appName, name)}
@@ -68,15 +65,6 @@ func FunctionLookup(ctx context.Context, appName string, name string, options *L
 		return nil, err
 	}
 
-	// Attach x-modal-auth-token to all future requests.
-	authTokenArray := header.Get("x-modal-auth-token")
-	if len(authTokenArray) == 0 {
-		authTokenArray = trailer.Get("x-modal-auth-token")
-	}
-	if len(authTokenArray) > 0 {
-		authToken := authTokenArray[0]
-		ctx = metadata.AppendToOutgoingContext(ctx, "x-modal-auth-token", authToken)
-	}
 	var inputPlaneUrl *string
 	if meta := resp.GetHandleMetadata(); meta != nil {
 		if url := meta.GetInputPlaneUrl(); url != "" {

@@ -11,7 +11,7 @@ import {
   GenericResult_GenericStatus,
   ModalClientClient,
 } from "../proto/modal_proto/api";
-import { client, getOrCreateClient } from "./client";
+import { client, getOrCreateInputPlaneClient } from "./client";
 import { FunctionTimeoutError, InternalFailure, RemoteError } from "./errors";
 import { loads } from "./pickle";
 
@@ -28,14 +28,6 @@ export interface Invocation {
   awaitOutput(timeout?: number): Promise<any>;
   retry(retryCount: number): Promise<void>;
 }
-
-/**
- * Signature of a function that fetches a single output. Used by `pollForOutputs` to fetch from either
- * the control plane or the input plane, depending on the implementation.
- */
-type GetOutput = (
-  timeoutMillis: number,
-) => Promise<FunctionGetOutputsItem | undefined>;
 
 /**
  * Implementation of Invocation which sends inputs to the control plane.
@@ -97,19 +89,15 @@ export class ControlPlaneInvocation implements Invocation {
   async #getOutput(
     timeoutMillis: number,
   ): Promise<FunctionGetOutputsItem | undefined> {
-    try {
-      const response = await client.functionGetOutputs({
-        functionCallId: this.functionCallId,
-        maxValues: 1,
-        timeout: timeoutMillis / 1000, // Backend needs seconds
-        lastEntryId: "0-0",
-        clearOnSuccess: true,
-        requestedAt: timeNowSeconds(),
-      });
-      return response.outputs ? response.outputs[0] : undefined;
-    } catch (err) {
-      throw new Error(`FunctionGetOutputs failed: ${err}`);
-    }
+    const response = await client.functionGetOutputs({
+      functionCallId: this.functionCallId,
+      maxValues: 1,
+      timeout: timeoutMillis / 1000, // Backend needs seconds
+      lastEntryId: "0-0",
+      clearOnSuccess: true,
+      requestedAt: timeNowSeconds(),
+    });
+    return response.outputs ? response.outputs[0] : undefined;
   }
 
   async retry(retryCount: number): Promise<void> {
@@ -160,12 +148,12 @@ export class InputPlaneInvocation implements Invocation {
   ) {
     const functionPutInputsItem = {
       idx: 0,
-      input: input,
+      input,
     };
-    const client = getOrCreateClient(inputPlaneUrl);
+    const client = getOrCreateInputPlaneClient(inputPlaneUrl);
     // Single input sync invocation
     const attemptStartResponse = await client.attemptStart({
-      functionId: functionId,
+      functionId,
       input: functionPutInputsItem,
     });
     return new InputPlaneInvocation(
@@ -212,6 +200,19 @@ function timeNowSeconds() {
   return Date.now() / 1e3;
 }
 
+/**
+ * Signature of a function that fetches a single output using the given timeout. Used by `pollForOutputs` to fetch
+ * from either the control plane or the input plane, depending on the implementation.
+ */
+type GetOutput = (
+  timeoutMillis: number,
+) => Promise<FunctionGetOutputsItem | undefined>;
+
+/***
+ * Repeatedly tries to fetch an output using the provided `getOutput` function, and the specified timeout value.
+ * We use a timeout value of 55 seconds if the caller does not specify a timeout value, or if the specified timeout
+ * value is greater than 55 seconds.
+ */
 async function pollFunctionOutput(
   getOutput: GetOutput,
   timeout?: number, // in milliseconds
