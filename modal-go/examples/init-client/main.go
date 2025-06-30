@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 
@@ -31,5 +32,5 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to lookup function: %v", err)
 	}
-	log.Println(echo)
+	fmt.Printf("%#v\n", echo)
 }
