@@ -129,6 +129,6 @@ func InitializeClient(options ClientOptions) error {
 	mergedProfile := defaultProfile
 	mergedProfile.TokenId = options.TokenId
 	mergedProfile.TokenSecret = options.TokenSecret
-	mergedProfile.Environment = firstNonEmpty(mergedProfile.Environment, options.Environment)
+	mergedProfile.Environment = firstNonEmpty(options.Environment, mergedProfile.Environment)
 	return updateClient(mergedProfile)
 }
