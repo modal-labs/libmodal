@@ -44,7 +44,11 @@ func FunctionLookup(ctx context.Context, appName string, name string, options *L
 	if options == nil {
 		options = &LookupOptions{}
 	}
-	ctx = clientContext(ctx)
+	var err error
+	ctx, err = clientContext(ctx)
+	if err != nil {
+		return nil, err
+	}
 
 	resp, err := client.FunctionGet(ctx, pb.FunctionGetRequest_builder{
 		AppName:         appName,

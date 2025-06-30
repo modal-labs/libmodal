@@ -5,6 +5,7 @@ package modal
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -68,19 +69,16 @@ var defaultConfig config
 // defaultProfile is resolved at package init from MODAL_PROFILE, ~/.modal.toml, etc.
 var defaultProfile Profile
 
+// clientProfile is the actual profile, from defaultProfile + InitializeClient().
+var clientProfile Profile
+
 var client pb.ModalClientClient
 
 func init() {
-	var err error
 	defaultConfig, _ = readConfigFile()
-	defaultProfile, err = GetProfile("")
-	if err != nil {
-		panic(err) // fail fast – credentials are required to proceed
-	}
-
-	_, client, err = newClient(defaultProfile)
-	if err != nil {
-		panic(err)
+	defaultProfile = getProfile("")
+	if err := updateClient(defaultProfile); err != nil {
+		panic(fmt.Sprintf("failed to initialize Modal client at startup: %v", err))
 	}
 }
 
@@ -117,16 +115,27 @@ func newClient(profile Profile) (*grpc.ClientConn, pb.ModalClientClient, error) 
 	return conn, pb.NewModalClientClient(conn), nil
 }
 
+func updateClient(profile Profile) error {
+	var err error
+	clientProfile = profile
+	_, client, err = newClient(clientProfile)
+	return err
+}
+
 // clientContext returns a context with the default profile's auth headers.
-func clientContext(ctx context.Context) context.Context {
+func clientContext(ctx context.Context) (context.Context, error) {
+	if clientProfile.TokenId == "" || clientProfile.TokenSecret == "" {
+		return nil, fmt.Errorf("missing token_id or token_secret, please set in .modal.toml, environment variables, or via InitializeClient()")
+	}
+
 	clientType := strconv.Itoa(int(pb.ClientType_CLIENT_TYPE_LIBMODAL))
 	return metadata.AppendToOutgoingContext(
 		ctx,
 		"x-modal-client-type", clientType,
 		"x-modal-client-version", "1.0.0", // CLIENT VERSION: Behaves like this Python SDK version
-		"x-modal-token-id", defaultProfile.TokenId,
-		"x-modal-token-secret", defaultProfile.TokenSecret,
-	)
+		"x-modal-token-id", clientProfile.TokenId,
+		"x-modal-token-secret", clientProfile.TokenSecret,
+	), nil
 }
 
 func timeoutInterceptor() grpc.UnaryClientInterceptor {

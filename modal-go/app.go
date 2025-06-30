@@ -45,7 +45,11 @@ func AppLookup(ctx context.Context, name string, options *LookupOptions) (*App, 
 	if options == nil {
 		options = &LookupOptions{}
 	}
-	ctx = clientContext(ctx)
+	var err error
+	ctx, err = clientContext(ctx)
+	if err != nil {
+		return nil, err
+	}
 
 	creationType := pb.ObjectCreationType_OBJECT_CREATION_TYPE_UNSPECIFIED
 	if options.CreateIfMissing {

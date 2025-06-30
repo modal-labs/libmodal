@@ -15,8 +15,8 @@ import (
 // Profile holds a fully-resolved configuration ready for use by the client.
 type Profile struct {
 	ServerURL           string // e.g. https://api.modal.com:443
-	TokenId             string
-	TokenSecret         string
+	TokenId             string // optional (if InitializeClient is called)
+	TokenSecret         string // optional (if InitializeClient is called)
 	Environment         string // optional
 	ImageBuilderVersion string // optional
 }
@@ -55,14 +55,14 @@ func readConfigFile() (config, error) {
 	return cfg, nil
 }
 
-// GetProfile resolves a profile by name.  Pass an empty string to follow the
+// getProfile resolves a profile by name.  Pass an empty string to follow the
 // same precedence as the TypeScript original:
 //
 //  1. MODAL_PROFILE env var
 //  2. first profile in the file with active = true
 //
 // Returned Profile is ready for use; error describes what is missing.
-func GetProfile(name string) (Profile, error) {
+func getProfile(name string) Profile {
 	// 1. explicit argument overrides everything
 	if name == "" {
 		name = os.Getenv("MODAL_PROFILE")
@@ -78,11 +78,8 @@ func GetProfile(name string) (Profile, error) {
 		}
 	}
 
-	// 3. verify existence
-	raw, ok := defaultConfig[name]
-	if name != "" && !ok {
-		return Profile{}, fmt.Errorf("profile %q not found in ~/.modal.toml", name)
-	}
+	// 3. get profile name in the configuration (if it exists)
+	raw := defaultConfig[name]
 
 	// 4. env-vars override file values
 	serverURL := firstNonEmpty(os.Getenv("MODAL_SERVER_URL"), raw.ServerURL, "https://api.modal.com:443")
@@ -91,17 +88,13 @@ func GetProfile(name string) (Profile, error) {
 	environment := firstNonEmpty(os.Getenv("MODAL_ENVIRONMENT"), raw.Environment)
 	imageBuilderVersion := firstNonEmpty(os.Getenv("MODAL_IMAGE_BUILDER_VERSION"), raw.ImageBuilderVersion)
 
-	if tokenId == "" || tokenSecret == "" {
-		return Profile{}, fmt.Errorf("profile %q missing token_id or token_secret (env-vars take precedence)", name)
-	}
-
 	return Profile{
 		ServerURL:           serverURL,
 		TokenId:             tokenId,
 		TokenSecret:         tokenSecret,
 		Environment:         environment,
 		ImageBuilderVersion: imageBuilderVersion,
-	}, nil
+	}
 }
 
 func firstNonEmpty(values ...string) string {
@@ -119,4 +112,23 @@ func environmentName(environment string) string {
 
 func imageBuilderVersion(version string) string {
 	return firstNonEmpty(version, defaultProfile.ImageBuilderVersion, "2024.10")
+}
+
+// ClientOptions defines credentials and options for initializing the Modal client at runtime.
+type ClientOptions struct {
+	TokenId     string
+	TokenSecret string
+	Environment string // optional, defaults to the profile's environment
+}
+
+// InitializeClient updates the global Modal client configuration with the provided options.
+//
+// This function is useful when you want to set the client options programmatically. It
+// should be called once at the start of your application.
+func InitializeClient(options ClientOptions) error {
+	mergedProfile := defaultProfile
+	mergedProfile.TokenId = options.TokenId
+	mergedProfile.TokenSecret = options.TokenSecret
+	mergedProfile.Environment = firstNonEmpty(mergedProfile.Environment, options.Environment)
+	return updateClient(mergedProfile)
 }

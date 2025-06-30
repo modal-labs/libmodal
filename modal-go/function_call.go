@@ -18,7 +18,11 @@ type FunctionCall struct {
 
 // FunctionCallFromId looks up a FunctionCall by ID.
 func FunctionCallFromId(ctx context.Context, functionCallId string) (*FunctionCall, error) {
-	ctx = clientContext(ctx)
+	var err error
+	ctx, err = clientContext(ctx)
+	if err != nil {
+		return nil, err
+	}
 	functionCall := FunctionCall{
 		FunctionCallId: functionCallId,
 		ctx:            ctx,

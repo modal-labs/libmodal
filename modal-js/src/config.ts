@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 import { parse as parseToml } from "smol-toml";
+import { updateClient } from "./client";
 
 /** Raw representation of the .modal.toml file. */
 interface Config {
@@ -18,8 +19,8 @@ interface Config {
 /** Resolved configuration object from `Config` and environment variables. */
 export interface Profile {
   serverUrl: string;
-  tokenId: string;
-  tokenSecret: string;
+  tokenId?: string;
+  tokenSecret?: string;
   environment?: string;
   imageBuilderVersion?: string;
 }
@@ -34,7 +35,9 @@ function readConfigFile(): Config {
     if (err.code === "ENOENT") {
       return {} as Config;
     }
-    throw new Error(`Failed to read or parse .modal.toml: ${err.message}`);
+    // Ignore failure to read or parse .modal.toml
+    // throw new Error(`Failed to read or parse .modal.toml: ${err.message}`);
+    return {} as Config;
   }
 }
 
@@ -46,7 +49,6 @@ function readConfigFile(): Config {
 const config: Config = readConfigFile();
 
 export function getProfile(profileName?: string): Profile {
-  profileName = profileName || process.env["MODAL_PROFILE"] || undefined;
   if (!profileName) {
     for (const [name, profileData] of Object.entries(config)) {
       if (profileData.active) {
@@ -55,12 +57,10 @@ export function getProfile(profileName?: string): Profile {
       }
     }
   }
-  if (profileName && !Object.hasOwn(config, profileName)) {
-    throw new Error(
-      `Profile "${profileName}" not found in .modal.toml. Please set the MODAL_PROFILE environment variable or specify a valid profile.`,
-    );
-  }
-  const profileData = profileName ? config[profileName] : {};
+  const profileData =
+    profileName && Object.hasOwn(config, profileName)
+      ? config[profileName]
+      : {};
 
   const profile: Partial<Profile> = {
     serverUrl:
@@ -74,11 +74,6 @@ export function getProfile(profileName?: string): Profile {
       process.env["MODAL_IMAGE_BUILDER_VERSION"] ||
       profileData.imageBuilderVersion,
   };
-  if (!profile.tokenId || !profile.tokenSecret) {
-    throw new Error(
-      `Profile "${profileName}" is missing token_id or token_secret. Please set them in .modal.toml or as environment variables.`,
-    );
-  }
   return profile as Profile; // safe to null-cast because of check above
 }
 
@@ -90,4 +85,27 @@ export function environmentName(environment?: string): string {
 
 export function imageBuilderVersion(version?: string): string {
   return version || profile.imageBuilderVersion || "2024.10";
+}
+
+/** Options for initializing a client at runtime. */
+export type ClientOptions = {
+  tokenId: string;
+  tokenSecret: string;
+  environment?: string;
+};
+
+/**
+ * Initialize the Modal client, passing in token authentication credentials.
+ *
+ * You should call this function at the start of your application if not
+ * configuring Modal with a `.modal.toml` file or environment variables.
+ */
+export function initializeClient(options: ClientOptions) {
+  const mergedProfile = {
+    ...profile,
+    tokenId: options.tokenId,
+    tokenSecret: options.tokenSecret,
+    environment: options.environment || profile.environment,
+  };
+  updateClient(mergedProfile);
 }

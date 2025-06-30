@@ -22,7 +22,11 @@ type SecretFromNameOptions struct {
 
 // SecretFromName references a modal.Secret by its name.
 func SecretFromName(ctx context.Context, name string, options *SecretFromNameOptions) (*Secret, error) {
-	ctx = clientContext(ctx)
+	var err error
+	ctx, err = clientContext(ctx)
+	if err != nil {
+		return nil, err
+	}
 
 	if options == nil {
 		options = &SecretFromNameOptions{}

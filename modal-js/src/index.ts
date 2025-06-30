@@ -6,6 +6,7 @@ export {
   type SandboxCreateOptions,
 } from "./app";
 export { Cls, ClsInstance } from "./cls";
+export { type ClientOptions, initializeClient } from "./config";
 export {
   FunctionTimeoutError,
   RemoteError,
