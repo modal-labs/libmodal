@@ -78,9 +78,34 @@ var client pb.ModalClientClient
 func init() {
 	defaultConfig, _ = readConfigFile()
 	defaultProfile = getProfile(os.Getenv("MODAL_PROFILE"))
-	if err := updateClient(defaultProfile); err != nil {
+	clientProfile = defaultProfile
+	var err error
+	_, client, err = newClient(clientProfile)
+	if err != nil {
 		panic(fmt.Sprintf("failed to initialize Modal client at startup: %v", err))
 	}
+}
+
+// ClientOptions defines credentials and options for initializing the Modal client at runtime.
+type ClientOptions struct {
+	TokenId     string
+	TokenSecret string
+	Environment string // optional, defaults to the profile's environment
+}
+
+// InitializeClient updates the global Modal client configuration with the provided options.
+//
+// This function is useful when you want to set the client options programmatically. It
+// should be called once at the start of your application.
+func InitializeClient(options ClientOptions) error {
+	mergedProfile := defaultProfile
+	mergedProfile.TokenId = options.TokenId
+	mergedProfile.TokenSecret = options.TokenSecret
+	mergedProfile.Environment = firstNonEmpty(options.Environment, mergedProfile.Environment)
+	clientProfile = mergedProfile
+	var err error
+	_, client, err = newClient(mergedProfile)
+	return err
 }
 
 // newClient dials api.modal.com with auth/timeout/retry interceptors installed.
@@ -88,11 +113,11 @@ func init() {
 func newClient(profile Profile) (*grpc.ClientConn, pb.ModalClientClient, error) {
 	var target string
 	var creds credentials.TransportCredentials
-	if strings.HasPrefix(profile.ServerURL, "https://") {
-		target = strings.TrimPrefix(profile.ServerURL, "https://")
+	if after, ok := strings.CutPrefix(profile.ServerURL, "https://"); ok {
+		target = after
 		creds = credentials.NewTLS(&tls.Config{})
-	} else if strings.HasPrefix(profile.ServerURL, "http://") {
-		target = strings.TrimPrefix(profile.ServerURL, "http://")
+	} else if after, ok := strings.CutPrefix(profile.ServerURL, "http://"); ok {
+		target = after
 		creds = insecure.NewCredentials()
 	} else {
 		return nil, nil, status.Errorf(codes.InvalidArgument, "invalid server URL: %s", profile.ServerURL)
@@ -114,13 +139,6 @@ func newClient(profile Profile) (*grpc.ClientConn, pb.ModalClientClient, error) 
 		return nil, nil, err
 	}
 	return conn, pb.NewModalClientClient(conn), nil
-}
-
-func updateClient(profile Profile) error {
-	var err error
-	clientProfile = profile
-	_, client, err = newClient(clientProfile)
-	return err
 }
 
 // clientContext returns a context with the default profile's auth headers.

@@ -100,28 +100,9 @@ func firstNonEmpty(values ...string) string {
 }
 
 func environmentName(environment string) string {
-	return firstNonEmpty(environment, defaultProfile.Environment)
+	return firstNonEmpty(environment, clientProfile.Environment)
 }
 
 func imageBuilderVersion(version string) string {
-	return firstNonEmpty(version, defaultProfile.ImageBuilderVersion, "2024.10")
-}
-
-// ClientOptions defines credentials and options for initializing the Modal client at runtime.
-type ClientOptions struct {
-	TokenId     string
-	TokenSecret string
-	Environment string // optional, defaults to the profile's environment
-}
-
-// InitializeClient updates the global Modal client configuration with the provided options.
-//
-// This function is useful when you want to set the client options programmatically. It
-// should be called once at the start of your application.
-func InitializeClient(options ClientOptions) error {
-	mergedProfile := defaultProfile
-	mergedProfile.TokenId = options.TokenId
-	mergedProfile.TokenSecret = options.TokenSecret
-	mergedProfile.Environment = firstNonEmpty(options.Environment, mergedProfile.Environment)
-	return updateClient(mergedProfile)
+	return firstNonEmpty(version, clientProfile.ImageBuilderVersion, "2024.10")
 }

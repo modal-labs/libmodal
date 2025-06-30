@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 import { parse as parseToml } from "smol-toml";
-import { updateClient } from "./client";
+import { clientProfile } from "./client";
 
 /** Raw representation of the .modal.toml file. */
 interface Config {
@@ -77,35 +77,10 @@ export function getProfile(profileName?: string): Profile {
   return profile as Profile; // safe to null-cast because of check above
 }
 
-export const profile = getProfile(process.env["MODAL_PROFILE"]);
-
 export function environmentName(environment?: string): string {
-  return environment || profile.environment || "";
+  return environment || clientProfile.environment || "";
 }
 
 export function imageBuilderVersion(version?: string): string {
-  return version || profile.imageBuilderVersion || "2024.10";
-}
-
-/** Options for initializing a client at runtime. */
-export type ClientOptions = {
-  tokenId: string;
-  tokenSecret: string;
-  environment?: string;
-};
-
-/**
- * Initialize the Modal client, passing in token authentication credentials.
- *
- * You should call this function at the start of your application if not
- * configuring Modal with a `.modal.toml` file or environment variables.
- */
-export function initializeClient(options: ClientOptions) {
-  const mergedProfile = {
-    ...profile,
-    tokenId: options.tokenId,
-    tokenSecret: options.tokenSecret,
-    environment: options.environment || profile.environment,
-  };
-  updateClient(mergedProfile);
+  return version || clientProfile.imageBuilderVersion || "2024.10";
 }
