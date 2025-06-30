@@ -14,33 +14,6 @@ import { ClientType, ModalClientDefinition } from "../proto/modal_proto/api";
 import { getProfile, type Profile } from "./config";
 
 const defaultProfile = getProfile(process.env["MODAL_PROFILE"]);
-export let clientProfile = defaultProfile;
-
-export let client = createClient(clientProfile);
-
-/** Options for initializing a client at runtime. */
-export type ClientOptions = {
-  tokenId: string;
-  tokenSecret: string;
-  environment?: string;
-};
-
-/**
- * Initialize the Modal client, passing in token authentication credentials.
- *
- * You should call this function at the start of your application if not
- * configuring Modal with a `.modal.toml` file or environment variables.
- */
-export function initializeClient(options: ClientOptions) {
-  const mergedProfile = {
-    ...defaultProfile,
-    tokenId: options.tokenId,
-    tokenSecret: options.tokenSecret,
-    environment: options.environment || defaultProfile.environment,
-  };
-  clientProfile = mergedProfile;
-  client = createClient(mergedProfile);
-}
 
 /** gRPC client middleware to add auth token to request. */
 function authMiddleware(profile: Profile): ClientMiddleware {
@@ -240,4 +213,32 @@ function createClient(profile: Profile) {
     .use(retryMiddleware)
     .use(timeoutMiddleware)
     .create(ModalClientDefinition, channel);
+}
+
+export let clientProfile = defaultProfile;
+
+export let client = createClient(clientProfile);
+
+/** Options for initializing a client at runtime. */
+export type ClientOptions = {
+  tokenId: string;
+  tokenSecret: string;
+  environment?: string;
+};
+
+/**
+ * Initialize the Modal client, passing in token authentication credentials.
+ *
+ * You should call this function at the start of your application if not
+ * configuring Modal with a `.modal.toml` file or environment variables.
+ */
+export function initializeClient(options: ClientOptions) {
+  const mergedProfile = {
+    ...defaultProfile,
+    tokenId: options.tokenId,
+    tokenSecret: options.tokenSecret,
+    environment: options.environment || defaultProfile.environment,
+  };
+  clientProfile = mergedProfile;
+  client = createClient(mergedProfile);
 }
