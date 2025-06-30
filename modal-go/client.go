@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -76,7 +77,7 @@ var client pb.ModalClientClient
 
 func init() {
 	defaultConfig, _ = readConfigFile()
-	defaultProfile = getProfile("")
+	defaultProfile = getProfile(os.Getenv("MODAL_PROFILE"))
 	if err := updateClient(defaultProfile); err != nil {
 		panic(fmt.Sprintf("failed to initialize Modal client at startup: %v", err))
 	}

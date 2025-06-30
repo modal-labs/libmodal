@@ -77,7 +77,7 @@ export function getProfile(profileName?: string): Profile {
   return profile as Profile; // safe to null-cast because of check above
 }
 
-export const profile = getProfile(process.env["MODAL_PROFILE"] || undefined);
+export const profile = getProfile(process.env["MODAL_PROFILE"]);
 
 export function environmentName(environment?: string): string {
   return environment || profile.environment || "";

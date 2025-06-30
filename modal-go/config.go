@@ -55,20 +55,11 @@ func readConfigFile() (config, error) {
 	return cfg, nil
 }
 
-// getProfile resolves a profile by name.  Pass an empty string to follow the
-// same precedence as the TypeScript original:
-//
-//  1. MODAL_PROFILE env var
-//  2. first profile in the file with active = true
+// getProfile resolves a profile by name. Pass an empty string to instead return
+// the first profile in the configuration file with `active = true`.
 //
 // Returned Profile is ready for use; error describes what is missing.
 func getProfile(name string) Profile {
-	// 1. explicit argument overrides everything
-	if name == "" {
-		name = os.Getenv("MODAL_PROFILE")
-	}
-
-	// 2. look for `active = true` if still unspecified
 	if name == "" {
 		for n, p := range defaultConfig {
 			if p.Active {
@@ -78,10 +69,12 @@ func getProfile(name string) Profile {
 		}
 	}
 
-	// 3. get profile name in the configuration (if it exists)
-	raw := defaultConfig[name]
+	var raw rawProfile
+	if name != "" {
+		raw = defaultConfig[name]
+	}
 
-	// 4. env-vars override file values
+	// Env-vars override file values.
 	serverURL := firstNonEmpty(os.Getenv("MODAL_SERVER_URL"), raw.ServerURL, "https://api.modal.com:443")
 	tokenId := firstNonEmpty(os.Getenv("MODAL_TOKEN_ID"), raw.TokenId)
 	tokenSecret := firstNonEmpty(os.Getenv("MODAL_TOKEN_SECRET"), raw.TokenSecret)
