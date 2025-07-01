@@ -11,6 +11,14 @@ modal secret create --force libmodal-test-secret \
   a=1 b=2 c="hello world" >/dev/null
 
 # Must be signed into AWS CLI for Modal Labs
+echo "Deploying libmodal-ghcr-test..."
+ecr_test_secret=$(aws secretsmanager get-secret-value \
+  --secret-id test/libmodal/GhcrTest --query 'SecretString' --output text)
+modal secret create --force libmodal-ghcr-test \
+  USERNAME="$(echo "$ecr_test_secret" | jq -r '.GHCR_USERNAME')" \
+  PASSWORD="$(echo "$ecr_test_secret" | jq -r '.GHCR_PASSWORD')" \
+  >/dev/null
+
 echo "Deploying libmodal-aws-ecr-test..."
 ecr_test_secret=$(aws secretsmanager get-secret-value \
   --secret-id test/libmodal/AwsEcrTest --query 'SecretString' --output text)

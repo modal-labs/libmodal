@@ -14,7 +14,7 @@ func createSandbox(g *gomega.WithT) *modal.Sandbox {
 	app, err := modal.AppLookup(context.Background(), "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	image, err := app.ImageFromRegistry("alpine:3.21")
+	image, err := app.ImageFromRegistry("alpine:3.21", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	sb, err := app.CreateSandbox(image, nil)

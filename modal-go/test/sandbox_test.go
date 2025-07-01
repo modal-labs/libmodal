@@ -15,7 +15,7 @@ func TestCreateOneSandbox(t *testing.T) {
 	app, err := modal.AppLookup(context.Background(), "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	image, err := app.ImageFromRegistry("alpine:3.21")
+	image, err := app.ImageFromRegistry("alpine:3.21", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	sb, err := app.CreateSandbox(image, nil)
@@ -36,7 +36,7 @@ func TestPassCatToStdin(t *testing.T) {
 	app, err := modal.AppLookup(context.Background(), "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	image, err := app.ImageFromRegistry("alpine:3.21")
+	image, err := app.ImageFromRegistry("alpine:3.21", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	// Spawn a sandbox running the "cat" command.
@@ -64,7 +64,7 @@ func TestIgnoreLargeStdout(t *testing.T) {
 	app, err := modal.AppLookup(context.Background(), "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	image, err := app.ImageFromRegistry("python:3.13-alpine")
+	image, err := app.ImageFromRegistry("python:3.13-alpine", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	sb, err := app.CreateSandbox(image, nil)
@@ -90,7 +90,7 @@ func TestSandboxExecOptions(t *testing.T) {
 	app, err := modal.AppLookup(context.Background(), "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	image, err := app.ImageFromRegistry("alpine:3.21")
+	image, err := app.ImageFromRegistry("alpine:3.21", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	sb, err := app.CreateSandbox(image, nil)

@@ -40,6 +40,11 @@ type SandboxOptions struct {
 	Command []string      // Command to run in the Sandbox on startup.
 }
 
+// ImageFromRegistryOptions are options for creating an Image from a registry.
+type ImageFromRegistryOptions struct {
+	Secret *Secret // Secret for private registry authentication.
+}
+
 // AppLookup looks up an existing App, or creates an empty one.
 func AppLookup(ctx context.Context, name string, options *LookupOptions) (*App, error) {
 	if options == nil {
@@ -100,9 +105,19 @@ func (app *App) CreateSandbox(image *Image, options *SandboxOptions) (*Sandbox, 
 	return newSandbox(app.ctx, createResp.GetSandboxId()), nil
 }
 
-// ImageFromRegistry creates an Image from a registry tag.
-func (app *App) ImageFromRegistry(tag string) (*Image, error) {
-	return fromRegistryInternal(app, tag, nil)
+// ImageFromRegistry creates an Image from a registry tag, optionally with authentication options.
+func (app *App) ImageFromRegistry(tag string, options *ImageFromRegistryOptions) (*Image, error) {
+	if options == nil {
+		options = &ImageFromRegistryOptions{}
+	}
+	var imageRegistryConfig *pb.ImageRegistryConfig
+	if options.Secret != nil {
+		imageRegistryConfig = pb.ImageRegistryConfig_builder{
+			RegistryAuthType: pb.RegistryAuthType_REGISTRY_AUTH_TYPE_STATIC_CREDS,
+			SecretId:         options.Secret.SecretId,
+		}.Build()
+	}
+	return fromRegistryInternal(app, tag, imageRegistryConfig)
 }
 
 // ImageFromAwsEcr creates an Image from an AWS ECR tag, and secret for auth.

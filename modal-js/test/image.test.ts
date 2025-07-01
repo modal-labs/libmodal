@@ -10,6 +10,20 @@ test("ImageFromRegistry", async () => {
   expect(image.imageId).toMatch(/^im-/);
 });
 
+test("ImageFromRegistryWithSecret", async () => {
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
+  expect(app.appId).toBeTruthy();
+
+  const image = await app.imageFromAwsEcr(
+    "ghcr.io/modal-labs/libmodal-test:latest",
+    await Secret.fromName("libmodal-ghcr-test", {
+      requiredKeys: ["USERNAME", "PASSWORD"],
+    }),
+  );
+  expect(image.imageId).toBeTruthy();
+  expect(image.imageId).toMatch(/^im-/);
+});
+
 test("ImageFromAwsEcr", async () => {
   const app = await App.lookup("libmodal-test", { createIfMissing: true });
   expect(app.appId).toBeTruthy();

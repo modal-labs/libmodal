@@ -105,8 +105,20 @@ export class App {
     return new Sandbox(createResp.sandboxId);
   }
 
-  async imageFromRegistry(tag: string): Promise<Image> {
-    return await fromRegistryInternal(this.appId, tag);
+  async imageFromRegistry(tag: string, secret?: Secret): Promise<Image> {
+    let imageRegistryConfig;
+    if (secret) {
+      if (!(secret instanceof Secret)) {
+        throw new TypeError(
+          "secret must be a reference to an existing Secret, e.g. `await Secret.fromName('my_secret')`",
+        );
+      }
+      imageRegistryConfig = {
+        registryAuthType: RegistryAuthType.REGISTRY_AUTH_TYPE_STATIC_CREDS,
+        secretId: secret.secretId,
+      };
+    }
+    return await fromRegistryInternal(this.appId, tag, imageRegistryConfig);
   }
 
   async imageFromAwsEcr(tag: string, secret: Secret): Promise<Image> {

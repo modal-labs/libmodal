@@ -15,7 +15,26 @@ func TestImageFromRegistry(t *testing.T) {
 	app, err := modal.AppLookup(context.Background(), "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	image, err := app.ImageFromRegistry("alpine:3.21")
+	image, err := app.ImageFromRegistry("alpine:3.21", nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(image.ImageId).Should(gomega.HavePrefix("im-"))
+}
+
+func TestImageFromRegistryWithSecret(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	app, err := modal.AppLookup(context.Background(), "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	secret, err := modal.SecretFromName(context.Background(), "libmodal-ghcr-test", &modal.SecretFromNameOptions{
+		RequiredKeys: []string{"USERNAME", "PASSWORD"},
+	})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	image, err := app.ImageFromRegistry("ghcr.io/modal-labs/libmodal-test:latest", &modal.ImageFromRegistryOptions{
+		Secret: secret,
+	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(image.ImageId).Should(gomega.HavePrefix("im-"))
 }
