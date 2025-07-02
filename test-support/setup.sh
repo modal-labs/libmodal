@@ -12,11 +12,11 @@ modal secret create --force libmodal-test-secret \
 
 # Must be signed into AWS CLI for Modal Labs
 echo "Deploying libmodal-ghcr-test..."
-ecr_test_secret=$(aws secretsmanager get-secret-value \
+ghcr_test_secret=$(aws secretsmanager get-secret-value \
   --secret-id test/libmodal/GhcrTest --query 'SecretString' --output text)
 modal secret create --force libmodal-ghcr-test \
-  USERNAME="$(echo "$ecr_test_secret" | jq -r '.GHCR_USERNAME')" \
-  PASSWORD="$(echo "$ecr_test_secret" | jq -r '.GHCR_PASSWORD')" \
+  USERNAME="$(echo "$ghcr_test_secret" | jq -r '.GHCR_USERNAME')" \
+  PASSWORD="$(echo "$ghcr_test_secret" | jq -r '.GHCR_PASSWORD')" \
   >/dev/null
 
 echo "Deploying libmodal-aws-ecr-test..."
@@ -29,8 +29,8 @@ modal secret create --force libmodal-aws-ecr-test \
   >/dev/null
 
 echo "Deploying libmodal-gcp-artifact-registry-test..."
-ecr_test_secret=$(aws secretsmanager get-secret-value \
+gcp_test_secret=$(aws secretsmanager get-secret-value \
   --secret-id test/libmodal/GcpArtifactRegistryTest --query 'SecretString' --output text)
 modal secret create --force libmodal-gcp-artifact-registry-test \
-  SERVICE_ACCOUNT_JSON="$(echo "$ecr_test_secret" | jq -r '.SERVICE_ACCOUNT_JSON')" \
+  SERVICE_ACCOUNT_JSON="$(echo "$gcp_test_secret" | jq -r '.SERVICE_ACCOUNT_JSON')" \
   >/dev/null
