@@ -174,16 +174,12 @@ export class InputPlaneInvocation implements Invocation {
   async #getOutput(
     timeoutMillis: number,
   ): Promise<FunctionGetOutputsItem | undefined> {
-    try {
-      const response = await this.client.attemptAwait({
-        attemptToken: this.attemptToken,
-        requestedAt: timeNowSeconds(),
-        timeoutSecs: timeoutMillis / 1000,
-      });
-      return response.output;
-    } catch (err) {
-      throw new Error(`AttemptAwait failed: ${err}`);
-    }
+    const response = await this.client.attemptAwait({
+      attemptToken: this.attemptToken,
+      requestedAt: timeNowSeconds(),
+      timeoutSecs: timeoutMillis / 1000,
+    });
+    return response.output;
   }
 
   async retry(_retryCount: number): Promise<void> {
