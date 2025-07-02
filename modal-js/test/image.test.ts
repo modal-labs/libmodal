@@ -11,13 +11,18 @@ test("ImageFromRegistry", async () => {
 });
 
 test("ImageFromRegistryWithSecret", async () => {
+  // GCP Artifact Registry also supports auth using username and password, if the username is "_json_key"
+  // and the password is the service account JSON blob. See:
+  // https://cloud.google.com/artifact-registry/docs/docker/authentication#json-key
+  // So we use GCP Artifact Registry to test this too.
+
   const app = await App.lookup("libmodal-test", { createIfMissing: true });
   expect(app.appId).toBeTruthy();
 
-  const image = await app.imageFromAwsEcr(
-    "ghcr.io/modal-labs/libmodal-test:latest",
-    await Secret.fromName("libmodal-ghcr-test", {
-      requiredKeys: ["USERNAME", "PASSWORD"],
+  const image = await app.imageFromRegistry(
+    "us-east1-docker.pkg.dev/modal-prod-367916/private-repo-test/my-image",
+    await Secret.fromName("libmodal-gcp-artifact-registry-test", {
+      requiredKeys: ["REGISTRY_USERNAME", "REGISTRY_PASSWORD"],
     }),
   );
   expect(image.imageId).toBeTruthy();
