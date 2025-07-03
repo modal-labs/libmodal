@@ -21,7 +21,6 @@ type Volume struct {
 type VolumeFromNameOptions struct {
 	Environment     string
 	CreateIfMissing bool
-	Version         pb.VolumeFsVersion
 }
 
 // VolumeFromName references a modal.Volume by its name.
@@ -45,7 +44,6 @@ func VolumeFromName(ctx context.Context, name string, options *VolumeFromNameOpt
 		DeploymentName:     name,
 		EnvironmentName:    environmentName(options.Environment),
 		ObjectCreationType: creationType,
-		Version:            options.Version,
 	}.Build())
 
 	if status, ok := status.FromError(err); ok && status.Code() == codes.NotFound {

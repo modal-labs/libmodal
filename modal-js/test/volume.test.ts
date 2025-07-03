@@ -14,13 +14,3 @@ test("VolumeFromName", async () => {
     /Volume 'missing-volume' not found/,
   );
 });
-
-test("VolumeFromNameWithVersion", async () => {
-  const volume = await Volume.fromName("libmodal-test-volume-v2", {
-    createIfMissing: true,
-    version: 2,
-  });
-  expect(volume).toBeDefined();
-  expect(volume.volumeId).toBeDefined();
-  expect(volume.volumeId).toMatch(/^vo-/);
-});

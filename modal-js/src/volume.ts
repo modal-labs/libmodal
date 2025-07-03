@@ -1,4 +1,4 @@
-import { VolumeFsVersion, ObjectCreationType } from "../proto/modal_proto/api";
+import { ObjectCreationType } from "../proto/modal_proto/api";
 import { client } from "./client";
 import { environmentName as configEnvironmentName } from "./config";
 import { ClientError, Status } from "nice-grpc";
@@ -8,7 +8,6 @@ import { NotFoundError } from "./errors";
 export type VolumeFromNameOptions = {
   environment?: string;
   createIfMissing?: boolean;
-  version?: 1 | 2;
 };
 
 /** Volumes provide persistent storage that can be mounted in Modal functions. */
@@ -31,7 +30,6 @@ export class Volume {
         objectCreationType: options?.createIfMissing
           ? ObjectCreationType.OBJECT_CREATION_TYPE_CREATE_IF_MISSING
           : ObjectCreationType.OBJECT_CREATION_TYPE_UNSPECIFIED,
-        version: options?.version,
       });
       return new Volume(resp.volumeId);
     } catch (err) {
