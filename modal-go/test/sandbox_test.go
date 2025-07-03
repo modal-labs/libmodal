@@ -112,3 +112,39 @@ func TestSandboxExecOptions(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(exitCode).To(gomega.Equal(int32(0)))
 }
+
+func TestSandboxWithVolume(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+
+	app, err := modal.AppLookup(ctx, "libmodal-test", &modal.LookupOptions{
+		CreateIfMissing: true,
+	})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	image, err := app.ImageFromRegistry("alpine:3.21", nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	volume, err := modal.VolumeFromName(ctx, "libmodal-test-sandbox-volume", &modal.VolumeFromNameOptions{
+		CreateIfMissing: true,
+	})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	sandbox, err := app.CreateSandbox(image, &modal.SandboxOptions{
+		Command: []string{"echo", "volume test"},
+		Volumes: map[string]*modal.Volume{
+			"/mnt/test": volume,
+		},
+	})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(sandbox).ShouldNot(gomega.BeNil())
+	g.Expect(sandbox.SandboxId).Should(gomega.HavePrefix("sb-"))
+
+	exitCode, err := sandbox.Wait()
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(exitCode).Should(gomega.Equal(int32(0)))
+
+	err = sandbox.Terminate()
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+}

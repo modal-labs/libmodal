@@ -34,10 +34,11 @@ type EphemeralOptions struct {
 
 // SandboxOptions are options for creating a Modal Sandbox.
 type SandboxOptions struct {
-	CPU     float64       // CPU request in physical cores.
-	Memory  int           // Memory request in MiB.
-	Timeout time.Duration // Maximum duration for the Sandbox.
-	Command []string      // Command to run in the Sandbox on startup.
+	CPU     float64            // CPU request in physical cores.
+	Memory  int                // Memory request in MiB.
+	Timeout time.Duration      // Maximum duration for the Sandbox.
+	Command []string           // Command to run in the Sandbox on startup.
+	Volumes map[string]*Volume // Mount points for Volumes.
 }
 
 // ImageFromRegistryOptions are options for creating an Image from a registry.
@@ -82,6 +83,20 @@ func (app *App) CreateSandbox(image *Image, options *SandboxOptions) (*Sandbox, 
 	if options == nil {
 		options = &SandboxOptions{}
 	}
+
+	var volumeMounts []*pb.VolumeMount
+	if options.Volumes != nil {
+		volumeMounts = make([]*pb.VolumeMount, 0, len(options.Volumes))
+		for mountPath, volume := range options.Volumes {
+			volumeMounts = append(volumeMounts, pb.VolumeMount_builder{
+				VolumeId:               volume.VolumeId,
+				MountPath:              mountPath,
+				AllowBackgroundCommits: true,
+				ReadOnly:               false,
+			}.Build())
+		}
+	}
+
 	createResp, err := client.SandboxCreate(app.ctx, pb.SandboxCreateRequest_builder{
 		AppId: app.AppId,
 		Definition: pb.Sandbox_builder{
@@ -95,6 +110,7 @@ func (app *App) CreateSandbox(image *Image, options *SandboxOptions) (*Sandbox, 
 				MilliCpu: uint32(1000 * options.CPU),
 				MemoryMb: uint32(options.Memory),
 			}.Build(),
+			VolumeMounts: volumeMounts,
 		}.Build(),
 	}.Build())
 
