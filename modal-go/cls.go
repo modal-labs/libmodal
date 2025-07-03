@@ -20,6 +20,7 @@ type Cls struct {
 	serviceFunctionId string
 	schema            []*pb.ClassParameterSpec
 	methodNames       []string
+	inputPlaneUrl     *string // if nil, use control plane
 }
 
 // ClsLookup looks up an existing Cls on a deployed App.
@@ -76,6 +77,12 @@ func ClsLookup(ctx context.Context, appName string, name string, options *Lookup
 		return nil, fmt.Errorf("Cls requires Modal deployments using client v0.67 or later")
 	}
 
+	if serviceFunctionHandleMetadata != nil {
+		if inputPlaneUrl := serviceFunctionHandleMetadata.GetInputPlaneUrl(); inputPlaneUrl != "" {
+			cls.inputPlaneUrl = &inputPlaneUrl
+		}
+	}
+
 	return &cls, nil
 }
 
@@ -98,9 +105,10 @@ func (c *Cls) Instance(params map[string]any) (*ClsInstance, error) {
 	methods := make(map[string]*Function)
 	for _, name := range c.methodNames {
 		methods[name] = &Function{
-			FunctionId: functionId,
-			MethodName: &name,
-			ctx:        c.ctx,
+			FunctionId:    functionId,
+			MethodName:    &name,
+			InputPlaneURL: c.inputPlaneUrl,
+			ctx:           c.ctx,
 		}
 	}
 	return &ClsInstance{methods: methods}, nil

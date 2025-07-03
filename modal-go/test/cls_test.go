@@ -49,3 +49,21 @@ func TestClsNotFound(t *testing.T) {
 	_, err := modal.ClsLookup(context.Background(), "libmodal-test-support", "NotRealClassName", nil)
 	g.Expect(err).Should(gomega.BeAssignableToTypeOf(modal.NotFoundError{}))
 }
+
+func TestClsCallInputPlane(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	cls, err := modal.ClsLookup(context.Background(), "libmodal-test-support", "EchoClsInputPlane", nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	instance, err := cls.Instance(nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	function, err := instance.Method("echo_string")
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	result, err := function.Remote(nil, map[string]any{"s": "hello"})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(result).Should(gomega.Equal("output: hello"))
+}
