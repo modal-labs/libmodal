@@ -134,7 +134,6 @@ func QueueLookup(ctx context.Context, name string, options *LookupOptions) (*Que
 
 	resp, err := client.QueueGetOrCreate(ctx, pb.QueueGetOrCreateRequest_builder{
 		DeploymentName:     name,
-		Namespace:          pb.DeploymentNamespace_DEPLOYMENT_NAMESPACE_WORKSPACE,
 		EnvironmentName:    environmentName(options.Environment),
 		ObjectCreationType: creationType,
 	}.Build())

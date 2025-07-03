@@ -1,7 +1,6 @@
 // Queue object, to be used with Modal Queues.
 
 import {
-  DeploymentNamespace,
   ObjectCreationType,
   QueueNextItemsRequest,
 } from "../proto/modal_proto/api";
@@ -145,7 +144,6 @@ export class Queue {
       objectCreationType: options.createIfMissing
         ? ObjectCreationType.OBJECT_CREATION_TYPE_CREATE_IF_MISSING
         : undefined,
-      namespace: DeploymentNamespace.DEPLOYMENT_NAMESPACE_WORKSPACE,
       environmentName: environmentName(options.environment),
     });
     return new Queue(resp.queueId);

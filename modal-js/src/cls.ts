@@ -4,7 +4,6 @@ import {
   ClassParameterSet,
   ClassParameterSpec,
   ClassParameterValue,
-  DeploymentNamespace,
   ParameterType,
 } from "../proto/modal_proto/api";
 import type { LookupOptions } from "./app";
@@ -40,7 +39,6 @@ export class Cls {
       const serviceFunction = await client.functionGet({
         appName,
         objectTag: serviceFunctionName,
-        namespace: DeploymentNamespace.DEPLOYMENT_NAMESPACE_WORKSPACE,
         environmentName: environmentName(options.environment),
       });
 

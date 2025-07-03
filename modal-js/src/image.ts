@@ -1,5 +1,4 @@
 import {
-  DeploymentNamespace,
   GenericResult,
   GenericResult_GenericStatus,
   ImageMetadata,
@@ -29,7 +28,6 @@ export async function fromRegistryInternal(
       dockerfileCommands: [`FROM ${tag}`],
       imageRegistryConfig,
     },
-    namespace: DeploymentNamespace.DEPLOYMENT_NAMESPACE_WORKSPACE,
     builderVersion: imageBuilderVersion(),
   });
 

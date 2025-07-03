@@ -44,7 +44,6 @@ func ClsLookup(ctx context.Context, appName string, name string, options *Lookup
 	serviceFunction, err := client.FunctionGet(ctx, pb.FunctionGetRequest_builder{
 		AppName:         appName,
 		ObjectTag:       serviceFunctionName,
-		Namespace:       pb.DeploymentNamespace_DEPLOYMENT_NAMESPACE_WORKSPACE,
 		EnvironmentName: environmentName(options.Environment),
 	}.Build())
 

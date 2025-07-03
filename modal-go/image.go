@@ -25,7 +25,6 @@ func fromRegistryInternal(app *App, tag string, imageRegistryConfig *pb.ImageReg
 				DockerfileCommands:  []string{`FROM ` + tag},
 				ImageRegistryConfig: imageRegistryConfig,
 			}.Build(),
-			Namespace:      pb.DeploymentNamespace_DEPLOYMENT_NAMESPACE_WORKSPACE,
 			BuilderVersion: imageBuilderVersion(""),
 		}.Build(),
 	)

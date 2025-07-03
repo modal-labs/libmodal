@@ -34,7 +34,6 @@ func SecretFromName(ctx context.Context, name string, options *SecretFromNameOpt
 
 	resp, err := client.SecretGetOrCreate(ctx, pb.SecretGetOrCreateRequest_builder{
 		DeploymentName:  name,
-		Namespace:       pb.DeploymentNamespace_DEPLOYMENT_NAMESPACE_WORKSPACE,
 		EnvironmentName: environmentName(options.Environment),
 		RequiredKeys:    options.RequiredKeys,
 	}.Build())

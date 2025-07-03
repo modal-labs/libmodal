@@ -54,7 +54,6 @@ func FunctionLookup(ctx context.Context, appName string, name string, options *L
 	resp, err := client.FunctionGet(ctx, pb.FunctionGetRequest_builder{
 		AppName:         appName,
 		ObjectTag:       name,
-		Namespace:       pb.DeploymentNamespace_DEPLOYMENT_NAMESPACE_WORKSPACE,
 		EnvironmentName: environmentName(options.Environment),
 	}.Build())
 

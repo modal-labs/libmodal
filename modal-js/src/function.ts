@@ -4,7 +4,6 @@ import { createHash } from "node:crypto";
 
 import {
   DataFormat,
-  DeploymentNamespace,
   FunctionCallInvocationType,
   FunctionInput,
 } from "../proto/modal_proto/api";
@@ -49,7 +48,6 @@ export class Function_ {
       const resp = await client.functionGet({
         appName,
         objectTag: name,
-        namespace: DeploymentNamespace.DEPLOYMENT_NAMESPACE_WORKSPACE,
         environmentName: environmentName(options.environment),
       });
       return new Function_(
