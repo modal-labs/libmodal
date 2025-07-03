@@ -8,7 +8,7 @@ import { NotFoundError } from "./errors";
 export type VolumeFromNameOptions = {
   environment?: string;
   createIfMissing?: boolean;
-  version?: VolumeFsVersion;
+  version?: 1 | 2;
 };
 
 /** Volumes provide persistent storage that can be mounted in Modal functions. */
