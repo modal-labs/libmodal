@@ -17,16 +17,19 @@ export class Cls {
   #serviceFunctionId: string;
   #schema: ClassParameterSpec[];
   #methodNames: string[];
+  #inputPlaneUrl?: string;
 
   /** @ignore */
   constructor(
     serviceFunctionId: string,
     schema: ClassParameterSpec[],
     methodNames: string[],
+    inputPlaneUrl?: string,
   ) {
     this.#serviceFunctionId = serviceFunctionId;
     this.#schema = schema;
     this.#methodNames = methodNames;
+    this.#inputPlaneUrl = inputPlaneUrl;
   }
 
   static async lookup(
@@ -65,7 +68,12 @@ export class Cls {
           "Cls requires Modal deployments using client v0.67 or later.",
         );
       }
-      return new Cls(serviceFunction.functionId, schema, methodNames);
+      return new Cls(
+        serviceFunction.functionId,
+        schema,
+        methodNames,
+        serviceFunction.handleMetadata?.inputPlaneUrl,
+      );
     } catch (err) {
       if (err instanceof ClientError && err.code === Status.NOT_FOUND)
         throw new NotFoundError(`Class '${appName}/${name}' not found`);
@@ -83,7 +91,7 @@ export class Cls {
     }
     const methods = new Map<string, Function_>();
     for (const name of this.#methodNames) {
-      methods.set(name, new Function_(functionId, name));
+      methods.set(name, new Function_(functionId, name, this.#inputPlaneUrl));
     }
     return new ClsInstance(methods);
   }

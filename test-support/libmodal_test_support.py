@@ -32,6 +32,13 @@ class EchoCls:
         return "output: " + s
 
 
+@app.cls(min_containers=1, experimental_options={"input_plane_region": "us-east"})
+class EchoClsInputPlane:
+    @modal.method()
+    def echo_string(self, s: str) -> str:
+        return "output: " + s
+
+
 @app.cls()
 class EchoClsParametrized:
     name: str = modal.parameter(default="test")

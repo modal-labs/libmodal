@@ -25,3 +25,12 @@ test("ClsNotFound", async () => {
   const cls = Cls.lookup("libmodal-test-support", "NotRealClassName");
   await expect(cls).rejects.toThrowError(NotFoundError);
 });
+
+test("ClsCallInputPlane", async () => {
+  const cls = await Cls.lookup("libmodal-test-support", "EchoClsInputPlane");
+  const instance = await cls.instance();
+
+  const function_ = instance.method("echo_string");
+  const result = await function_.remote([], { s: "hello" });
+  expect(result).toEqual("output: hello");
+});
