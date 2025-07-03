@@ -86,6 +86,4 @@ test("SandboxWithVolume", async () => {
 
   const exitCode = await sandbox.wait();
   expect(exitCode).toBe(0);
-
-  await sandbox.terminate();
 });

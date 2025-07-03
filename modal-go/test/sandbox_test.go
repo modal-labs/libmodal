@@ -144,7 +144,4 @@ func TestSandboxWithVolume(t *testing.T) {
 	exitCode, err := sandbox.Wait()
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(exitCode).Should(gomega.Equal(int32(0)))
-
-	err = sandbox.Terminate()
-	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 }
