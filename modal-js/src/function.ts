@@ -29,14 +29,14 @@ const maxSystemRetries = 8;
 /** Represents a deployed Modal Function, which can be invoked remotely. */
 export class Function_ {
   readonly functionId: string;
-  readonly methodName: string | undefined;
-  readonly inputPlaneUrl: string | undefined;
+  readonly methodName?: string;
+  #inputPlaneUrl?: string;
 
   /** @ignore */
   constructor(functionId: string, methodName?: string, inputPlaneUrl?: string) {
     this.functionId = functionId;
     this.methodName = methodName;
-    this.inputPlaneUrl = inputPlaneUrl;
+    this.#inputPlaneUrl = inputPlaneUrl;
   }
 
   static async lookup(
@@ -86,9 +86,9 @@ export class Function_ {
   }
 
   async #createRemoteInvocation(input: FunctionInput): Promise<Invocation> {
-    if (this.inputPlaneUrl) {
+    if (this.#inputPlaneUrl) {
       return await InputPlaneInvocation.create(
-        this.inputPlaneUrl,
+        this.#inputPlaneUrl,
         this.functionId,
         input,
       );
