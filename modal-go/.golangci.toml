@@ -2,3 +2,6 @@ version = "2"
 
 [linters]
 disable = ["errcheck"]
+
+[formatters]
+enable = ["gofmt", "goimports"]
