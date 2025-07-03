@@ -33,9 +33,7 @@ func VolumeFromName(ctx context.Context, name string, options *VolumeFromNameOpt
 	}
 
 	if options == nil {
-		options = &VolumeFromNameOptions{
-			Version: pb.VolumeFsVersion_VOLUME_FS_VERSION_V1,
-		}
+		options = &VolumeFromNameOptions{}
 	}
 
 	creationType := pb.ObjectCreationType_OBJECT_CREATION_TYPE_UNSPECIFIED

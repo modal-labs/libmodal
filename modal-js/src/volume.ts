@@ -31,7 +31,7 @@ export class Volume {
         objectCreationType: options?.createIfMissing
           ? ObjectCreationType.OBJECT_CREATION_TYPE_CREATE_IF_MISSING
           : ObjectCreationType.OBJECT_CREATION_TYPE_UNSPECIFIED,
-        version: options?.version ?? VolumeFsVersion.VOLUME_FS_VERSION_V1,
+        version: options?.version,
       });
       return new Volume(resp.volumeId);
     } catch (err) {
