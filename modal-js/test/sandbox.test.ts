@@ -1,4 +1,4 @@
-import { App } from "modal";
+import { App, Volume } from "modal";
 import { expect, test } from "vitest";
 
 test("CreateOneSandbox", async () => {
@@ -66,4 +66,26 @@ test("SandboxExecOptions", async () => {
   } finally {
     await sb.terminate();
   }
+});
+
+test("SandboxWithVolume", async () => {
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
+  const image = await app.imageFromRegistry("alpine:3.21");
+
+  const volume = await Volume.fromName("libmodal-test-sandbox-volume", {
+    createIfMissing: true,
+  });
+
+  const sandbox = await app.createSandbox(image, {
+    command: ["echo", "volume test"],
+    volumes: { "/mnt/test": volume },
+  });
+
+  expect(sandbox).toBeDefined();
+  expect(sandbox.sandboxId).toMatch(/^sb-/);
+
+  const exitCode = await sandbox.wait();
+  expect(exitCode).toBe(0);
+
+  await sandbox.terminate();
 });

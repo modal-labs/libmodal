@@ -10,6 +10,7 @@ import { fromRegistryInternal, type Image } from "./image";
 import { Sandbox } from "./sandbox";
 import { NotFoundError } from "./errors";
 import { Secret } from "./secret";
+import { Volume } from "./volume";
 
 /** Options for functions that find deployed Modal objects. */
 export type LookupOptions = {
@@ -43,6 +44,9 @@ export type SandboxCreateOptions = {
    * Default behavior is to sleep indefinitely until timeout or termination.
    */
   command?: string[]; // default is ["sleep", "48h"]
+
+  /** Mount points for Modal Volumes. */
+  volumes?: Record<string, Volume>;
 };
 
 /** Represents a deployed Modal App. */
@@ -83,6 +87,15 @@ export class App {
       );
     }
 
+    const volumeMounts = options.volumes
+      ? Object.entries(options.volumes).map(([mountPath, volume]) => ({
+          volumeId: volume.volumeId,
+          mountPath,
+          allowBackgroundCommits: true,
+          readOnly: false,
+        }))
+      : [];
+
     const createResp = await client.sandboxCreate({
       appId: this.appId,
       definition: {
@@ -99,6 +112,7 @@ export class App {
           milliCpu: Math.round(1000 * (options.cpu ?? 0.125)),
           memoryMb: options.memory ?? 128,
         },
+        volumeMounts,
       },
     });
 
