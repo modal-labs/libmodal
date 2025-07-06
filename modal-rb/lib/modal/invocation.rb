@@ -1,5 +1,6 @@
+require_relative 'pickle'
+
 module Modal
-  # Interface for Invocation (ControlPlaneInvocation or InputPlaneInvocation)
   module Invocation
     def await_output(timeout = nil); end
     def retry(retry_count); end
@@ -18,10 +19,10 @@ module Modal
     end
 
     def self.create(function_id, input, invocation_type)
-      function_put_inputs_item = Modal::Proto::FunctionPutInputsItem.new(idx: 0, input: input)
-      request = Modal::Proto::FunctionMapRequest.new(
+      function_put_inputs_item = Modal::Client::FunctionPutInputsItem.new(idx: 0, input: input)
+      request = Modal::Client::FunctionMapRequest.new(
         function_id: function_id,
-        function_call_type: Modal::Proto::FunctionCallType::FUNCTION_CALL_TYPE_UNARY,
+        function_call_type: Modal::Client::FunctionCallType::FUNCTION_CALL_TYPE_UNARY,
         function_call_invocation_type: invocation_type,
         pipelined_inputs: [function_put_inputs_item]
       )
@@ -48,12 +49,12 @@ module Modal
         raise "Cannot retry function invocation - input missing"
       end
 
-      retry_item = Modal::Proto::FunctionRetryInputsItem.new(
+      retry_item = Modal::Client::FunctionRetryInputsItem.new(
         input_jwt: @input_jwt,
         input: @input,
         retry_count: retry_count
       )
-      request = Modal::Proto::FunctionRetryInputsRequest.new(
+      request = Modal::Client::FunctionRetryInputsRequest.new(
         function_call_jwt: @function_call_jwt,
         inputs: [retry_item]
       )
@@ -63,39 +64,70 @@ module Modal
 
     private
 
-    # Polls for function output. This is a simplified version.
     def poll_function_output(function_call_id, timeout_ms = nil)
-      # This is a simplified polling loop.
-      # In a real implementation, you'd manage polling intervals and check for
-      # specific output events or completion status.
-      # The `FunctionGetOutputsResponse` would contain `completed` and `output`.
       start_time = Time.now
+      last_entry_id = ""
+
       loop do
-        request = Modal::Proto::FunctionGetOutputsRequest.new(
+        request = Modal::Client::FunctionGetOutputsRequest.new(
           function_call_id: function_call_id,
-          timeout: 55 # seconds, placeholder
+          timeout: 55.0, # seconds
+          last_entry_id: last_entry_id,
+          max_values: 1,
+          clear_on_success: true,
+          requested_at: Time.now.to_f
         )
+
         resp = Modal.client.call(:function_get_outputs, request)
 
-        if resp.completed
-          if resp.output
-            return Pickle.loads(resp.output)
-          else
-            return nil # Or raise an error if output is expected but missing
+        if resp.last_entry_id && !resp.last_entry_id.empty?
+          last_entry_id = resp.last_entry_id
+        end
+
+        if resp.outputs && resp.outputs.any?
+          output_item = resp.outputs.first
+          if output_item.result
+            return process_result(output_item.result, output_item.data_format)
           end
+        end
+
+        if resp.respond_to?(:num_unfinished_inputs) && resp.num_unfinished_inputs == 0
+          return nil
         end
 
         if timeout_ms && (Time.now - start_time) * 1000 > timeout_ms
           raise FunctionTimeoutError.new("Function call timed out after #{timeout_ms}ms")
         end
 
-        sleep(1) # Poll every second
+        sleep(1)
       end
     rescue GRPC::BadStatus => e
       if e.code == GRPC::Core::StatusCodes::DEADLINE_EXCEEDED
         raise FunctionTimeoutError.new("Function call timed out.")
       else
-        raise e # Re-raise other gRPC errors
+        raise e
+      end
+    end
+
+    def process_result(result, data_format)
+      status = result.status.to_s.to_sym
+
+      case status
+      when :GENERIC_STATUS_SUCCESS
+        if result.data && !result.data.empty?
+          return Pickle.load(result.data)
+        elsif result.data_blob_id && !result.data_blob_id.empty?
+          return nil
+        else
+          return nil
+        end
+      when :GENERIC_STATUS_TIMEOUT
+        raise FunctionTimeoutError.new(result.exception || "Function timed out")
+      when :GENERIC_STATUS_INTERNAL_FAILURE
+        raise InternalFailure.new(result.exception || "Internal failure")
+      else
+        error_msg = result.exception || "Unknown error (status: #{result.status})"
+        raise RemoteError.new("Function execution failed: #{error_msg}")
       end
     end
   end

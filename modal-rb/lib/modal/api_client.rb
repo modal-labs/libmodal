@@ -13,18 +13,18 @@ module Modal
 
     def initialize
       @profile = Config.profile
+      target, credentials = parse_server_url(@profile[:server_url])
+
       @stub = Modal::Client::ModalClient::Stub.new(
-        @profile[:server_url],
-        :this_channel_is_insecure, # For development, use secure channel in production
+        target,
+        credentials,
         channel_args: {
           'grpc.max_receive_message_length' => 100 * 1024 * 1024, # 100 MiB
           'grpc.max_send_message_length' => 100 * 1024 * 1024, # 100 MiB
-          'grpc-node.flow_control_window' => 64 * 1024 * 1024, # 64 MiB (Node.js specific, might not be needed for Ruby)
         }
       )
     end
 
-    # Generic gRPC call wrapper with auth and retry logic.
     def call(method_name, request_pb, options = {})
       retries = options[:retries] || 3
       base_delay = options[:base_delay] || 0.1 # seconds
@@ -37,17 +37,17 @@ module Modal
 
       loop do
         metadata = {
-          'x-modal-client-type' => 'CLIENT_TYPE_LIBMODAL',
-          'x-modal-client-version' => '1.0.0', # CLIENT VERSION: Behaves like this Python SDK version
+          'x-modal-client-type' => Modal::Client::ClientType::CLIENT_TYPE_LIBMODAL.to_s, # TODO: libmodal_rb!!!
+          'x-modal-client-version' => '1.0.0',
           'x-modal-token-id' => @profile[:token_id],
           'x-modal-token-secret' => @profile[:token_secret],
           'x-idempotency-key' => idempotency_key,
           'x-retry-attempt' => attempt.to_s,
         }
-        metadata['x-retry-delay'] = ((Time.now.to_f - @start_time_ms / 1000.0)).round(3).to_s if attempt > 0
+        metadata['x-retry-delay'] = base_delay.to_s if attempt > 0
 
         call_options = { metadata: metadata }
-        call_options[:deadline] = Time.now + timeout / 1000.0 if timeout # Convert ms to seconds
+        call_options[:deadline] = Time.now + timeout / 1000.0 if timeout
 
         begin
           response = @stub.send(method_name, request_pb, call_options)
@@ -62,12 +62,27 @@ module Modal
             raise convert_grpc_error(e)
           end
         rescue StandardError => e
-          raise e # Re-raise other errors
+          raise e
         end
       end
     end
 
     private
+
+    def parse_server_url(server_url)
+      if server_url.start_with?('https://')
+        target = server_url.sub('https://', '')
+        credentials = GRPC::Core::ChannelCredentials.new
+      elsif server_url.start_with?('http://')
+        target = server_url.sub('http://', '')
+        credentials = :this_channel_is_insecure
+      else
+        target = server_url
+        credentials = GRPC::Core::ChannelCredentials.new
+      end
+
+      [target, credentials]
+    end
 
     def convert_grpc_error(grpc_error)
       case grpc_error.code
@@ -89,8 +104,7 @@ module Modal
     end
   end
 
-  # Global client instance
-  @client ||= ApiClient.new
+  @client = ApiClient.new
   def self.client
     @client
   end

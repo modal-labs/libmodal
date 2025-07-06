@@ -60,6 +60,7 @@ module Modal
         rpc :ContainerHeartbeat, ::Modal::Client::ContainerHeartbeatRequest, ::Modal::Client::ContainerHeartbeatResponse
         rpc :ContainerHello, ::Google::Protobuf::Empty, ::Google::Protobuf::Empty
         rpc :ContainerLog, ::Modal::Client::ContainerLogRequest, ::Google::Protobuf::Empty
+        rpc :ContainerReloadVolumes, ::Modal::Client::ContainerReloadVolumesRequest, ::Modal::Client::ContainerReloadVolumesResponse
         rpc :ContainerStop, ::Modal::Client::ContainerStopRequest, ::Modal::Client::ContainerStopResponse
         # Dicts
         rpc :DictClear, ::Modal::Client::DictClearRequest, ::Google::Protobuf::Empty
@@ -83,6 +84,10 @@ module Modal
         rpc :EnvironmentGetOrCreate, ::Modal::Client::EnvironmentGetOrCreateRequest, ::Modal::Client::EnvironmentGetOrCreateResponse
         rpc :EnvironmentList, ::Google::Protobuf::Empty, ::Modal::Client::EnvironmentListResponse
         rpc :EnvironmentUpdate, ::Modal::Client::EnvironmentUpdateRequest, ::Modal::Client::EnvironmentListItem
+        # Modal Flash (experimental)
+        rpc :FlashContainerDeregister, ::Modal::Client::FlashContainerDeregisterRequest, ::Google::Protobuf::Empty
+        rpc :FlashContainerList, ::Modal::Client::FlashContainerListRequest, ::Modal::Client::FlashContainerListResponse
+        rpc :FlashContainerRegister, ::Modal::Client::FlashContainerRegisterRequest, ::Modal::Client::FlashContainerRegisterResponse
         # Functions
         rpc :FunctionAsyncInvoke, ::Modal::Client::FunctionAsyncInvokeRequest, ::Modal::Client::FunctionAsyncInvokeResponse
         rpc :FunctionBindParams, ::Modal::Client::FunctionBindParamsRequest, ::Modal::Client::FunctionBindParamsResponse

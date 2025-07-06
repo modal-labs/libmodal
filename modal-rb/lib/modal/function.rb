@@ -1,5 +1,5 @@
 require 'digest'
-require_relative 'pickle' # For dumps/loads
+require_relative 'pickle'
 
 module Modal
   class Function_
@@ -14,11 +14,10 @@ module Modal
     end
 
     def self.lookup(app_name, name, options = {})
-      environment = options[:environment]
-      request = Modal::Proto::FunctionGetRequest.new(
+      environment = options[:environment] || Modal::Config.environment_name
+      request = Modal::Client::FunctionGetRequest.new(
         app_name: app_name,
         object_tag: name,
-        namespace: Modal::Proto::DeploymentNamespace::DEPLOYMENT_NAMESPACE_WORKSPACE,
         environment_name: Config.environment_name(environment)
       )
       resp = Modal.client.call(:function_get, request)
@@ -29,7 +28,7 @@ module Modal
 
     def remote(args = [], kwargs = {})
       input = create_input(args, kwargs)
-      invocation = ControlPlaneInvocation.create(@function_id, input, Modal::Proto::FunctionCallInvocationType::FUNCTION_CALL_INVOCATION_TYPE_SYNC)
+      invocation = ControlPlaneInvocation.create(@function_id, input, Modal::Client::FunctionCallInvocationType::FUNCTION_CALL_INVOCATION_TYPE_SYNC)
 
       retry_count = 0
       loop do
@@ -48,35 +47,46 @@ module Modal
 
     def spawn(args = [], kwargs = {})
       input = create_input(args, kwargs)
-      invocation = ControlPlaneInvocation.create(@function_id, input, Modal::Proto::FunctionCallInvocationType::FUNCTION_CALL_INVOCATION_TYPE_ASYNC)
+      invocation = ControlPlaneInvocation.create(@function_id, input, Modal::Client::FunctionCallInvocationType::FUNCTION_CALL_INVOCATION_TYPE_ASYNC)
       FunctionCall.new(invocation.function_call_id)
     end
 
     private
 
     def create_input(args, kwargs)
-      payload = Pickle.dumps([args, kwargs])
+      # Create a proper Python tuple structure
+      # The Python function expects to receive (*args, **kwargs)
+      # So we need to create a tuple where:
+      # - First element is a tuple of positional args
+      # - Second element is a dict of keyword args
+
+      # Convert Ruby array to Python tuple, Ruby hash to Python dict
+      python_args = args.is_a?(Array) ? args : [args]
+      python_kwargs = kwargs.is_a?(Hash) ? kwargs : {}
+
+      # Create the payload as a tuple of (args_tuple, kwargs_dict)
+      payload = Pickle.dumps([python_args, python_kwargs])
       args_blob_id = nil
 
       if payload.bytesize > MAX_OBJECT_SIZE_BYTES
         args_blob_id = blob_upload(payload)
       end
 
-      Modal::Proto::FunctionInput.new(
+      Modal::Client::FunctionInput.new(
         args: args_blob_id ? nil : payload,
         args_blob_id: args_blob_id,
-        data_format: Modal::Proto::DataFormat::DATA_FORMAT_PICKLE,
+        data_format: Modal::Client::DataFormat::DATA_FORMAT_PICKLE,
         method_name: @method_name,
-        final_input: false # This field isn't specified in the Python client, so it defaults to false.
+        final_input: false
       )
     end
 
     def blob_upload(data)
       content_md5 = Digest::MD5.base64digest(data)
-      content_sha256 = Digest::SHA224.base64digest(data) # SHA224 for SHA256 in base64
+      content_sha256 = Digest::SHA256.base64digest(data)
       content_length = data.bytesize
 
-      request = Modal::Proto::BlobCreateRequest.new(
+      request = Modal::Client::BlobCreateRequest.new(
         content_md5: content_md5,
         content_sha256_base64: content_sha256,
         content_length: content_length
@@ -86,8 +96,6 @@ module Modal
       if resp.multipart
         raise "Function input size exceeds multipart upload threshold, unsupported by this SDK version"
       elsif resp.upload_url
-        # In a real Ruby app, you'd use a gem like 'httparty' or 'faraday' for HTTP requests.
-        # For this example, we'll use a basic Net::HTTP.
         require 'net/http'
         require 'uri'
 

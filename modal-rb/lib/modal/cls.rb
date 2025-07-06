@@ -9,11 +9,10 @@ module Modal
     end
 
     def self.lookup(app_name, name, options = {})
-      service_function_name = "#{name}.*" # Matches the Python client's lookup
-      request = Modal::Proto::FunctionGetRequest.new(
+      service_function_name = "#{name}.*"
+      request = Modal::Client::FunctionGetRequest.new(
         app_name: app_name,
         object_tag: service_function_name,
-        namespace: Modal::Proto::DeploymentNamespace::DEPLOYMENT_NAMESPACE_WORKSPACE,
         environment_name: Config.environment_name(options[:environment])
       )
 
@@ -21,7 +20,7 @@ module Modal
       parameter_info = service_function.handle_metadata&.class_parameter_info
       schema = parameter_info&.schema || []
 
-      if schema.any? && parameter_info.format != Modal::Proto::ClassParameterInfo_ParameterSerializationFormat::PARAM_SERIALIZATION_FORMAT_PROTO
+      if schema.any? && parameter_info.format != Modal::Client::ClassParameterInfo_ParameterSerializationFormat::PARAM_SERIALIZATION_FORMAT_PROTO
         raise "Unsupported parameter format: #{parameter_info.format}"
       end
 
@@ -32,7 +31,7 @@ module Modal
                      end
 
       new(service_function.function_id, schema, method_names)
-    rescue NotFoundError
+    rescue NotFoundError => e
       raise NotFoundError.new("Class '#{app_name}/#{name}' not found")
     end
 
@@ -54,7 +53,7 @@ module Modal
 
     def bind_parameters(params)
       serialized_params = encode_parameter_set(@schema, params)
-      request = Modal::Proto::FunctionBindParamsRequest.new(
+      request = Modal::Client::FunctionBindParamsRequest.new(
         function_id: @service_function_id,
         serialized_params: serialized_params
       )
@@ -64,20 +63,20 @@ module Modal
 
     def encode_parameter_set(schema, params)
       encoded_params = schema.map do |param_spec|
-        encode_parameter(param_spec, params[param_spec.name.to_sym]) # Use symbol keys for Ruby hash
+        encode_parameter(param_spec, params[param_spec.name.to_sym])
       end
-      # Sort keys for deterministic serialization, similar to Python
+
       encoded_params.sort_by!(&:name)
-      Modal::Proto::ClassParameterSet.encode(parameters: encoded_params).to_proto
+      Modal::Client::ClassParameterSet.encode(parameters: encoded_params).to_proto
     end
 
     def encode_parameter(param_spec, value)
       name = param_spec.name
       param_type = param_spec.type
-      param_value = Modal::Proto::ClassParameterValue.new(name: name, type: param_type)
+      param_value = Modal::Client::ClassParameterValue.new(name: name, type: param_type)
 
       case param_type
-      when Modal::Proto::ParameterType::PARAM_TYPE_STRING
+      when Modal::Client::ParameterType::PARAM_TYPE_STRING
         if value.nil? && param_spec.has_default
           value = param_spec.string_default || ""
         end
@@ -85,7 +84,7 @@ module Modal
           raise "Parameter '#{name}' must be a string"
         end
         param_value.string_value = value
-      when Modal::Proto::ParameterType::PARAM_TYPE_INT
+      when Modal::Client::ParameterType::PARAM_TYPE_INT
         if value.nil? && param_spec.has_default
           value = param_spec.int_default || 0
         end
@@ -93,7 +92,7 @@ module Modal
           raise "Parameter '#{name}' must be an integer"
         end
         param_value.int_value = value
-      when Modal::Proto::ParameterType::PARAM_TYPE_BOOL
+      when Modal::Client::ParameterType::PARAM_TYPE_BOOL
         if value.nil? && param_spec.has_default
           value = param_spec.bool_default || false
         end
@@ -101,14 +100,14 @@ module Modal
           raise "Parameter '#{name}' must be a boolean"
         end
         param_value.bool_value = value
-      when Modal::Proto::ParameterType::PARAM_TYPE_BYTES
+      when Modal::Client::ParameterType::PARAM_TYPE_BYTES
         if value.nil? && param_spec.has_default
-          value = param_spec.bytes_default || "" # Empty string for bytes default
+          value = param_spec.bytes_default || ""
         end
-        unless value.is_a?(String) # Ruby bytes are often represented as binary strings
+        unless value.is_a?(String)
           raise "Parameter '#{name}' must be a byte array (String in Ruby)"
         end
-        param_value.bytes_value = value.bytes.pack('C*') # Convert string to byte array
+        param_value.bytes_value = value.bytes.pack('C*')
       else
         raise "Unsupported parameter type: #{param_type}"
       end
@@ -122,7 +121,7 @@ module Modal
     end
 
     def method(name)
-      func = @methods[name.to_s] # Ensure string key lookup
+      func = @methods[name.to_s]
       unless func
         raise NotFoundError.new("Method '#{name}' not found on class")
       end

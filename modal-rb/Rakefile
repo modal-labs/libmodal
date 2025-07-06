@@ -1,52 +1,35 @@
-require 'rake'
-require 'rake/clean'
-require 'fileutils'
+require 'rake/testtask'
 
-PROTO_DIR = 'lib/modal-rb'
-MODAL_CLIENT_ROOT_PATH = '../modal-client'
-GENERATED_PROTO_PATH = PROTO_DIR
-CLEAN << PROTO_DIR
-
-desc "Generate Ruby protobuf files"
-task :generate_protos do
-  FileUtils.mkdir_p(GENERATED_PROTO_PATH)
-  proto_files = Dir.glob(File.join(MODAL_CLIENT_ROOT_PATH, 'modal_proto', '*.proto'))
-  if proto_files.empty?
-    puts "No .proto files found in #{File.join(MODAL_CLIENT_ROOT_PATH, 'modal_proto')}. Please ensure the path is correct and `modal-client` is cloned."
-    exit 1
-  end
-
-  # Command to generate Ruby protobuf and gRPC service files
-  # --proto_path should point to the root directory where `modal_proto` is a subdirectory
-  # --ruby_out and --grpc_out should point to the base output directory (PROTO_DIR)
-  sh "grpc_tools_ruby_protoc " \
-     "--proto_path=#{MODAL_CLIENT_ROOT_PATH} " \
-     "--ruby_out=#{GENERATED_PROTO_PATH} " \
-     "--grpc_out=#{GENERATED_PROTO_PATH} " \
-     "#{proto_files.join(' ')}"
-
-  puts "Ruby protobuf files generated successfully in #{GENERATED_PROTO_PATH}/modal_proto"
+Rake::TestTask.new(:test) do |t|
+  puts "Running tests..."
+  t.libs << 'test'
+  t.libs << 'lib'
+  t.test_files = FileList['test/test_*.rb']
+  t.verbose = true
+  t.warning = true
 end
 
-desc "Run tests"
-task :test do
-  # Load test_helper first, which sets up $LOAD_PATH and Minitest
-  require_relative 'test/test_helper'
-
-  # Collect all test files
-  test_files = Dir.glob('test/**/test_*.rb')
-
-  if test_files.empty?
-    puts "No test files found in 'test/**/*_test.rb'. Please check your test file names and location."
-    exit 1
-  end
-
-  # Iterate and load each test file.
-  # 'load' ensures the file is executed, registering its tests with Minitest.
-  test_files.each { |file| load file }
-
-  puts "Tests loaded. Minitest should now run the discovered tests."
-  # Minitest::Runnable.run_all will be called automatically by minitest/autorun
+desc "Generate Protobuf files"
+task :proto_gen do
+  puts "Generating Protobuf files..."
+  sh "grpc_tools_ruby_protoc --ruby_out=lib --grpc_out=lib --proto_path=../modal-client ../modal-client/modal_proto/*.proto"
 end
 
-task :default => :generate_protos
+desc "build the gem"
+task :build do
+  puts "Building the gem..."
+  sh "gem build modal.gemspec"
+end
+
+desc "Reinstall the gem after building"
+task :reinstall => [:build] do
+  puts "Reinstalling the gem..."
+  def reinstall_gem
+    sh "gem uninstall modal --force"
+    sh "gem install modal-#{File.read('modal.gemspec').match(/version\s*=\s*['\"]([^'\"]+)['\"]/)[1]}.gem"
+  end
+
+  reinstall_gem
+end
+
+task default: [:proto_gen, :test, :build, :reinstall]

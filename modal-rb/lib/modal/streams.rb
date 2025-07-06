@@ -6,10 +6,14 @@ module Modal
       @source_iterable = source_iterable
     end
 
+    def read
+      read_text
+    end
+
     def read_text
       chunks = []
       @source_iterable.each do |bytes|
-        chunks << bytes.force_encoding('UTF-8') # Assume UTF-8 for text
+        chunks << bytes.dup.force_encoding('UTF-8')
       end
       chunks.join('')
     end
@@ -17,14 +21,17 @@ module Modal
     def read_bytes
       chunks = []
       @source_iterable.each do |bytes|
-        chunks << bytes
+        chunks << bytes.dup
       end
-      chunks.join('').bytes.pack('C*') # Concatenate and return as binary string
+      chunks.join('').bytes.pack('C*')
     end
 
-    # Allow iteration over the stream
     def each(&block)
       @source_iterable.each(&block)
+    end
+
+    def close
+      @source_iterable.close if @source_iterable.respond_to?(:close)
     end
   end
 
@@ -33,8 +40,22 @@ module Modal
       @sink_writable = sink_writable
     end
 
+
+    def write(data)
+      if data.is_a?(String)
+        if data.encoding == Encoding::BINARY
+          write_bytes(data)
+        else
+          write_text(data)
+        end
+      else
+
+        write_bytes(data.to_s)
+      end
+    end
+
     def write_text(text)
-      @sink_writable.write(text.bytes.pack('C*')) # Convert string to bytes
+      @sink_writable.write(text)
     end
 
     def write_bytes(bytes)
@@ -43,6 +64,10 @@ module Modal
 
     def close
       @sink_writable.close if @sink_writable.respond_to?(:close)
+    end
+
+    def flush
+      @sink_writable.flush if @sink_writable.respond_to?(:flush)
     end
   end
 end

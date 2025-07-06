@@ -20,7 +20,7 @@ module Modal
 
     def cancel(options = {})
       terminate_containers = options[:terminate_containers] || false
-      request = Modal::Proto::FunctionCallCancelRequest.new(
+      request = Modal::Client::FunctionCallCancelRequest.new(
         function_call_id: @function_call_id,
         terminate_containers: terminate_containers
       )

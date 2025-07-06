@@ -21,19 +21,19 @@ module Modal
     end
 
     def create_sandbox(image, options = {})
-      timeout_secs = options[:timeout] ? options[:timeout] / 1000 : 600 # Convert ms to seconds
+      timeout_secs = options[:timeout] ? options[:timeout] / 1000 : 600
       cpu_milli = (options[:cpu] || 0.125) * 1000
       memory_mb = options[:memory] || 128
       command = options[:command] || ["sleep", "48h"]
 
       request = Modal::Client::SandboxCreateRequest.new(
         app_id: @app_id,
-        definition: Modal::Client::SandboxDefinition.new(
+        definition: Modal::Client::Sandbox.new(
           entrypoint_args: command,
           image_id: image.image_id,
           timeout_secs: timeout_secs,
           network_access: Modal::Client::NetworkAccess.new(
-            network_access_type: Modal::Client::NetworkAccess_NetworkAccessType::OPEN
+            network_access_type: Modal::Client::NetworkAccess::NetworkAccessType::OPEN
           ),
           resources: Modal::Client::Resources.new(
             milli_cpu: cpu_milli.round,
