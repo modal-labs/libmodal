@@ -197,6 +197,12 @@ export class Sandbox {
     }
   }
 
+  /** Get Tunnel metadata for the sandbox.
+   *
+   * Raises `SandboxTimeoutError` if the tunnels are not available after the timeout.
+   *
+   * @returns A dictionary of Tunnel objects which are keyed by the container port.
+   */
   async tunnels(timeout = 50000): Promise<Record<number, Tunnel>> {
     if (this.#tunnels) {
       return this.#tunnels;
