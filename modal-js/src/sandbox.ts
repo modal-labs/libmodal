@@ -47,25 +47,8 @@ export type ExecOptions = {
 };
 
 /** A port forwarded from within a running Modal sandbox. */
-export interface Tunnel {
-  /** The public hostname for the tunnel. */
-  host: string;
-  /** The public port for the tunnel. */
-  port: number;
-  /** The unencrypted hostname (if applicable). */
-  unencryptedHost?: string;
-  /** The unencrypted port (if applicable). */
-  unencryptedPort?: number;
-
-  /** Get the public HTTPS URL of the forwarded port. */
-  get url(): string;
-  /** Get the public TLS socket as a [host, port] tuple. */
-  get tlsSocket(): [string, number];
-  /** Get the public TCP socket as a [host, port] tuple. */
-  get tcpSocket(): [string, number];
-}
-
-class TunnelImpl implements Tunnel {
+export class Tunnel {
+  /** @ignore */
   constructor(
     public host: string,
     public port: number,
@@ -73,6 +56,7 @@ class TunnelImpl implements Tunnel {
     public unencryptedPort?: number,
   ) {}
 
+  /** Get the public HTTPS URL of the forwarded port. */
   get url(): string {
     let value = `https://${this.host}`;
     if (this.port !== 443) {
@@ -81,10 +65,12 @@ class TunnelImpl implements Tunnel {
     return value;
   }
 
+  /** Get the public TLS socket as a [host, port] tuple. */
   get tlsSocket(): [string, number] {
     return [this.host, this.port];
   }
 
+  /** Get the public TCP socket as a [host, port] tuple. */
   get tcpSocket(): [string, number] {
     if (!this.unencryptedHost || this.unencryptedPort === undefined) {
       throw new InvalidError(
@@ -229,7 +215,7 @@ export class Sandbox {
 
     this.#tunnels = {};
     for (const t of resp.tunnels) {
-      this.#tunnels[t.containerPort] = new TunnelImpl(
+      this.#tunnels[t.containerPort] = new Tunnel(
         t.host,
         t.port,
         t.unencryptedHost,
