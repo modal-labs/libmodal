@@ -74,7 +74,7 @@ export class Tunnel {
   get tcpSocket(): [string, number] {
     if (!this.unencryptedHost || this.unencryptedPort === undefined) {
       throw new InvalidError(
-        "This tunnel is not configured for unencrypted TCP. Please use `forward(..., unencrypted=True)`.",
+        "This tunnel is not configured for unencrypted TCP.",
       );
     }
     return [this.unencryptedHost, this.unencryptedPort];

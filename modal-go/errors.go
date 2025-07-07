@@ -73,3 +73,12 @@ type SandboxFilesystemError struct {
 func (e SandboxFilesystemError) Error() string {
 	return "SandboxFilesystemError: " + e.Exception
 }
+
+// SandboxTimeoutError is returned when sandbox operations exceed the allowed time limit.
+type SandboxTimeoutError struct {
+	Exception string
+}
+
+func (e SandboxTimeoutError) Error() string {
+	return "SandboxTimeoutError: " + e.Exception
+}

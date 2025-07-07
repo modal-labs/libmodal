@@ -34,11 +34,14 @@ type EphemeralOptions struct {
 
 // SandboxOptions are options for creating a Modal Sandbox.
 type SandboxOptions struct {
-	CPU     float64            // CPU request in physical cores.
-	Memory  int                // Memory request in MiB.
-	Timeout time.Duration      // Maximum duration for the Sandbox.
-	Command []string           // Command to run in the Sandbox on startup.
-	Volumes map[string]*Volume // Mount points for Volumes.
+	CPU              float64            // CPU request in physical cores.
+	Memory           int                // Memory request in MiB.
+	Timeout          time.Duration      // Maximum duration for the Sandbox.
+	Command          []string           // Command to run in the Sandbox on startup.
+	Volumes          map[string]*Volume // Mount points for Volumes.
+	EncryptedPorts   []int              // List of encrypted ports to tunnel into the sandbox, with TLS encryption.
+	H2Ports          []int              // List of encrypted ports to tunnel into the sandbox, using HTTP/2.
+	UnencryptedPorts []int              // List of ports to tunnel into the sandbox without encryption.
 }
 
 // ImageFromRegistryOptions are options for creating an Image from a registry.
@@ -97,6 +100,34 @@ func (app *App) CreateSandbox(image *Image, options *SandboxOptions) (*Sandbox, 
 		}
 	}
 
+	var openPorts []*pb.PortSpec
+	for _, port := range options.EncryptedPorts {
+		openPorts = append(openPorts, pb.PortSpec_builder{
+			Port:        uint32(port),
+			Unencrypted: false,
+		}.Build())
+	}
+	for _, port := range options.H2Ports {
+		openPorts = append(openPorts, pb.PortSpec_builder{
+			Port:        uint32(port),
+			Unencrypted: false,
+			TunnelType:  pb.TunnelType_TUNNEL_TYPE_H2.Enum(),
+		}.Build())
+	}
+	for _, port := range options.UnencryptedPorts {
+		openPorts = append(openPorts, pb.PortSpec_builder{
+			Port:        uint32(port),
+			Unencrypted: true,
+		}.Build())
+	}
+
+	var portSpecs *pb.PortSpecs
+	if len(openPorts) > 0 {
+		portSpecs = pb.PortSpecs_builder{
+			Ports: openPorts,
+		}.Build()
+	}
+
 	createResp, err := client.SandboxCreate(app.ctx, pb.SandboxCreateRequest_builder{
 		AppId: app.AppId,
 		Definition: pb.Sandbox_builder{
@@ -111,6 +142,7 @@ func (app *App) CreateSandbox(image *Image, options *SandboxOptions) (*Sandbox, 
 				MemoryMb: uint32(options.Memory),
 			}.Build(),
 			VolumeMounts: volumeMounts,
+			OpenPorts:    portSpecs,
 		}.Build(),
 	}.Build())
 

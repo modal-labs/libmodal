@@ -35,6 +35,35 @@ type ExecOptions struct {
 	Timeout time.Duration
 }
 
+// Tunnel represents a port forwarded from within a running Modal sandbox.
+type Tunnel struct {
+	Host            string // The public hostname for the tunnel
+	Port            int    // The public port for the tunnel
+	UnencryptedHost string // The unencrypted hostname (if applicable)
+	UnencryptedPort int    // The unencrypted port (if applicable)
+}
+
+// Get the public HTTPS URL of the forwarded port.
+func (t *Tunnel) URL() string {
+	if t.Port == 443 {
+		return fmt.Sprintf("https://%s", t.Host)
+	}
+	return fmt.Sprintf("https://%s:%d", t.Host, t.Port)
+}
+
+// Get the public TLS socket as a (host, port) tuple.
+func (t *Tunnel) TLSSocket() (string, int) {
+	return t.Host, t.Port
+}
+
+// Get the public TCP socket as a (host, port) tuple.
+func (t *Tunnel) TCPSocket() (string, int, error) {
+	if t.UnencryptedHost == "" || t.UnencryptedPort == 0 {
+		return "", 0, InvalidError{Exception: "This tunnel is not configured for unencrypted TCP."}
+	}
+	return t.UnencryptedHost, t.UnencryptedPort, nil
+}
+
 // Sandbox represents a Modal sandbox, which can run commands and manage
 // input/output streams for a remote process.
 type Sandbox struct {
@@ -43,8 +72,9 @@ type Sandbox struct {
 	Stdout    io.ReadCloser
 	Stderr    io.ReadCloser
 
-	ctx    context.Context
-	taskId string
+	ctx     context.Context
+	taskId  string
+	tunnels map[int]*Tunnel
 }
 
 // newSandbox creates a new Sandbox object from ID.
@@ -149,6 +179,39 @@ func (sb *Sandbox) Wait() (int32, error) {
 			return resp.GetResult().GetExitcode(), nil
 		}
 	}
+}
+
+// Tunnels gets Tunnel metadata for the sandbox.
+// Returns SandboxTimeoutError if the tunnels are not available after the timeout.
+// Returns a map of Tunnel objects keyed by the container port.
+func (sb *Sandbox) Tunnels(timeout time.Duration) (map[int]*Tunnel, error) {
+	if sb.tunnels != nil {
+		return sb.tunnels, nil
+	}
+
+	resp, err := client.SandboxGetTunnels(sb.ctx, pb.SandboxGetTunnelsRequest_builder{
+		SandboxId: sb.SandboxId,
+		Timeout:   float32(timeout.Seconds()),
+	}.Build())
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.GetResult() != nil && resp.GetResult().GetStatus() == pb.GenericResult_GENERIC_STATUS_TIMEOUT {
+		return nil, SandboxTimeoutError{Exception: "Sandbox operation timed out"}
+	}
+
+	sb.tunnels = make(map[int]*Tunnel)
+	for _, t := range resp.GetTunnels() {
+		sb.tunnels[int(t.GetContainerPort())] = &Tunnel{
+			Host:            t.GetHost(),
+			Port:            int(t.GetPort()),
+			UnencryptedHost: t.GetUnencryptedHost(),
+			UnencryptedPort: int(t.GetUnencryptedPort()),
+		}
+	}
+
+	return sb.tunnels, nil
 }
 
 // ContainerProcess represents a process running in a Modal container, allowing
