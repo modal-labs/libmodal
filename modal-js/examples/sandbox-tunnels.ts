@@ -12,7 +12,6 @@ const sandbox = await app.createSandbox(image, {
 
 console.log("Sandbox created:", sandbox.sandboxId);
 
-
 console.log("Getting tunnel information...");
 const tunnels = await sandbox.tunnels();
 
