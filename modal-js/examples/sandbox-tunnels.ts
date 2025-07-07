@@ -12,11 +12,12 @@ const sandbox = await app.createSandbox(image, {
 
 console.log("Sandbox created:", sandbox.sandboxId);
 
-console.log("Waiting for server to start...");
-await new Promise((resolve) => setTimeout(resolve, 3000));
 
 console.log("Getting tunnel information...");
 const tunnels = await sandbox.tunnels();
+
+console.log("Waiting for server to start...");
+await new Promise((resolve) => setTimeout(resolve, 3000));
 const tunnel = tunnels[8000];
 
 console.log("Tunnel information:");
