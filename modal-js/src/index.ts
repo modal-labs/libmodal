@@ -15,6 +15,7 @@ export {
   InvalidError,
   QueueEmptyError,
   QueueFullError,
+  SandboxTimeoutError,
 } from "./errors";
 export { Function_ } from "./function";
 export {
@@ -31,7 +32,7 @@ export {
   type QueuePutOptions,
 } from "./queue";
 export { Image } from "./image";
-export type { ExecOptions, StdioBehavior, StreamMode } from "./sandbox";
+export type { ExecOptions, StdioBehavior, StreamMode, Tunnel } from "./sandbox";
 export { ContainerProcess, Sandbox } from "./sandbox";
 export type { ModalReadStream, ModalWriteStream } from "./streams";
 export { Secret, type SecretFromNameOptions } from "./secret";

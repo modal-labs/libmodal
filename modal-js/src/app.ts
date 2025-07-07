@@ -3,6 +3,8 @@ import {
   NetworkAccess_NetworkAccessType,
   ObjectCreationType,
   RegistryAuthType,
+  PortSpec,
+  TunnelType,
 } from "../proto/modal_proto/api";
 import { client } from "./client";
 import { environmentName } from "./config";
@@ -47,6 +49,15 @@ export type SandboxCreateOptions = {
 
   /** Mount points for Modal Volumes. */
   volumes?: Record<string, Volume>;
+
+  /** List of ports to tunnel into the sandbox with TLS encryption. */
+  encryptedPorts?: number[];
+
+  /** List of ports to tunnel into the sandbox with HTTP/2 encryption. */
+  h2Ports?: number[];
+
+  /** List of ports to tunnel into the sandbox without encryption. */
+  unencryptedPorts?: number[];
 };
 
 /** Represents a deployed Modal App. */
@@ -96,6 +107,34 @@ export class App {
         }))
       : [];
 
+    // Build port specifications
+    const openPorts: PortSpec[] = [];
+    if (options.encryptedPorts) {
+      openPorts.push(
+        ...options.encryptedPorts.map((port) => ({
+          port,
+          unencrypted: false,
+        })),
+      );
+    }
+    if (options.h2Ports) {
+      openPorts.push(
+        ...options.h2Ports.map((port) => ({
+          port,
+          unencrypted: false,
+          tunnelType: TunnelType.TUNNEL_TYPE_H2,
+        })),
+      );
+    }
+    if (options.unencryptedPorts) {
+      openPorts.push(
+        ...options.unencryptedPorts.map((port) => ({
+          port,
+          unencrypted: true,
+        })),
+      );
+    }
+
     const createResp = await client.sandboxCreate({
       appId: this.appId,
       definition: {
@@ -113,6 +152,7 @@ export class App {
           memoryMb: options.memory ?? 128,
         },
         volumeMounts,
+        openPorts: openPorts.length > 0 ? { ports: openPorts } : undefined,
       },
     });
 

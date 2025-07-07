@@ -61,3 +61,11 @@ export class SandboxFilesystemError extends Error {
     this.name = "SandboxFilesystemError";
   }
 }
+
+/** Sandbox operations that exceed the allowed time limit. */
+export class SandboxTimeoutError extends Error {
+  constructor(message: string = "Sandbox operation timed out") {
+    super(message);
+    this.name = "SandboxTimeoutError";
+  }
+}

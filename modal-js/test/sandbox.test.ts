@@ -87,3 +87,41 @@ test("SandboxWithVolume", async () => {
   const exitCode = await sandbox.wait();
   expect(exitCode).toBe(0);
 });
+
+test("SandboxWithTunnels", async () => {
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
+  const image = await app.imageFromRegistry("alpine:3.21");
+
+  const sandbox = await app.createSandbox(image, {
+    command: ["cat"],
+    encryptedPorts: [8443],
+    unencryptedPorts: [8080],
+  });
+
+  expect(sandbox).toBeDefined();
+  expect(sandbox.sandboxId).toMatch(/^sb-/);
+
+  const tunnels = await sandbox.tunnels();
+  expect(Object.keys(tunnels)).toHaveLength(2);
+
+  // Test encrypted tunnel (port 8443)
+  const encryptedTunnel = tunnels[8443];
+  expect(encryptedTunnel.host).toMatch(/\.modal\.host$/);
+  expect(encryptedTunnel.port).toBe(443);
+  expect(encryptedTunnel.url).toMatch(/^https:\/\//);
+  expect(encryptedTunnel.tlsSocket).toEqual([
+    encryptedTunnel.host,
+    encryptedTunnel.port,
+  ]);
+
+  // Test unencrypted tunnel (port 8080)
+  const unencryptedTunnel = tunnels[8080];
+  expect(unencryptedTunnel.unencryptedHost).toMatch(/\.modal\.host$/);
+  expect(typeof unencryptedTunnel.unencryptedPort).toBe("number");
+  expect(unencryptedTunnel.tcpSocket).toEqual([
+    unencryptedTunnel.unencryptedHost,
+    unencryptedTunnel.unencryptedPort,
+  ]);
+
+  await sandbox.terminate();
+});
