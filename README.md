@@ -35,6 +35,7 @@ Examples:
 - [Create a sandbox using a private image from AWS ECR](./modal-js/examples/sandbox-private-image.ts)
 - [Execute sandbox commands](./modal-js/examples/sandbox-exec.ts)
 - [Access sandbox filesystem](./modal-js/examples/sandbox-filesystem.ts)
+- [Expose ports on a sandbox](./modal-js/examples/sandbox-tunnels.ts)
 
 ### Go (`modal-go/`)
 
@@ -59,6 +60,7 @@ Examples:
 - [Create a sandbox using a private image from AWS ECR](./modal-go/examples/sandbox-private-image/main.go)
 - [Execute sandbox commands](./modal-go/examples/sandbox-exec/main.go)
 - [Access sandbox filesystem](./modal-go/examples/sandbox-filesystem/main.go)
+- [Expose ports on a sandbox](./modal-go/examples/sandbox-tunnels/main.go)
 
 ### Python
 
