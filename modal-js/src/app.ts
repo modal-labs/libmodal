@@ -50,10 +50,10 @@ export type SandboxCreateOptions = {
   /** Mount points for Modal Volumes. */
   volumes?: Record<string, Volume>;
 
-  /** List of ports to tunnel into the sandbox with TLS encryption. */
+  /** List of ports to tunnel into the sandbox. Encrypted ports are tunneled with TLS. */
   encryptedPorts?: number[];
 
-  /** List of ports to tunnel into the sandbox with HTTP/2 encryption. */
+  /** List of encrypted ports to tunnel into the sandbox, using HTTP/2. */
   h2Ports?: number[];
 
   /** List of ports to tunnel into the sandbox without encryption. */
