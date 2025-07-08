@@ -6,6 +6,10 @@ Both client libraries are pre-1.0, and they have separate versioning.
 
 No unreleased changes.
 
+## modal-js/v0.3.14, modal-go/v0.0.14
+
+- Add support for setting up Tunnels to expose live TCP ports for Sandboxes.
+
 ## modal-js/v0.3.13, modal-go/v0.0.13
 
 - Fixed calls of Cls with experimental `input_plane_region` option.
