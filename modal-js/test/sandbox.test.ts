@@ -11,7 +11,7 @@ test("CreateOneSandbox", async () => {
   const sb = await app.createSandbox(image);
   expect(sb.sandboxId).toBeTruthy();
   await sb.terminate();
-  expect(await sb.wait()).toBe(0);
+  expect(await sb.wait()).toBe(137);
 });
 
 test("PassCatToStdin", async () => {
@@ -124,4 +124,41 @@ test("SandboxWithTunnels", async () => {
   ]);
 
   await sandbox.terminate();
+});
+
+test("SandboxReturnCodeIntegration", async () => {
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
+  const image = await app.imageFromRegistry("alpine:3.21");
+
+  const sandbox = await app.createSandbox(image, { command: ["cat"] });
+
+  let pollResult = await sandbox.poll();
+  expect(pollResult).toBeNull();
+  expect(sandbox.returncode).toBeNull();
+
+  // Send input to make the cat command complete
+  await sandbox.stdin.writeText("hello, sandbox");
+  await sandbox.stdin.close();
+
+  const waitResult = await sandbox.wait();
+  expect(waitResult).toBe(0);
+
+  pollResult = await sandbox.poll();
+  expect(pollResult).toBe(0);
+  expect(sandbox.returncode).toBe(0);
+});
+
+test("SandboxPollAfterFailure", async () => {
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
+  const image = await app.imageFromRegistry("alpine:3.21");
+
+  const sandbox = await app.createSandbox(image, {
+    command: ["sh", "-c", "exit 42"],
+  });
+
+  const waitResult = await sandbox.wait();
+  expect(waitResult).toBe(42);
+  const pollResult = await sandbox.poll();
+  expect(pollResult).toBe(42);
+  expect(sandbox.returncode).toBe(42);
 });

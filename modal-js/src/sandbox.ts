@@ -1,5 +1,6 @@
 import {
   FileDescriptor,
+  GenericResult,
   GenericResult_GenericStatus,
 } from "../proto/modal_proto/api";
 import { client, isRetryableGrpc } from "./client";
@@ -90,10 +91,12 @@ export class Sandbox {
 
   #taskId: string | undefined;
   #tunnels: Record<number, Tunnel> | undefined;
+  #result: GenericResult | undefined;
 
   /** @ignore */
   constructor(sandboxId: string) {
     this.sandboxId = sandboxId;
+    this.#result = undefined;
 
     this.stdin = toModalWriteStream(inputStreamSb(sandboxId));
     this.stdout = toModalReadStream(
@@ -192,7 +195,8 @@ export class Sandbox {
         timeout: 55,
       });
       if (resp.result) {
-        return resp.result.exitcode;
+        this.#result = resp.result;
+        return this.returncode!;
       }
     }
   }
@@ -230,6 +234,51 @@ export class Sandbox {
     }
 
     return this.#tunnels;
+  }
+
+  /**
+   * Check if the Sandbox has finished running.
+   *
+   * Returns `null` if the Sandbox is still running, else returns the exit code.
+   */
+  async poll(): Promise<number | null> {
+    const resp = await client.sandboxWait({
+      sandboxId: this.sandboxId,
+      timeout: 0,
+    });
+
+    if (resp.result?.status) {
+      this.#result = resp.result;
+    }
+
+    return this.returncode;
+  }
+
+  /**
+   * Return code of the Sandbox process if it has finished running, else `null`.
+   */
+  get returncode(): number | null {
+    if (
+      this.#result === undefined ||
+      this.#result.status ===
+        GenericResult_GenericStatus.GENERIC_STATUS_UNSPECIFIED
+    ) {
+      return null;
+    }
+
+    // Statuses are converted to exitcodes so we can conform to subprocess API.
+    if (
+      this.#result.status === GenericResult_GenericStatus.GENERIC_STATUS_TIMEOUT
+    ) {
+      return 124;
+    } else if (
+      this.#result.status ===
+      GenericResult_GenericStatus.GENERIC_STATUS_TERMINATED
+    ) {
+      return 137;
+    } else {
+      return this.#result.exitcode;
+    }
   }
 }
 
