@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"time"
 
 	"github.com/modal-labs/libmodal/modal-go"
 )
@@ -48,9 +47,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to close stdin: %v", err)
 	}
-
-	// Give it a moment to process
-	time.Sleep(100 * time.Millisecond)
 
 	exitCode, err := sandbox.Wait()
 	if err != nil {
