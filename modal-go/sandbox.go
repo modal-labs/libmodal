@@ -176,7 +176,11 @@ func (sb *Sandbox) Wait() (int32, error) {
 			return 0, err
 		}
 		if resp.GetResult() != nil {
-			return resp.GetResult().GetExitcode(), nil
+			returnCode := getReturnCode(resp.GetResult())
+			if returnCode != nil {
+				return *returnCode, nil
+			}
+			return 0, nil
 		}
 	}
 }
@@ -212,6 +216,39 @@ func (sb *Sandbox) Tunnels(timeout time.Duration) (map[int]*Tunnel, error) {
 	}
 
 	return sb.tunnels, nil
+}
+
+// Poll checks if the Sandbox has finished running.
+// Returns nil if the Sandbox is still running, else returns the exit code.
+func (sb *Sandbox) Poll() (*int32, error) {
+	resp, err := client.SandboxWait(sb.ctx, pb.SandboxWaitRequest_builder{
+		SandboxId: sb.SandboxId,
+		Timeout:   0,
+	}.Build())
+	if err != nil {
+		return nil, err
+	}
+
+	return getReturnCode(resp.GetResult()), nil
+}
+
+func getReturnCode(result *pb.GenericResult) *int32 {
+	if result == nil || result.GetStatus() == pb.GenericResult_GENERIC_STATUS_UNSPECIFIED {
+		return nil
+	}
+
+	// Statuses are converted to exitcodes so we can conform to subprocess API.
+	var exitCode int32
+	switch result.GetStatus() {
+	case pb.GenericResult_GENERIC_STATUS_TIMEOUT:
+		exitCode = 124
+	case pb.GenericResult_GENERIC_STATUS_TERMINATED:
+		exitCode = 137
+	default:
+		exitCode = result.GetExitcode()
+	}
+
+	return &exitCode
 }
 
 // ContainerProcess represents a process running in a Modal container, allowing

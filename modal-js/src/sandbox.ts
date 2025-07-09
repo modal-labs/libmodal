@@ -1,5 +1,6 @@
 import {
   FileDescriptor,
+  GenericResult,
   GenericResult_GenericStatus,
 } from "../proto/modal_proto/api";
 import { client, isRetryableGrpc } from "./client";
@@ -192,7 +193,7 @@ export class Sandbox {
         timeout: 55,
       });
       if (resp.result) {
-        return resp.result.exitcode;
+        return Sandbox.#getReturnCode(resp.result)!;
       }
     }
   }
@@ -230,6 +231,40 @@ export class Sandbox {
     }
 
     return this.#tunnels;
+  }
+
+  /**
+   * Check if the Sandbox has finished running.
+   *
+   * Returns `null` if the Sandbox is still running, else returns the exit code.
+   */
+  async poll(): Promise<number | null> {
+    const resp = await client.sandboxWait({
+      sandboxId: this.sandboxId,
+      timeout: 0,
+    });
+
+    return Sandbox.#getReturnCode(resp.result);
+  }
+
+  static #getReturnCode(result: GenericResult | undefined): number | null {
+    if (
+      result === undefined ||
+      result.status === GenericResult_GenericStatus.GENERIC_STATUS_UNSPECIFIED
+    ) {
+      return null;
+    }
+
+    // Statuses are converted to exitcodes so we can conform to subprocess API.
+    if (result.status === GenericResult_GenericStatus.GENERIC_STATUS_TIMEOUT) {
+      return 124;
+    } else if (
+      result.status === GenericResult_GenericStatus.GENERIC_STATUS_TERMINATED
+    ) {
+      return 137;
+    } else {
+      return result.exitcode;
+    }
   }
 }
 
