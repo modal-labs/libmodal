@@ -213,7 +213,6 @@ func TestSandboxPollAndReturnCode(t *testing.T) {
 	pollResult, err := sandbox.Poll()
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(pollResult).Should(gomega.BeNil())
-	g.Expect(sandbox.ReturnCode()).Should(gomega.BeNil())
 
 	// Send input to make the cat command complete
 	_, err = sandbox.Stdin.Write([]byte("hello, sandbox"))
@@ -229,8 +228,6 @@ func TestSandboxPollAndReturnCode(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(pollResult).ShouldNot(gomega.BeNil())
 	g.Expect(*pollResult).To(gomega.Equal(int32(0)))
-	g.Expect(sandbox.ReturnCode()).ShouldNot(gomega.BeNil())
-	g.Expect(*sandbox.ReturnCode()).To(gomega.Equal(int32(0)))
 }
 
 func TestSandboxPollAfterFailure(t *testing.T) {
@@ -255,6 +252,4 @@ func TestSandboxPollAfterFailure(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(pollResult).ShouldNot(gomega.BeNil())
 	g.Expect(*pollResult).To(gomega.Equal(int32(42)))
-	g.Expect(sandbox.ReturnCode()).ShouldNot(gomega.BeNil())
-	g.Expect(*sandbox.ReturnCode()).To(gomega.Equal(int32(42)))
 }

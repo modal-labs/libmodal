@@ -75,7 +75,6 @@ type Sandbox struct {
 	ctx     context.Context
 	taskId  string
 	tunnels map[int]*Tunnel
-	result  *pb.GenericResult
 }
 
 // newSandbox creates a new Sandbox object from ID.
@@ -177,8 +176,7 @@ func (sb *Sandbox) Wait() (int32, error) {
 			return 0, err
 		}
 		if resp.GetResult() != nil {
-			sb.result = resp.GetResult()
-			returnCode := sb.ReturnCode()
+			returnCode := getReturnCode(resp.GetResult())
 			if returnCode != nil {
 				return *returnCode, nil
 			}
@@ -231,28 +229,23 @@ func (sb *Sandbox) Poll() (*int32, error) {
 		return nil, err
 	}
 
-	if resp.GetResult() != nil && resp.GetResult().GetStatus() != pb.GenericResult_GENERIC_STATUS_UNSPECIFIED {
-		sb.result = resp.GetResult()
-	}
-
-	return sb.ReturnCode(), nil
+	return getReturnCode(resp.GetResult()), nil
 }
 
-// ReturnCode returns the exit code of the Sandbox process if it has finished running, else nil.
-func (sb *Sandbox) ReturnCode() *int32 {
-	if sb.result == nil || sb.result.GetStatus() == pb.GenericResult_GENERIC_STATUS_UNSPECIFIED {
+func getReturnCode(result *pb.GenericResult) *int32 {
+	if result == nil || result.GetStatus() == pb.GenericResult_GENERIC_STATUS_UNSPECIFIED {
 		return nil
 	}
 
 	// Statuses are converted to exitcodes so we can conform to subprocess API.
 	var exitCode int32
-	switch sb.result.GetStatus() {
+	switch result.GetStatus() {
 	case pb.GenericResult_GENERIC_STATUS_TIMEOUT:
 		exitCode = 124
 	case pb.GenericResult_GENERIC_STATUS_TERMINATED:
 		exitCode = 137
 	default:
-		exitCode = sb.result.GetExitcode()
+		exitCode = result.GetExitcode()
 	}
 
 	return &exitCode

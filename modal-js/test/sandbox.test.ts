@@ -132,20 +132,14 @@ test("SandboxPollAndReturnCode", async () => {
 
   const sandbox = await app.createSandbox(image, { command: ["cat"] });
 
-  let pollResult = await sandbox.poll();
-  expect(pollResult).toBeNull();
-  expect(sandbox.returncode).toBeNull();
+  expect(await sandbox.poll()).toBeNull();
 
   // Send input to make the cat command complete
   await sandbox.stdin.writeText("hello, sandbox");
   await sandbox.stdin.close();
 
-  const waitResult = await sandbox.wait();
-  expect(waitResult).toBe(0);
-
-  pollResult = await sandbox.poll();
-  expect(pollResult).toBe(0);
-  expect(sandbox.returncode).toBe(0);
+  expect(await sandbox.wait()).toBe(0);
+  expect(await sandbox.poll()).toBe(0);
 });
 
 test("SandboxPollAfterFailure", async () => {
@@ -156,9 +150,6 @@ test("SandboxPollAfterFailure", async () => {
     command: ["sh", "-c", "exit 42"],
   });
 
-  const waitResult = await sandbox.wait();
-  expect(waitResult).toBe(42);
-  const pollResult = await sandbox.poll();
-  expect(pollResult).toBe(42);
-  expect(sandbox.returncode).toBe(42);
+  expect(await sandbox.wait()).toBe(42);
+  expect(await sandbox.poll()).toBe(42);
 });

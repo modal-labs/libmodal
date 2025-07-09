@@ -10,9 +10,7 @@ const sandbox = await app.createSandbox(image, {
 
 console.log("Started sandbox:", sandbox.sandboxId);
 
-const initialPoll = await sandbox.poll();
-console.log("Poll result while running:", initialPoll);
-console.log("Return code while running:", sandbox.returncode);
+console.log("Poll result while running:", await sandbox.poll());
 
 console.log("\nSending input to trigger completion...");
 await sandbox.stdin.writeText("hello, goodbye");
@@ -20,7 +18,4 @@ await sandbox.stdin.close();
 
 const exitCode = await sandbox.wait();
 console.log("\nSandbox completed with exit code:", exitCode);
-
-const finalPoll = await sandbox.poll();
-console.log("Poll result after completion:", finalPoll);
-console.log("Return code after completion:", sandbox.returncode);
+console.log("Poll result after completion:", await sandbox.poll());

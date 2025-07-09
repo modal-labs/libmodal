@@ -36,7 +36,6 @@ func main() {
 		log.Fatalf("Failed to poll sandbox: %v", err)
 	}
 	fmt.Printf("Poll result while running: %v\n", initialPoll)
-	fmt.Printf("Return code while running: %v\n", sandbox.ReturnCode())
 
 	fmt.Println("\nSending input to trigger completion...")
 	_, err = sandbox.Stdin.Write([]byte("hello, goodbye\n"))
@@ -59,5 +58,4 @@ func main() {
 		log.Fatalf("Failed to poll sandbox after completion: %v", err)
 	}
 	fmt.Printf("Poll result after completion: %v\n", *finalPoll)
-	fmt.Printf("Return code after completion: %v\n", *sandbox.ReturnCode())
 }
