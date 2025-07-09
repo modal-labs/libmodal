@@ -172,7 +172,7 @@ func clientContext(ctx context.Context) (context.Context, error) {
 		return nil, fmt.Errorf("missing token_id or token_secret, please set in .modal.toml, environment variables, or via InitializeClient()")
 	}
 
-	clientType := strconv.Itoa(int(pb.ClientType_CLIENT_TYPE_LIBMODAL))
+	clientType := strconv.Itoa(int(pb.ClientType_CLIENT_TYPE_LIBMODAL_GO))
 	return metadata.AppendToOutgoingContext(
 		ctx,
 		"x-modal-client-type", clientType,
