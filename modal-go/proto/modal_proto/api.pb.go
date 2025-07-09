@@ -350,7 +350,9 @@ const (
 	ClientType_CLIENT_TYPE_CONTAINER       ClientType = 3 // modal-client from inside containers
 	ClientType_CLIENT_TYPE_WEB_SERVER      ClientType = 5 // modal-web
 	ClientType_CLIENT_TYPE_NOTEBOOK_KERNEL ClientType = 6 // kernelshim.py from notebooks
-	ClientType_CLIENT_TYPE_LIBMODAL        ClientType = 7 // libmodal: experimental client library
+	ClientType_CLIENT_TYPE_LIBMODAL        ClientType = 7 // libmodal: experimental JS&Go client library, before version modal-js/v0.3.15, modal-go/v0.0.15
+	ClientType_CLIENT_TYPE_LIBMODAL_JS     ClientType = 8 // libmodal/modal-js: JavaScript client library, since version modal-js/v0.3.15
+	ClientType_CLIENT_TYPE_LIBMODAL_GO     ClientType = 9 // libmodal/modal-go: Go client library, since version modal-go/v0.0.15
 )
 
 // Enum value maps for ClientType.
@@ -363,6 +365,8 @@ var (
 		5: "CLIENT_TYPE_WEB_SERVER",
 		6: "CLIENT_TYPE_NOTEBOOK_KERNEL",
 		7: "CLIENT_TYPE_LIBMODAL",
+		8: "CLIENT_TYPE_LIBMODAL_JS",
+		9: "CLIENT_TYPE_LIBMODAL_GO",
 	}
 	ClientType_value = map[string]int32{
 		"CLIENT_TYPE_UNSPECIFIED":     0,
@@ -372,6 +376,8 @@ var (
 		"CLIENT_TYPE_WEB_SERVER":      5,
 		"CLIENT_TYPE_NOTEBOOK_KERNEL": 6,
 		"CLIENT_TYPE_LIBMODAL":        7,
+		"CLIENT_TYPE_LIBMODAL_JS":     8,
+		"CLIENT_TYPE_LIBMODAL_GO":     9,
 	}
 )
 
@@ -20456,6 +20462,7 @@ type FunctionHandleMetadata struct {
 	xxx_hidden_FunctionSchema       *FunctionSchema                    `protobuf:"bytes,45,opt,name=function_schema,json=functionSchema,proto3"`
 	xxx_hidden_InputPlaneUrl        *string                            `protobuf:"bytes,46,opt,name=input_plane_url,json=inputPlaneUrl,proto3,oneof"`
 	xxx_hidden_InputPlaneRegion     *string                            `protobuf:"bytes,47,opt,name=input_plane_region,json=inputPlaneRegion,proto3,oneof"`
+	xxx_hidden_MaxObjectSizeBytes   uint64                             `protobuf:"varint,48,opt,name=max_object_size_bytes,json=maxObjectSizeBytes,proto3,oneof"`
 	XXX_raceDetectHookData          protoimpl.RaceDetectHookData
 	XXX_presence                    [1]uint32
 	unknownFields                   protoimpl.UnknownFields
@@ -20577,6 +20584,13 @@ func (x *FunctionHandleMetadata) GetInputPlaneRegion() string {
 	return ""
 }
 
+func (x *FunctionHandleMetadata) GetMaxObjectSizeBytes() uint64 {
+	if x != nil {
+		return x.xxx_hidden_MaxObjectSizeBytes
+	}
+	return 0
+}
+
 func (x *FunctionHandleMetadata) SetFunctionName(v string) {
 	x.xxx_hidden_FunctionName = v
 }
@@ -20619,12 +20633,17 @@ func (x *FunctionHandleMetadata) SetFunctionSchema(v *FunctionSchema) {
 
 func (x *FunctionHandleMetadata) SetInputPlaneUrl(v string) {
 	x.xxx_hidden_InputPlaneUrl = &v
-	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 10, 12)
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 10, 13)
 }
 
 func (x *FunctionHandleMetadata) SetInputPlaneRegion(v string) {
 	x.xxx_hidden_InputPlaneRegion = &v
-	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 11, 12)
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 11, 13)
+}
+
+func (x *FunctionHandleMetadata) SetMaxObjectSizeBytes(v uint64) {
+	x.xxx_hidden_MaxObjectSizeBytes = v
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 12, 13)
 }
 
 func (x *FunctionHandleMetadata) HasClassParameterInfo() bool {
@@ -20655,6 +20674,13 @@ func (x *FunctionHandleMetadata) HasInputPlaneRegion() bool {
 	return protoimpl.X.Present(&(x.XXX_presence[0]), 11)
 }
 
+func (x *FunctionHandleMetadata) HasMaxObjectSizeBytes() bool {
+	if x == nil {
+		return false
+	}
+	return protoimpl.X.Present(&(x.XXX_presence[0]), 12)
+}
+
 func (x *FunctionHandleMetadata) ClearClassParameterInfo() {
 	x.xxx_hidden_ClassParameterInfo = nil
 }
@@ -20671,6 +20697,11 @@ func (x *FunctionHandleMetadata) ClearInputPlaneUrl() {
 func (x *FunctionHandleMetadata) ClearInputPlaneRegion() {
 	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 11)
 	x.xxx_hidden_InputPlaneRegion = nil
+}
+
+func (x *FunctionHandleMetadata) ClearMaxObjectSizeBytes() {
+	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 12)
+	x.xxx_hidden_MaxObjectSizeBytes = 0
 }
 
 type FunctionHandleMetadata_builder struct {
@@ -20690,6 +20721,8 @@ type FunctionHandleMetadata_builder struct {
 	FunctionSchema       *FunctionSchema
 	InputPlaneUrl        *string
 	InputPlaneRegion     *string
+	// Use optional to ensure unset values default to None instead of 0
+	MaxObjectSizeBytes *uint64
 }
 
 func (b0 FunctionHandleMetadata_builder) Build() *FunctionHandleMetadata {
@@ -20707,12 +20740,16 @@ func (b0 FunctionHandleMetadata_builder) Build() *FunctionHandleMetadata {
 	x.xxx_hidden_MethodHandleMetadata = b.MethodHandleMetadata
 	x.xxx_hidden_FunctionSchema = b.FunctionSchema
 	if b.InputPlaneUrl != nil {
-		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 10, 12)
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 10, 13)
 		x.xxx_hidden_InputPlaneUrl = b.InputPlaneUrl
 	}
 	if b.InputPlaneRegion != nil {
-		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 11, 12)
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 11, 13)
 		x.xxx_hidden_InputPlaneRegion = b.InputPlaneRegion
+	}
+	if b.MaxObjectSizeBytes != nil {
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 12, 13)
+		x.xxx_hidden_MaxObjectSizeBytes = *b.MaxObjectSizeBytes
 	}
 	return m0
 }
@@ -44600,7 +44637,7 @@ const file_modal_proto_api_proto_rawDesc = "" +
 	"functionId\"{\n" +
 	"\x1dFunctionGetSerializedResponse\x12/\n" +
 	"\x13function_serialized\x18\x01 \x01(\fR\x12functionSerialized\x12)\n" +
-	"\x10class_serialized\x18\x02 \x01(\fR\x0fclassSerialized\"\xbd\x06\n" +
+	"\x10class_serialized\x18\x02 \x01(\fR\x0fclassSerialized\"\x8f\a\n" +
 	"\x16FunctionHandleMetadata\x12#\n" +
 	"\rfunction_name\x18\x02 \x01(\tR\ffunctionName\x12H\n" +
 	"\rfunction_type\x18\b \x01(\x0e2#.modal.client.Function.FunctionTypeR\ffunctionType\x12\x17\n" +
@@ -44613,12 +44650,14 @@ const file_modal_proto_api_proto_rawDesc = "" +
 	"\x16method_handle_metadata\x18, \x03(\v2>.modal.client.FunctionHandleMetadata.MethodHandleMetadataEntryR\x14methodHandleMetadata\x12E\n" +
 	"\x0ffunction_schema\x18- \x01(\v2\x1c.modal.client.FunctionSchemaR\x0efunctionSchema\x12+\n" +
 	"\x0finput_plane_url\x18. \x01(\tH\x00R\rinputPlaneUrl\x88\x01\x01\x121\n" +
-	"\x12input_plane_region\x18/ \x01(\tH\x01R\x10inputPlaneRegion\x88\x01\x01\x1am\n" +
+	"\x12input_plane_region\x18/ \x01(\tH\x01R\x10inputPlaneRegion\x88\x01\x01\x126\n" +
+	"\x15max_object_size_bytes\x180 \x01(\x04H\x02R\x12maxObjectSizeBytes\x88\x01\x01\x1am\n" +
 	"\x19MethodHandleMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12:\n" +
 	"\x05value\x18\x02 \x01(\v2$.modal.client.FunctionHandleMetadataR\x05value:\x028\x01B\x12\n" +
 	"\x10_input_plane_urlB\x15\n" +
-	"\x13_input_plane_region\"\xe9\x01\n" +
+	"\x13_input_plane_regionB\x18\n" +
+	"\x16_max_object_size_bytes\"\xe9\x01\n" +
 	"\rFunctionInput\x12\x14\n" +
 	"\x04args\x18\x01 \x01(\fH\x00R\x04args\x12\"\n" +
 	"\fargs_blob_id\x18\a \x01(\tH\x00R\n" +
@@ -45747,7 +45786,7 @@ const file_modal_proto_api_proto_rawDesc = "" +
 	"\x19CHECKPOINT_STATUS_PENDING\x10\x01\x12 \n" +
 	"\x1cCHECKPOINT_STATUS_PROCESSING\x10\x02\x12\x1b\n" +
 	"\x17CHECKPOINT_STATUS_READY\x10\x03\x12\x1c\n" +
-	"\x18CHECKPOINT_STATUS_FAILED\x10\x04*\xcb\x01\n" +
+	"\x18CHECKPOINT_STATUS_FAILED\x10\x04*\x85\x02\n" +
 	"\n" +
 	"ClientType\x12\x1b\n" +
 	"\x17CLIENT_TYPE_UNSPECIFIED\x10\x00\x12\x16\n" +
@@ -45756,7 +45795,9 @@ const file_modal_proto_api_proto_rawDesc = "" +
 	"\x15CLIENT_TYPE_CONTAINER\x10\x03\x12\x1a\n" +
 	"\x16CLIENT_TYPE_WEB_SERVER\x10\x05\x12\x1f\n" +
 	"\x1bCLIENT_TYPE_NOTEBOOK_KERNEL\x10\x06\x12\x18\n" +
-	"\x14CLIENT_TYPE_LIBMODAL\x10\a*\xa8\x01\n" +
+	"\x14CLIENT_TYPE_LIBMODAL\x10\a\x12\x1b\n" +
+	"\x17CLIENT_TYPE_LIBMODAL_JS\x10\b\x12\x1b\n" +
+	"\x17CLIENT_TYPE_LIBMODAL_GO\x10\t*\xa8\x01\n" +
 	"\rCloudProvider\x12\x1e\n" +
 	"\x1aCLOUD_PROVIDER_UNSPECIFIED\x10\x00\x12\x16\n" +
 	"\x12CLOUD_PROVIDER_AWS\x10\x01\x12\x16\n" +
