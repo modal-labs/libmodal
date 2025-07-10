@@ -29,6 +29,15 @@ func (e InternalFailure) Error() string {
 	return "InternalFailure: " + e.Exception
 }
 
+// ExecutionError is returned when something unexpected happened during runtime.
+type ExecutionError struct {
+	Exception string
+}
+
+func (e ExecutionError) Error() string {
+	return "ExecutionError: " + e.Exception
+}
+
 // NotFoundError is returned when a resource is not found.
 type NotFoundError struct {
 	Exception string
