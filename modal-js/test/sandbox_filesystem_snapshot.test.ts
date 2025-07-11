@@ -10,9 +10,7 @@ test("snapshotFilesystem", async () => {
     await sb.terminate();
   });
 
-  const fh = await sb.open("/tmp/test.txt", "w");
-  await fh.write(new TextEncoder().encode("test content"));
-  await fh.close();
+  await sb.exec(["sh", "-c", "echo -n 'test content' > /tmp/test.txt"]);
   await sb.exec(["mkdir", "-p", "/tmp/testdir"]);
 
   const snapshotImage = await sb.snapshotFilesystem();

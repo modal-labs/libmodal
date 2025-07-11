@@ -17,7 +17,7 @@ func main() {
 		log.Fatalf("Failed to lookup app: %v", err)
 	}
 
-	baseImage, err := app.ImageFromRegistry("ubuntu:22.04", nil)
+	baseImage, err := app.ImageFromRegistry("alpine:3.21", nil)
 	if err != nil {
 		log.Fatalf("Failed to create image: %v", err)
 	}
@@ -35,17 +35,11 @@ func main() {
 		log.Fatalf("Failed to create directory: %v", err)
 	}
 
-	dataFile, err := sb.Open("/app/data/info.txt", "w")
+	_, err = sb.Exec([]string{"sh", "-c", "echo 'This file was created in the first sandbox' > /app/data/info.txt"}, modal.ExecOptions{})
 	if err != nil {
-		log.Fatalf("Failed to open file: %v", err)
+		log.Fatalf("Failed to create file: %v", err)
 	}
-
-	_, err = dataFile.Write([]byte("This file was created in the first sandbox"))
-	if err != nil {
-		log.Fatalf("Failed to write file: %v", err)
-	}
-	dataFile.Close()
-	log.Printf("Created custom file in first sandbox")
+	log.Printf("Created file in first sandbox")
 
 	snapshotImage, err := sb.SnapshotFilesystem(55 * time.Second)
 	if err != nil {

@@ -24,11 +24,8 @@ func TestSnapshotFilesystem(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	defer sb.Terminate()
 
-	fh, err := sb.Open("/tmp/test.txt", "w")
+	_, err = sb.Exec([]string{"sh", "-c", "echo -n 'test content' > /tmp/test.txt"}, modal.ExecOptions{})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	_, err = fh.Write([]byte("test content"))
-	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	fh.Close()
 
 	_, err = sb.Exec([]string{"mkdir", "-p", "/tmp/testdir"}, modal.ExecOptions{})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
