@@ -214,6 +214,28 @@ func (sb *Sandbox) Tunnels(timeout time.Duration) (map[int]*Tunnel, error) {
 	return sb.tunnels, nil
 }
 
+// Snapshot the filesystem of the Sandbox.
+// Returns an Image object which can be used to spawn a new Sandbox with the same filesystem.
+func (sb *Sandbox) SnapshotFilesystem(timeout time.Duration) (*Image, error) {
+	resp, err := client.SandboxSnapshotFs(sb.ctx, pb.SandboxSnapshotFsRequest_builder{
+		SandboxId: sb.SandboxId,
+		Timeout:   float32(timeout.Seconds()),
+	}.Build())
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.GetResult() != nil && resp.GetResult().GetStatus() != pb.GenericResult_GENERIC_STATUS_SUCCESS {
+		return nil, ExecutionError{Exception: fmt.Sprintf("Sandbox snapshot failed: %s", resp.GetResult().GetException())}
+	}
+
+	if resp.GetImageId() == "" {
+		return nil, ExecutionError{Exception: "Sandbox snapshot response missing image ID"}
+	}
+
+	return &Image{ImageId: resp.GetImageId(), ctx: sb.ctx}, nil
+}
+
 // ContainerProcess represents a process running in a Modal container, allowing
 // interaction with its standard input/output/error streams.
 //
