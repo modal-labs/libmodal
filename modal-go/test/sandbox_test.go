@@ -197,3 +197,24 @@ func TestSandboxWithTunnels(t *testing.T) {
 	g.Expect(tcpHost).Should(gomega.Equal(unencryptedTunnel.UnencryptedHost))
 	g.Expect(tcpPort).Should(gomega.Equal(unencryptedTunnel.UnencryptedPort))
 }
+
+func TestSandboxWithSecrets(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	secret, err := modal.SecretFromName(context.Background(), "libmodal-test-secret", &modal.SecretFromNameOptions{RequiredKeys: []string{"c"}})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	app, err := modal.AppLookup(context.Background(), "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	image, err := app.ImageFromRegistry("alpine:3.21", nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	sb, err := app.CreateSandbox(image, &modal.SandboxOptions{Secrets: []*modal.Secret{secret}, Command: []string{"printenv", "c"}})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	output, err := io.ReadAll(sb.Stdout)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(string(output)).To(gomega.Equal("hello world\n"))
+}
