@@ -4,7 +4,7 @@ Both client libraries are pre-1.0, and they have separate versioning.
 
 ## Unreleased
 
-No unreleased changes.
+- Added support for snapshotting the filesystem of a Sandbox.
 
 ## modal-js/v0.3.14, modal-go/v0.0.14
 
