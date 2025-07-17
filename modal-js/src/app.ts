@@ -47,6 +47,9 @@ export type SandboxCreateOptions = {
    */
   command?: string[]; // default is ["sleep", "48h"]
 
+  /** Secrets to inject into the sandbox. */
+  secrets?: Secret[];
+
   /** Mount points for Modal Volumes. */
   volumes?: Record<string, Volume>;
 
@@ -134,7 +137,9 @@ export class App {
         })),
       );
     }
-
+    const secretIds = options.secrets
+      ? options.secrets.map((secret) => secret.secretId)
+      : [];
     const createResp = await client.sandboxCreate({
       appId: this.appId,
       definition: {
@@ -152,6 +157,7 @@ export class App {
           memoryMb: options.memory ?? 128,
         },
         volumeMounts,
+        secretIds,
         openPorts: openPorts.length > 0 ? { ports: openPorts } : undefined,
       },
     });
