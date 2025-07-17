@@ -1,0 +1,177 @@
+package test
+
+import (
+	"testing"
+
+	modal "github.com/modal-labs/libmodal/modal-go"
+	pb "github.com/modal-labs/libmodal/modal-go/proto/modal_proto"
+	"github.com/onsi/gomega"
+)
+
+func TestNewCloudBucketMount_MinimalOptions(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	mount, err := modal.NewCloudBucketMount("my-bucket", nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(mount.BucketName).Should(gomega.Equal("my-bucket"))
+	g.Expect(mount.ReadOnly).Should(gomega.BeFalse())
+	g.Expect(mount.RequesterPays).Should(gomega.BeFalse())
+	g.Expect(mount.BucketType).Should(gomega.Equal(pb.CloudBucketMount_S3))
+	g.Expect(mount.Secret).Should(gomega.BeNil())
+	g.Expect(mount.BucketEndpointUrl).Should(gomega.BeNil())
+	g.Expect(mount.KeyPrefix).Should(gomega.BeNil())
+	g.Expect(mount.OidcAuthRoleArn).Should(gomega.BeNil())
+}
+
+func TestNewCloudBucketMount_AllOptions(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	mockSecret := &modal.Secret{SecretId: "sec-123"}
+	endpointURL := "https://my-bucket.r2.cloudflarestorage.com"
+	keyPrefix := "prefix/"
+	oidcRole := "arn:aws:iam::123456789:role/MyRole"
+
+	mount, err := modal.NewCloudBucketMount("my-bucket", &modal.CloudBucketMountOptions{
+		Secret:            mockSecret,
+		ReadOnly:          true,
+		RequesterPays:     true,
+		BucketEndpointUrl: &endpointURL,
+		KeyPrefix:         &keyPrefix,
+		OidcAuthRoleArn:   &oidcRole,
+	})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(mount.BucketName).Should(gomega.Equal("my-bucket"))
+	g.Expect(mount.ReadOnly).Should(gomega.BeTrue())
+	g.Expect(mount.RequesterPays).Should(gomega.BeTrue())
+	g.Expect(mount.BucketType).Should(gomega.Equal(pb.CloudBucketMount_R2))
+	g.Expect(mount.Secret).Should(gomega.Equal(mockSecret))
+	g.Expect(mount.BucketEndpointUrl).ShouldNot(gomega.BeNil())
+	g.Expect(*mount.BucketEndpointUrl).Should(gomega.Equal(endpointURL))
+	g.Expect(mount.KeyPrefix).ShouldNot(gomega.BeNil())
+	g.Expect(*mount.KeyPrefix).Should(gomega.Equal(keyPrefix))
+	g.Expect(mount.OidcAuthRoleArn).ShouldNot(gomega.BeNil())
+	g.Expect(*mount.OidcAuthRoleArn).Should(gomega.Equal(oidcRole))
+}
+
+func TestNewCloudBucketMount_BucketTypeDetection(t *testing.T) {
+	t.Parallel()
+	test_cases := []struct {
+		name         string
+		endpointURL  string
+		expectedType pb.CloudBucketMount_BucketType
+	}{
+		{
+			name:         "Default S3 when no endpoint",
+			endpointURL:  "",
+			expectedType: pb.CloudBucketMount_S3,
+		},
+		{
+			name:         "R2 detection",
+			endpointURL:  "https://my-bucket.r2.cloudflarestorage.com",
+			expectedType: pb.CloudBucketMount_R2,
+		},
+		{
+			name:         "GCP detection",
+			endpointURL:  "https://storage.googleapis.com/my-bucket",
+			expectedType: pb.CloudBucketMount_GCP,
+		},
+		{
+			name:         "Unknown endpoint defaults to S3",
+			endpointURL:  "https://unknown-endpoint.com/my-bucket",
+			expectedType: pb.CloudBucketMount_S3,
+		},
+	}
+
+	for _, tc := range test_cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			g := gomega.NewWithT(t)
+
+			options := &modal.CloudBucketMountOptions{}
+			if tc.endpointURL != "" {
+				options.BucketEndpointUrl = &tc.endpointURL
+			}
+
+			mount, err := modal.NewCloudBucketMount("my-bucket", options)
+			g.Expect(err).ShouldNot(gomega.HaveOccurred())
+			g.Expect(mount.BucketType).Should(gomega.Equal(tc.expectedType))
+		})
+	}
+}
+
+func TestNewCloudBucketMount_ValidationRequesterPaysWithoutSecret(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	_, err := modal.NewCloudBucketMount("my-bucket", &modal.CloudBucketMountOptions{
+		RequesterPays: true,
+	})
+
+	g.Expect(err).Should(gomega.MatchError("credentials required in order to use Requester Pays"))
+}
+
+func TestNewCloudBucketMount_ValidationKeyPrefixWithoutTrailingSlash(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	keyPrefix := "prefix"
+	_, err := modal.NewCloudBucketMount("my-bucket", &modal.CloudBucketMountOptions{
+		KeyPrefix: &keyPrefix,
+	})
+
+	g.Expect(err).Should(gomega.MatchError("keyPrefix will be prefixed to all object paths, so it must end in a '/'"))
+}
+
+func TestCloudBucketMount_ToProtoMinimalOptions(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	mount, err := modal.NewCloudBucketMount("my-bucket", nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	proto := mount.ToProto("/mnt/bucket")
+
+	g.Expect(proto.GetBucketName()).Should(gomega.Equal("my-bucket"))
+	g.Expect(proto.GetMountPath()).Should(gomega.Equal("/mnt/bucket"))
+	g.Expect(proto.GetCredentialsSecretId()).Should(gomega.BeEmpty())
+	g.Expect(proto.GetReadOnly()).Should(gomega.BeFalse())
+	g.Expect(proto.GetBucketType()).Should(gomega.Equal(pb.CloudBucketMount_S3))
+	g.Expect(proto.GetRequesterPays()).Should(gomega.BeFalse())
+	g.Expect(proto.GetBucketEndpointUrl()).Should(gomega.BeEmpty())
+	g.Expect(proto.GetKeyPrefix()).Should(gomega.BeEmpty())
+	g.Expect(proto.GetOidcAuthRoleArn()).Should(gomega.BeEmpty())
+}
+
+func TestCloudBucketMount_ToProtoAllOptions(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	mockSecret := &modal.Secret{SecretId: "sec-123"}
+	endpointURL := "https://my-bucket.r2.cloudflarestorage.com"
+	keyPrefix := "prefix/"
+	oidcRole := "arn:aws:iam::123456789:role/MyRole"
+
+	mount, err := modal.NewCloudBucketMount("my-bucket", &modal.CloudBucketMountOptions{
+		Secret:            mockSecret,
+		ReadOnly:          true,
+		RequesterPays:     true,
+		BucketEndpointUrl: &endpointURL,
+		KeyPrefix:         &keyPrefix,
+		OidcAuthRoleArn:   &oidcRole,
+	})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	proto := mount.ToProto("/mnt/bucket")
+
+	g.Expect(proto.GetBucketName()).Should(gomega.Equal("my-bucket"))
+	g.Expect(proto.GetMountPath()).Should(gomega.Equal("/mnt/bucket"))
+	g.Expect(proto.GetCredentialsSecretId()).Should(gomega.Equal("sec-123"))
+	g.Expect(proto.GetReadOnly()).Should(gomega.BeTrue())
+	g.Expect(proto.GetBucketType()).Should(gomega.Equal(pb.CloudBucketMount_R2))
+	g.Expect(proto.GetRequesterPays()).Should(gomega.BeTrue())
+	g.Expect(proto.GetBucketEndpointUrl()).Should(gomega.Equal(endpointURL))
+	g.Expect(proto.GetKeyPrefix()).Should(gomega.Equal(keyPrefix))
+	g.Expect(proto.GetOidcAuthRoleArn()).Should(gomega.Equal(oidcRole))
+}

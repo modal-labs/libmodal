@@ -5,6 +5,8 @@ import {
   RegistryAuthType,
   PortSpec,
   TunnelType,
+  VolumeMount,
+  CloudBucketMount as CloudBucketMountProto,
 } from "../proto/modal_proto/api";
 import { client } from "./client";
 import { environmentName } from "./config";
@@ -13,6 +15,7 @@ import { Sandbox } from "./sandbox";
 import { NotFoundError } from "./errors";
 import { Secret } from "./secret";
 import { Volume } from "./volume";
+import { CloudBucketMount } from "./cloud_bucket_mount";
 
 /** Options for functions that find deployed Modal objects. */
 export type LookupOptions = {
@@ -52,6 +55,9 @@ export type SandboxCreateOptions = {
 
   /** Mount points for Modal Volumes. */
   volumes?: Record<string, Volume>;
+
+  /** Mount points for cloud buckets. */
+  cloudBucketMounts?: Record<string, CloudBucketMount>;
 
   /** List of ports to tunnel into the sandbox. Encrypted ports are tunneled with TLS. */
   encryptedPorts?: number[];
@@ -101,7 +107,7 @@ export class App {
       );
     }
 
-    const volumeMounts = options.volumes
+    const volumeMounts: VolumeMount[] = options.volumes
       ? Object.entries(options.volumes).map(([mountPath, volume]) => ({
           volumeId: volume.volumeId,
           mountPath,
@@ -110,7 +116,12 @@ export class App {
         }))
       : [];
 
-    // Build port specifications
+    const cloudBucketMounts: CloudBucketMountProto[] = options.cloudBucketMounts
+      ? Object.entries(options.cloudBucketMounts).map(([mountPath, mount]) =>
+          mount.toProto(mountPath),
+        )
+      : [];
+
     const openPorts: PortSpec[] = [];
     if (options.encryptedPorts) {
       openPorts.push(
@@ -157,6 +168,7 @@ export class App {
           memoryMb: options.memory ?? 128,
         },
         volumeMounts,
+        cloudBucketMounts,
         secretIds,
         openPorts: openPorts.length > 0 ? { ports: openPorts } : undefined,
       },

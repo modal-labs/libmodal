@@ -34,15 +34,16 @@ type EphemeralOptions struct {
 
 // SandboxOptions are options for creating a Modal Sandbox.
 type SandboxOptions struct {
-	CPU              float64            // CPU request in physical cores.
-	Memory           int                // Memory request in MiB.
-	Timeout          time.Duration      // Maximum duration for the Sandbox.
-	Command          []string           // Command to run in the Sandbox on startup.
-	Secrets          []*Secret          // Secrets to inject into the Sandbox.
-	Volumes          map[string]*Volume // Mount points for Volumes.
-	EncryptedPorts   []int              // List of encrypted ports to tunnel into the sandbox, with TLS encryption.
-	H2Ports          []int              // List of encrypted ports to tunnel into the sandbox, using HTTP/2.
-	UnencryptedPorts []int              // List of ports to tunnel into the sandbox without encryption.
+	CPU               float64                      // CPU request in physical cores.
+	Memory            int                          // Memory request in MiB.
+	Timeout           time.Duration                // Maximum duration for the Sandbox.
+	Command           []string                     // Command to run in the Sandbox on startup.
+	Secrets           []*Secret                    // Secrets to inject into the Sandbox.
+	Volumes           map[string]*Volume           // Mount points for Volumes.
+	CloudBucketMounts map[string]*CloudBucketMount // Mount points for cloud buckets.
+	EncryptedPorts    []int                        // List of encrypted ports to tunnel into the sandbox, with TLS encryption.
+	H2Ports           []int                        // List of encrypted ports to tunnel into the sandbox, using HTTP/2.
+	UnencryptedPorts  []int                        // List of ports to tunnel into the sandbox without encryption.
 }
 
 // ImageFromRegistryOptions are options for creating an Image from a registry.
@@ -101,6 +102,14 @@ func (app *App) CreateSandbox(image *Image, options *SandboxOptions) (*Sandbox, 
 		}
 	}
 
+	var cloudBucketMounts []*pb.CloudBucketMount
+	if options.CloudBucketMounts != nil {
+		cloudBucketMounts = make([]*pb.CloudBucketMount, 0, len(options.CloudBucketMounts))
+		for mountPath, mount := range options.CloudBucketMounts {
+			cloudBucketMounts = append(cloudBucketMounts, mount.ToProto(mountPath))
+		}
+	}
+
 	var openPorts []*pb.PortSpec
 	for _, port := range options.EncryptedPorts {
 		openPorts = append(openPorts, pb.PortSpec_builder{
@@ -150,8 +159,9 @@ func (app *App) CreateSandbox(image *Image, options *SandboxOptions) (*Sandbox, 
 				MilliCpu: uint32(1000 * options.CPU),
 				MemoryMb: uint32(options.Memory),
 			}.Build(),
-			VolumeMounts: volumeMounts,
-			OpenPorts:    portSpecs,
+			VolumeMounts:      volumeMounts,
+			CloudBucketMounts: cloudBucketMounts,
+			OpenPorts:         portSpecs,
 		}.Build(),
 	}.Build())
 
