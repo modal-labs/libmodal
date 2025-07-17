@@ -33,6 +33,4 @@ test("snapshotFilesystem", async () => {
   // Verify directory exists in snapshot
   const dirCheck = await sb2.exec(["test", "-d", "/tmp/testdir"]);
   expect(await dirCheck.wait()).toBe(0);
-
-  await sb2.terminate();
 });
