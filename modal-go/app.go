@@ -36,23 +36,24 @@ type EphemeralOptions struct {
 
 // SandboxOptions are options for creating a Modal Sandbox.
 type SandboxOptions struct {
-	CPU              float64            // CPU request in physical cores.
-	Memory           int                // Memory request in MiB.
-	GPU              string             // GPU reservation for the sandbox (e.g. "A100", "T4:2", "A100-80GB:4").
-	Timeout          time.Duration      // Maximum duration for the Sandbox.
-	Workdir          string             // Working directory of the sandbox.
-	Command          []string           // Command to run in the Sandbox on startup.
-	Secrets          []*Secret          // Secrets to inject into the Sandbox.
-	Volumes          map[string]*Volume // Mount points for Volumes.
-	EncryptedPorts   []int              // List of encrypted ports to tunnel into the sandbox, with TLS encryption.
-	H2Ports          []int              // List of encrypted ports to tunnel into the sandbox, using HTTP/2.
-	UnencryptedPorts []int              // List of ports to tunnel into the sandbox without encryption.
-	BlockNetwork     bool               // Whether to block all network access from the sandbox.
-	CIDRAllowlist    []string           // List of CIDRs the sandbox is allowed to access. Cannot be used with BlockNetwork.
-	Cloud            string             // Cloud provider to run the sandbox on.
-	Regions          []string           // Region(s) to run the sandbox on.
-	Verbose          bool               // Enable verbose logging.
-	Proxy            *Proxy             // Reference to a Modal Proxy to use in front of this Sandbox.
+	CPU               float64                      // CPU request in physical cores.
+	Memory            int                          // Memory request in MiB.
+	GPU               string                       // GPU reservation for the sandbox (e.g. "A100", "T4:2", "A100-80GB:4").
+	Timeout           time.Duration                // Maximum duration for the Sandbox.
+	Workdir           string             // Working directory of the sandbox.
+	Command           []string                     // Command to run in the Sandbox on startup.
+	Secrets           []*Secret                    // Secrets to inject into the Sandbox.
+	Volumes           map[string]*Volume           // Mount points for Volumes.
+	CloudBucketMounts map[string]*CloudBucketMount // Mount points for cloud buckets.
+	EncryptedPorts    []int                        // List of encrypted ports to tunnel into the sandbox, with TLS encryption.
+	H2Ports           []int                        // List of encrypted ports to tunnel into the sandbox, using HTTP/2.
+	UnencryptedPorts  []int                        // List of ports to tunnel into the sandbox without encryption.
+	BlockNetwork      bool                         // Whether to block all network access from the sandbox.
+	CIDRAllowlist     []string                     // List of CIDRs the sandbox is allowed to access. Cannot be used with BlockNetwork.
+	Cloud             string                       // Cloud provider to run the sandbox on.
+	Regions           []string                     // Region(s) to run the sandbox on.
+	Verbose           bool                         // Enable verbose logging.
+	Proxy             *Proxy                       // Reference to a Modal Proxy to use in front of this Sandbox.
 }
 
 // ImageFromRegistryOptions are options for creating an Image from a registry.
@@ -148,6 +149,14 @@ func (app *App) CreateSandbox(image *Image, options *SandboxOptions) (*Sandbox, 
 		}
 	}
 
+	var cloudBucketMounts []*pb.CloudBucketMount
+	if options.CloudBucketMounts != nil {
+		cloudBucketMounts = make([]*pb.CloudBucketMount, 0, len(options.CloudBucketMounts))
+		for mountPath, mount := range options.CloudBucketMounts {
+			cloudBucketMounts = append(cloudBucketMounts, mount.toProto(mountPath))
+		}
+	}
+
 	var openPorts []*pb.PortSpec
 	for _, port := range options.EncryptedPorts {
 		openPorts = append(openPorts, pb.PortSpec_builder{
@@ -231,6 +240,7 @@ func (app *App) CreateSandbox(image *Image, options *SandboxOptions) (*Sandbox, 
 				GpuConfig: gpuConfig,
 			}.Build(),
 			VolumeMounts:       volumeMounts,
+			CloudBucketMounts:  cloudBucketMounts,
 			OpenPorts:          portSpecs,
 			CloudProviderStr:   options.Cloud,
 			SchedulerPlacement: schedulerPlacement,

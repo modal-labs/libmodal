@@ -8,6 +8,8 @@ import {
   NetworkAccess,
   GPUConfig,
   SchedulerPlacement,
+  VolumeMount,
+  CloudBucketMount as CloudBucketMountProto,
 } from "../proto/modal_proto/api";
 import { client } from "./client";
 import { environmentName } from "./config";
@@ -17,6 +19,10 @@ import { NotFoundError } from "./errors";
 import { Secret } from "./secret";
 import { Volume } from "./volume";
 import { Proxy } from "./proxy";
+import {
+  CloudBucketMount,
+  cloudBucketMountToProto,
+} from "./cloud_bucket_mount";
 
 /** Options for functions that find deployed Modal objects. */
 export type LookupOptions = {
@@ -62,6 +68,9 @@ export type SandboxCreateOptions = {
 
   /** Mount points for Modal Volumes. */
   volumes?: Record<string, Volume>;
+
+  /** Mount points for cloud buckets. */
+  cloudBucketMounts?: Record<string, CloudBucketMount>;
 
   /** List of ports to tunnel into the sandbox. Encrypted ports are tunneled with TLS. */
   encryptedPorts?: number[];
@@ -168,13 +177,19 @@ export class App {
       );
     }
 
-    const volumeMounts = options.volumes
+    const volumeMounts: VolumeMount[] = options.volumes
       ? Object.entries(options.volumes).map(([mountPath, volume]) => ({
           volumeId: volume.volumeId,
           mountPath,
           allowBackgroundCommits: true,
           readOnly: false,
         }))
+      : [];
+
+    const cloudBucketMounts: CloudBucketMountProto[] = options.cloudBucketMounts
+      ? Object.entries(options.cloudBucketMounts).map(([mountPath, mount]) =>
+          cloudBucketMountToProto(mount, mountPath),
+        )
       : [];
 
     const openPorts: PortSpec[] = [];
@@ -252,6 +267,7 @@ export class App {
           gpuConfig,
         },
         volumeMounts,
+        cloudBucketMounts,
         secretIds,
         openPorts: openPorts.length > 0 ? { ports: openPorts } : undefined,
         cloudProviderStr: options.cloud ?? "",
