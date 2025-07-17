@@ -14,4 +14,4 @@ const sandbox = await app.createSandbox(image, {
 console.log("Sandbox created:", sandbox.sandboxId);
 
 const result = await sandbox.stdout.readText();
-console.log("Secret c:", result);
+console.log("Environment variable c:", result);

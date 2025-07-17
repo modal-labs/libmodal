@@ -31,11 +31,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create sandbox: %v", err)
 	}
-	log.Printf("sandbox: %s\n", sb.SandboxId)
+	log.Printf("Sandbox created: %s\n", sb.SandboxId)
 
 	output, err := io.ReadAll(sb.Stdout)
 	if err != nil {
 		log.Fatalf("Failed to read output: %v", err)
 	}
-	log.Printf("Environment variable c=%v", string(output))
+	log.Printf("Environment variable c: %v", string(output))
 }
