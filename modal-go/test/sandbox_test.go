@@ -28,7 +28,7 @@ func TestCreateOneSandbox(t *testing.T) {
 
 	exitcode, err := sb.Wait()
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(exitcode).To(gomega.Equal(int32(137)))
+	g.Expect(exitcode).To(gomega.Equal(137))
 }
 
 func TestPassCatToStdin(t *testing.T) {
@@ -82,7 +82,7 @@ func TestIgnoreLargeStdout(t *testing.T) {
 	// Stdout should be consumed after cancel, without blocking the process.
 	exitCode, err := p.Wait()
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(exitCode).To(gomega.Equal(int32(0)))
+	g.Expect(exitCode).To(gomega.Equal(0))
 }
 
 func TestSandboxExecOptions(t *testing.T) {
@@ -111,7 +111,7 @@ func TestSandboxExecOptions(t *testing.T) {
 
 	exitCode, err := p.Wait()
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(exitCode).To(gomega.Equal(int32(0)))
+	g.Expect(exitCode).To(gomega.Equal(0))
 }
 
 func TestSandboxWithVolume(t *testing.T) {
@@ -144,7 +144,7 @@ func TestSandboxWithVolume(t *testing.T) {
 
 	exitCode, err := sandbox.Wait()
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(exitCode).Should(gomega.Equal(int32(0)))
+	g.Expect(exitCode).Should(gomega.Equal(0))
 }
 
 func TestSandboxWithTunnels(t *testing.T) {
@@ -222,12 +222,12 @@ func TestSandboxPollAndReturnCode(t *testing.T) {
 
 	waitResult, err := sandbox.Wait()
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(waitResult).To(gomega.Equal(int32(0)))
+	g.Expect(waitResult).To(gomega.Equal(0))
 
 	pollResult, err = sandbox.Poll()
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(pollResult).ShouldNot(gomega.BeNil())
-	g.Expect(*pollResult).To(gomega.Equal(int32(0)))
+	g.Expect(*pollResult).To(gomega.Equal(0))
 }
 
 func TestSandboxPollAfterFailure(t *testing.T) {
@@ -246,10 +246,10 @@ func TestSandboxPollAfterFailure(t *testing.T) {
 
 	waitResult, err := sandbox.Wait()
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(waitResult).To(gomega.Equal(int32(42)))
+	g.Expect(waitResult).To(gomega.Equal(42))
 
 	pollResult, err := sandbox.Poll()
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(pollResult).ShouldNot(gomega.BeNil())
-	g.Expect(*pollResult).To(gomega.Equal(int32(42)))
+	g.Expect(*pollResult).To(gomega.Equal(42))
 }

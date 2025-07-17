@@ -166,7 +166,7 @@ func (sb *Sandbox) Terminate() error {
 }
 
 // Wait blocks until the sandbox exits.
-func (sb *Sandbox) Wait() (int32, error) {
+func (sb *Sandbox) Wait() (int, error) {
 	for {
 		resp, err := client.SandboxWait(sb.ctx, pb.SandboxWaitRequest_builder{
 			SandboxId: sb.SandboxId,
@@ -220,7 +220,7 @@ func (sb *Sandbox) Tunnels(timeout time.Duration) (map[int]*Tunnel, error) {
 
 // Poll checks if the Sandbox has finished running.
 // Returns nil if the Sandbox is still running, else returns the exit code.
-func (sb *Sandbox) Poll() (*int32, error) {
+func (sb *Sandbox) Poll() (*int, error) {
 	resp, err := client.SandboxWait(sb.ctx, pb.SandboxWaitRequest_builder{
 		SandboxId: sb.SandboxId,
 		Timeout:   0,
@@ -232,20 +232,20 @@ func (sb *Sandbox) Poll() (*int32, error) {
 	return getReturnCode(resp.GetResult()), nil
 }
 
-func getReturnCode(result *pb.GenericResult) *int32 {
+func getReturnCode(result *pb.GenericResult) *int {
 	if result == nil || result.GetStatus() == pb.GenericResult_GENERIC_STATUS_UNSPECIFIED {
 		return nil
 	}
 
 	// Statuses are converted to exitcodes so we can conform to subprocess API.
-	var exitCode int32
+	var exitCode int
 	switch result.GetStatus() {
 	case pb.GenericResult_GENERIC_STATUS_TIMEOUT:
 		exitCode = 124
 	case pb.GenericResult_GENERIC_STATUS_TERMINATED:
 		exitCode = 137
 	default:
-		exitCode = result.GetExitcode()
+		exitCode = int(result.GetExitcode())
 	}
 
 	return &exitCode
@@ -292,7 +292,7 @@ func newContainerProcess(ctx context.Context, execId string, opts ExecOptions) *
 }
 
 // Wait blocks until the container process exits and returns its exit code.
-func (cp *ContainerProcess) Wait() (int32, error) {
+func (cp *ContainerProcess) Wait() (int, error) {
 	for {
 		resp, err := client.ContainerExecWait(cp.ctx, pb.ContainerExecWaitRequest_builder{
 			ExecId:  cp.execId,
@@ -302,7 +302,7 @@ func (cp *ContainerProcess) Wait() (int32, error) {
 			return 0, err
 		}
 		if resp.GetCompleted() {
-			return resp.GetExitCode(), nil
+			return int(resp.GetExitCode()), nil
 		}
 	}
 }

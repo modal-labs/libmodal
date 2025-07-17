@@ -57,5 +57,5 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to poll sandbox after completion: %v", err)
 	}
-	fmt.Printf("Poll result after completion: %v\n", *finalPoll)
+	fmt.Printf("Poll result after completion: %d\n", *finalPoll)
 }
