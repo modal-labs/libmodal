@@ -34,6 +34,7 @@ Examples:
 - [Create a sandbox](./modal-js/examples/sandbox.ts)
 - [Create a sandbox using a private image from AWS ECR](./modal-js/examples/sandbox-private-image.ts)
 - [Execute sandbox commands](./modal-js/examples/sandbox-exec.ts)
+- [Check the status and exit code of a sandbox](./modal-js/examples/sandbox-poll.ts)
 - [Access sandbox filesystem](./modal-js/examples/sandbox-filesystem.ts)
 - [Expose ports on a sandbox](./modal-js/examples/sandbox-tunnels.ts)
 
@@ -59,6 +60,7 @@ Examples:
 - [Create a sandbox](./modal-go/examples/sandbox/main.go)
 - [Create a sandbox using a private image from AWS ECR](./modal-go/examples/sandbox-private-image/main.go)
 - [Execute sandbox commands](./modal-go/examples/sandbox-exec/main.go)
+- [Check the status and exit code of a sandbox](./modal-go/examples/sandbox-poll/main.go)
 - [Access sandbox filesystem](./modal-go/examples/sandbox-filesystem/main.go)
 - [Expose ports on a sandbox](./modal-go/examples/sandbox-tunnels/main.go)
 
