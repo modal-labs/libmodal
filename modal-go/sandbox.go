@@ -97,11 +97,20 @@ func (sb *Sandbox) Exec(command []string, opts ExecOptions) (*ContainerProcess, 
 	if opts.Workdir != "" {
 		workdir = &opts.Workdir
 	}
+	secretIds := []string{}
+	if opts.Secrets != nil {
+		secretIds = make([]string, len(opts.Secrets))
+		for idx, secret := range opts.Secrets {
+			secretIds[idx] = secret.SecretId
+		}
+	}
+
 	resp, err := client.ContainerExec(sb.ctx, pb.ContainerExecRequest_builder{
 		TaskId:      sb.taskId,
 		Command:     command,
 		Workdir:     workdir,
 		TimeoutSecs: uint32(opts.Timeout.Seconds()),
+		SecretIds:   secretIds,
 	}.Build())
 	if err != nil {
 		return nil, err

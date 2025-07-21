@@ -253,3 +253,28 @@ func TestSandboxPollAfterFailure(t *testing.T) {
 	g.Expect(pollResult).ShouldNot(gomega.BeNil())
 	g.Expect(*pollResult).To(gomega.Equal(42))
 }
+
+func TestSandboxExecSecret(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	app, err := modal.AppLookup(context.Background(), "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	image, err := app.ImageFromRegistry("alpine:3.21", nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	sb, err := app.CreateSandbox(image, nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(sb.SandboxId).ShouldNot(gomega.BeEmpty())
+	defer sb.Terminate()
+
+	secret, err := modal.SecretFromName(context.Background(), "libmodal-test-secret", &modal.SecretFromNameOptions{RequiredKeys: []string{"c"}})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	p, err := sb.Exec([]string{"printenv", "c"}, modal.ExecOptions{Stdout: modal.Pipe, Secrets: []*modal.Secret{secret}})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	buf, err := io.ReadAll(p.Stdout)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(string(buf)).Should(gomega.Equal("hello world\n"))
+}
