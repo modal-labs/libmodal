@@ -57,5 +57,5 @@ func TestSnapshotFilesystem(t *testing.T) {
 
 	exitCode, err := dirCheck.Wait()
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(exitCode).To(gomega.Equal(int32(0)))
+	g.Expect(exitCode).To(gomega.Equal(0))
 }
