@@ -86,6 +86,23 @@ func newSandbox(ctx context.Context, sandboxId string) *Sandbox {
 	return sb
 }
 
+// SandboxFromId returns a running sandbox with sandboxId
+func SandboxFromId(ctx context.Context, sandboxId string) (*Sandbox, error) {
+	ctx, err := clientContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = client.SandboxWait(ctx, pb.SandboxWaitRequest_builder{
+		SandboxId: sandboxId,
+		Timeout:   0,
+	}.Build())
+	if err != nil {
+		return nil, err
+	}
+	return newSandbox(ctx, sandboxId), nil
+}
+
 // Exec runs a command in the sandbox and returns text streams.
 func (sb *Sandbox) Exec(command []string, opts ExecOptions) (*ContainerProcess, error) {
 	if err := sb.ensureTaskId(); err != nil {
