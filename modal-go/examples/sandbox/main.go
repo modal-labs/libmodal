@@ -29,6 +29,12 @@ func main() {
 	}
 	log.Printf("sandbox: %s\n", sb.SandboxId)
 
+	sbFromId, err := modal.SandboxFromId(ctx, sb.SandboxId)
+	if err != nil {
+		log.Fatalf("Failed to get sandbox with Id: %v", err)
+	}
+	log.Printf("Queried sandbox with id: %v", sbFromId.SandboxId)
+
 	_, err = sb.Stdin.Write([]byte("this is input that should be mirrored by cat"))
 	if err != nil {
 		log.Fatalf("Failed to write to sandbox stdin: %v", err)
