@@ -475,14 +475,13 @@ function encodeIfString(chunk: Uint8Array | string): Uint8Array {
   return typeof chunk === "string" ? new TextEncoder().encode(chunk) : chunk;
 }
 
-
 /** Returns a running Sandbox object from an ID.
  *
  * @returns Sandbox with ID
  */
 export async function SandboxFromId(sandboxId: string): Promise<Sandbox> {
   await client.sandboxWait({
-    sandboxId: sandboxId,
+    sandboxId,
     timeout: 0,
   });
 

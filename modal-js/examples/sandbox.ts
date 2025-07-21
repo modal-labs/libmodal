@@ -9,7 +9,7 @@ console.log("sandbox:", sb.sandboxId);
 
 // Get running sandbox from ID
 const sbFromId = await SandboxFromId(sb.sandboxId);
-console.log("Queried sandbox from ID:", sbFromId.sandboxId)
+console.log("Queried sandbox from ID:", sbFromId.sandboxId);
 
 // Write to the sandbox's stdin and read from its stdout.
 await sb.stdin.writeText("this is input that should be mirrored by cat");

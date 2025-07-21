@@ -154,7 +154,7 @@ test("SandboxPollAfterFailure", async () => {
   expect(await sandbox.poll()).toBe(42);
 });
 
-test("SandboxFromId", async() => {
+test("SandboxFromId", async () => {
   const app = await App.lookup("libmodal-test", { createIfMissing: true });
   const image = await app.imageFromRegistry("alpine:3.21");
 
@@ -166,4 +166,4 @@ test("SandboxFromId", async() => {
 
   const sbFromId = await SandboxFromId(sb.sandboxId);
   expect(sbFromId.sandboxId).toBe(sb.sandboxId);
-})
+});
