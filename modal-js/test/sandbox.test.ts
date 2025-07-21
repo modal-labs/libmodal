@@ -1,5 +1,5 @@
-import { App, Volume } from "modal";
-import { expect, test } from "vitest";
+import { App, Volume, SandboxFromId } from "modal";
+import { expect, test, onTestFinished } from "vitest";
 
 test("CreateOneSandbox", async () => {
   const app = await App.lookup("libmodal-test", { createIfMissing: true });
@@ -153,3 +153,17 @@ test("SandboxPollAfterFailure", async () => {
   expect(await sandbox.wait()).toBe(42);
   expect(await sandbox.poll()).toBe(42);
 });
+
+test("SandboxFromId", async() => {
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
+  const image = await app.imageFromRegistry("alpine:3.21");
+
+  const sb = await app.createSandbox(image);
+
+  onTestFinished(async () => {
+    await sb.terminate();
+  });
+
+  const sbFromId = await SandboxFromId(sb.sandboxId);
+  expect(sbFromId.sandboxId).toBe(sb.sandboxId);
+})

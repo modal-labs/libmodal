@@ -86,7 +86,7 @@ func newSandbox(ctx context.Context, sandboxId string) *Sandbox {
 	return sb
 }
 
-// SandboxFromId returns a running sandbox with sandboxId
+// SandboxFromId returns a running Sandbox object from an ID.
 func SandboxFromId(ctx context.Context, sandboxId string) (*Sandbox, error) {
 	ctx, err := clientContext(ctx)
 	if err != nil {
