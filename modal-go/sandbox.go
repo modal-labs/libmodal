@@ -33,6 +33,8 @@ type ExecOptions struct {
 	Workdir string
 	// Timeout is the timeout for command execution. Defaults to 0 (no timeout).
 	Timeout time.Duration
+	// Secrets with environment variables for the command.
+	Secrets []*Secret
 }
 
 // Tunnel represents a port forwarded from within a running Modal sandbox.
