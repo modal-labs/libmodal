@@ -1,5 +1,6 @@
 import {
   FileDescriptor,
+  GenericResult,
   GenericResult_GenericStatus,
 } from "../proto/modal_proto/api";
 import { client, isRetryableGrpc } from "./client";
@@ -16,6 +17,7 @@ import {
   toModalWriteStream,
 } from "./streams";
 import { InvalidError, SandboxTimeoutError } from "./errors";
+import { Image } from "./image";
 
 /**
  * Stdin is always present, but this option allow you to drop stdout or stderr
@@ -192,7 +194,7 @@ export class Sandbox {
         timeout: 55,
       });
       if (resp.result) {
-        return resp.result.exitcode;
+        return Sandbox.#getReturnCode(resp.result)!;
       }
     }
   }
@@ -230,6 +232,69 @@ export class Sandbox {
     }
 
     return this.#tunnels;
+  }
+
+  /**
+   * Snapshot the filesystem of the Sandbox.
+   *
+   * Returns an `Image` object which can be used to spawn a new Sandbox with the same filesystem.
+   *
+   * @param timeout - Timeout for the snapshot operation in milliseconds
+   * @returns Promise that resolves to an Image
+   */
+  async snapshotFilesystem(timeout = 55000): Promise<Image> {
+    const resp = await client.sandboxSnapshotFs({
+      sandboxId: this.sandboxId,
+      timeout: timeout / 1000,
+    });
+
+    if (
+      resp.result?.status !== GenericResult_GenericStatus.GENERIC_STATUS_SUCCESS
+    ) {
+      throw new Error(
+        `Sandbox snapshot failed: ${resp.result?.exception || "Unknown error"}`,
+      );
+    }
+
+    if (!resp.imageId) {
+      throw new Error("Sandbox snapshot response missing image ID");
+    }
+
+    return new Image(resp.imageId);
+  }
+
+  /**
+   * Check if the Sandbox has finished running.
+   *
+   * Returns `null` if the Sandbox is still running, else returns the exit code.
+   */
+  async poll(): Promise<number | null> {
+    const resp = await client.sandboxWait({
+      sandboxId: this.sandboxId,
+      timeout: 0,
+    });
+
+    return Sandbox.#getReturnCode(resp.result);
+  }
+
+  static #getReturnCode(result: GenericResult | undefined): number | null {
+    if (
+      result === undefined ||
+      result.status === GenericResult_GenericStatus.GENERIC_STATUS_UNSPECIFIED
+    ) {
+      return null;
+    }
+
+    // Statuses are converted to exitcodes so we can conform to subprocess API.
+    if (result.status === GenericResult_GenericStatus.GENERIC_STATUS_TIMEOUT) {
+      return 124;
+    } else if (
+      result.status === GenericResult_GenericStatus.GENERIC_STATUS_TERMINATED
+    ) {
+      return 137;
+    } else {
+      return result.exitcode;
+    }
   }
 }
 
