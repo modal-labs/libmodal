@@ -16,9 +16,7 @@ import {
   toModalReadStream,
   toModalWriteStream,
 } from "./streams";
-import {
-  type Secret
-} from "./secret";
+import { type Secret } from "./secret";
 import { InvalidError, SandboxTimeoutError } from "./errors";
 import { Image } from "./image";
 
@@ -159,15 +157,15 @@ export class Sandbox {
     const taskId = await this.#getTaskId();
 
     const secretIds = options?.secrets
-          ? options.secrets.map((secret) => secret.secretId)
-          : [];
+      ? options.secrets.map((secret) => secret.secretId)
+      : [];
 
     const resp = await client.containerExec({
       taskId,
       command,
       workdir: options?.workdir,
       timeoutSecs: options?.timeout ? options.timeout / 1000 : 0,
-      secretIds: secretIds,
+      secretIds,
     });
 
     return new ContainerProcess(resp.execId, options);

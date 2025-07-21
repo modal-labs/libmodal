@@ -1,5 +1,4 @@
 import { App, Secret } from "modal";
-import { AppListResponse_AppListItem } from "../proto/modal_proto/api";
 
 const app = await App.lookup("libmodal-example", { createIfMissing: true });
 const image = await app.imageFromRegistry("python:3.13-slim");
@@ -37,11 +36,15 @@ for i in range(50000):
   );
   console.log("Return code:", await p.wait());
 
-  const secret = await Secret.fromName("libmodal-test-secret", {requiredKeys: ["c"]});
-  const printSecret = await sb.exec(["printenv", "c"], {stdout: "pipe", secrets: [secret]})
+  const secret = await Secret.fromName("libmodal-test-secret", {
+    requiredKeys: ["c"],
+  });
+  const printSecret = await sb.exec(["printenv", "c"], {
+    stdout: "pipe",
+    secrets: [secret],
+  });
   const secretText = await printSecret.stdout.readText();
   console.log(`Got environment variable c=${secretText}`);
-
 } finally {
   await sb.terminate();
 }
