@@ -28,7 +28,7 @@ func TestCreateOneSandbox(t *testing.T) {
 
 	exitcode, err := sb.Wait()
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(exitcode).To(gomega.Equal(int32(0)))
+	g.Expect(exitcode).To(gomega.Equal(137))
 }
 
 func TestPassCatToStdin(t *testing.T) {
@@ -82,7 +82,7 @@ func TestIgnoreLargeStdout(t *testing.T) {
 	// Stdout should be consumed after cancel, without blocking the process.
 	exitCode, err := p.Wait()
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(exitCode).To(gomega.Equal(int32(0)))
+	g.Expect(exitCode).To(gomega.Equal(0))
 }
 
 func TestSandboxExecOptions(t *testing.T) {
@@ -111,7 +111,7 @@ func TestSandboxExecOptions(t *testing.T) {
 
 	exitCode, err := p.Wait()
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(exitCode).To(gomega.Equal(int32(0)))
+	g.Expect(exitCode).To(gomega.Equal(0))
 }
 
 func TestSandboxWithVolume(t *testing.T) {
@@ -144,7 +144,7 @@ func TestSandboxWithVolume(t *testing.T) {
 
 	exitCode, err := sandbox.Wait()
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(exitCode).Should(gomega.Equal(int32(0)))
+	g.Expect(exitCode).Should(gomega.Equal(0))
 }
 
 func TestSandboxWithTunnels(t *testing.T) {
@@ -196,4 +196,60 @@ func TestSandboxWithTunnels(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(tcpHost).Should(gomega.Equal(unencryptedTunnel.UnencryptedHost))
 	g.Expect(tcpPort).Should(gomega.Equal(unencryptedTunnel.UnencryptedPort))
+}
+
+func TestSandboxPollAndReturnCode(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	app, err := modal.AppLookup(context.Background(), "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	image, err := app.ImageFromRegistry("alpine:3.21", nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	sandbox, err := app.CreateSandbox(image, &modal.SandboxOptions{Command: []string{"cat"}})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	pollResult, err := sandbox.Poll()
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(pollResult).Should(gomega.BeNil())
+
+	// Send input to make the cat command complete
+	_, err = sandbox.Stdin.Write([]byte("hello, sandbox"))
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	err = sandbox.Stdin.Close()
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	waitResult, err := sandbox.Wait()
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(waitResult).To(gomega.Equal(0))
+
+	pollResult, err = sandbox.Poll()
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(pollResult).ShouldNot(gomega.BeNil())
+	g.Expect(*pollResult).To(gomega.Equal(0))
+}
+
+func TestSandboxPollAfterFailure(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	app, err := modal.AppLookup(context.Background(), "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	image, err := app.ImageFromRegistry("alpine:3.21", nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	sandbox, err := app.CreateSandbox(image, &modal.SandboxOptions{
+		Command: []string{"sh", "-c", "exit 42"},
+	})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	waitResult, err := sandbox.Wait()
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(waitResult).To(gomega.Equal(42))
+
+	pollResult, err := sandbox.Poll()
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(pollResult).ShouldNot(gomega.BeNil())
+	g.Expect(*pollResult).To(gomega.Equal(42))
 }
