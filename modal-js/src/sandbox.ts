@@ -16,6 +16,9 @@ import {
   toModalReadStream,
   toModalWriteStream,
 } from "./streams";
+import {
+  type Secret
+} from "./secret";
 import { InvalidError, SandboxTimeoutError } from "./errors";
 import { Image } from "./image";
 
@@ -46,6 +49,8 @@ export type ExecOptions = {
   workdir?: string;
   /** Timeout for the process in milliseconds. Defaults to 0 (no timeout). */
   timeout?: number;
+  /** Secrets with environment variables for the command. */
+  secrets?: [Secret];
 };
 
 /** A port forwarded from within a running Modal sandbox. */
@@ -148,15 +153,21 @@ export class Sandbox {
       stderr?: StdioBehavior;
       workdir?: string;
       timeout?: number;
+      secrets?: [Secret];
     },
   ): Promise<ContainerProcess> {
     const taskId = await this.#getTaskId();
+
+    const secretIds = options?.secrets
+          ? options.secrets.map((secret) => secret.secretId)
+          : [];
 
     const resp = await client.containerExec({
       taskId,
       command,
       workdir: options?.workdir,
       timeoutSecs: options?.timeout ? options.timeout / 1000 : 0,
+      secretIds: secretIds,
     });
 
     return new ContainerProcess(resp.execId, options);
