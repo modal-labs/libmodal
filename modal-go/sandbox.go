@@ -98,11 +98,9 @@ func (sb *Sandbox) Exec(command []string, opts ExecOptions) (*ContainerProcess, 
 		workdir = &opts.Workdir
 	}
 	secretIds := []string{}
-	if opts.Secrets != nil {
-		for _, secret := range opts.Secrets {
-			if secret != nil {
-				secretIds = append(secretIds, secret.SecretId)
-			}
+	for _, secret := range opts.Secrets {
+		if secret != nil {
+			secretIds = append(secretIds, secret.SecretId)
 		}
 	}
 
