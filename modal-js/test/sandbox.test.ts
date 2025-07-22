@@ -126,7 +126,7 @@ test("SandboxWithTunnels", async () => {
   await sandbox.terminate();
 });
 
-test("SandboxWithSecrets", async () => {
+test("CreateSandboxWithSecrets", async () => {
   const app = await App.lookup("libmodal-test", { createIfMissing: true });
   const image = await app.imageFromRegistry("alpine:3.21");
 

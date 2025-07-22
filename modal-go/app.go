@@ -130,11 +130,9 @@ func (app *App) CreateSandbox(image *Image, options *SandboxOptions) (*Sandbox, 
 	}
 
 	secretIds := []string{}
-	if options.Secrets != nil {
-		for _, secret := range options.Secrets {
-			if secret != nil {
-				secretIds = append(secretIds, secret.SecretId)
-			}
+	for _, secret := range options.Secrets {
+		if secret != nil {
+			secretIds = append(secretIds, secret.SecretId)
 		}
 	}
 

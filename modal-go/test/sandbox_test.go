@@ -198,7 +198,7 @@ func TestSandboxWithTunnels(t *testing.T) {
 	g.Expect(tcpPort).Should(gomega.Equal(unencryptedTunnel.UnencryptedPort))
 }
 
-func TestSandboxWithSecrets(t *testing.T) {
+func TestCreateSandboxWithSecrets(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
