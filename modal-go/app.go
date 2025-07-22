@@ -133,7 +133,9 @@ func (app *App) CreateSandbox(image *Image, options *SandboxOptions) (*Sandbox, 
 	if options.Secrets != nil {
 		secretIds = make([]string, len(options.Secrets))
 		for idx, secret := range options.Secrets {
-			secretIds[idx] = secret.SecretId
+			if secret != nil {
+				secretIds[idx] = secret.SecretId
+			}
 		}
 	}
 
