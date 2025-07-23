@@ -38,6 +38,7 @@ type SandboxOptions struct {
 	Memory           int                // Memory request in MiB.
 	Timeout          time.Duration      // Maximum duration for the Sandbox.
 	Command          []string           // Command to run in the Sandbox on startup.
+	Secrets          []*Secret          // Secrets to inject into the Sandbox.
 	Volumes          map[string]*Volume // Mount points for Volumes.
 	EncryptedPorts   []int              // List of encrypted ports to tunnel into the sandbox, with TLS encryption.
 	H2Ports          []int              // List of encrypted ports to tunnel into the sandbox, using HTTP/2.
@@ -128,11 +129,19 @@ func (app *App) CreateSandbox(image *Image, options *SandboxOptions) (*Sandbox, 
 		}.Build()
 	}
 
+	secretIds := []string{}
+	for _, secret := range options.Secrets {
+		if secret != nil {
+			secretIds = append(secretIds, secret.SecretId)
+		}
+	}
+
 	createResp, err := client.SandboxCreate(app.ctx, pb.SandboxCreateRequest_builder{
 		AppId: app.AppId,
 		Definition: pb.Sandbox_builder{
 			EntrypointArgs: options.Command,
 			ImageId:        image.ImageId,
+			SecretIds:      secretIds,
 			TimeoutSecs:    uint32(options.Timeout.Seconds()),
 			NetworkAccess: pb.NetworkAccess_builder{
 				NetworkAccessType: pb.NetworkAccess_OPEN,
