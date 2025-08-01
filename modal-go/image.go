@@ -19,8 +19,8 @@ type Image struct {
 	ctx context.Context
 }
 
-// ImageFromRegistry builds a Modal Image from a public or private image registry without any changes.
-func ImageFromRegistry(tag string, options *ImageFromRegistryOptions) (*Image, error) {
+// ImageFromRawRegistry builds a Modal Image from a public or private image registry without any changes.
+func ImageFromRawRegistry(tag string, options *ImageFromRegistryOptions) (*Image, error) {
 	if options == nil {
 		options = &ImageFromRegistryOptions{}
 	}
@@ -49,10 +49,10 @@ func hydrateImage(app *App, image *Image) (*Image, error) {
 		return image, nil
 	}
 
-	return fromRegistryInternal(app, image)
+	return fromRawRegistryInternal(app, image)
 }
 
-func fromRegistryInternal(app *App, image *Image) (*Image, error) {
+func fromRawRegistryInternal(app *App, image *Image) (*Image, error) {
 	if image == nil {
 		return nil, InvalidError{"image must be non-nil"}
 	}

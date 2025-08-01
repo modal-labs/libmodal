@@ -169,7 +169,7 @@ func (app *App) CreateSandbox(image *Image, options *SandboxOptions) (*Sandbox, 
 
 // ImageFromRegistry creates an Image from a registry tag.
 func (app *App) ImageFromRegistry(tag string, options *ImageFromRegistryOptions) (*Image, error) {
-	image, err := ImageFromRegistry(tag, options)
+	image, err := ImageFromRawRegistry(tag, options)
 	if err != nil {
 		return nil, err
 	}
@@ -187,7 +187,7 @@ func (app *App) ImageFromAwsEcr(tag string, secret *Secret) (*Image, error) {
 		imageRegistryConfig: imageRegistryConfig,
 		tag:                 tag,
 	}
-	return fromRegistryInternal(app, image)
+	return fromRawRegistryInternal(app, image)
 }
 
 // ImageFromGcpArtifactRegistry creates an Image from a GCP Artifact Registry tag.
@@ -201,5 +201,5 @@ func (app *App) ImageFromGcpArtifactRegistry(tag string, secret *Secret) (*Image
 		imageRegistryConfig: imageRegistryConfig,
 		tag:                 tag,
 	}
-	return fromRegistryInternal(app, image)
+	return fromRawRegistryInternal(app, image)
 }
