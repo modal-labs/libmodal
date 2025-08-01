@@ -37,7 +37,7 @@ func TestCreateOneSandboxTopLevelImageAPI(t *testing.T) {
 	app, err := modal.AppLookup(context.Background(), "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	image, err := modal.ImageFromRegistry("alpine:3.21", nil)
+	image, err := modal.ImageFromRawRegistry("alpine:3.21", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(image.ImageId).Should(gomega.BeEmpty())
 
@@ -59,7 +59,7 @@ func TestCreateOneSandboxTopLevelImageAPISecret(t *testing.T) {
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	image, err := modal.ImageFromRegistry("us-east1-docker.pkg.dev/modal-prod-367916/private-repo-test/my-image", &modal.ImageFromRegistryOptions{
+	image, err := modal.ImageFromRawRegistry("us-east1-docker.pkg.dev/modal-prod-367916/private-repo-test/my-image", &modal.ImageFromRegistryOptions{
 		Secret: secret,
 	})
 

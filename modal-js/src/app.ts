@@ -8,7 +8,7 @@ import {
 } from "../proto/modal_proto/api";
 import { client } from "./client";
 import { environmentName } from "./config";
-import { fromRegistryInternal, type Image } from "./image";
+import { Image } from "./image";
 import { Sandbox } from "./sandbox";
 import { NotFoundError } from "./errors";
 import { Secret } from "./secret";
@@ -100,6 +100,7 @@ export class App {
         `Timeout must be a multiple of 1000ms, got ${options.timeout}`,
       );
     }
+    let image_ = await image._build(this.appId);
 
     const volumeMounts = options.volumes
       ? Object.entries(options.volumes).map(([mountPath, volume]) => ({
@@ -145,7 +146,7 @@ export class App {
       definition: {
         // Sleep default is implicit in image builder version <=2024.10
         entrypointArgs: options.command ?? ["sleep", "48h"],
-        imageId: image.imageId,
+        imageId: image_.imageId,
         timeoutSecs:
           options.timeout != undefined ? options.timeout / 1000 : 600,
         networkAccess: {
@@ -166,19 +167,8 @@ export class App {
   }
 
   async imageFromRegistry(tag: string, secret?: Secret): Promise<Image> {
-    let imageRegistryConfig;
-    if (secret) {
-      if (!(secret instanceof Secret)) {
-        throw new TypeError(
-          "secret must be a reference to an existing Secret, e.g. `await Secret.fromName('my_secret')`",
-        );
-      }
-      imageRegistryConfig = {
-        registryAuthType: RegistryAuthType.REGISTRY_AUTH_TYPE_STATIC_CREDS,
-        secretId: secret.secretId,
-      };
-    }
-    return await fromRegistryInternal(this.appId, tag, imageRegistryConfig);
+    let image = Image.FromRawRegistry(tag, secret)
+    return await image._build(this.appId);
   }
 
   async imageFromAwsEcr(tag: string, secret: Secret): Promise<Image> {
@@ -193,7 +183,8 @@ export class App {
       secretId: secret.secretId,
     };
 
-    return await fromRegistryInternal(this.appId, tag, imageRegistryConfig);
+    let image = new Image(tag, imageRegistryConfig);
+    return await image._build(this.appId);
   }
 
   async imageFromGcpArtifactRegistry(
@@ -211,6 +202,7 @@ export class App {
       secretId: secret.secretId,
     };
 
-    return await fromRegistryInternal(this.appId, tag, imageRegistryConfig);
+    let image = new Image(tag, imageRegistryConfig);
+    return await image._build(this.appId);
   }
 }
