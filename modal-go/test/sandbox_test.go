@@ -31,6 +31,48 @@ func TestCreateOneSandbox(t *testing.T) {
 	g.Expect(exitcode).To(gomega.Equal(137))
 }
 
+func TestCreateOneSandboxTopLevelImageAPI(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	app, err := modal.AppLookup(context.Background(), "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	image, err := modal.ImageFromRegistry("alpine:3.21", nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(image.ImageId).Should(gomega.BeEmpty())
+
+	sb, err := app.CreateSandbox(image, nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	defer sb.Terminate()
+
+	g.Expect(image.ImageId).Should(gomega.HavePrefix("im-"))
+}
+
+func TestCreateOneSandboxTopLevelImageAPISecret(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	app, err := modal.AppLookup(context.Background(), "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	secret, err := modal.SecretFromName(context.Background(), "libmodal-gcp-artifact-registry-test", &modal.SecretFromNameOptions{
+		RequiredKeys: []string{"REGISTRY_USERNAME", "REGISTRY_PASSWORD"},
+	})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	image, err := modal.ImageFromRegistry("us-east1-docker.pkg.dev/modal-prod-367916/private-repo-test/my-image", &modal.ImageFromRegistryOptions{
+		Secret: secret,
+	})
+
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(image.ImageId).Should(gomega.BeEmpty())
+
+	sb, err := app.CreateSandbox(image, nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	defer sb.Terminate()
+
+	g.Expect(image.ImageId).Should(gomega.HavePrefix("im-"))
+}
+
 func TestPassCatToStdin(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)

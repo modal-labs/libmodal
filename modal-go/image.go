@@ -19,14 +19,18 @@ type Image struct {
 	ctx context.Context
 }
 
+// ImageFromRegistry builds a Modal Image from a public or private image registry without any changes.
 func ImageFromRegistry(tag string, options *ImageFromRegistryOptions) (*Image, error) {
 	if options == nil {
 		options = &ImageFromRegistryOptions{}
 	}
-	imageRegistryConfig := pb.ImageRegistryConfig_builder{
-		RegistryAuthType: pb.RegistryAuthType_REGISTRY_AUTH_TYPE_STATIC_CREDS,
-		SecretId:         options.Secret.SecretId,
-	}.Build()
+	var imageRegistryConfig *pb.ImageRegistryConfig
+	if options.Secret != nil {
+		imageRegistryConfig = pb.ImageRegistryConfig_builder{
+			RegistryAuthType: pb.RegistryAuthType_REGISTRY_AUTH_TYPE_STATIC_CREDS,
+			SecretId:         options.Secret.SecretId,
+		}.Build()
+	}
 
 	return &Image{
 		ImageId:             "",
@@ -40,22 +44,26 @@ func hydrateImage(app *App, image *Image) (*Image, error) {
 		return nil, InvalidError{"image must be non-nil"}
 	}
 
-	// Image was already hyrdated
+	// Image is already hyrdated
 	if image.ImageId != "" {
 		return image, nil
 	}
 
-	return fromRegistryInternal(app, image.tag, image.imageRegistryConfig)
+	return fromRegistryInternal(app, image)
 }
 
-func fromRegistryInternal(app *App, tag string, imageRegistryConfig *pb.ImageRegistryConfig) (*Image, error) {
+func fromRegistryInternal(app *App, image *Image) (*Image, error) {
+	if image == nil {
+		return nil, InvalidError{"image must be non-nil"}
+	}
+
 	resp, err := client.ImageGetOrCreate(
 		app.ctx,
 		pb.ImageGetOrCreateRequest_builder{
 			AppId: app.AppId,
 			Image: pb.Image_builder{
-				DockerfileCommands:  []string{`FROM ` + tag},
-				ImageRegistryConfig: imageRegistryConfig,
+				DockerfileCommands:  []string{`FROM ` + image.tag},
+				ImageRegistryConfig: image.imageRegistryConfig,
 			}.Build(),
 			BuilderVersion: imageBuilderVersion(""),
 		}.Build(),
@@ -118,9 +126,7 @@ func fromRegistryInternal(app *App, tag string, imageRegistryConfig *pb.ImageReg
 		return nil, RemoteError{fmt.Sprintf("Image build for %s failed with unknown status: %s", resp.GetImageId(), result.GetStatus())}
 	}
 
-	img := &Image{
-		ImageId: resp.GetImageId(),
-		ctx:     app.ctx,
-	}
-	return img, nil
+	image.ImageId = resp.GetImageId()
+	image.ctx = app.ctx
+	return image, nil
 }
