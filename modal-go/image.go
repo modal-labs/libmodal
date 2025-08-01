@@ -39,7 +39,7 @@ func ImageFromRawRegistry(tag string, options *ImageFromRegistryOptions) (*Image
 	}, nil
 }
 
-func hydrateImage(app *App, image *Image) (*Image, error) {
+func (image *Image) build(app *App) (*Image, error) {
 	if image == nil {
 		return nil, InvalidError{"image must be non-nil"}
 	}
@@ -47,14 +47,6 @@ func hydrateImage(app *App, image *Image) (*Image, error) {
 	// Image is already hyrdated
 	if image.ImageId != "" {
 		return image, nil
-	}
-
-	return fromRawRegistryInternal(app, image)
-}
-
-func fromRawRegistryInternal(app *App, image *Image) (*Image, error) {
-	if image == nil {
-		return nil, InvalidError{"image must be non-nil"}
 	}
 
 	resp, err := client.ImageGetOrCreate(

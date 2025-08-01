@@ -11,16 +11,17 @@ import { imageBuilderVersion } from "./config";
 
 /** A container image, used for starting sandboxes. */
 export class Image {
-  #imageId?: string;
+  #imageId: string;
   #tag: string;
   #imageRegistryConfig?: ImageRegistryConfig;
 
   /** @ignore */
   constructor(tag: string, imageRegistryConfig?: ImageRegistryConfig) {
+    this.#imageId = "";
     this.#imageRegistryConfig = imageRegistryConfig;
     this.#tag = tag;
   }
-  get imageId(): string | undefined {
+  get imageId(): string {
     return this.#imageId;
   }
 
@@ -51,7 +52,7 @@ export class Image {
    * Build image object
    */
   async _build(appId: string): Promise<Image> {
-    if (this.imageId !== undefined) {
+    if (this.imageId !== "") {
       // Image is already built with an image ID
       return this;
     }
