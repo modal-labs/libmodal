@@ -1,4 +1,4 @@
-import { App, Volume, Secret } from "modal";
+import { App, Volume, Secret, Image } from "modal";
 import { expect, test, onTestFinished } from "vitest";
 
 test("CreateOneSandbox", async () => {
@@ -12,6 +12,39 @@ test("CreateOneSandbox", async () => {
   expect(sb.sandboxId).toBeTruthy();
   await sb.terminate();
   expect(await sb.wait()).toBe(137);
+});
+
+test("CreateOneSandboxTopLevelImageAPI", async () => {
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
+  expect(app.appId).toBeTruthy();
+
+  const image = Image.FromRawRegistry("alpine:3.21");
+  expect(image.imageId).toBeFalsy();
+
+  const sb = await app.createSandbox(image);
+  expect(sb.sandboxId).toBeTruthy();
+  await sb.terminate();
+
+  expect(image.imageId).toMatch(/^im-/);
+});
+
+test("CreateOneSandboxTopLevelImageAPISecret", async () => {
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
+  expect(app.appId).toBeTruthy();
+
+  const image = await Image.FromRawRegistry(
+    "us-east1-docker.pkg.dev/modal-prod-367916/private-repo-test/my-image",
+    await Secret.fromName("libmodal-gcp-artifact-registry-test", {
+      requiredKeys: ["REGISTRY_USERNAME", "REGISTRY_PASSWORD"],
+    }),
+  );
+  expect(image.imageId).toBeFalsy();
+
+  const sb = await app.createSandbox(image);
+  expect(sb.sandboxId).toBeTruthy();
+  await sb.terminate();
+
+  expect(image.imageId).toMatch(/^im-/);
 });
 
 test("PassCatToStdin", async () => {

@@ -12,18 +12,50 @@ import (
 type Image struct {
 	ImageId string
 
+	imageRegistryConfig *pb.ImageRegistryConfig
+	tag                 string
+
 	//lint:ignore U1000 may be used in future
 	ctx context.Context
 }
 
-func fromRegistryInternal(app *App, tag string, imageRegistryConfig *pb.ImageRegistryConfig) (*Image, error) {
+// ImageFromRawRegistry builds a Modal Image from a public or private image registry without any changes.
+func ImageFromRawRegistry(tag string, options *ImageFromRegistryOptions) (*Image, error) {
+	if options == nil {
+		options = &ImageFromRegistryOptions{}
+	}
+	var imageRegistryConfig *pb.ImageRegistryConfig
+	if options.Secret != nil {
+		imageRegistryConfig = pb.ImageRegistryConfig_builder{
+			RegistryAuthType: pb.RegistryAuthType_REGISTRY_AUTH_TYPE_STATIC_CREDS,
+			SecretId:         options.Secret.SecretId,
+		}.Build()
+	}
+
+	return &Image{
+		ImageId:             "",
+		imageRegistryConfig: imageRegistryConfig,
+		tag:                 tag,
+	}, nil
+}
+
+func (image *Image) build(app *App) (*Image, error) {
+	if image == nil {
+		return nil, InvalidError{"image must be non-nil"}
+	}
+
+	// Image is already hyrdated
+	if image.ImageId != "" {
+		return image, nil
+	}
+
 	resp, err := client.ImageGetOrCreate(
 		app.ctx,
 		pb.ImageGetOrCreateRequest_builder{
 			AppId: app.AppId,
 			Image: pb.Image_builder{
-				DockerfileCommands:  []string{`FROM ` + tag},
-				ImageRegistryConfig: imageRegistryConfig,
+				DockerfileCommands:  []string{`FROM ` + image.tag},
+				ImageRegistryConfig: image.imageRegistryConfig,
 			}.Build(),
 			BuilderVersion: imageBuilderVersion(""),
 		}.Build(),
@@ -86,9 +118,7 @@ func fromRegistryInternal(app *App, tag string, imageRegistryConfig *pb.ImageReg
 		return nil, RemoteError{fmt.Sprintf("Image build for %s failed with unknown status: %s", resp.GetImageId(), result.GetStatus())}
 	}
 
-	img := &Image{
-		ImageId: resp.GetImageId(),
-		ctx:     app.ctx,
-	}
-	return img, nil
+	image.ImageId = resp.GetImageId()
+	image.ctx = app.ctx
+	return image, nil
 }
