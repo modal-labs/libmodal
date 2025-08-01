@@ -20,7 +20,7 @@ export class Image {
     this.#imageRegistryConfig = imageRegistryConfig;
     this.#tag = tag;
   }
-  get imageId(): string | undefined{
+  get imageId(): string | undefined {
     return this.#imageId;
   }
 
@@ -60,7 +60,7 @@ export class Image {
       appId,
       image: {
         dockerfileCommands: [`FROM ${this.#tag}`],
-        imageRegistryConfig: this.#imageRegistryConfig
+        imageRegistryConfig: this.#imageRegistryConfig,
       },
       builderVersion: imageBuilderVersion(),
     });

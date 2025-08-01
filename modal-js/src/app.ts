@@ -100,7 +100,7 @@ export class App {
         `Timeout must be a multiple of 1000ms, got ${options.timeout}`,
       );
     }
-    let image_ = await image._build(this.appId);
+    await image._build(this.appId);
 
     const volumeMounts = options.volumes
       ? Object.entries(options.volumes).map(([mountPath, volume]) => ({
@@ -146,7 +146,7 @@ export class App {
       definition: {
         // Sleep default is implicit in image builder version <=2024.10
         entrypointArgs: options.command ?? ["sleep", "48h"],
-        imageId: image_.imageId,
+        imageId: image.imageId,
         timeoutSecs:
           options.timeout != undefined ? options.timeout / 1000 : 600,
         networkAccess: {
@@ -167,7 +167,7 @@ export class App {
   }
 
   async imageFromRegistry(tag: string, secret?: Secret): Promise<Image> {
-    let image = Image.FromRawRegistry(tag, secret)
+    const image = Image.FromRawRegistry(tag, secret);
     return await image._build(this.appId);
   }
 
@@ -183,7 +183,7 @@ export class App {
       secretId: secret.secretId,
     };
 
-    let image = new Image(tag, imageRegistryConfig);
+    const image = new Image(tag, imageRegistryConfig);
     return await image._build(this.appId);
   }
 
@@ -202,7 +202,7 @@ export class App {
       secretId: secret.secretId,
     };
 
-    let image = new Image(tag, imageRegistryConfig);
+    const image = new Image(tag, imageRegistryConfig);
     return await image._build(this.appId);
   }
 }
