@@ -25,6 +25,28 @@ export class Image {
   }
 
   /**
+   * Creates an `Image` instance from a raw registry tag, optionally using a secret for authentication.
+   *
+   * @param tag - The registry tag for the image.
+   * @param secret - Optional. A `Secret` instance containing credentials for registry authentication.
+   */
+  static FromRawRegistry(tag: string, secret?: Secret): Image {
+    let imageRegistryConfig;
+    if (secret) {
+      if (!(secret instanceof Secret)) {
+        throw new TypeError(
+          "secret must be a reference to an existing Secret, e.g. `await Secret.fromName('my_secret')`",
+        );
+      }
+      imageRegistryConfig = {
+        registryAuthType: RegistryAuthType.REGISTRY_AUTH_TYPE_STATIC_CREDS,
+        secretId: secret.secretId,
+      };
+    }
+    return new Image(tag, imageRegistryConfig);
+  }
+
+  /**
    * @internal
    * Build image object
    */
@@ -99,28 +121,5 @@ export class Image {
     }
     this.#imageId = resp.imageId;
     return this;
-  }
-
-  /**
-   * Creates an `Image` instance from a raw registry tag, optionally using a secret for authentication.
-   *
-   * @param tag - The registry tag for the image.
-   * @param secret - Optional. A `Secret` instance containing credentials for registry authentication.
-   * @returns An `Image` instance configured with the provided tag.
-   */
-  static FromRawRegistry(tag: string, secret?: Secret): Image {
-    let imageRegistryConfig;
-    if (secret) {
-      if (!(secret instanceof Secret)) {
-        throw new TypeError(
-          "secret must be a reference to an existing Secret, e.g. `await Secret.fromName('my_secret')`",
-        );
-      }
-      imageRegistryConfig = {
-        registryAuthType: RegistryAuthType.REGISTRY_AUTH_TYPE_STATIC_CREDS,
-        secretId: secret.secretId,
-      };
-    }
-    return new Image(tag, imageRegistryConfig);
   }
 }
