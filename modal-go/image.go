@@ -12,8 +12,40 @@ import (
 type Image struct {
 	ImageId string
 
+	imageRegistryConfig *pb.ImageRegistryConfig
+	tag                 string
+
 	//lint:ignore U1000 may be used in future
 	ctx context.Context
+}
+
+func ImageFromRegistry(tag string, options *ImageFromRegistryOptions) (*Image, error) {
+	if options == nil {
+		options = &ImageFromRegistryOptions{}
+	}
+	imageRegistryConfig := pb.ImageRegistryConfig_builder{
+		RegistryAuthType: pb.RegistryAuthType_REGISTRY_AUTH_TYPE_STATIC_CREDS,
+		SecretId:         options.Secret.SecretId,
+	}.Build()
+
+	return &Image{
+		ImageId:             "",
+		imageRegistryConfig: imageRegistryConfig,
+		tag:                 tag,
+	}, nil
+}
+
+func hydrateImage(app *App, image *Image) (*Image, error) {
+	if image == nil {
+		return nil, InvalidError{"image must be non-nil"}
+	}
+
+	// Image was already hyrdated
+	if image.ImageId != "" {
+		return image, nil
+	}
+
+	return fromRegistryInternal(app, image.tag, image.imageRegistryConfig)
 }
 
 func fromRegistryInternal(app *App, tag string, imageRegistryConfig *pb.ImageRegistryConfig) (*Image, error) {

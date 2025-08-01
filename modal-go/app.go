@@ -88,6 +88,11 @@ func (app *App) CreateSandbox(image *Image, options *SandboxOptions) (*Sandbox, 
 		options = &SandboxOptions{}
 	}
 
+	image, err := hydrateImage(app, image)
+	if err == nil {
+		return nil, err
+	}
+
 	var volumeMounts []*pb.VolumeMount
 	if options.Volumes != nil {
 		volumeMounts = make([]*pb.VolumeMount, 0, len(options.Volumes))
