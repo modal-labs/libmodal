@@ -16,7 +16,7 @@ import {
   toModalReadStream,
   toModalWriteStream,
 } from "./streams";
-import { InvalidError, SandboxTimeoutError } from "./errors";
+import { InvalidError, NotFoundError, SandboxTimeoutError } from "./errors";
 import { Image } from "./image";
 
 /**
@@ -480,10 +480,14 @@ function encodeIfString(chunk: Uint8Array | string): Uint8Array {
  * @returns Sandbox with ID
  */
 export async function SandboxFromId(sandboxId: string): Promise<Sandbox> {
-  await client.sandboxWait({
-    sandboxId,
-    timeout: 0,
-  });
+  try {
+    await client.sandboxWait({
+      sandboxId,
+      timeout: 0,
+    });
+  } catch (err) {
+    throw new NotFoundError(`Sandbox with id: '${sandboxId}' not found`)
+  }
 
   return new Sandbox(sandboxId);
 }

@@ -98,7 +98,7 @@ func SandboxFromId(ctx context.Context, sandboxId string) (*Sandbox, error) {
 		Timeout:   0,
 	}.Build())
 	if err != nil {
-		return nil, err
+		return nil, NotFoundError{fmt.Sprintf("Sandbox with id: '%s' not found", sandboxId)}
 	}
 	return newSandbox(ctx, sandboxId), nil
 }
