@@ -1,4 +1,4 @@
-import { App, Volume, SandboxFromId } from "modal";
+import { App, Volume, SandboxFromId, Secret } from "modal";
 import { expect, test, onTestFinished } from "vitest";
 
 test("CreateOneSandbox", async () => {
@@ -126,6 +126,25 @@ test("SandboxWithTunnels", async () => {
   await sandbox.terminate();
 });
 
+test("CreateSandboxWithSecrets", async () => {
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
+  const image = await app.imageFromRegistry("alpine:3.21");
+
+  const secret = await Secret.fromName("libmodal-test-secret", {
+    requiredKeys: ["c"],
+  });
+  expect(secret).toBeDefined();
+
+  const sandbox = await app.createSandbox(image, {
+    command: ["printenv", "c"],
+    secrets: [secret],
+  });
+  expect(sandbox).toBeDefined();
+
+  const result = await sandbox.stdout.readText();
+  expect(result).toBe("hello world\n");
+});
+
 test("SandboxPollAndReturnCode", async () => {
   const app = await App.lookup("libmodal-test", { createIfMissing: true });
   const image = await app.imageFromRegistry("alpine:3.21");
@@ -154,16 +173,36 @@ test("SandboxPollAfterFailure", async () => {
   expect(await sandbox.poll()).toBe(42);
 });
 
-test("SandboxFromId", async () => {
+test("SandboxExecSecret", async () => {
   const app = await App.lookup("libmodal-test", { createIfMissing: true });
   const image = await app.imageFromRegistry("alpine:3.21");
 
   const sb = await app.createSandbox(image);
+  expect(sb.sandboxId).toBeTruthy();
 
   onTestFinished(async () => {
     await sb.terminate();
   });
 
+  const secret = await Secret.fromName("libmodal-test-secret", {
+    requiredKeys: ["c"],
+  });
+  const printSecret = await sb.exec(["printenv", "c"], {
+    stdout: "pipe",
+    secrets: [secret],
+  });
+  const secretText = await printSecret.stdout.readText();
+  expect(secretText).toBe("hello world\n");
+});
+
+test("SandboxFromId", async () => {
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
+  const image = await app.imageFromRegistry("alpine:3.21");
+
+  const sb = await app.createSandbox(image);
+  onTestFinished(async () => {
+    await sb.terminate();
+  });
   const sbFromId = await SandboxFromId(sb.sandboxId);
   expect(sbFromId.sandboxId).toBe(sb.sandboxId);
 });

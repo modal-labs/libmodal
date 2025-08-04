@@ -4,9 +4,14 @@ Both client libraries are pre-1.0, and they have separate versioning.
 
 ## Unreleased
 
+- Added support for getting Sandboxes from an ID.
+
+## modal-js/v0.3.15, modal-go/v0.0.15
+
 - Added support for snapshotting the filesystem of a Sandbox.
 - Added support for polling Sandboxes to check if they are still running, or get the exit code.
-- Added support for getting Sandboxes from an ID.
+- Added support to execute commands in Sandboxes with Secrets.
+- Added support for creating Sandboxes with secrets.
 
 ## modal-js/v0.3.14, modal-go/v0.0.14
 

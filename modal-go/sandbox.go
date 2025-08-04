@@ -33,6 +33,8 @@ type ExecOptions struct {
 	Workdir string
 	// Timeout is the timeout for command execution. Defaults to 0 (no timeout).
 	Timeout time.Duration
+	// Secrets with environment variables for the command.
+	Secrets []*Secret
 }
 
 // Tunnel represents a port forwarded from within a running Modal sandbox.
@@ -112,11 +114,19 @@ func (sb *Sandbox) Exec(command []string, opts ExecOptions) (*ContainerProcess, 
 	if opts.Workdir != "" {
 		workdir = &opts.Workdir
 	}
+	secretIds := []string{}
+	for _, secret := range opts.Secrets {
+		if secret != nil {
+			secretIds = append(secretIds, secret.SecretId)
+		}
+	}
+
 	resp, err := client.ContainerExec(sb.ctx, pb.ContainerExecRequest_builder{
 		TaskId:      sb.taskId,
 		Command:     command,
 		Workdir:     workdir,
 		TimeoutSecs: uint32(opts.Timeout.Seconds()),
+		SecretIds:   secretIds,
 	}.Build())
 	if err != nil {
 		return nil, err

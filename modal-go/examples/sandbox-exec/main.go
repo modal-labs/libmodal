@@ -66,4 +66,20 @@ for i in range(50000):
 	}
 	log.Println("Return code:", returnCode)
 
+	secret, err := modal.SecretFromName(context.Background(), "libmodal-test-secret", &modal.SecretFromNameOptions{RequiredKeys: []string{"c"}})
+	if err != nil {
+		log.Fatalf("Unable to get secret: %v", err)
+	}
+
+	// Passing Secrets in a command
+	p, err = sb.Exec([]string{"printenv", "c"}, modal.ExecOptions{Stdout: modal.Pipe, Stderr: modal.Pipe, Secrets: []*modal.Secret{secret}})
+	if err != nil {
+		log.Fatalf("Faield to execute env command in sandbox: %v", err)
+	}
+
+	secretStdout, err := io.ReadAll(p.Stdout)
+	if err != nil {
+		log.Fatalf("Failed to read stdout: %v", err)
+	}
+	log.Printf("Got environment variable c=%v", string(secretStdout))
 }

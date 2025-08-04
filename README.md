@@ -37,6 +37,7 @@ Examples:
 - [Check the status and exit code of a sandbox](./modal-js/examples/sandbox-poll.ts)
 - [Access sandbox filesystem](./modal-js/examples/sandbox-filesystem.ts)
 - [Expose ports on a sandbox](./modal-js/examples/sandbox-tunnels.ts)
+- [Include secrets in sandbox](./modal-js/examples/sandbox-secrets.ts)
 
 ### Go (`modal-go/`)
 
@@ -63,6 +64,7 @@ Examples:
 - [Check the status and exit code of a sandbox](./modal-go/examples/sandbox-poll/main.go)
 - [Access sandbox filesystem](./modal-go/examples/sandbox-filesystem/main.go)
 - [Expose ports on a sandbox](./modal-go/examples/sandbox-tunnels/main.go)
+- [Include secrets in sandbox](./modal-go/examples/sandbox-secrets/main.go)
 
 ### Python
 
