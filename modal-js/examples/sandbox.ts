@@ -1,4 +1,4 @@
-import { App, sandboxFromId } from "modal";
+import { App, Sandbox } from "modal";
 
 const app = await App.lookup("libmodal-example", { createIfMissing: true });
 const image = await app.imageFromRegistry("alpine:3.21");
@@ -8,7 +8,7 @@ const sb = await app.createSandbox(image, { command: ["cat"] });
 console.log("sandbox:", sb.sandboxId);
 
 // Get running sandbox from ID
-const sbFromId = await sandboxFromId(sb.sandboxId);
+const sbFromId = await Sandbox.fromId(sb.sandboxId);
 console.log("Queried sandbox from ID:", sbFromId.sandboxId);
 
 // Write to the sandbox's stdin and read from its stdout.

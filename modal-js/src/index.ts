@@ -33,7 +33,7 @@ export {
 } from "./queue";
 export { Image } from "./image";
 export type { ExecOptions, StdioBehavior, StreamMode, Tunnel } from "./sandbox";
-export { ContainerProcess, Sandbox, sandboxFromId } from "./sandbox";
+export { ContainerProcess, Sandbox } from "./sandbox";
 export type { ModalReadStream, ModalWriteStream } from "./streams";
 export { Secret, type SecretFromNameOptions } from "./secret";
 export { SandboxFile, type SandboxFileMode } from "./sandbox_filesystem";

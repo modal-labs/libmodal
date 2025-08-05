@@ -114,6 +114,26 @@ export class Sandbox {
     );
   }
 
+  /** Returns a running Sandbox object from an ID.
+   *
+   * @returns Sandbox with ID
+   */
+  static async fromId(sandboxId: string): Promise<Sandbox> {
+    try {
+      await client.sandboxWait({
+        sandboxId,
+        timeout: 0,
+      });
+    } catch (err) {
+      if (err instanceof ClientError && err.code === Status.NOT_FOUND)
+        throw new NotFoundError(`Sandbox with id: '${sandboxId}' not found`);
+      throw err;
+    }
+
+    return new Sandbox(sandboxId);
+  }
+
+
   /**
    * Open a file in the sandbox filesystem.
    * @param path - Path to the file to open
@@ -485,21 +505,3 @@ function encodeIfString(chunk: Uint8Array | string): Uint8Array {
   return typeof chunk === "string" ? new TextEncoder().encode(chunk) : chunk;
 }
 
-/** Returns a running Sandbox object from an ID.
- *
- * @returns Sandbox with ID
- */
-export async function sandboxFromId(sandboxId: string): Promise<Sandbox> {
-  try {
-    await client.sandboxWait({
-      sandboxId,
-      timeout: 0,
-    });
-  } catch (err) {
-    if (err instanceof ClientError && err.code === Status.NOT_FOUND)
-      throw new NotFoundError(`Sandbox with id: '${sandboxId}' not found`);
-    throw err;
-  }
-
-  return new Sandbox(sandboxId);
-}
