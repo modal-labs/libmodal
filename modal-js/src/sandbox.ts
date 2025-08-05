@@ -133,7 +133,6 @@ export class Sandbox {
     return new Sandbox(sandboxId);
   }
 
-
   /**
    * Open a file in the sandbox filesystem.
    * @param path - Path to the file to open
@@ -504,4 +503,3 @@ function inputStreamCp<R extends string | Uint8Array>(
 function encodeIfString(chunk: Uint8Array | string): Uint8Array {
   return typeof chunk === "string" ? new TextEncoder().encode(chunk) : chunk;
 }
-
