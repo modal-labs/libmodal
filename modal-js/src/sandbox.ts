@@ -1,3 +1,4 @@
+import { ClientError, Status } from "nice-grpc";
 import {
   FileDescriptor,
   GenericResult,
@@ -495,7 +496,9 @@ export async function SandboxFromId(sandboxId: string): Promise<Sandbox> {
       timeout: 0,
     });
   } catch (err) {
-    throw new NotFoundError(`Sandbox with id: '${sandboxId}' not found`)
+    if (err instanceof ClientError && err.code === Status.NOT_FOUND)
+      throw new NotFoundError(`Sandbox with id: '${sandboxId}' not found`);
+    throw err;
   }
 
   return new Sandbox(sandboxId);

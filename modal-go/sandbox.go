@@ -11,6 +11,8 @@ import (
 	"github.com/djherbis/buffer"
 	"github.com/djherbis/nio/v3"
 	pb "github.com/modal-labs/libmodal/modal-go/proto/modal_proto"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // StdioBehavior defines how the standard input/output/error streams should behave.
@@ -99,8 +101,11 @@ func SandboxFromId(ctx context.Context, sandboxId string) (*Sandbox, error) {
 		SandboxId: sandboxId,
 		Timeout:   0,
 	}.Build())
-	if err != nil {
+	if status, ok := status.FromError(err); ok && status.Code() == codes.NotFound {
 		return nil, NotFoundError{fmt.Sprintf("Sandbox with id: '%s' not found", sandboxId)}
+	}
+	if err != nil {
+		return nil, err
 	}
 	return newSandbox(ctx, sandboxId), nil
 }
