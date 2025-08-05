@@ -489,7 +489,7 @@ function encodeIfString(chunk: Uint8Array | string): Uint8Array {
  *
  * @returns Sandbox with ID
  */
-export async function SandboxFromId(sandboxId: string): Promise<Sandbox> {
+export async function sandboxFromId(sandboxId: string): Promise<Sandbox> {
   try {
     await client.sandboxWait({
       sandboxId,

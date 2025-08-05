@@ -1,4 +1,4 @@
-import { App, Volume, SandboxFromId, Secret } from "modal";
+import { App, Volume, sandboxFromId, Secret } from "modal";
 import { expect, test, onTestFinished } from "vitest";
 
 test("CreateOneSandbox", async () => {
@@ -203,6 +203,6 @@ test("SandboxFromId", async () => {
   onTestFinished(async () => {
     await sb.terminate();
   });
-  const sbFromId = await SandboxFromId(sb.sandboxId);
+  const sbFromId = await sandboxFromId(sb.sandboxId);
   expect(sbFromId.sandboxId).toBe(sb.sandboxId);
 });
