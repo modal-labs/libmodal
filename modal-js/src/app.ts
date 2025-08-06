@@ -5,6 +5,7 @@ import {
   RegistryAuthType,
   PortSpec,
   TunnelType,
+  NetworkAccess,
 } from "../proto/modal_proto/api";
 import { client } from "./client";
 import { environmentName } from "./config";
@@ -61,6 +62,12 @@ export type SandboxCreateOptions = {
 
   /** List of ports to tunnel into the sandbox without encryption. */
   unencryptedPorts?: number[];
+
+  /** Whether to block all network access from the sandbox. */
+  blockNetwork?: boolean;
+
+  /** List of CIDRs the sandbox is allowed to access. If None, all CIDRs are allowed. Cannot be used with blockNetwork. */
+  cidrAllowlist?: string[];
 };
 
 /** Represents a deployed Modal App. */
@@ -110,7 +117,6 @@ export class App {
         }))
       : [];
 
-    // Build port specifications
     const openPorts: PortSpec[] = [];
     if (options.encryptedPorts) {
       openPorts.push(
@@ -137,9 +143,34 @@ export class App {
         })),
       );
     }
+
     const secretIds = options.secrets
       ? options.secrets.map((secret) => secret.secretId)
       : [];
+
+    let networkAccess: NetworkAccess;
+    if (options.blockNetwork) {
+      if (options.cidrAllowlist) {
+        throw new Error(
+          "cidrAllowlist cannot be used when blockNetwork is enabled",
+        );
+      }
+      networkAccess = {
+        networkAccessType: NetworkAccess_NetworkAccessType.BLOCKED,
+        allowedCidrs: [],
+      };
+    } else if (options.cidrAllowlist) {
+      networkAccess = {
+        networkAccessType: NetworkAccess_NetworkAccessType.ALLOWLIST,
+        allowedCidrs: options.cidrAllowlist,
+      };
+    } else {
+      networkAccess = {
+        networkAccessType: NetworkAccess_NetworkAccessType.OPEN,
+        allowedCidrs: [],
+      };
+    }
+
     const createResp = await client.sandboxCreate({
       appId: this.appId,
       definition: {
@@ -148,9 +179,7 @@ export class App {
         imageId: image.imageId,
         timeoutSecs:
           options.timeout != undefined ? options.timeout / 1000 : 600,
-        networkAccess: {
-          networkAccessType: NetworkAccess_NetworkAccessType.OPEN,
-        },
+        networkAccess,
         resources: {
           // https://modal.com/docs/guide/resources
           milliCpu: Math.round(1000 * (options.cpu ?? 0.125)),

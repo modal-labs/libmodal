@@ -43,6 +43,8 @@ type SandboxOptions struct {
 	EncryptedPorts   []int              // List of encrypted ports to tunnel into the sandbox, with TLS encryption.
 	H2Ports          []int              // List of encrypted ports to tunnel into the sandbox, using HTTP/2.
 	UnencryptedPorts []int              // List of ports to tunnel into the sandbox without encryption.
+	BlockNetwork     bool               // Whether to block all network access from the sandbox.
+	CIDRAllowlist    []string           // List of CIDRs the sandbox is allowed to access. Cannot be used with BlockNetwork.
 }
 
 // ImageFromRegistryOptions are options for creating an Image from a registry.
@@ -136,6 +138,27 @@ func (app *App) CreateSandbox(image *Image, options *SandboxOptions) (*Sandbox, 
 		}
 	}
 
+	var networkAccess *pb.NetworkAccess
+	if options.BlockNetwork {
+		if len(options.CIDRAllowlist) > 0 {
+			return nil, fmt.Errorf("CIDRAllowlist cannot be used when BlockNetwork is enabled")
+		}
+		networkAccess = pb.NetworkAccess_builder{
+			NetworkAccessType: pb.NetworkAccess_BLOCKED,
+			AllowedCidrs:      []string{},
+		}.Build()
+	} else if len(options.CIDRAllowlist) > 0 {
+		networkAccess = pb.NetworkAccess_builder{
+			NetworkAccessType: pb.NetworkAccess_ALLOWLIST,
+			AllowedCidrs:      options.CIDRAllowlist,
+		}.Build()
+	} else {
+		networkAccess = pb.NetworkAccess_builder{
+			NetworkAccessType: pb.NetworkAccess_OPEN,
+			AllowedCidrs:      []string{},
+		}.Build()
+	}
+
 	createResp, err := client.SandboxCreate(app.ctx, pb.SandboxCreateRequest_builder{
 		AppId: app.AppId,
 		Definition: pb.Sandbox_builder{
@@ -143,9 +166,7 @@ func (app *App) CreateSandbox(image *Image, options *SandboxOptions) (*Sandbox, 
 			ImageId:        image.ImageId,
 			SecretIds:      secretIds,
 			TimeoutSecs:    uint32(options.Timeout.Seconds()),
-			NetworkAccess: pb.NetworkAccess_builder{
-				NetworkAccessType: pb.NetworkAccess_OPEN,
-			}.Build(),
+			NetworkAccess:  networkAccess,
 			Resources: pb.Resources_builder{
 				MilliCpu: uint32(1000 * options.CPU),
 				MemoryMb: uint32(options.Memory),

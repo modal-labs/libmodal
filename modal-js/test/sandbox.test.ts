@@ -145,6 +145,43 @@ test("CreateSandboxWithSecrets", async () => {
   expect(result).toBe("hello world\n");
 });
 
+test("CreateSandboxWithNetworkAccessParams", async () => {
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
+  const image = await app.imageFromRegistry("alpine:3.21");
+
+  const sb = await app.createSandbox(image, {
+    command: ["echo", "hello, network access"],
+    blockNetwork: false,
+    cidrAllowlist: ["10.0.0.0/8", "192.168.0.0/16"],
+  });
+
+  onTestFinished(async () => {
+    await sb.terminate();
+  });
+
+  expect(sb).toBeDefined();
+  expect(sb.sandboxId).toMatch(/^sb-/);
+
+  const exitCode = await sb.wait();
+  expect(exitCode).toBe(0);
+
+  await expect(
+    app.createSandbox(image, {
+      blockNetwork: false,
+      cidrAllowlist: ["not-an-ip/8"],
+    }),
+  ).rejects.toThrow("Invalid CIDR: not-an-ip/8");
+
+  await expect(
+    app.createSandbox(image, {
+      blockNetwork: true,
+      cidrAllowlist: ["10.0.0.0/8"],
+    }),
+  ).rejects.toThrow(
+    "cidrAllowlist cannot be used when blockNetwork is enabled",
+  );
+});
+
 test("SandboxPollAndReturnCode", async () => {
   const app = await App.lookup("libmodal-test", { createIfMissing: true });
   const image = await app.imageFromRegistry("alpine:3.21");
