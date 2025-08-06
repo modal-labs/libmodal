@@ -97,7 +97,7 @@ jobs:
           version: v2.1.5
           working-directory: ./modal-go
 
-      - run: go test -v -count=1 -parallel=10 ./test
+      - run: go test -v -count=1 -parallel=10 ./...
         working-directory: ./modal-go
         env:
           MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
