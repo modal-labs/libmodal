@@ -38,3 +38,4 @@ export type { ModalReadStream, ModalWriteStream } from "./streams";
 export { Secret, type SecretFromNameOptions } from "./secret";
 export { SandboxFile, type SandboxFileMode } from "./sandbox_filesystem";
 export { Volume, type VolumeFromNameOptions } from "./volume";
+export { Proxy, type ProxyFromNameOptions } from "./proxy";

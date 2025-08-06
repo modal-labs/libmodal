@@ -16,6 +16,7 @@ No unreleased changes.
   - `cloud`: Cloud provider to run the sandbox on.
   - `regions`: Region(s) to run the sandbox on.
   - `verbose`: Enable verbose logging.
+  - `proxy`: Connect a Modal Proxy to a Sandbox.
 
 ## modal-js/v0.3.15, modal-go/v0.0.15
 

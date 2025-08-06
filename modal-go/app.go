@@ -51,6 +51,7 @@ type SandboxOptions struct {
 	Cloud            string             // Cloud provider to run the sandbox on.
 	Regions          []string           // Region(s) to run the sandbox on.
 	Verbose          bool               // Enable verbose logging.
+	Proxy            *Proxy             // Reference to a Modal Proxy to use in front of this Sandbox.
 }
 
 // ImageFromRegistryOptions are options for creating an Image from a registry.
@@ -200,6 +201,11 @@ func (app *App) CreateSandbox(image *Image, options *SandboxOptions) (*Sandbox, 
 
 	schedulerPlacement := pb.SchedulerPlacement_builder{Regions: options.Regions}.Build()
 
+	var proxyId *string
+	if options.Proxy != nil {
+		proxyId = &options.Proxy.ProxyId
+	}
+
 	createResp, err := client.SandboxCreate(app.ctx, pb.SandboxCreateRequest_builder{
 		AppId: app.AppId,
 		Definition: pb.Sandbox_builder{
@@ -218,6 +224,7 @@ func (app *App) CreateSandbox(image *Image, options *SandboxOptions) (*Sandbox, 
 			CloudProviderStr:   options.Cloud,
 			SchedulerPlacement: schedulerPlacement,
 			Verbose:            options.Verbose,
+			ProxyId:            proxyId,
 		}.Build(),
 	}.Build())
 

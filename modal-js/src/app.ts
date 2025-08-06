@@ -16,6 +16,7 @@ import { Sandbox } from "./sandbox";
 import { NotFoundError } from "./errors";
 import { Secret } from "./secret";
 import { Volume } from "./volume";
+import { Proxy } from "./proxy";
 
 /** Options for functions that find deployed Modal objects. */
 export type LookupOptions = {
@@ -82,6 +83,9 @@ export type SandboxCreateOptions = {
 
   /** Enable verbose logging. */
   verbose?: boolean;
+
+  /** Reference to a Modal Proxy to use in front of this Sandbox. */
+  proxy?: Proxy;
 };
 
 /**
@@ -243,6 +247,7 @@ export class App {
         cloudProviderStr: options.cloud ?? "",
         schedulerPlacement,
         verbose: options.verbose ?? false,
+        proxyId: options.proxy?.proxyId,
       },
     });
 
