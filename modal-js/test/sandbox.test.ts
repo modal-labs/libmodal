@@ -50,6 +50,40 @@ test("IgnoreLargeStdout", async () => {
   }
 });
 
+test("SandboxCreateOptions", async () => {
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
+  const image = await app.imageFromRegistry("alpine:3.21");
+
+  const sandbox = await app.createSandbox(image, {
+    command: ["echo", "hello, params"],
+    cloud: "aws",
+    regions: ["us-east-1", "us-west-2"],
+    verbose: true,
+  });
+
+  onTestFinished(async () => {
+    await sandbox.terminate();
+  });
+
+  expect(sandbox).toBeDefined();
+  expect(sandbox.sandboxId).toMatch(/^sb-/);
+
+  const exitCode = await sandbox.wait();
+  expect(exitCode).toBe(0);
+
+  await expect(
+    app.createSandbox(image, {
+      cloud: "invalid-cloud",
+    }),
+  ).rejects.toThrow("INVALID_ARGUMENT");
+
+  await expect(
+    app.createSandbox(image, {
+      regions: ["invalid-region"],
+    }),
+  ).rejects.toThrow("INVALID_ARGUMENT");
+});
+
 test("SandboxExecOptions", async () => {
   const app = await App.lookup("libmodal-test", { createIfMissing: true });
   const image = await app.imageFromRegistry("alpine:3.21");

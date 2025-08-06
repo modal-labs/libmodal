@@ -7,6 +7,7 @@ import {
   TunnelType,
   NetworkAccess,
   GPUConfig,
+  SchedulerPlacement,
 } from "../proto/modal_proto/api";
 import { client } from "./client";
 import { environmentName } from "./config";
@@ -72,6 +73,15 @@ export type SandboxCreateOptions = {
 
   /** List of CIDRs the sandbox is allowed to access. If None, all CIDRs are allowed. Cannot be used with blockNetwork. */
   cidrAllowlist?: string[];
+
+  /** Cloud provider to run the sandbox on. */
+  cloud?: string;
+
+  /** Region(s) to run the sandbox on. */
+  regions?: string[];
+
+  /** Enable verbose logging. */
+  verbose?: boolean;
 };
 
 /**
@@ -208,6 +218,11 @@ export class App {
       };
     }
 
+    const schedulerPlacement: SchedulerPlacement = {
+      regions: options.regions ?? [],
+      InstanceTypes: [],
+    };
+
     const createResp = await client.sandboxCreate({
       appId: this.appId,
       definition: {
@@ -226,6 +241,9 @@ export class App {
         volumeMounts,
         secretIds,
         openPorts: openPorts.length > 0 ? { ports: openPorts } : undefined,
+        cloudProviderStr: options.cloud ?? "",
+        schedulerPlacement,
+        verbose: options.verbose ?? false,
       },
     });
 

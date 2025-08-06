@@ -13,6 +13,9 @@ No unreleased changes.
   - `blockNetwork`: Whether to block all network access from the sandbox.
   - `cidrAllowlist`: List of CIDRs the sandbox is allowed to access.
   - `gpu`: GPU reservation for the sandbox (e.g. "A100", "T4:2", "A100-80GB:4").
+  - `cloud`: Cloud provider to run the sandbox on.
+  - `regions`: Region(s) to run the sandbox on.
+  - `verbose`: Enable verbose logging.
 
 ## modal-js/v0.3.15, modal-go/v0.0.15
 
