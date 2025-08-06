@@ -3,6 +3,8 @@ package modal
 import (
 	"context"
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	pb "github.com/modal-labs/libmodal/modal-go/proto/modal_proto"
@@ -36,6 +38,7 @@ type EphemeralOptions struct {
 type SandboxOptions struct {
 	CPU              float64            // CPU request in physical cores.
 	Memory           int                // Memory request in MiB.
+	GPU              string             // GPU reservation for the sandbox (e.g. "A100", "T4:2", "A100-80GB:4").
 	Timeout          time.Duration      // Maximum duration for the Sandbox.
 	Command          []string           // Command to run in the Sandbox on startup.
 	Secrets          []*Secret          // Secrets to inject into the Sandbox.
@@ -50,6 +53,34 @@ type SandboxOptions struct {
 // ImageFromRegistryOptions are options for creating an Image from a registry.
 type ImageFromRegistryOptions struct {
 	Secret *Secret // Secret for private registry authentication.
+}
+
+// parseGPUConfig parses a GPU configuration string into a GPUConfig object.
+// The GPU string format is "type" or "type:count" (e.g. "T4", "A100:2").
+// Returns nil if gpu is empty, or an error if the format is invalid.
+func parseGPUConfig(gpu string) (*pb.GPUConfig, error) {
+	if gpu == "" {
+		return nil, nil
+	}
+
+	gpuType := gpu
+	count := uint32(1)
+
+	if strings.Contains(gpu, ":") {
+		parts := strings.SplitN(gpu, ":", 2)
+		gpuType = parts[0]
+		parsedCount, err := strconv.ParseUint(parts[1], 10, 32)
+		if err != nil || parsedCount < 1 {
+			return nil, fmt.Errorf("invalid GPU count: %s, value must be a positive integer", parts[1])
+		}
+		count = uint32(parsedCount)
+	}
+
+	return pb.GPUConfig_builder{
+		Type:    0, // Deprecated field, but required by proto
+		Count:   count,
+		GpuType: strings.ToUpper(gpuType),
+	}.Build(), nil
 }
 
 // AppLookup looks up an existing App, or creates an empty one.
@@ -88,6 +119,11 @@ func AppLookup(ctx context.Context, name string, options *LookupOptions) (*App, 
 func (app *App) CreateSandbox(image *Image, options *SandboxOptions) (*Sandbox, error) {
 	if options == nil {
 		options = &SandboxOptions{}
+	}
+
+	gpuConfig, err := parseGPUConfig(options.GPU)
+	if err != nil {
+		return nil, err
 	}
 
 	var volumeMounts []*pb.VolumeMount
@@ -168,8 +204,9 @@ func (app *App) CreateSandbox(image *Image, options *SandboxOptions) (*Sandbox, 
 			TimeoutSecs:    uint32(options.Timeout.Seconds()),
 			NetworkAccess:  networkAccess,
 			Resources: pb.Resources_builder{
-				MilliCpu: uint32(1000 * options.CPU),
-				MemoryMb: uint32(options.Memory),
+				MilliCpu:  uint32(1000 * options.CPU),
+				MemoryMb:  uint32(options.Memory),
+				GpuConfig: gpuConfig,
 			}.Build(),
 			VolumeMounts: volumeMounts,
 			OpenPorts:    portSpecs,

@@ -1,4 +1,5 @@
 import { App, Volume, Sandbox, Secret } from "modal";
+import { parseGpuConfig } from "../src/app";
 import { expect, test, onTestFinished } from "vitest";
 
 test("CreateOneSandbox", async () => {
@@ -66,6 +67,53 @@ test("SandboxExecOptions", async () => {
   } finally {
     await sb.terminate();
   }
+});
+
+test("parseGpuConfig", () => {
+  expect(parseGpuConfig(undefined)).toBeUndefined();
+  expect(parseGpuConfig("T4")).toEqual({
+    type: 0,
+    count: 1,
+    gpuType: "T4",
+  });
+  expect(parseGpuConfig("A10G")).toEqual({
+    type: 0,
+    count: 1,
+    gpuType: "A10G",
+  });
+  expect(parseGpuConfig("A100-80GB")).toEqual({
+    type: 0,
+    count: 1,
+    gpuType: "A100-80GB",
+  });
+  expect(parseGpuConfig("A100-80GB:3")).toEqual({
+    type: 0,
+    count: 3,
+    gpuType: "A100-80GB",
+  });
+  expect(parseGpuConfig("T4:2")).toEqual({
+    type: 0,
+    count: 2,
+    gpuType: "T4",
+  });
+  expect(parseGpuConfig("a100:4")).toEqual({
+    type: 0,
+    count: 4,
+    gpuType: "A100",
+  });
+
+  expect(() => parseGpuConfig("T4:invalid")).toThrow(
+    "Invalid GPU count: invalid. Value must be a positive integer.",
+  );
+  expect(() => parseGpuConfig("T4:")).toThrow(
+    "Invalid GPU count: . Value must be a positive integer.",
+  );
+  expect(() => parseGpuConfig("T4:0")).toThrow(
+    "Invalid GPU count: 0. Value must be a positive integer.",
+  );
+  expect(() => parseGpuConfig("T4:-1")).toThrow(
+    "Invalid GPU count: -1. Value must be a positive integer.",
+  );
 });
 
 test("SandboxWithVolume", async () => {
