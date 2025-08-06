@@ -48,6 +48,9 @@ type SandboxOptions struct {
 	UnencryptedPorts []int              // List of ports to tunnel into the sandbox without encryption.
 	BlockNetwork     bool               // Whether to block all network access from the sandbox.
 	CIDRAllowlist    []string           // List of CIDRs the sandbox is allowed to access. Cannot be used with BlockNetwork.
+	Cloud            string             // Cloud provider to run the sandbox on.
+	Regions          []string           // Region(s) to run the sandbox on.
+	Verbose          bool               // Enable verbose logging.
 }
 
 // ImageFromRegistryOptions are options for creating an Image from a registry.
@@ -195,6 +198,8 @@ func (app *App) CreateSandbox(image *Image, options *SandboxOptions) (*Sandbox, 
 		}.Build()
 	}
 
+	schedulerPlacement := pb.SchedulerPlacement_builder{Regions: options.Regions}.Build()
+
 	createResp, err := client.SandboxCreate(app.ctx, pb.SandboxCreateRequest_builder{
 		AppId: app.AppId,
 		Definition: pb.Sandbox_builder{
@@ -208,8 +213,11 @@ func (app *App) CreateSandbox(image *Image, options *SandboxOptions) (*Sandbox, 
 				MemoryMb:  uint32(options.Memory),
 				GpuConfig: gpuConfig,
 			}.Build(),
-			VolumeMounts: volumeMounts,
-			OpenPorts:    portSpecs,
+			VolumeMounts:       volumeMounts,
+			OpenPorts:          portSpecs,
+			CloudProviderStr:   options.Cloud,
+			SchedulerPlacement: schedulerPlacement,
+			Verbose:            options.Verbose,
 		}.Build(),
 	}.Build())
 

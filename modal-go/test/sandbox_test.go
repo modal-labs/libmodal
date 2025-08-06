@@ -85,6 +85,48 @@ func TestIgnoreLargeStdout(t *testing.T) {
 	g.Expect(exitCode).To(gomega.Equal(0))
 }
 
+func TestSandboxCreateOptions(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+
+	app, err := modal.AppLookup(ctx, "libmodal-test", &modal.LookupOptions{
+		CreateIfMissing: true,
+	})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	image, err := app.ImageFromRegistry("alpine:3.21", nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	sb, err := app.CreateSandbox(image, &modal.SandboxOptions{
+		Command: []string{"echo", "hello, params"},
+		Cloud:   "aws",
+		Regions: []string{"us-east-1", "us-west-2"},
+		Verbose: true,
+	})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(sb).ShouldNot(gomega.BeNil())
+	g.Expect(sb.SandboxId).Should(gomega.HavePrefix("sb-"))
+
+	defer sb.Terminate()
+
+	exitCode, err := sb.Wait()
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(exitCode).Should(gomega.Equal(0))
+
+	_, err = app.CreateSandbox(image, &modal.SandboxOptions{
+		Cloud: "invalid-cloud",
+	})
+	g.Expect(err).Should(gomega.HaveOccurred())
+	g.Expect(err.Error()).Should(gomega.ContainSubstring("InvalidArgument"))
+
+	_, err = app.CreateSandbox(image, &modal.SandboxOptions{
+		Regions: []string{"invalid-region"},
+	})
+	g.Expect(err).Should(gomega.HaveOccurred())
+	g.Expect(err.Error()).Should(gomega.ContainSubstring("InvalidArgument"))
+}
+
 func TestSandboxExecOptions(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
