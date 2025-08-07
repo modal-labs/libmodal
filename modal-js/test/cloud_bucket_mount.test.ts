@@ -1,4 +1,7 @@
-import { CloudBucketMount } from "../src/cloud_bucket_mount";
+import {
+  CloudBucketMount,
+  cloudBucketMountToProto,
+} from "../src/cloud_bucket_mount";
 import { Secret } from "../src/secret";
 import { CloudBucketMount_BucketType } from "../proto/modal_proto/api";
 import { expect, test } from "vitest";
@@ -78,9 +81,9 @@ test("CloudBucketMount validation: keyPrefix without trailing slash", () => {
   );
 });
 
-test("CloudBucketMount toProto with minimal options", () => {
+test("cloudBucketMountToProto with minimal options", () => {
   const mount = new CloudBucketMount("my-bucket");
-  const proto = mount.toProto("/mnt/bucket");
+  const proto = cloudBucketMountToProto(mount, "/mnt/bucket");
 
   expect(proto.bucketName).toBe("my-bucket");
   expect(proto.mountPath).toBe("/mnt/bucket");
@@ -93,7 +96,7 @@ test("CloudBucketMount toProto with minimal options", () => {
   expect(proto.oidcAuthRoleArn).toBeUndefined();
 });
 
-test("CloudBucketMount toProto with all options", () => {
+test("cloudBucketMountToProto with all options", () => {
   const mockSecret = { secretId: "sec-123" } as Secret;
 
   const mount = new CloudBucketMount("my-bucket", {
@@ -105,7 +108,7 @@ test("CloudBucketMount toProto with all options", () => {
     oidcAuthRoleArn: "arn:aws:iam::123456789:role/MyRole",
   });
 
-  const proto = mount.toProto("/mnt/bucket");
+  const proto = cloudBucketMountToProto(mount, "/mnt/bucket");
 
   expect(proto.bucketName).toBe("my-bucket");
   expect(proto.mountPath).toBe("/mnt/bucket");

@@ -39,4 +39,4 @@ export { Secret, type SecretFromNameOptions } from "./secret";
 export { SandboxFile, type SandboxFileMode } from "./sandbox_filesystem";
 export { Volume, type VolumeFromNameOptions } from "./volume";
 export { CloudBucketMount } from "./cloud_bucket_mount";
-export { CloudBucketMount_BucketType, CloudBucketMount as CloudBucketMountProto } from "../proto/modal_proto/api";
+export { CloudBucketMount_BucketType } from "../proto/modal_proto/api";

@@ -77,8 +77,8 @@ func NewCloudBucketMount(bucketName string, options *CloudBucketMountOptions) (*
 	return mount, nil
 }
 
-// ToProto converts the CloudBucketMount to a protobuf message.
-func (c *CloudBucketMount) ToProto(mountPath string) *pb.CloudBucketMount {
+// toProto converts the CloudBucketMount to a protobuf message.
+func (c *CloudBucketMount) toProto(mountPath string) *pb.CloudBucketMount {
 	credentialsSecretId := ""
 	if c.Secret != nil {
 		credentialsSecretId = c.Secret.SecretId

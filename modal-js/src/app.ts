@@ -15,7 +15,10 @@ import { Sandbox } from "./sandbox";
 import { NotFoundError } from "./errors";
 import { Secret } from "./secret";
 import { Volume } from "./volume";
-import { CloudBucketMount } from "./cloud_bucket_mount";
+import {
+  CloudBucketMount,
+  cloudBucketMountToProto,
+} from "./cloud_bucket_mount";
 
 /** Options for functions that find deployed Modal objects. */
 export type LookupOptions = {
@@ -118,7 +121,7 @@ export class App {
 
     const cloudBucketMounts: CloudBucketMountProto[] = options.cloudBucketMounts
       ? Object.entries(options.cloudBucketMounts).map(([mountPath, mount]) =>
-          mount.toProto(mountPath),
+          cloudBucketMountToProto(mount, mountPath),
         )
       : [];
 

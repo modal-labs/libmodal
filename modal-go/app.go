@@ -106,7 +106,7 @@ func (app *App) CreateSandbox(image *Image, options *SandboxOptions) (*Sandbox, 
 	if options.CloudBucketMounts != nil {
 		cloudBucketMounts = make([]*pb.CloudBucketMount, 0, len(options.CloudBucketMounts))
 		for mountPath, mount := range options.CloudBucketMounts {
-			cloudBucketMounts = append(cloudBucketMounts, mount.ToProto(mountPath))
+			cloudBucketMounts = append(cloudBucketMounts, mount.toProto(mountPath))
 		}
 	}
 

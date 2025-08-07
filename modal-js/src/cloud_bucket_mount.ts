@@ -63,19 +63,22 @@ export class CloudBucketMount {
       );
     }
   }
+}
 
-  /** Convert this CloudBucketMount to a protobuf message. */
-  toProto(mountPath: string): CloudBucketMountProto {
-    return {
-      bucketName: this.bucketName,
-      mountPath,
-      credentialsSecretId: this.secret?.secretId ?? "",
-      readOnly: this.readOnly,
-      bucketType: this.bucketType,
-      requesterPays: this.requesterPays,
-      bucketEndpointUrl: this.bucketEndpointUrl,
-      keyPrefix: this.keyPrefix,
-      oidcAuthRoleArn: this.oidcAuthRoleArn,
-    };
-  }
+/** Convert a CloudBucketMount to a protobuf message. */
+export function cloudBucketMountToProto(
+  mount: CloudBucketMount,
+  mountPath: string,
+): CloudBucketMountProto {
+  return {
+    bucketName: mount.bucketName,
+    mountPath,
+    credentialsSecretId: mount.secret?.secretId ?? "",
+    readOnly: mount.readOnly,
+    bucketType: mount.bucketType,
+    requesterPays: mount.requesterPays,
+    bucketEndpointUrl: mount.bucketEndpointUrl,
+    keyPrefix: mount.keyPrefix,
+    oidcAuthRoleArn: mount.oidcAuthRoleArn,
+  };
 }

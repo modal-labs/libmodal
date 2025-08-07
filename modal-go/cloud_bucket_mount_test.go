@@ -1,9 +1,8 @@
-package test
+package modal
 
 import (
 	"testing"
 
-	modal "github.com/modal-labs/libmodal/modal-go"
 	pb "github.com/modal-labs/libmodal/modal-go/proto/modal_proto"
 	"github.com/onsi/gomega"
 )
@@ -12,7 +11,7 @@ func TestNewCloudBucketMount_MinimalOptions(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
-	mount, err := modal.NewCloudBucketMount("my-bucket", nil)
+	mount, err := NewCloudBucketMount("my-bucket", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(mount.BucketName).Should(gomega.Equal("my-bucket"))
 	g.Expect(mount.ReadOnly).Should(gomega.BeFalse())
@@ -28,12 +27,12 @@ func TestNewCloudBucketMount_AllOptions(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
-	mockSecret := &modal.Secret{SecretId: "sec-123"}
+	mockSecret := &Secret{SecretId: "sec-123"}
 	endpointURL := "https://my-bucket.r2.cloudflarestorage.com"
 	keyPrefix := "prefix/"
 	oidcRole := "arn:aws:iam::123456789:role/MyRole"
 
-	mount, err := modal.NewCloudBucketMount("my-bucket", &modal.CloudBucketMountOptions{
+	mount, err := NewCloudBucketMount("my-bucket", &CloudBucketMountOptions{
 		Secret:            mockSecret,
 		ReadOnly:          true,
 		RequesterPays:     true,
@@ -89,12 +88,12 @@ func TestNewCloudBucketMount_BucketTypeDetection(t *testing.T) {
 			t.Parallel()
 			g := gomega.NewWithT(t)
 
-			options := &modal.CloudBucketMountOptions{}
+			options := &CloudBucketMountOptions{}
 			if tc.endpointURL != "" {
 				options.BucketEndpointUrl = &tc.endpointURL
 			}
 
-			mount, err := modal.NewCloudBucketMount("my-bucket", options)
+			mount, err := NewCloudBucketMount("my-bucket", options)
 			g.Expect(err).ShouldNot(gomega.HaveOccurred())
 			g.Expect(mount.BucketType).Should(gomega.Equal(tc.expectedType))
 		})
@@ -105,7 +104,7 @@ func TestNewCloudBucketMount_ValidationRequesterPaysWithoutSecret(t *testing.T) 
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
-	_, err := modal.NewCloudBucketMount("my-bucket", &modal.CloudBucketMountOptions{
+	_, err := NewCloudBucketMount("my-bucket", &CloudBucketMountOptions{
 		RequesterPays: true,
 	})
 
@@ -117,7 +116,7 @@ func TestNewCloudBucketMount_ValidationKeyPrefixWithoutTrailingSlash(t *testing.
 	g := gomega.NewWithT(t)
 
 	keyPrefix := "prefix"
-	_, err := modal.NewCloudBucketMount("my-bucket", &modal.CloudBucketMountOptions{
+	_, err := NewCloudBucketMount("my-bucket", &CloudBucketMountOptions{
 		KeyPrefix: &keyPrefix,
 	})
 
@@ -128,10 +127,10 @@ func TestCloudBucketMount_ToProtoMinimalOptions(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
-	mount, err := modal.NewCloudBucketMount("my-bucket", nil)
+	mount, err := NewCloudBucketMount("my-bucket", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	proto := mount.ToProto("/mnt/bucket")
+	proto := mount.toProto("/mnt/bucket")
 
 	g.Expect(proto.GetBucketName()).Should(gomega.Equal("my-bucket"))
 	g.Expect(proto.GetMountPath()).Should(gomega.Equal("/mnt/bucket"))
@@ -148,12 +147,12 @@ func TestCloudBucketMount_ToProtoAllOptions(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
-	mockSecret := &modal.Secret{SecretId: "sec-123"}
+	mockSecret := &Secret{SecretId: "sec-123"}
 	endpointURL := "https://my-bucket.r2.cloudflarestorage.com"
 	keyPrefix := "prefix/"
 	oidcRole := "arn:aws:iam::123456789:role/MyRole"
 
-	mount, err := modal.NewCloudBucketMount("my-bucket", &modal.CloudBucketMountOptions{
+	mount, err := NewCloudBucketMount("my-bucket", &CloudBucketMountOptions{
 		Secret:            mockSecret,
 		ReadOnly:          true,
 		RequesterPays:     true,
@@ -163,7 +162,7 @@ func TestCloudBucketMount_ToProtoAllOptions(t *testing.T) {
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	proto := mount.ToProto("/mnt/bucket")
+	proto := mount.toProto("/mnt/bucket")
 
 	g.Expect(proto.GetBucketName()).Should(gomega.Equal("my-bucket"))
 	g.Expect(proto.GetMountPath()).Should(gomega.Equal("/mnt/bucket"))
