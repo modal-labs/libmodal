@@ -25,13 +25,11 @@ from textwrap import dedent
 def run_cli(cmd, *args, **kwargs):
     cmd_joined = " ".join(cmd)
     print(f"> {cmd_joined}")
-    return run(cmd, *args, **kwargs)
+    return run(cmd, *args, **kwargs, check=True)
 
 
 def get_current_go_version() -> dict:
-    git_tag = run_cli(
-        ["git", "tag", "--list", "modal-go*", "--sort=-v:refname"], check=True, text=True, capture_output=True
-    )
+    git_tag = run_cli(["git", "tag", "--list", "modal-go*", "--sort=-v:refname"], text=True, capture_output=True)
     version_str = git_tag.stdout.splitlines()[0]
     match = re.match(r"modal-go/v(?P<major>[\d]+)\.(?P<minor>[\d]+)\.(?P<patch>[\d]+)", version_str)
     if not match:
@@ -69,7 +67,7 @@ def check_unreleased_has_items(changelog_content: str):
 
 def check_git_clean():
     """Check that git status is clean."""
-    git_status = run_cli(["git", "status", "--porcelain"], text=True, check=True, capture_output=True)
+    git_status = run_cli(["git", "status", "--porcelain"], text=True, capture_output=True)
     if git_status.stdout != "":
         raise RuntimeError(f"git status is not clean:\n{git_status.stdout}")
 
@@ -92,7 +90,7 @@ def update_version(args):
     new_go_version = f"v{go_version['major']}.{go_version['minor']}.{go_version['patch']}"
 
     # Update and get new js version
-    run_cli(["npm", "version", args.update], check=True, text=True, cwd="modal-js")
+    run_cli(["npm", "version", args.update], text=True, cwd="modal-js")
     package_path = Path("modal-js") / "package.json"
     with package_path.open("r") as f:
         json_package = json.load(f)
@@ -119,7 +117,7 @@ def update_version(args):
 def publish(args):
     """Publish both modal-js and modal-go"""
     check_git_clean()
-    run_cli(["npm", "run", "lint"], cwd="modal-js")
+    run_cli(["npm", "publish"], cwd="modal-js")
 
     go_version = get_current_go_version()
     go_version_str = f"v{go_version['major']}.{go_version['minor']}.{go_version['patch']}"
