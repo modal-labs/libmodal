@@ -50,5 +50,5 @@ func ProxyFromName(ctx context.Context, name string, options *ProxyFromNameOptio
 		return nil, NotFoundError{fmt.Sprintf("Proxy '%s' not found", name)}
 	}
 
-	return &Proxy{ProxyId: resp.GetProxy().GetProxyId()}, nil
+	return &Proxy{ProxyId: resp.GetProxy().GetProxyId(), ctx: ctx}, nil
 }
