@@ -33,11 +33,13 @@ Examples:
 - [Call a deployed cls](./modal-js/examples/cls-call.ts)
 - [Create a sandbox](./modal-js/examples/sandbox.ts)
 - [Create a sandbox using a private image from AWS ECR](./modal-js/examples/sandbox-private-image.ts)
+- [Take a snapshot of the filesystem of a sandbox](./modal-js/examples/sandbox-filesystem-snapshot.ts)
 - [Execute sandbox commands](./modal-js/examples/sandbox-exec.ts)
 - [Check the status and exit code of a sandbox](./modal-js/examples/sandbox-poll.ts)
 - [Access sandbox filesystem](./modal-js/examples/sandbox-filesystem.ts)
 - [Expose ports on a sandbox](./modal-js/examples/sandbox-tunnels.ts)
 - [Include secrets in sandbox](./modal-js/examples/sandbox-secrets.ts)
+- [Mount a volume to a sandbox](./modal-js/examples/sandbox-volume.ts)
 
 ### Go (`modal-go/`)
 
@@ -60,11 +62,13 @@ Examples:
 - [Call a deployed cls](./modal-go/examples/cls-call/main.go)
 - [Create a sandbox](./modal-go/examples/sandbox/main.go)
 - [Create a sandbox using a private image from AWS ECR](./modal-go/examples/sandbox-private-image/main.go)
+- [Take a snapshot of the filesystem of a sandbox](./modal-go/examples/sandbox-filesystem-snapshot/main.go)
 - [Execute sandbox commands](./modal-go/examples/sandbox-exec/main.go)
 - [Check the status and exit code of a sandbox](./modal-go/examples/sandbox-poll/main.go)
 - [Access sandbox filesystem](./modal-go/examples/sandbox-filesystem/main.go)
 - [Expose ports on a sandbox](./modal-go/examples/sandbox-tunnels/main.go)
 - [Include secrets in sandbox](./modal-go/examples/sandbox-secrets/main.go)
+- [Mount a volume to a sandbox](./modal-go/examples/sandbox-volume/main.go)
 
 ### Python
 
