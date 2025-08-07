@@ -119,7 +119,7 @@ def update_version(args):
 def publish(args):
     """Publish both modal-js and modal-go"""
     check_git_clean()
-    run_cli(["npm", "publish"])
+    run_cli(["npm", "run", "lint"], cwd="modal-js")
 
     go_version = get_current_go_version()
     go_version_str = f"v{go_version['major']}.{go_version['minor']}.{go_version['patch']}"

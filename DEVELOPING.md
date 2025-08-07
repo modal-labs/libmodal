@@ -43,12 +43,19 @@ This gRPC library depends on the `protobuf-ts` package, which is not compatible 
 1. Update `CHANGELOG.md`. Make sure that you're on a clean commit, then run the following update the `modal-js` version and update the changelog:
 
 ```bash
+git switch -c release_branch_for_pr origin/main
 python ci/release.py version patch  # or 'minor'
 ```
 
-2. Push changes to `main` or open a PR.
+2. Open a PR with changes.
 
-3. Publish both `modal-js` and `modal-go`:
+3. When PR is merged, pull changes locally and switch to main branch.
+
+```bash
+git switch -C main origin/main
+```
+
+4. Publish both `modal-js` and `modal-go`:
 
 ```bash
 python ci/release.py publish
