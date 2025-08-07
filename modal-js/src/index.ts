@@ -7,6 +7,7 @@ export {
 } from "./app";
 export { type ClientOptions, initializeClient } from "./client";
 export { Cls, ClsInstance } from "./cls";
+export { Dict, type DictPutOptions } from "./dict";
 export {
   FunctionTimeoutError,
   RemoteError,
@@ -16,6 +17,8 @@ export {
   QueueEmptyError,
   QueueFullError,
   SandboxTimeoutError,
+  KeyError,
+  RequestSizeError,
 } from "./errors";
 export { Function_ } from "./function";
 export {

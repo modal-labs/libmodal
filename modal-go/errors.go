@@ -91,3 +91,21 @@ type SandboxTimeoutError struct {
 func (e SandboxTimeoutError) Error() string {
 	return "SandboxTimeoutError: " + e.Exception
 }
+
+// KeyError is returned when a key is not found in a Dict.
+type KeyError struct {
+	Exception string
+}
+
+func (e KeyError) Error() string {
+	return "KeyError: " + e.Exception
+}
+
+// RequestSizeError is returned when a request payload is too large.
+type RequestSizeError struct {
+	Exception string
+}
+
+func (e RequestSizeError) Error() string {
+	return "RequestSizeError: " + e.Exception
+}
