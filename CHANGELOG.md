@@ -4,6 +4,10 @@ Both client libraries are pre-1.0, and they have separate versioning.
 
 ## Unreleased
 
+No unreleased changes.
+
+## modal-js/v0.3.16, modal-go/v0.0.16
+
 - Added support for getting Sandboxes from an ID.
 
 ## modal-js/v0.3.15, modal-go/v0.0.15
