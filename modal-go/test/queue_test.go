@@ -3,6 +3,7 @@ package test
 import (
 	"context"
 	"errors"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -168,4 +169,32 @@ func TestQueueNonBlocking(t *testing.T) {
 	item, err := queue.Get(&modal.QueueGetOptions{Timeout: &timeout})
 	g.Expect(err).ToNot(gomega.HaveOccurred())
 	g.Expect(item).To(gomega.Equal(int64(123)))
+}
+
+func TestQueueNonEphemeral(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+
+	queueName := "test-queue-" + strconv.FormatInt(time.Now().UnixNano(), 10)
+	queue1, err := modal.QueueLookup(ctx, queueName, &modal.LookupOptions{CreateIfMissing: true})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	defer func() {
+		err := modal.QueueDelete(ctx, queueName, nil)
+		g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+		_, err = modal.QueueLookup(ctx, queueName, nil)
+		g.Expect(err).Should(gomega.HaveOccurred())
+	}()
+
+	err = queue1.Put("data", nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	queue2, err := modal.QueueLookup(ctx, queueName, nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	value, err := queue2.Get(nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(value).To(gomega.Equal("data"))
 }
