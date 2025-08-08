@@ -145,6 +145,9 @@ func QueueLookup(ctx context.Context, name string, options *LookupOptions) (*Que
 
 // QueueDelete removes a queue by name.
 func QueueDelete(ctx context.Context, name string, options *DeleteOptions) error {
+	if options == nil {
+		options = &DeleteOptions{}
+	}
 	q, err := QueueLookup(ctx, name, &LookupOptions{Environment: options.Environment})
 	if err != nil {
 		return err
