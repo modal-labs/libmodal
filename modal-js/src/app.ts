@@ -218,10 +218,9 @@ export class App {
       };
     }
 
-    const schedulerPlacement: SchedulerPlacement = {
+    const schedulerPlacement = SchedulerPlacement.create({
       regions: options.regions ?? [],
-      InstanceTypes: [],
-    };
+    });
 
     const createResp = await client.sandboxCreate({
       appId: this.appId,
