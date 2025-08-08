@@ -145,6 +145,15 @@ func QueueLookup(ctx context.Context, name string, options *LookupOptions) (*Que
 
 // QueueDelete removes a queue by name.
 func QueueDelete(ctx context.Context, name string, options *DeleteOptions) error {
+	if options == nil {
+		options = &DeleteOptions{}
+	}
+	var err error
+	ctx, err = clientContext(ctx)
+	if err != nil {
+		return err
+	}
+
 	q, err := QueueLookup(ctx, name, &LookupOptions{Environment: options.Environment})
 	if err != nil {
 		return err
@@ -380,6 +389,7 @@ func (q *Queue) Iterate(options *QueueIterateOptions) iter.Seq2[any, error] {
 				for _, item := range resp.GetItems() {
 					v, err := pickleDeserialize(item.GetValue())
 					if err != nil {
+						yield(nil, err)
 						return
 					}
 					if !yield(v, nil) {
