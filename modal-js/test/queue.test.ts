@@ -1,5 +1,5 @@
 import { Queue, QueueEmptyError } from "modal";
-import { expect, test } from "vitest";
+import { expect, onTestFinished, test } from "vitest";
 
 test("QueueInvalidName", async () => {
   for (const name of ["has space", "has/slash", "a".repeat(65)]) {
@@ -74,4 +74,20 @@ test("QueueNonBlocking", async () => {
   expect(await queue.len()).toBe(1);
   expect(await queue.get({ timeout: 0 })).toBe(123);
   queue.closeEphemeral();
+});
+
+test("QueueNonEphemeral", async () => {
+  const queueName = `test-queue-${Date.now()}`;
+
+  const queue1 = await Queue.lookup(queueName, { createIfMissing: true });
+
+  onTestFinished(async () => {
+    await Queue.delete(queueName);
+    await expect(Queue.lookup(queueName)).rejects.toThrow(); // confirm deletion
+  });
+
+  await queue1.put("data");
+
+  const queue2 = await Queue.lookup(queueName);
+  expect(await queue2.get()).toBe("data");
 });
