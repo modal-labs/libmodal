@@ -113,7 +113,7 @@ func DictDelete(ctx context.Context, name string, options *DeleteOptions) error 
 	if err != nil {
 		return err
 	}
-	_, err = client.DictDelete(ctx, pb.DictDeleteRequest_builder{DictId: d.DictId}.Build())
+	_, err = client.DictDelete(d.ctx, pb.DictDeleteRequest_builder{DictId: d.DictId}.Build())
 	return err
 }
 

@@ -152,7 +152,7 @@ func QueueDelete(ctx context.Context, name string, options *DeleteOptions) error
 	if err != nil {
 		return err
 	}
-	_, err = client.QueueDelete(ctx, pb.QueueDeleteRequest_builder{QueueId: q.QueueId}.Build())
+	_, err = client.QueueDelete(q.ctx, pb.QueueDeleteRequest_builder{QueueId: q.QueueId}.Build())
 	return err
 }
 
