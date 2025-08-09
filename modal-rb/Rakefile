@@ -1,0 +1,35 @@
+require 'rake/testtask'
+
+Rake::TestTask.new(:test) do |t|
+  puts "Running tests..."
+  t.libs << 'test'
+  t.libs << 'lib'
+  t.test_files = FileList['test/test_*.rb']
+  t.verbose = true
+  t.warning = true
+end
+
+desc "Generate Protobuf files"
+task :proto_gen do
+  puts "Generating Protobuf files..."
+  sh "grpc_tools_ruby_protoc --ruby_out=lib --grpc_out=lib --proto_path=../modal-client ../modal-client/modal_proto/*.proto"
+end
+
+desc "build the gem"
+task :build do
+  puts "Building the gem..."
+  sh "gem build modal.gemspec"
+end
+
+desc "Reinstall the gem after building"
+task :reinstall => [:build] do
+  puts "Reinstalling the gem..."
+  def reinstall_gem
+    sh "gem uninstall modal --force"
+    sh "gem install modal-#{File.read('modal.gemspec').match(/version\s*=\s*['\"]([^'\"]+)['\"]/)[1]}.gem"
+  end
+
+  reinstall_gem
+end
+
+task default: [:proto_gen, :test, :build, :reinstall]
