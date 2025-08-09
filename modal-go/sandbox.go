@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"iter"
 	"sync"
 	"time"
 
@@ -284,6 +285,80 @@ func (sb *Sandbox) Poll() (*int, error) {
 	}
 
 	return getReturnCode(resp.GetResult()), nil
+}
+
+// SandboxSetTagsOptions are options for setting tags on a Sandbox.
+type SandboxSetTagsOptions struct {
+	Environment string // Override environment for this request
+}
+
+// SetTags sets key-value tags on the Sandbox. Tags can be used to filter results in SandboxList.
+func (sb *Sandbox) SetTags(tags map[string]string, options *SandboxSetTagsOptions) error {
+	if options == nil {
+		options = &SandboxSetTagsOptions{}
+	}
+	tagsList := make([]*pb.SandboxTag, 0, len(tags))
+	for k, v := range tags {
+		tagsList = append(tagsList, pb.SandboxTag_builder{TagName: k, TagValue: v}.Build())
+	}
+	_, err := client.SandboxTagsSet(sb.ctx, pb.SandboxTagsSetRequest_builder{
+		EnvironmentName: environmentName(options.Environment),
+		SandboxId:       sb.SandboxId,
+		Tags:            tagsList,
+	}.Build())
+	return err
+}
+
+// SandboxListOptions are options for listing Sandboxes.
+type SandboxListOptions struct {
+	AppId       string            // Filter by App ID
+	Tags        map[string]string // Only include sandboxes that have all these tags
+	Environment string            // Override environment for this request
+}
+
+// SandboxList lists Sandboxes for the current environment (or provided App ID), optionally filtered by tags.
+func SandboxList(ctx context.Context, options *SandboxListOptions) (iter.Seq2[*Sandbox, error], error) {
+	if options == nil {
+		options = &SandboxListOptions{}
+	}
+
+	var err error
+	ctx, err = clientContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	tagsList := make([]*pb.SandboxTag, 0, len(options.Tags))
+	for k, v := range options.Tags {
+		tagsList = append(tagsList, pb.SandboxTag_builder{TagName: k, TagValue: v}.Build())
+	}
+
+	return func(yield func(*Sandbox, error) bool) {
+		var before float64
+		for {
+			resp, err := client.SandboxList(ctx, pb.SandboxListRequest_builder{
+				AppId:           options.AppId,
+				BeforeTimestamp: before,
+				EnvironmentName: environmentName(options.Environment),
+				IncludeFinished: false,
+				Tags:            tagsList,
+			}.Build())
+			if err != nil {
+				yield(nil, err)
+				return
+			}
+			sandboxes := resp.GetSandboxes()
+			if len(sandboxes) == 0 {
+				return
+			}
+			for _, info := range sandboxes {
+				if !yield(newSandbox(ctx, info.GetId()), nil) {
+					return
+				}
+			}
+			before = sandboxes[len(sandboxes)-1].GetCreatedAt()
+		}
+	}, nil
 }
 
 func getReturnCode(result *pb.GenericResult) *int {

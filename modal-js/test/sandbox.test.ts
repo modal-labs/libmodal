@@ -353,3 +353,85 @@ test("SandboxWithWorkdirValidation", async () => {
     }),
   ).rejects.toThrow("workdir must be an absolute path, got: relative/path");
 });
+
+test("SandboxSetTagsAndList", async () => {
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
+  const image = await app.imageFromRegistry("alpine:3.21");
+
+  const sb = await app.createSandbox(image);
+  onTestFinished(async () => {
+    await sb.terminate();
+  });
+
+  const unique = `${Math.random()}`;
+
+  const foundBefore: string[] = [];
+  for await (const s of Sandbox.list({ tags: { "test-key": unique } })) {
+    foundBefore.push(s.sandboxId);
+  }
+  expect(foundBefore.length).toBe(0);
+
+  await sb.setTags({ "test-key": unique });
+
+  const foundAfter: string[] = [];
+  for await (const s of Sandbox.list({ tags: { "test-key": unique } })) {
+    foundAfter.push(s.sandboxId);
+  }
+  expect(foundAfter).toEqual([sb.sandboxId]);
+});
+
+test("SandboxSetMultipleTagsAndList", async () => {
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
+  const image = await app.imageFromRegistry("alpine:3.21");
+
+  const sb = await app.createSandbox(image);
+  onTestFinished(async () => {
+    await sb.terminate();
+  });
+
+  const tagA = `A-${Math.random()}`;
+  const tagB = `B-${Math.random()}`;
+  const tagC = `C-${Math.random()}`;
+
+  await sb.setTags({ "key-a": tagA, "key-b": tagB, "key-c": tagC });
+
+  let ids: string[] = [];
+  for await (const s of Sandbox.list({ tags: { "key-a": tagA } })) {
+    ids.push(s.sandboxId);
+  }
+  expect(ids).toEqual([sb.sandboxId]);
+
+  ids = [];
+  for await (const s of Sandbox.list({
+    tags: { "key-a": tagA, "key-b": tagB },
+  })) {
+    ids.push(s.sandboxId);
+  }
+  expect(ids).toEqual([sb.sandboxId]);
+
+  ids = [];
+  for await (const s of Sandbox.list({
+    tags: { "key-a": tagA, "key-b": tagB, "key-d": "not-set" },
+  })) {
+    ids.push(s.sandboxId);
+  }
+  expect(ids.length).toBe(0);
+});
+
+test("SandboxListByAppId", async () => {
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
+  const image = await app.imageFromRegistry("alpine:3.21");
+
+  const sb = await app.createSandbox(image);
+  onTestFinished(async () => {
+    await sb.terminate();
+  });
+
+  let count = 0;
+  for await (const s of Sandbox.list({ appId: app.appId })) {
+    expect(s.sandboxId).toMatch(/^sb-/);
+    count++;
+    if (count > 0) break;
+  }
+  expect(count).toBeGreaterThan(0);
+});

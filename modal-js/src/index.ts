@@ -36,7 +36,14 @@ export {
   type QueuePutOptions,
 } from "./queue";
 export { Image } from "./image";
-export type { ExecOptions, StdioBehavior, StreamMode, Tunnel } from "./sandbox";
+export type {
+  ExecOptions,
+  StdioBehavior,
+  StreamMode,
+  Tunnel,
+  SandboxSetTagsOptions,
+  SandboxListOptions,
+} from "./sandbox";
 export { ContainerProcess, Sandbox } from "./sandbox";
 export type { ModalReadStream, ModalWriteStream } from "./streams";
 export { Secret, type SecretFromNameOptions } from "./secret";

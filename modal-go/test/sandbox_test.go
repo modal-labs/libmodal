@@ -3,7 +3,9 @@ package test
 
 import (
 	"context"
+	"fmt"
 	"io"
+	"math/rand"
 	"testing"
 	"time"
 
@@ -439,4 +441,119 @@ func TestSandboxWithWorkdir(t *testing.T) {
 	})
 	g.Expect(err).Should(gomega.HaveOccurred())
 	g.Expect(err.Error()).To(gomega.ContainSubstring("the Workdir value must be an absolute path"))
+}
+
+func TestSandboxSetTagsAndList(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+
+	app, err := modal.AppLookup(ctx, "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	image, err := app.ImageFromRegistry("alpine:3.21", nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	sb, err := app.CreateSandbox(image, nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	defer sb.Terminate()
+
+	unique := fmt.Sprintf("%d", rand.Int())
+
+	var before []string
+	it, err := modal.SandboxList(ctx, &modal.SandboxListOptions{Tags: map[string]string{"test-key": unique}})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	for s, err := range it {
+		g.Expect(err).ShouldNot(gomega.HaveOccurred())
+		before = append(before, s.SandboxId)
+	}
+	g.Expect(before).To(gomega.HaveLen(0))
+
+	err = sb.SetTags(map[string]string{"test-key": unique}, nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	var after []string
+	it, err = modal.SandboxList(ctx, &modal.SandboxListOptions{Tags: map[string]string{"test-key": unique}})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	for s, err := range it {
+		g.Expect(err).ShouldNot(gomega.HaveOccurred())
+		after = append(after, s.SandboxId)
+	}
+	g.Expect(after).To(gomega.Equal([]string{sb.SandboxId}))
+}
+
+func TestSandboxSetMultipleTagsAndList(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+
+	app, err := modal.AppLookup(ctx, "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	image, err := app.ImageFromRegistry("alpine:3.21", nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	sb, err := app.CreateSandbox(image, nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	defer sb.Terminate()
+
+	tagA := fmt.Sprintf("%d", rand.Int())
+	tagB := fmt.Sprintf("%d", rand.Int())
+	tagC := fmt.Sprintf("%d", rand.Int())
+
+	err = sb.SetTags(map[string]string{"key-a": tagA, "key-b": tagB, "key-c": tagC}, nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	var ids []string
+	it, err := modal.SandboxList(ctx, &modal.SandboxListOptions{Tags: map[string]string{"key-a": tagA}})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	for s, err := range it {
+		g.Expect(err).ShouldNot(gomega.HaveOccurred())
+		ids = append(ids, s.SandboxId)
+	}
+	g.Expect(ids).To(gomega.Equal([]string{sb.SandboxId}))
+
+	ids = nil
+	it, err = modal.SandboxList(ctx, &modal.SandboxListOptions{Tags: map[string]string{"key-a": tagA, "key-b": tagB}})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	for s, err := range it {
+		g.Expect(err).ShouldNot(gomega.HaveOccurred())
+		ids = append(ids, s.SandboxId)
+	}
+	g.Expect(ids).To(gomega.Equal([]string{sb.SandboxId}))
+
+	ids = nil
+	it, err = modal.SandboxList(ctx, &modal.SandboxListOptions{Tags: map[string]string{"key-a": tagA, "key-b": tagB, "key-d": "not-set"}})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	for s, err := range it {
+		g.Expect(err).ShouldNot(gomega.HaveOccurred())
+		ids = append(ids, s.SandboxId)
+	}
+	g.Expect(ids).To(gomega.HaveLen(0))
+}
+
+func TestSandboxListByAppId(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+
+	app, err := modal.AppLookup(ctx, "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	image, err := app.ImageFromRegistry("alpine:3.21", nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	sb, err := app.CreateSandbox(image, nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	defer sb.Terminate()
+
+	count := 0
+	it, err := modal.SandboxList(ctx, &modal.SandboxListOptions{AppId: app.AppId})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	for s, err := range it {
+		g.Expect(err).ShouldNot(gomega.HaveOccurred())
+		g.Expect(s.SandboxId).Should(gomega.HavePrefix("sb-"))
+		count++
+		if count >= 1 {
+			break
+		}
+	}
+	g.Expect(count).ToNot(gomega.Equal(0))
 }
