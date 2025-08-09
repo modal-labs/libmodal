@@ -48,6 +48,9 @@ export type SandboxCreateOptions = {
   /** Timeout of the sandbox container, defaults to 10 minutes. */
   timeout?: number;
 
+  /** Working directory of the sandbox. */
+  workdir?: string;
+
   /**
    * Sequence of program arguments for the main process.
    * Default behavior is to sleep indefinitely until timeout or termination.
@@ -159,6 +162,12 @@ export class App {
       );
     }
 
+    if (options.workdir && !options.workdir.startsWith("/")) {
+      throw new Error(
+        `workdir must be an absolute path, got: ${options.workdir}`,
+      );
+    }
+
     const volumeMounts = options.volumes
       ? Object.entries(options.volumes).map(([mountPath, volume]) => ({
           volumeId: volume.volumeId,
@@ -234,6 +243,7 @@ export class App {
         imageId: image.imageId,
         timeoutSecs:
           options.timeout != undefined ? options.timeout / 1000 : 600,
+        workdir: options.workdir ?? undefined,
         networkAccess,
         resources: {
           // https://modal.com/docs/guide/resources

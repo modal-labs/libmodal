@@ -40,6 +40,7 @@ type SandboxOptions struct {
 	Memory           int                // Memory request in MiB.
 	GPU              string             // GPU reservation for the sandbox (e.g. "A100", "T4:2", "A100-80GB:4").
 	Timeout          time.Duration      // Maximum duration for the Sandbox.
+	Workdir          string             // Working directory of the sandbox.
 	Command          []string           // Command to run in the Sandbox on startup.
 	Secrets          []*Secret          // Secrets to inject into the Sandbox.
 	Volumes          map[string]*Volume // Mount points for Volumes.
@@ -130,6 +131,10 @@ func (app *App) CreateSandbox(image *Image, options *SandboxOptions) (*Sandbox, 
 		return nil, err
 	}
 
+	if options.Workdir != "" && !strings.HasPrefix(options.Workdir, "/") {
+		return nil, fmt.Errorf("the Workdir value must be an absolute path, got: %s", options.Workdir)
+	}
+
 	var volumeMounts []*pb.VolumeMount
 	if options.Volumes != nil {
 		volumeMounts = make([]*pb.VolumeMount, 0, len(options.Volumes))
@@ -206,6 +211,11 @@ func (app *App) CreateSandbox(image *Image, options *SandboxOptions) (*Sandbox, 
 		proxyId = &options.Proxy.ProxyId
 	}
 
+	var workdir *string
+	if options.Workdir != "" {
+		workdir = &options.Workdir
+	}
+
 	createResp, err := client.SandboxCreate(app.ctx, pb.SandboxCreateRequest_builder{
 		AppId: app.AppId,
 		Definition: pb.Sandbox_builder{
@@ -213,6 +223,7 @@ func (app *App) CreateSandbox(image *Image, options *SandboxOptions) (*Sandbox, 
 			ImageId:        image.ImageId,
 			SecretIds:      secretIds,
 			TimeoutSecs:    uint32(options.Timeout.Seconds()),
+			Workdir:        workdir,
 			NetworkAccess:  networkAccess,
 			Resources: pb.Resources_builder{
 				MilliCpu:  uint32(1000 * options.CPU),

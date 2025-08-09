@@ -12,6 +12,7 @@ Both client libraries are pre-1.0, and they have separate versioning.
   - `regions`: Region(s) to run the sandbox on.
   - `verbose`: Enable verbose logging.
   - `proxy`: Connect a Modal Proxy to a Sandbox.
+  - `workdir`: Set the working directory.
 
 ## modal-js/v0.3.16, modal-go/v0.0.16
 
