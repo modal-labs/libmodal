@@ -111,13 +111,12 @@ export class Dict {
    * Throws `KeyError` if key does not exist and no default value is provided.
    */
   async get(key: any, defaultValue?: any): Promise<any> {
-    const hasDefault = arguments.length > 1;
     const resp = await client.dictGet({
       dictId: this.dictId,
       key: dumps(key),
     });
     if (!resp.found) {
-      if (!hasDefault) {
+      if (defaultValue === undefined) {
         throw new KeyError(`Key not found in Dict ${this.dictId}`);
       }
       return defaultValue;

@@ -26,9 +26,6 @@ test("DictEphemeralBasicOperations", async () => {
   // Get non-existent key with explicit null default should return null
   expect(await dict.get("nonexistent", null)).toBe(null);
 
-  // Get non-existent key with explicit undefined default should return undefined
-  expect(await dict.get("nonexistent", undefined)).toBeUndefined();
-
   await dict.update({ key2: "value2", key3: "value3" });
   expect(await dict.get("key2")).toBe("value2");
   expect(await dict.get("key3")).toBe("value3");
