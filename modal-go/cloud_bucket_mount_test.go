@@ -21,7 +21,9 @@ func TestNewCloudBucketMount_MinimalOptions(t *testing.T) {
 	g.Expect(mount.KeyPrefix).Should(gomega.BeNil())
 	g.Expect(mount.OidcAuthRoleArn).Should(gomega.BeNil())
 
-	g.Expect(getBucketTypeFromEndpointURL(mount.BucketEndpointUrl)).Should(gomega.Equal(pb.CloudBucketMount_S3))
+	bucketType, err := getBucketTypeFromEndpointURL(mount.BucketEndpointUrl)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(bucketType).Should(gomega.Equal(pb.CloudBucketMount_S3))
 }
 
 func TestNewCloudBucketMount_AllOptions(t *testing.T) {
@@ -53,7 +55,9 @@ func TestNewCloudBucketMount_AllOptions(t *testing.T) {
 	g.Expect(mount.OidcAuthRoleArn).ShouldNot(gomega.BeNil())
 	g.Expect(*mount.OidcAuthRoleArn).Should(gomega.Equal(oidcRole))
 
-	g.Expect(getBucketTypeFromEndpointURL(mount.BucketEndpointUrl)).Should(gomega.Equal(pb.CloudBucketMount_R2))
+	bucketType, err := getBucketTypeFromEndpointURL(mount.BucketEndpointUrl)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(bucketType).Should(gomega.Equal(pb.CloudBucketMount_R2))
 }
 
 func TestGetBucketTypeFromEndpointURL(t *testing.T) {
@@ -98,9 +102,22 @@ func TestGetBucketTypeFromEndpointURL(t *testing.T) {
 			mount, err := NewCloudBucketMount("my-bucket", options)
 			g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-			g.Expect(getBucketTypeFromEndpointURL(mount.BucketEndpointUrl)).Should(gomega.Equal(tc.expectedType))
+			bucketType, err := getBucketTypeFromEndpointURL(mount.BucketEndpointUrl)
+			g.Expect(err).ShouldNot(gomega.HaveOccurred())
+			g.Expect(bucketType).Should(gomega.Equal(tc.expectedType))
 		})
 	}
+}
+
+func TestGetBucketTypeFromEndpointURL_InvalidURL(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	invalidURL := "://invalid-url"
+	_, err := getBucketTypeFromEndpointURL(&invalidURL)
+	g.Expect(err).Should(gomega.HaveOccurred())
+	g.Expect(err.Error()).Should(gomega.ContainSubstring("failed to parse bucketEndpointURL"))
+	g.Expect(err.Error()).Should(gomega.ContainSubstring(invalidURL))
 }
 
 func TestNewCloudBucketMount_ValidationRequesterPaysWithoutSecret(t *testing.T) {
@@ -133,7 +150,8 @@ func TestCloudBucketMount_ToProtoMinimalOptions(t *testing.T) {
 	mount, err := NewCloudBucketMount("my-bucket", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	proto := mount.toProto("/mnt/bucket")
+	proto, err := mount.toProto("/mnt/bucket")
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	g.Expect(proto.GetBucketName()).Should(gomega.Equal("my-bucket"))
 	g.Expect(proto.GetMountPath()).Should(gomega.Equal("/mnt/bucket"))
@@ -165,7 +183,8 @@ func TestCloudBucketMount_ToProtoAllOptions(t *testing.T) {
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	proto := mount.toProto("/mnt/bucket")
+	proto, err := mount.toProto("/mnt/bucket")
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	g.Expect(proto.GetBucketName()).Should(gomega.Equal("my-bucket"))
 	g.Expect(proto.GetMountPath()).Should(gomega.Equal("/mnt/bucket"))

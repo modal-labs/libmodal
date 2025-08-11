@@ -45,7 +45,6 @@ func NewCloudBucketMount(bucketName string, options *CloudBucketMountOptions) (*
 		OidcAuthRoleArn:   options.OidcAuthRoleArn,
 	}
 
-	// Validate the endpoint URL if provided
 	if mount.BucketEndpointUrl != nil {
 		_, err := url.Parse(*mount.BucketEndpointUrl)
 		if err != nil {
@@ -64,29 +63,34 @@ func NewCloudBucketMount(bucketName string, options *CloudBucketMountOptions) (*
 	return mount, nil
 }
 
-func getBucketTypeFromEndpointURL(bucketEndpointURL *string) pb.CloudBucketMount_BucketType {
+func getBucketTypeFromEndpointURL(bucketEndpointURL *string) (pb.CloudBucketMount_BucketType, error) {
 	if bucketEndpointURL == nil {
-		return pb.CloudBucketMount_S3
+		return pb.CloudBucketMount_S3, nil
 	}
 
 	parsedURL, err := url.Parse(*bucketEndpointURL)
 	if err != nil {
-		return pb.CloudBucketMount_S3
+		return pb.CloudBucketMount_S3, fmt.Errorf("failed to parse bucketEndpointURL '%s': %w", *bucketEndpointURL, err)
 	}
 
 	hostname := parsedURL.Hostname()
 	if strings.HasSuffix(hostname, "r2.cloudflarestorage.com") {
-		return pb.CloudBucketMount_R2
+		return pb.CloudBucketMount_R2, nil
 	} else if strings.HasSuffix(hostname, "storage.googleapis.com") {
-		return pb.CloudBucketMount_GCP
+		return pb.CloudBucketMount_GCP, nil
 	}
-	return pb.CloudBucketMount_S3
+	return pb.CloudBucketMount_S3, nil
 }
 
-func (c *CloudBucketMount) toProto(mountPath string) *pb.CloudBucketMount {
+func (c *CloudBucketMount) toProto(mountPath string) (*pb.CloudBucketMount, error) {
 	credentialsSecretId := ""
 	if c.Secret != nil {
 		credentialsSecretId = c.Secret.SecretId
+	}
+
+	bucketType, err := getBucketTypeFromEndpointURL(c.BucketEndpointUrl)
+	if err != nil {
+		return nil, err
 	}
 
 	return pb.CloudBucketMount_builder{
@@ -94,10 +98,10 @@ func (c *CloudBucketMount) toProto(mountPath string) *pb.CloudBucketMount {
 		MountPath:           mountPath,
 		CredentialsSecretId: credentialsSecretId,
 		ReadOnly:            c.ReadOnly,
-		BucketType:          getBucketTypeFromEndpointURL(c.BucketEndpointUrl),
+		BucketType:          bucketType,
 		RequesterPays:       c.RequesterPays,
 		BucketEndpointUrl:   c.BucketEndpointUrl,
 		KeyPrefix:           c.KeyPrefix,
 		OidcAuthRoleArn:     c.OidcAuthRoleArn,
-	}.Build()
+	}.Build(), nil
 }

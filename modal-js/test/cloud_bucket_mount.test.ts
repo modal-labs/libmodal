@@ -64,6 +64,10 @@ test("CloudBucketMount bucket type detection from endpoint URLs", () => {
   expect(
     endpointUrlToBucketType("https://unknown-endpoint.com/my-bucket"),
   ).toBe(CloudBucketMount_BucketType.S3);
+
+  expect(() => {
+    endpointUrlToBucketType("://invalid-url");
+  }).toThrowError("Invalid URL");
 });
 
 test("CloudBucketMount validation: requesterPays without secret", () => {

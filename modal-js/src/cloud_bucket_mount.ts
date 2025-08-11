@@ -33,7 +33,6 @@ export class CloudBucketMount {
     this.keyPrefix = options.keyPrefix;
     this.oidcAuthRoleArn = options.oidcAuthRoleArn;
 
-    // Warn if we have an unrecognized endpoint URL
     if (this.bucketEndpointUrl) {
       const url = new URL(this.bucketEndpointUrl);
       if (
