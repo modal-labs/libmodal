@@ -165,7 +165,7 @@ func TestDictDifferentDataTypes(t *testing.T) {
 
 	nullVal, err := dict.Get("null", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(nullVal).To(gomega.Equal(pickle.None{})) // Note: pickle.None, not Go nil!
+	g.Expect(nullVal).To(gomega.Equal(pickle.None{})) // Note: ogórek.None, not Go nil!
 
 	numericKeyVal, err := dict.Get(123, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -194,7 +194,7 @@ func TestDictDifferentDataTypes(t *testing.T) {
 
 	nullVal, err = dict.Pop("null")
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(nullVal).To(gomega.Equal(pickle.None{})) // Note: pickle.None, not Go nil!
+	g.Expect(nullVal).To(gomega.Equal(pickle.None{})) // Note: ogórek.None, not Go nil!
 
 	numericKeyVal, err = dict.Pop(123)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
