@@ -109,6 +109,12 @@ func DictDelete(ctx context.Context, name string, options *DeleteOptions) error 
 	if options == nil {
 		options = &DeleteOptions{}
 	}
+	var err error
+	ctx, err = clientContext(ctx)
+	if err != nil {
+		return err
+	}
+
 	d, err := DictLookup(ctx, name, &LookupOptions{Environment: options.Environment})
 	if err != nil {
 		return err
