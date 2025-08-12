@@ -2,7 +2,6 @@ import { ClientError, Status } from "nice-grpc";
 import {
   NetworkAccess_NetworkAccessType,
   ObjectCreationType,
-  RegistryAuthType,
   PortSpec,
   TunnelType,
   NetworkAccess,
