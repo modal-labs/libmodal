@@ -5,6 +5,7 @@ import { expect, test, onTestFinished } from "vitest";
 test("CreateOneSandbox", async () => {
   const app = await App.lookup("libmodal-test", { createIfMissing: true });
   expect(app.appId).toBeTruthy();
+  expect(app.name).toBe("libmodal-test");
 
   const image = await app.imageFromRegistry("alpine:3.21");
   expect(image.imageId).toBeTruthy();
