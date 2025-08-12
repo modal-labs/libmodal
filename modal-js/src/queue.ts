@@ -70,12 +70,14 @@ export type QueueIterateOptions = {
  */
 export class Queue<V = any> {
   readonly queueId: string;
+  readonly name?: string;
   readonly #ephemeral: boolean;
   readonly #abortController?: AbortController;
 
   /** @ignore */
-  constructor(queueId: string, ephemeral: boolean = false) {
+  constructor(queueId: string, name?: string, ephemeral: boolean = false) {
     this.queueId = queueId;
+    this.name = name;
     this.#ephemeral = ephemeral;
     this.#abortController = ephemeral ? new AbortController() : undefined;
   }
@@ -105,7 +107,7 @@ export class Queue<V = any> {
       environmentName: environmentName(options.environment),
     });
 
-    const queue = new Queue<V>(resp.queueId, true);
+    const queue = new Queue<V>(resp.queueId, undefined, true);
     const signal = queue.#abortController!.signal;
     (async () => {
       // Launch a background task to heartbeat the ephemeral queue.
@@ -148,7 +150,7 @@ export class Queue<V = any> {
         : undefined,
       environmentName: environmentName(options.environment),
     });
-    return new Queue<V>(resp.queueId);
+    return new Queue<V>(resp.queueId, name);
   }
 
   /** Delete a queue by name. */
