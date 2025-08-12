@@ -27,12 +27,14 @@ export type DictUpdateItems<K extends DictKey, V> = K extends string
 
 export class Dict<K extends DictKey = DictKey, V = any> {
   readonly dictId: string;
+  readonly name?: string;
   readonly #ephemeral: boolean;
   readonly #abortController?: AbortController;
 
   /** @ignore */
-  constructor(dictId: string, ephemeral: boolean = false) {
+  constructor(dictId: string, name?: string, ephemeral: boolean = false) {
     this.dictId = dictId;
+    this.name = name;
     this.#ephemeral = ephemeral;
     this.#abortController = ephemeral ? new AbortController() : undefined;
   }
@@ -49,7 +51,7 @@ export class Dict<K extends DictKey = DictKey, V = any> {
       environmentName: environmentName(options.environment),
     });
 
-    const dict = new Dict<K, V>(resp.dictId, true);
+    const dict = new Dict<K, V>(resp.dictId, undefined, true);
     const signal = dict.#abortController!.signal;
     (async () => {
       // Launch a background task to heartbeat the ephemeral Dict.
@@ -92,7 +94,7 @@ export class Dict<K extends DictKey = DictKey, V = any> {
         : undefined,
       environmentName: environmentName(options.environment),
     });
-    return new Dict<K, V>(resp.dictId);
+    return new Dict<K, V>(resp.dictId, name);
   }
 
   /** Delete a Dict by name. */

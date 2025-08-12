@@ -30,6 +30,7 @@ func TestDictEphemeralBasicOperations(t *testing.T) {
 	dict, err := modal.DictEphemeral(ctx, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	defer dict.CloseEphemeral()
+	g.Expect(dict.Name).To(gomega.BeEmpty())
 
 	created, err := dict.Put("key1", "value1", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -303,6 +304,7 @@ func TestDictNonEphemeral(t *testing.T) {
 
 	dict1, err := modal.DictLookup(ctx, dictName, &modal.LookupOptions{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(dict1.Name).To(gomega.Equal(dictName))
 
 	defer func() {
 		err := modal.DictDelete(ctx, dictName, nil)

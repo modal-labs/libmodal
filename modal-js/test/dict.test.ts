@@ -9,6 +9,7 @@ test("DictInvalidName", async () => {
 
 test("DictEphemeralBasicOperations", async () => {
   const dict = await Dict.ephemeral();
+  expect(dict.name).toBeUndefined();
 
   await dict.put("key1", "value1");
   const value1 = await dict.get("key1");
@@ -162,6 +163,8 @@ test("DictNonEphemeral", async () => {
   const dict1 = await Dict.lookup<string, string>(dictName, {
     createIfMissing: true,
   });
+  expect(dict1.name).toBe(dictName);
+
   onTestFinished(async () => {
     await Dict.delete(dictName);
     await expect(Dict.lookup(dictName)).rejects.toThrow(); // confirm deletion
