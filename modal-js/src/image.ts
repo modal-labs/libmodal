@@ -31,7 +31,7 @@ export class Image {
    * @param tag - The registry tag for the image.
    * @param secret - Optional. A `Secret` instance containing credentials for registry authentication.
    */
-  static FromRawRegistry(tag: string, secret?: Secret): Image {
+  static FromRegistry(tag: string, secret?: Secret): Image {
     let imageRegistryConfig;
     if (secret) {
       if (!(secret instanceof Secret)) {

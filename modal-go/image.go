@@ -19,8 +19,8 @@ type Image struct {
 	ctx context.Context
 }
 
-// NewImageFromRawRegistry builds a Modal Image from a public or private image registry without any changes.
-func NewImageFromRawRegistry(tag string, options *ImageFromRegistryOptions) *Image {
+// NewImageFromRegistry builds a Modal Image from a public or private image registry without any changes.
+func NewImageFromRegistry(tag string, options *ImageFromRegistryOptions) *Image {
 	if options == nil {
 		options = &ImageFromRegistryOptions{}
 	}

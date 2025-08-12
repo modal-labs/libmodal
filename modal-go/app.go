@@ -267,7 +267,7 @@ func (app *App) CreateSandbox(image *Image, options *SandboxOptions) (*Sandbox, 
 
 // ImageFromRegistry creates an Image from a registry tag.
 func (app *App) ImageFromRegistry(tag string, options *ImageFromRegistryOptions) (*Image, error) {
-	return NewImageFromRawRegistry(tag, options).build(app)
+	return NewImageFromRegistry(tag, options).build(app)
 }
 
 // ImageFromAwsEcr creates an Image from an AWS ECR tag.

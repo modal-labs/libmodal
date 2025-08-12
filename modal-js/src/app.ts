@@ -281,7 +281,7 @@ export class App {
   }
 
   async imageFromRegistry(tag: string, secret?: Secret): Promise<Image> {
-    return await Image.FromRawRegistry(tag, secret)._build(this.appId);
+    return await Image.FromRegistry(tag, secret)._build(this.appId);
   }
 
   async imageFromAwsEcr(tag: string, secret: Secret): Promise<Image> {

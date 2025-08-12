@@ -19,7 +19,7 @@ test("CreateOneSandboxTopLevelImageAPI", async () => {
   const app = await App.lookup("libmodal-test", { createIfMissing: true });
   expect(app.appId).toBeTruthy();
 
-  const image = Image.FromRawRegistry("alpine:3.21");
+  const image = Image.FromRegistry("alpine:3.21");
   expect(image.imageId).toBeFalsy();
 
   const sb = await app.createSandbox(image);
@@ -33,7 +33,7 @@ test("CreateOneSandboxTopLevelImageAPISecret", async () => {
   const app = await App.lookup("libmodal-test", { createIfMissing: true });
   expect(app.appId).toBeTruthy();
 
-  const image = await Image.FromRawRegistry(
+  const image = await Image.FromRegistry(
     "us-east1-docker.pkg.dev/modal-prod-367916/private-repo-test/my-image",
     await Secret.fromName("libmodal-gcp-artifact-registry-test", {
       requiredKeys: ["REGISTRY_USERNAME", "REGISTRY_PASSWORD"],
