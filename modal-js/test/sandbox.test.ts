@@ -1,4 +1,5 @@
-import { App, Volume, Secret, Image } from "modal";
+import { App, Volume, Sandbox, Secret, Image } from "modal";
+import { parseGpuConfig } from "../src/app";
 import { expect, test, onTestFinished } from "vitest";
 
 test("CreateOneSandbox", async () => {
@@ -82,6 +83,40 @@ test("IgnoreLargeStdout", async () => {
   }
 });
 
+test("SandboxCreateOptions", async () => {
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
+  const image = await app.imageFromRegistry("alpine:3.21");
+
+  const sandbox = await app.createSandbox(image, {
+    command: ["echo", "hello, params"],
+    cloud: "aws",
+    regions: ["us-east-1", "us-west-2"],
+    verbose: true,
+  });
+
+  onTestFinished(async () => {
+    await sandbox.terminate();
+  });
+
+  expect(sandbox).toBeDefined();
+  expect(sandbox.sandboxId).toMatch(/^sb-/);
+
+  const exitCode = await sandbox.wait();
+  expect(exitCode).toBe(0);
+
+  await expect(
+    app.createSandbox(image, {
+      cloud: "invalid-cloud",
+    }),
+  ).rejects.toThrow("INVALID_ARGUMENT");
+
+  await expect(
+    app.createSandbox(image, {
+      regions: ["invalid-region"],
+    }),
+  ).rejects.toThrow("INVALID_ARGUMENT");
+});
+
 test("SandboxExecOptions", async () => {
   const app = await App.lookup("libmodal-test", { createIfMissing: true });
   const image = await app.imageFromRegistry("alpine:3.21");
@@ -99,6 +134,53 @@ test("SandboxExecOptions", async () => {
   } finally {
     await sb.terminate();
   }
+});
+
+test("parseGpuConfig", () => {
+  expect(parseGpuConfig(undefined)).toBeUndefined();
+  expect(parseGpuConfig("T4")).toEqual({
+    type: 0,
+    count: 1,
+    gpuType: "T4",
+  });
+  expect(parseGpuConfig("A10G")).toEqual({
+    type: 0,
+    count: 1,
+    gpuType: "A10G",
+  });
+  expect(parseGpuConfig("A100-80GB")).toEqual({
+    type: 0,
+    count: 1,
+    gpuType: "A100-80GB",
+  });
+  expect(parseGpuConfig("A100-80GB:3")).toEqual({
+    type: 0,
+    count: 3,
+    gpuType: "A100-80GB",
+  });
+  expect(parseGpuConfig("T4:2")).toEqual({
+    type: 0,
+    count: 2,
+    gpuType: "T4",
+  });
+  expect(parseGpuConfig("a100:4")).toEqual({
+    type: 0,
+    count: 4,
+    gpuType: "A100",
+  });
+
+  expect(() => parseGpuConfig("T4:invalid")).toThrow(
+    "Invalid GPU count: invalid. Value must be a positive integer.",
+  );
+  expect(() => parseGpuConfig("T4:")).toThrow(
+    "Invalid GPU count: . Value must be a positive integer.",
+  );
+  expect(() => parseGpuConfig("T4:0")).toThrow(
+    "Invalid GPU count: 0. Value must be a positive integer.",
+  );
+  expect(() => parseGpuConfig("T4:-1")).toThrow(
+    "Invalid GPU count: -1. Value must be a positive integer.",
+  );
 });
 
 test("SandboxWithVolume", async () => {
@@ -178,6 +260,43 @@ test("CreateSandboxWithSecrets", async () => {
   expect(result).toBe("hello world\n");
 });
 
+test("CreateSandboxWithNetworkAccessParams", async () => {
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
+  const image = await app.imageFromRegistry("alpine:3.21");
+
+  const sb = await app.createSandbox(image, {
+    command: ["echo", "hello, network access"],
+    blockNetwork: false,
+    cidrAllowlist: ["10.0.0.0/8", "192.168.0.0/16"],
+  });
+
+  onTestFinished(async () => {
+    await sb.terminate();
+  });
+
+  expect(sb).toBeDefined();
+  expect(sb.sandboxId).toMatch(/^sb-/);
+
+  const exitCode = await sb.wait();
+  expect(exitCode).toBe(0);
+
+  await expect(
+    app.createSandbox(image, {
+      blockNetwork: false,
+      cidrAllowlist: ["not-an-ip/8"],
+    }),
+  ).rejects.toThrow("Invalid CIDR: not-an-ip/8");
+
+  await expect(
+    app.createSandbox(image, {
+      blockNetwork: true,
+      cidrAllowlist: ["10.0.0.0/8"],
+    }),
+  ).rejects.toThrow(
+    "cidrAllowlist cannot be used when blockNetwork is enabled",
+  );
+});
+
 test("SandboxPollAndReturnCode", async () => {
   const app = await App.lookup("libmodal-test", { createIfMissing: true });
   const image = await app.imageFromRegistry("alpine:3.21");
@@ -226,4 +345,43 @@ test("SandboxExecSecret", async () => {
   });
   const secretText = await printSecret.stdout.readText();
   expect(secretText).toBe("hello world\n");
+});
+
+test("SandboxFromId", async () => {
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
+  const image = await app.imageFromRegistry("alpine:3.21");
+
+  const sb = await app.createSandbox(image);
+  onTestFinished(async () => {
+    await sb.terminate();
+  });
+  const sbFromId = await Sandbox.fromId(sb.sandboxId);
+  expect(sbFromId.sandboxId).toBe(sb.sandboxId);
+});
+
+test("SandboxWithWorkdir", async () => {
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
+  const image = await app.imageFromRegistry("alpine:3.21");
+
+  const sb = await app.createSandbox(image, {
+    command: ["pwd"],
+    workdir: "/tmp",
+  });
+
+  onTestFinished(async () => {
+    await sb.terminate();
+  });
+
+  expect(await sb.stdout.readText()).toBe("/tmp\n");
+});
+
+test("SandboxWithWorkdirValidation", async () => {
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
+  const image = await app.imageFromRegistry("alpine:3.21");
+
+  await expect(
+    app.createSandbox(image, {
+      workdir: "relative/path",
+    }),
+  ).rejects.toThrow("workdir must be an absolute path, got: relative/path");
 });

@@ -127,6 +127,48 @@ func TestIgnoreLargeStdout(t *testing.T) {
 	g.Expect(exitCode).To(gomega.Equal(0))
 }
 
+func TestSandboxCreateOptions(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+
+	app, err := modal.AppLookup(ctx, "libmodal-test", &modal.LookupOptions{
+		CreateIfMissing: true,
+	})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	image, err := app.ImageFromRegistry("alpine:3.21", nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	sb, err := app.CreateSandbox(image, &modal.SandboxOptions{
+		Command: []string{"echo", "hello, params"},
+		Cloud:   "aws",
+		Regions: []string{"us-east-1", "us-west-2"},
+		Verbose: true,
+	})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(sb).ShouldNot(gomega.BeNil())
+	g.Expect(sb.SandboxId).Should(gomega.HavePrefix("sb-"))
+
+	defer sb.Terminate()
+
+	exitCode, err := sb.Wait()
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(exitCode).Should(gomega.Equal(0))
+
+	_, err = app.CreateSandbox(image, &modal.SandboxOptions{
+		Cloud: "invalid-cloud",
+	})
+	g.Expect(err).Should(gomega.HaveOccurred())
+	g.Expect(err.Error()).Should(gomega.ContainSubstring("InvalidArgument"))
+
+	_, err = app.CreateSandbox(image, &modal.SandboxOptions{
+		Regions: []string{"invalid-region"},
+	})
+	g.Expect(err).Should(gomega.HaveOccurred())
+	g.Expect(err.Error()).Should(gomega.ContainSubstring("InvalidArgument"))
+}
+
 func TestSandboxExecOptions(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
@@ -316,6 +358,49 @@ func TestSandboxPollAfterFailure(t *testing.T) {
 	g.Expect(*pollResult).To(gomega.Equal(42))
 }
 
+func TestCreateSandboxWithNetworkAccessParams(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+
+	app, err := modal.AppLookup(ctx, "libmodal-test", &modal.LookupOptions{
+		CreateIfMissing: true,
+	})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	image, err := app.ImageFromRegistry("alpine:3.21", nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	sb, err := app.CreateSandbox(image, &modal.SandboxOptions{
+		Command:       []string{"echo", "hello, network access"},
+		BlockNetwork:  false,
+		CIDRAllowlist: []string{"10.0.0.0/8", "192.168.0.0/16"},
+	})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(sb).ShouldNot(gomega.BeNil())
+	g.Expect(sb.SandboxId).Should(gomega.HavePrefix("sb-"))
+
+	defer sb.Terminate()
+
+	exitCode, err := sb.Wait()
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(exitCode).Should(gomega.Equal(0))
+
+	_, err = app.CreateSandbox(image, &modal.SandboxOptions{
+		BlockNetwork:  false,
+		CIDRAllowlist: []string{"not-an-ip/8"},
+	})
+	g.Expect(err).Should(gomega.HaveOccurred())
+	g.Expect(err.Error()).Should(gomega.ContainSubstring("Invalid CIDR: not-an-ip/8"))
+
+	_, err = app.CreateSandbox(image, &modal.SandboxOptions{
+		BlockNetwork:  true,
+		CIDRAllowlist: []string{"10.0.0.0/8"},
+	})
+	g.Expect(err).Should(gomega.HaveOccurred())
+	g.Expect(err.Error()).Should(gomega.ContainSubstring("CIDRAllowlist cannot be used when BlockNetwork is enabled"))
+}
+
 func TestSandboxExecSecret(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
@@ -339,4 +424,59 @@ func TestSandboxExecSecret(t *testing.T) {
 	buf, err := io.ReadAll(p.Stdout)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(string(buf)).Should(gomega.Equal("hello world\n"))
+}
+
+func TestSandboxFromId(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+
+	app, err := modal.AppLookup(ctx, "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
+
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	image, err := app.ImageFromRegistry("alpine:3.21", nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	sb, err := app.CreateSandbox(image, nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(sb.SandboxId).ShouldNot(gomega.BeEmpty())
+	defer sb.Terminate()
+
+	sbFromId, err := modal.SandboxFromId(ctx, sb.SandboxId)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(sbFromId.SandboxId).Should(gomega.Equal(sb.SandboxId))
+}
+
+func TestSandboxWithWorkdir(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+
+	app, err := modal.AppLookup(ctx, "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	image, err := app.ImageFromRegistry("alpine:3.21", nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	sb, err := app.CreateSandbox(image, &modal.SandboxOptions{
+		Command: []string{"pwd"},
+		Workdir: "/tmp",
+	})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	defer sb.Terminate()
+
+	output, err := io.ReadAll(sb.Stdout)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(string(output)).To(gomega.Equal("/tmp\n"))
+
+	exitCode, err := sb.Wait()
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(exitCode).To(gomega.Equal(0))
+
+	_, err = app.CreateSandbox(image, &modal.SandboxOptions{
+		Workdir: "relative/path",
+	})
+	g.Expect(err).Should(gomega.HaveOccurred())
+	g.Expect(err.Error()).To(gomega.ContainSubstring("the Workdir value must be an absolute path"))
 }

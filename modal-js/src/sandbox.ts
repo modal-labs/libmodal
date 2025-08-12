@@ -1,3 +1,4 @@
+import { ClientError, Status } from "nice-grpc";
 import {
   FileDescriptor,
   GenericResult,
@@ -17,7 +18,7 @@ import {
   toModalWriteStream,
 } from "./streams";
 import { type Secret } from "./secret";
-import { InvalidError, SandboxTimeoutError } from "./errors";
+import { InvalidError, NotFoundError, SandboxTimeoutError } from "./errors";
 import { Image } from "./image";
 
 /**
@@ -111,6 +112,25 @@ export class Sandbox {
         outputStreamSb(sandboxId, FileDescriptor.FILE_DESCRIPTOR_STDERR),
       ).pipeThrough(new TextDecoderStream()),
     );
+  }
+
+  /** Returns a running Sandbox object from an ID.
+   *
+   * @returns Sandbox with ID
+   */
+  static async fromId(sandboxId: string): Promise<Sandbox> {
+    try {
+      await client.sandboxWait({
+        sandboxId,
+        timeout: 0,
+      });
+    } catch (err) {
+      if (err instanceof ClientError && err.code === Status.NOT_FOUND)
+        throw new NotFoundError(`Sandbox with id: '${sandboxId}' not found`);
+      throw err;
+    }
+
+    return new Sandbox(sandboxId);
   }
 
   /**

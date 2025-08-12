@@ -11,6 +11,8 @@ import (
 	"github.com/djherbis/buffer"
 	"github.com/djherbis/nio/v3"
 	pb "github.com/modal-labs/libmodal/modal-go/proto/modal_proto"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // StdioBehavior defines how the standard input/output/error streams should behave.
@@ -86,6 +88,26 @@ func newSandbox(ctx context.Context, sandboxId string) *Sandbox {
 	sb.Stdout = outputStreamSb(ctx, sandboxId, pb.FileDescriptor_FILE_DESCRIPTOR_STDOUT)
 	sb.Stderr = outputStreamSb(ctx, sandboxId, pb.FileDescriptor_FILE_DESCRIPTOR_STDERR)
 	return sb
+}
+
+// SandboxFromId returns a running Sandbox object from an ID.
+func SandboxFromId(ctx context.Context, sandboxId string) (*Sandbox, error) {
+	ctx, err := clientContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = client.SandboxWait(ctx, pb.SandboxWaitRequest_builder{
+		SandboxId: sandboxId,
+		Timeout:   0,
+	}.Build())
+	if status, ok := status.FromError(err); ok && status.Code() == codes.NotFound {
+		return nil, NotFoundError{fmt.Sprintf("Sandbox with id: '%s' not found", sandboxId)}
+	}
+	if err != nil {
+		return nil, err
+	}
+	return newSandbox(ctx, sandboxId), nil
 }
 
 // Exec runs a command in the sandbox and returns text streams.

@@ -28,3 +28,5 @@ modal secret create --force libmodal-gcp-artifact-registry-test \
   REGISTRY_USERNAME="_json_key" \
   REGISTRY_PASSWORD="$(echo "$gcp_test_secret" | jq -r '.SERVICE_ACCOUNT_JSON')" \
   >/dev/null
+
+echo "NOTE! The tests also require a Proxy named 'libmodal-test-proxy', which cannot be created programmatically and must be created using the dashboard: https://modal.com/settings/modal-labs/proxy"
