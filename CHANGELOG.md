@@ -13,7 +13,10 @@ Both client libraries are pre-1.0, and they have separate versioning.
   - `verbose`: Enable verbose logging.
   - `proxy`: Connect a Modal Proxy to a Sandbox.
   - `workdir`: Set the working directory.
-- Add top level for `Image.FromRawRegistry` in typescript and `ImageFromRawRegistry` in golang.
+- Add top level for Image objects that are lazy. The images are built when creating a sandbox.
+  - `Image.FromRawRegistry` in typescript and `NewImageFromRawRegistry` in golang.
+  - `Image.ImageFromAwsEcrTopLevel` in typescript and `NewImageImageFromAwsEcrTopLevel` in golang.
+  - `Image.FromGcpArtifactRegistry` in typescript and `NewImageFromGcpArtifactRegistry` in golang.
 
 ## modal-js/v0.3.16, modal-go/v0.0.16
 

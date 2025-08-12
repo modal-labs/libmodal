@@ -48,6 +48,44 @@ test("CreateOneSandboxTopLevelImageAPISecret", async () => {
   expect(image.imageId).toMatch(/^im-/);
 });
 
+test("ImageFromAwsEcrTopLevel", async () => {
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
+  expect(app.appId).toBeTruthy();
+
+  const image = await Image.FromAwsEcr(
+    "459781239556.dkr.ecr.us-east-1.amazonaws.com/ecr-private-registry-test-7522615:python",
+    await Secret.fromName("libmodal-aws-ecr-test", {
+      requiredKeys: ["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"],
+    }),
+  );
+  expect(image.imageId).toBeFalsy();
+
+  const sb = await app.createSandbox(image);
+  expect(sb.sandboxId).toBeTruthy();
+  await sb.terminate();
+
+  expect(image.imageId).toMatch(/^im-/);
+});
+
+test("ImageFromGcpEcrTopLevel", async () => {
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
+  expect(app.appId).toBeTruthy();
+
+  const image = await Image.FromGcpArtifactRegistry(
+    "us-east1-docker.pkg.dev/modal-prod-367916/private-repo-test/my-image",
+    await Secret.fromName("libmodal-gcp-artifact-registry-test", {
+      requiredKeys: ["SERVICE_ACCOUNT_JSON"],
+    }),
+  );
+  expect(image.imageId).toBeFalsy();
+
+  const sb = await app.createSandbox(image);
+  expect(sb.sandboxId).toBeTruthy();
+  await sb.terminate();
+
+  expect(image.imageId).toMatch(/^im-/);
+});
+
 test("PassCatToStdin", async () => {
   const app = await App.lookup("libmodal-test", { createIfMissing: true });
   const image = await app.imageFromRegistry("alpine:3.21");

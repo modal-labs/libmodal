@@ -48,6 +48,50 @@ export class Image {
   }
 
   /**
+   * Creates an `Image` instance from a raw registry tag, optionally using a secret for authentication.
+   *
+   * @param tag - The registry tag for the image.
+   * @param secret - A `Secret` instance containing credentials for registry authentication.
+   */
+  static FromAwsEcr(tag: string, secret: Secret): Image {
+    let imageRegistryConfig;
+    if (secret) {
+      if (!(secret instanceof Secret)) {
+        throw new TypeError(
+          "secret must be a reference to an existing Secret, e.g. `await Secret.fromName('my_secret')`",
+        );
+      }
+      imageRegistryConfig = {
+        registryAuthType: RegistryAuthType.REGISTRY_AUTH_TYPE_AWS,
+        secretId: secret.secretId,
+      };
+    }
+    return new Image(tag, imageRegistryConfig);
+  }
+
+  /**
+   * Creates an `Image` instance from a raw registry tag, optionally using a secret for authentication.
+   *
+   * @param tag - The registry tag for the image.
+   * @param secret - A `Secret` instance containing credentials for registry authentication.
+   */
+  static FromGcpArtifactRegistry(tag: string, secret: Secret): Image {
+    let imageRegistryConfig;
+    if (secret) {
+      if (!(secret instanceof Secret)) {
+        throw new TypeError(
+          "secret must be a reference to an existing Secret, e.g. `await Secret.fromName('my_secret')`",
+        );
+      }
+      imageRegistryConfig = {
+        registryAuthType: RegistryAuthType.REGISTRY_AUTH_TYPE_GCP,
+        secretId: secret.secretId,
+      };
+    }
+    return new Image(tag, imageRegistryConfig);
+  }
+
+  /**
    * @internal
    * Build image object
    */

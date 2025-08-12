@@ -282,42 +282,17 @@ export class App {
   }
 
   async imageFromRegistry(tag: string, secret?: Secret): Promise<Image> {
-    const image = Image.FromRawRegistry(tag, secret);
-    return await image._build(this.appId);
+    return await Image.FromRawRegistry(tag, secret)._build(this.appId);
   }
 
   async imageFromAwsEcr(tag: string, secret: Secret): Promise<Image> {
-    if (!(secret instanceof Secret)) {
-      throw new TypeError(
-        "secret must be a reference to an existing Secret, e.g. `await Secret.fromName('my_secret')`",
-      );
-    }
-
-    const imageRegistryConfig = {
-      registryAuthType: RegistryAuthType.REGISTRY_AUTH_TYPE_AWS,
-      secretId: secret.secretId,
-    };
-
-    const image = new Image(tag, imageRegistryConfig);
-    return await image._build(this.appId);
+    return await Image.FromAwsEcr(tag, secret)._build(this.appId);
   }
 
   async imageFromGcpArtifactRegistry(
     tag: string,
     secret: Secret,
   ): Promise<Image> {
-    if (!(secret instanceof Secret)) {
-      throw new TypeError(
-        "secret must be a reference to an existing Secret, e.g. `await Secret.fromName('my_secret')`",
-      );
-    }
-
-    const imageRegistryConfig = {
-      registryAuthType: RegistryAuthType.REGISTRY_AUTH_TYPE_GCP,
-      secretId: secret.secretId,
-    };
-
-    const image = new Image(tag, imageRegistryConfig);
-    return await image._build(this.appId);
+    return await Image.FromGcpArtifactRegistry(tag, secret)._build(this.appId);
   }
 }

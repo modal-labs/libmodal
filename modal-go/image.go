@@ -19,8 +19,8 @@ type Image struct {
 	ctx context.Context
 }
 
-// ImageFromRawRegistry builds a Modal Image from a public or private image registry without any changes.
-func ImageFromRawRegistry(tag string, options *ImageFromRegistryOptions) (*Image, error) {
+// NewImageFromRawRegistry builds a Modal Image from a public or private image registry without any changes.
+func NewImageFromRawRegistry(tag string, options *ImageFromRegistryOptions) *Image {
 	if options == nil {
 		options = &ImageFromRegistryOptions{}
 	}
@@ -36,7 +36,34 @@ func ImageFromRawRegistry(tag string, options *ImageFromRegistryOptions) (*Image
 		ImageId:             "",
 		imageRegistryConfig: imageRegistryConfig,
 		tag:                 tag,
-	}, nil
+	}
+}
+
+// NewImageFromAwsEcr creates an Image from an AWS ECR tag.
+func NewImageFromAwsEcr(tag string, secret *Secret) *Image {
+	imageRegistryConfig := pb.ImageRegistryConfig_builder{
+		RegistryAuthType: pb.RegistryAuthType_REGISTRY_AUTH_TYPE_AWS,
+		SecretId:         secret.SecretId,
+	}.Build()
+
+	return &Image{
+		ImageId:             "",
+		imageRegistryConfig: imageRegistryConfig,
+		tag:                 tag,
+	}
+}
+
+// NewImageFromGcpArtifactRegistry creates an Image from a GCP Artifact Registry tag.
+func NewImageFromGcpArtifactRegistry(tag string, secret *Secret) *Image {
+	imageRegistryConfig := pb.ImageRegistryConfig_builder{
+		RegistryAuthType: pb.RegistryAuthType_REGISTRY_AUTH_TYPE_GCP,
+		SecretId:         secret.SecretId,
+	}.Build()
+	return &Image{
+		ImageId:             "",
+		imageRegistryConfig: imageRegistryConfig,
+		tag:                 tag,
+	}
 }
 
 func (image *Image) build(app *App) (*Image, error) {
