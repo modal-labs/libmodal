@@ -19,6 +19,7 @@ Both client libraries are pre-1.0, and they have separate versioning.
   - `Image.fromAwsEcr` in typescript and `NewImageFromAwsEcr` in golang.
   - `Image.fromGcpArtifactRegistry` in typescript and `NewImageFromGcpArtifactRegistry` in golang.
 - Added `Secret.fromObject()` (JS) / `SecretFromMap()` (Go) to create a Secret from key-value pairs (like `from_dict()` in Python).
+- Added `name` field to `App`s, `Sandboxe`s, `Secret`s, `Volume`s, and `Queue`s.
 
 ## modal-js/v0.3.16, modal-go/v0.0.16
 

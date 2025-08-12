@@ -133,10 +133,12 @@ export function parseGpuConfig(gpu: string | undefined): GPUConfig | undefined {
 /** Represents a deployed Modal App. */
 export class App {
   readonly appId: string;
+  readonly name?: string;
 
   /** @ignore */
-  constructor(appId: string) {
+  constructor(appId: string, name?: string) {
     this.appId = appId;
+    this.name = name;
   }
 
   /** Lookup a deployed app by name, or create if it does not exist. */
@@ -149,7 +151,7 @@ export class App {
           ? ObjectCreationType.OBJECT_CREATION_TYPE_CREATE_IF_MISSING
           : ObjectCreationType.OBJECT_CREATION_TYPE_UNSPECIFIED,
       });
-      return new App(resp.appId);
+      return new App(resp.appId, name);
     } catch (err) {
       if (err instanceof ClientError && err.code === Status.NOT_FOUND)
         throw new NotFoundError(`App '${name}' not found`);

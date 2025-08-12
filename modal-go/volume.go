@@ -12,6 +12,7 @@ import (
 // Volume represents a Modal volume that provides persistent storage.
 type Volume struct {
 	VolumeId string
+	Name     string
 
 	//lint:ignore U1000 may be used in future
 	ctx context.Context
@@ -53,5 +54,5 @@ func VolumeFromName(ctx context.Context, name string, options *VolumeFromNameOpt
 		return nil, err
 	}
 
-	return &Volume{VolumeId: resp.GetVolumeId(), ctx: ctx}, nil
+	return &Volume{VolumeId: resp.GetVolumeId(), Name: name, ctx: ctx}, nil
 }

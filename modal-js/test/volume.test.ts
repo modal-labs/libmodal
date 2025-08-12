@@ -8,6 +8,7 @@ test("VolumeFromName", async () => {
   expect(volume).toBeDefined();
   expect(volume.volumeId).toBeDefined();
   expect(volume.volumeId).toMatch(/^vo-/);
+  expect(volume.name).toBe("libmodal-test-volume");
 
   const promise = Volume.fromName("missing-volume");
   await expect(promise).rejects.toThrowError(

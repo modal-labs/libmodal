@@ -9,6 +9,7 @@ import (
 // Secret represents a Modal secret.
 type Secret struct {
 	SecretId string
+	Name     string
 
 	//lint:ignore U1000 may be used in future
 	ctx context.Context
@@ -42,7 +43,7 @@ func SecretFromName(ctx context.Context, name string, options *SecretFromNameOpt
 		return nil, err
 	}
 
-	return &Secret{SecretId: resp.GetSecretId()}, nil
+	return &Secret{SecretId: resp.GetSecretId(), Name: name}, nil
 }
 
 // SecretFromMapOptions are options for creating a Secret from a key/value map.

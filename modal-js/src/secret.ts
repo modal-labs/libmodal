@@ -13,10 +13,12 @@ export type SecretFromNameOptions = {
 /** Secrets provide a dictionary of environment variables for images. */
 export class Secret {
   readonly secretId: string;
+  readonly name?: string;
 
   /** @ignore */
-  constructor(secretId: string) {
+  constructor(secretId: string, name?: string) {
     this.secretId = secretId;
+    this.name = name;
   }
 
   /** Reference a Secret by its name. */
@@ -30,7 +32,7 @@ export class Secret {
         environmentName: configEnvironmentName(options?.environment),
         requiredKeys: options?.requiredKeys ?? [],
       });
-      return new Secret(resp.secretId);
+      return new Secret(resp.secretId, name);
     } catch (err) {
       if (err instanceof ClientError && err.code === Status.NOT_FOUND)
         throw new NotFoundError(err.details);

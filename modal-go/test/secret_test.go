@@ -15,6 +15,7 @@ func TestSecretFromName(t *testing.T) {
 	secret, err := modal.SecretFromName(context.Background(), "libmodal-test-secret", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(secret.SecretId).Should(gomega.HavePrefix("st-"))
+	g.Expect(secret.Name).To(gomega.Equal("libmodal-test-secret"))
 
 	_, err = modal.SecretFromName(context.Background(), "missing-secret", nil)
 	g.Expect(err).Should(gomega.MatchError(gomega.ContainSubstring("Secret 'missing-secret' not found")))

@@ -59,6 +59,7 @@ type QueueIterateOptions struct {
 // Queue is a distributed, FIFO queue for data flow in Modal apps.
 type Queue struct {
 	QueueId   string
+	Name      string
 	cancel    context.CancelFunc // only for ephemeral queues
 	ephemeral bool
 	ctx       context.Context
@@ -140,7 +141,7 @@ func QueueLookup(ctx context.Context, name string, options *LookupOptions) (*Que
 	if err != nil {
 		return nil, err
 	}
-	return &Queue{ctx: ctx, QueueId: resp.GetQueueId()}, nil
+	return &Queue{ctx: ctx, QueueId: resp.GetQueueId(), Name: name}, nil
 }
 
 // QueueDelete removes a queue by name.

@@ -29,6 +29,7 @@ func TestQueueEphemeral(t *testing.T) {
 	queue, err := modal.QueueEphemeral(context.Background(), nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	defer queue.CloseEphemeral()
+	g.Expect(queue.Name).To(gomega.BeEmpty())
 
 	err = queue.Put(123, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -179,6 +180,7 @@ func TestQueueNonEphemeral(t *testing.T) {
 	queueName := "test-queue-" + strconv.FormatInt(time.Now().UnixNano(), 10)
 	queue1, err := modal.QueueLookup(ctx, queueName, &modal.LookupOptions{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(queue1.Name).To(gomega.Equal(queueName))
 
 	defer func() {
 		err := modal.QueueDelete(ctx, queueName, nil)

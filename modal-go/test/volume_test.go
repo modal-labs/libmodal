@@ -17,6 +17,7 @@ func TestVolumeFromName(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(volume).ShouldNot(gomega.BeNil())
 	g.Expect(volume.VolumeId).Should(gomega.HavePrefix("vo-"))
+	g.Expect(volume.Name).To(gomega.Equal("libmodal-test-volume"))
 
 	// Test that missing volume returns an error
 	_, err = modal.VolumeFromName(context.Background(), "missing-volume", nil)

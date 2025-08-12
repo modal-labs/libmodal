@@ -6,6 +6,7 @@ test("SecretFromName", async () => {
   expect(secret).toBeDefined();
   expect(secret.secretId).toBeDefined();
   expect(secret.secretId).toMatch(/^st-/);
+  expect(secret.name).toBe("libmodal-test-secret");
 
   const promise = Secret.fromName("missing-secret");
   await expect(promise).rejects.toThrowError(
