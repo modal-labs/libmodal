@@ -4,7 +4,9 @@ package modal
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"iter"
 	"time"
 
@@ -284,7 +286,7 @@ func (d *Dict) Keys() iter.Seq2[any, error] {
 		for {
 			entry, err := stream.Recv()
 			if err != nil {
-				if err.Error() != "EOF" {
+				if !errors.Is(err, io.EOF) {
 					yield(nil, err)
 				}
 				return
@@ -318,7 +320,7 @@ func (d *Dict) Values() iter.Seq2[any, error] {
 		for {
 			entry, err := stream.Recv()
 			if err != nil {
-				if err.Error() != "EOF" {
+				if !errors.Is(err, io.EOF) {
 					yield(nil, err)
 				}
 				return
@@ -353,7 +355,7 @@ func (d *Dict) Items() iter.Seq2[[2]any, error] {
 		for {
 			entry, err := stream.Recv()
 			if err != nil {
-				if err.Error() != "EOF" {
+				if !errors.Is(err, io.EOF) {
 					yield([2]any{}, err)
 				}
 				return
