@@ -405,3 +405,36 @@ func TestSandboxFromId(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(sbFromId.SandboxId).Should(gomega.Equal(sb.SandboxId))
 }
+
+func TestSandboxWithWorkdir(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+
+	app, err := modal.AppLookup(ctx, "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	image, err := app.ImageFromRegistry("alpine:3.21", nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	sb, err := app.CreateSandbox(image, &modal.SandboxOptions{
+		Command: []string{"pwd"},
+		Workdir: "/tmp",
+	})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	defer sb.Terminate()
+
+	output, err := io.ReadAll(sb.Stdout)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(string(output)).To(gomega.Equal("/tmp\n"))
+
+	exitCode, err := sb.Wait()
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(exitCode).To(gomega.Equal(0))
+
+	_, err = app.CreateSandbox(image, &modal.SandboxOptions{
+		Workdir: "relative/path",
+	})
+	g.Expect(err).Should(gomega.HaveOccurred())
+	g.Expect(err.Error()).To(gomega.ContainSubstring("the Workdir value must be an absolute path"))
+}

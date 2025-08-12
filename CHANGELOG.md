@@ -12,6 +12,8 @@ Both client libraries are pre-1.0, and they have separate versioning.
   - `regions`: Region(s) to run the sandbox on.
   - `verbose`: Enable verbose logging.
   - `proxy`: Connect a Modal Proxy to a Sandbox.
+  - `workdir`: Set the working directory.
+- Added support for mounting `CloudBucketMount`s to Sandboxes.
 - Added support for the `Dict` object to interact with [Modal Dict](https://modal.com/docs/guide/dicts) key-value stores.
   - Dicts have a similar interface as Python, with `get()`, `put()`, `update()`, etc.
   - You can put structured objects onto Dicts, with limited support for the pickle format, same as for Queues.

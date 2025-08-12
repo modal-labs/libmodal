@@ -325,3 +325,30 @@ test("SandboxFromId", async () => {
   const sbFromId = await Sandbox.fromId(sb.sandboxId);
   expect(sbFromId.sandboxId).toBe(sb.sandboxId);
 });
+
+test("SandboxWithWorkdir", async () => {
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
+  const image = await app.imageFromRegistry("alpine:3.21");
+
+  const sb = await app.createSandbox(image, {
+    command: ["pwd"],
+    workdir: "/tmp",
+  });
+
+  onTestFinished(async () => {
+    await sb.terminate();
+  });
+
+  expect(await sb.stdout.readText()).toBe("/tmp\n");
+});
+
+test("SandboxWithWorkdirValidation", async () => {
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
+  const image = await app.imageFromRegistry("alpine:3.21");
+
+  await expect(
+    app.createSandbox(image, {
+      workdir: "relative/path",
+    }),
+  ).rejects.toThrow("workdir must be an absolute path, got: relative/path");
+});
