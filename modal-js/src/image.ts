@@ -16,10 +16,10 @@ export class Image {
   #imageRegistryConfig?: ImageRegistryConfig;
 
   /** @ignore */
-  constructor(tag: string, imageRegistryConfig?: ImageRegistryConfig) {
-    this.#imageId = "";
-    this.#imageRegistryConfig = imageRegistryConfig;
+  constructor(imageId: string, tag: string, imageRegistryConfig?: ImageRegistryConfig) {
+    this.#imageId = imageId;
     this.#tag = tag;
+    this.#imageRegistryConfig = imageRegistryConfig;
   }
   get imageId(): string {
     return this.#imageId;
@@ -44,7 +44,7 @@ export class Image {
         secretId: secret.secretId,
       };
     }
-    return new Image(tag, imageRegistryConfig);
+    return new Image("", tag, imageRegistryConfig);
   }
 
   /**
@@ -66,7 +66,7 @@ export class Image {
         secretId: secret.secretId,
       };
     }
-    return new Image(tag, imageRegistryConfig);
+    return new Image("", tag, imageRegistryConfig);
   }
 
   /**
@@ -88,7 +88,7 @@ export class Image {
         secretId: secret.secretId,
       };
     }
-    return new Image(tag, imageRegistryConfig);
+    return new Image("", tag, imageRegistryConfig);
   }
 
   /**
