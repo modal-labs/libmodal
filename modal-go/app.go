@@ -40,7 +40,7 @@ type SandboxOptions struct {
 	Memory            int                          // Memory request in MiB.
 	GPU               string                       // GPU reservation for the sandbox (e.g. "A100", "T4:2", "A100-80GB:4").
 	Timeout           time.Duration                // Maximum duration for the Sandbox.
-	Workdir           string             // Working directory of the sandbox.
+	Workdir           string                       // Working directory of the sandbox.
 	Command           []string                     // Command to run in the Sandbox on startup.
 	Secrets           []*Secret                    // Secrets to inject into the Sandbox.
 	Volumes           map[string]*Volume           // Mount points for Volumes.
