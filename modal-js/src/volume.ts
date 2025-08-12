@@ -13,10 +13,12 @@ export type VolumeFromNameOptions = {
 /** Volumes provide persistent storage that can be mounted in Modal functions. */
 export class Volume {
   readonly volumeId: string;
+  readonly name?: string;
 
   /** @ignore */
-  constructor(volumeId: string) {
+  constructor(volumeId: string, name?: string) {
     this.volumeId = volumeId;
+    this.name = name;
   }
 
   static async fromName(
@@ -31,7 +33,7 @@ export class Volume {
           ? ObjectCreationType.OBJECT_CREATION_TYPE_CREATE_IF_MISSING
           : ObjectCreationType.OBJECT_CREATION_TYPE_UNSPECIFIED,
       });
-      return new Volume(resp.volumeId);
+      return new Volume(resp.volumeId, name);
     } catch (err) {
       if (err instanceof ClientError && err.code === Status.NOT_FOUND)
         throw new NotFoundError(err.details);
