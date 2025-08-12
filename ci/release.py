@@ -109,7 +109,7 @@ def update_version(args):
 
     run_cli(["git", "diff"])
     run_cli(["git", "add", str(changelog_path)])
-    run_cli(["git", "commit", "-m", f"Update changelog for {version_header}"])
+    run_cli(["git", "commit", "-m", f"Prepare release for {version_header}"])
 
 
 def publish(args):
