@@ -281,17 +281,17 @@ export class App {
   }
 
   async imageFromRegistry(tag: string, secret?: Secret): Promise<Image> {
-    return await Image.FromRegistry(tag, secret)._build(this.appId);
+    return await Image.fromRegistry(tag, secret)._build(this.appId);
   }
 
   async imageFromAwsEcr(tag: string, secret: Secret): Promise<Image> {
-    return await Image.FromAwsEcr(tag, secret)._build(this.appId);
+    return await Image.fromAwsEcr(tag, secret)._build(this.appId);
   }
 
   async imageFromGcpArtifactRegistry(
     tag: string,
     secret: Secret,
   ): Promise<Image> {
-    return await Image.FromGcpArtifactRegistry(tag, secret)._build(this.appId);
+    return await Image.fromGcpArtifactRegistry(tag, secret)._build(this.appId);
   }
 }

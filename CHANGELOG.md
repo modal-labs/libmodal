@@ -14,9 +14,9 @@ Both client libraries are pre-1.0, and they have separate versioning.
   - `proxy`: Connect a Modal Proxy to a Sandbox.
   - `workdir`: Set the working directory.
 - Add top level for Image objects that are lazy. The images are built when creating a sandbox.
-  - `Image.FromRegistry` in typescript and `NewImageFromRegistry` in golang.
-  - `Image.ImageFromAwsEcrTopLevel` in typescript and `NewImageImageFromAwsEcrTopLevel` in golang.
-  - `Image.FromGcpArtifactRegistry` in typescript and `NewImageFromGcpArtifactRegistry` in golang.
+  - `Image.fromRegistry` in typescript and `NewImageFromRegistry` in golang.
+  - `Image.fromAwsEcrTopLevel` in typescript and `NewImageImageFromAwsEcrTopLevel` in golang.
+  - `Image.fromGcpArtifactRegistry` in typescript and `NewImageFromGcpArtifactRegistry` in golang.
 
 ## modal-js/v0.3.16, modal-go/v0.0.16
 

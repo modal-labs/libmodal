@@ -1,7 +1,7 @@
 import { App, Secret, Image } from "modal";
 
 const app = await App.lookup("libmodal-example", { createIfMissing: true });
-const image = await Image.FromRegistry("python:3.13-slim");
+const image = await Image.fromRegistry("python:3.13-slim");
 
 const sb = await app.createSandbox(image);
 console.log("Started sandbox:", sb.sandboxId);

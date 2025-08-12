@@ -31,7 +31,7 @@ export class Image {
    * @param tag - The registry tag for the image.
    * @param secret - Optional. A `Secret` instance containing credentials for registry authentication.
    */
-  static FromRegistry(tag: string, secret?: Secret): Image {
+  static fromRegistry(tag: string, secret?: Secret): Image {
     let imageRegistryConfig;
     if (secret) {
       if (!(secret instanceof Secret)) {
@@ -53,7 +53,7 @@ export class Image {
    * @param tag - The registry tag for the image.
    * @param secret - A `Secret` instance containing credentials for registry authentication.
    */
-  static FromAwsEcr(tag: string, secret: Secret): Image {
+  static fromAwsEcr(tag: string, secret: Secret): Image {
     let imageRegistryConfig;
     if (secret) {
       if (!(secret instanceof Secret)) {
@@ -75,7 +75,7 @@ export class Image {
    * @param tag - The registry tag for the image.
    * @param secret - A `Secret` instance containing credentials for registry authentication.
    */
-  static FromGcpArtifactRegistry(tag: string, secret: Secret): Image {
+  static fromGcpArtifactRegistry(tag: string, secret: Secret): Image {
     let imageRegistryConfig;
     if (secret) {
       if (!(secret instanceof Secret)) {
