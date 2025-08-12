@@ -16,7 +16,11 @@ export class Image {
   #imageRegistryConfig?: ImageRegistryConfig;
 
   /** @ignore */
-  constructor(imageId: string, tag: string, imageRegistryConfig?: ImageRegistryConfig) {
+  constructor(
+    imageId: string,
+    tag: string,
+    imageRegistryConfig?: ImageRegistryConfig,
+  ) {
     this.#imageId = imageId;
     this.#tag = tag;
     this.#imageRegistryConfig = imageRegistryConfig;
