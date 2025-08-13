@@ -1,3 +1,5 @@
+//lint:file-ignore SA1019 We need to use deprecated API for testing
+
 package test
 
 import (
