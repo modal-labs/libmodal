@@ -280,14 +280,23 @@ export class App {
     return new Sandbox(createResp.sandboxId);
   }
 
+  /**
+   * @deprecated Use `Image.fromRegistry` instead.
+   */
   async imageFromRegistry(tag: string, secret?: Secret): Promise<Image> {
     return await Image.fromRegistry(tag, secret)._build(this.appId);
   }
 
+  /**
+   * @deprecated Use `Image.fromAwsEcr` instead.
+   */
   async imageFromAwsEcr(tag: string, secret: Secret): Promise<Image> {
     return await Image.fromAwsEcr(tag, secret)._build(this.appId);
   }
 
+  /**
+   * @deprecated Use `Image.fromGcpArtifactRegistry` instead.
+   */
   async imageFromGcpArtifactRegistry(
     tag: string,
     secret: Secret,
