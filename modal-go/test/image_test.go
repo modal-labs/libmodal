@@ -1,5 +1,3 @@
-//nolint:staticcheck // SA1019 We need to use deprecated API for testing
-
 package test
 
 import (
@@ -10,6 +8,7 @@ import (
 	"github.com/onsi/gomega"
 )
 
+//nolint:staticcheck
 func TestImageFromRegistry(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
@@ -22,6 +21,7 @@ func TestImageFromRegistry(t *testing.T) {
 	g.Expect(image.ImageId).Should(gomega.HavePrefix("im-"))
 }
 
+//nolint:staticcheck
 func TestImageFromRegistryWithSecret(t *testing.T) {
 	// GCP Artifact Registry also supports auth using username and password, if the username is "_json_key"
 	// and the password is the service account JSON blob. See:
@@ -46,6 +46,7 @@ func TestImageFromRegistryWithSecret(t *testing.T) {
 	g.Expect(image.ImageId).Should(gomega.HavePrefix("im-"))
 }
 
+//nolint:staticcheck
 func TestImageFromAwsEcr(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
@@ -63,6 +64,7 @@ func TestImageFromAwsEcr(t *testing.T) {
 	g.Expect(image.ImageId).Should(gomega.HavePrefix("im-"))
 }
 
+//nolint:staticcheck
 func TestImageFromGcpArtifactRegistry(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
