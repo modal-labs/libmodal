@@ -1,4 +1,4 @@
-//nolint:SA2019 We need to use deprecated API for testing
+//nolint:staticcheck // SA1019 We need to use deprecated API for testing
 
 package test
 
