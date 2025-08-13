@@ -60,7 +60,6 @@ test("DictDifferentDataTypes", async () => {
   await dict.put("object", { nested: "value" });
   await dict.put("array", [1, 2, 3]);
   await dict.put("null", null);
-  await dict.put(123, "numeric key");
 
   // Verify with get
   expect(await dict.get("string")).toBe("hello");
@@ -69,7 +68,6 @@ test("DictDifferentDataTypes", async () => {
   expect(await dict.get("object")).toEqual({ nested: "value" });
   expect(await dict.get("array")).toEqual([1, 2, 3]);
   expect(await dict.get("null")).toBe(null);
-  expect(await dict.get(123)).toBe("numeric key");
 
   // Verify with pop
   expect(await dict.pop("string")).toBe("hello");
@@ -78,15 +76,27 @@ test("DictDifferentDataTypes", async () => {
   expect(await dict.pop("object")).toEqual({ nested: "value" });
   expect(await dict.pop("array")).toEqual([1, 2, 3]);
   expect(await dict.pop("null")).toBe(null);
-  expect(await dict.pop(123)).toBe("numeric key");
 
   expect(await dict.len()).toBe(0);
 
   dict.closeEphemeral();
 });
 
+test("DictBytesKey", async () => {
+  const dict = await Dict.ephemeral<Uint8Array, string>();
+
+  const bytesKey = new Uint8Array([1, 2, 3, 4]);
+  await dict.put(bytesKey, "val");
+  await dict.update(new Map([[bytesKey, "new val"]]));
+
+  expect(await dict.get(bytesKey)).toBe("new val");
+  expect(await dict.pop(bytesKey)).toBe("new val");
+
+  dict.closeEphemeral();
+});
+
 test("DictSkipIfExists", async () => {
-  const dict = await Dict.ephemeral();
+  const dict = await Dict.ephemeral<string, string>();
 
   const created1 = await dict.put("key", "value1");
   expect(created1).toBe(true);
@@ -113,7 +123,7 @@ test("DictSkipIfExists", async () => {
 });
 
 test("DictIteration", async () => {
-  const dict = await Dict.ephemeral();
+  const dict = await Dict.ephemeral<string, string>();
 
   const testData = {
     key1: "value1",
@@ -149,19 +159,21 @@ test("DictIteration", async () => {
 test("DictNonEphemeral", async () => {
   const dictName = `test-dict-${Date.now()}`;
 
-  const dict1 = await Dict.lookup(dictName, { createIfMissing: true });
+  const dict1 = await Dict.lookup<string, string>(dictName, {
+    createIfMissing: true,
+  });
   onTestFinished(async () => {
     await Dict.delete(dictName);
     await expect(Dict.lookup(dictName)).rejects.toThrow(); // confirm deletion
   });
   await dict1.put("persistent", "data");
 
-  const dict2 = await Dict.lookup(dictName);
+  const dict2 = await Dict.lookup<string, string>(dictName);
   expect(await dict2.get("persistent")).toBe("data");
 });
 
 test("DictEmptyOperations", async () => {
-  const dict = await Dict.ephemeral();
+  const dict = await Dict.ephemeral<string, string>();
 
   expect(await dict.len()).toBe(0);
   expect(await dict.get("key", "default")).toBe("default");

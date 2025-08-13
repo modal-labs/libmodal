@@ -20,7 +20,12 @@ export type DictPutOptions = {
 };
 
 // Dict is a distributed dictionary for key-value storage in Modal apps.
-export class Dict {
+export type DictKey = string | Uint8Array;
+export type DictUpdateItems<K extends DictKey, V> = K extends string
+  ? Record<string, V>
+  : Map<K, V>;
+
+export class Dict<K extends DictKey = DictKey, V = any> {
   readonly dictId: string;
   readonly #ephemeral: boolean;
   readonly #abortController?: AbortController;
@@ -36,13 +41,15 @@ export class Dict {
    * Create a nameless, temporary Dict.
    * You will need to call `closeEphemeral()` to delete the Dict.
    */
-  static async ephemeral(options: EphemeralOptions = {}): Promise<Dict> {
+  static async ephemeral<K extends DictKey = DictKey, V = any>(
+    options: EphemeralOptions = {},
+  ): Promise<Dict<K, V>> {
     const resp = await client.dictGetOrCreate({
       objectCreationType: ObjectCreationType.OBJECT_CREATION_TYPE_EPHEMERAL,
       environmentName: environmentName(options.environment),
     });
 
-    const dict = new Dict(resp.dictId, true);
+    const dict = new Dict<K, V>(resp.dictId, true);
     const signal = dict.#abortController!.signal;
     (async () => {
       // Launch a background task to heartbeat the ephemeral Dict.
@@ -74,10 +81,10 @@ export class Dict {
   /**
    * Lookup a Dict by name.
    */
-  static async lookup(
+  static async lookup<K extends DictKey = DictKey, V = any>(
     name: string,
     options: LookupOptions = {},
-  ): Promise<Dict> {
+  ): Promise<Dict<K, V>> {
     const resp = await client.dictGetOrCreate({
       deploymentName: name,
       objectCreationType: options.createIfMissing
@@ -85,7 +92,7 @@ export class Dict {
         : undefined,
       environmentName: environmentName(options.environment),
     });
-    return new Dict(resp.dictId);
+    return new Dict<K, V>(resp.dictId);
   }
 
   /** Delete a Dict by name. */
@@ -110,7 +117,7 @@ export class Dict {
    * Returns `defaultValue` if key does not exist.
    * Throws `KeyError` if key does not exist and no default value is provided.
    */
-  async get(key: any, defaultValue?: any): Promise<any> {
+  async get(key: K, defaultValue?: V): Promise<V> {
     const resp = await client.dictGet({
       dictId: this.dictId,
       key: dumps(key),
@@ -127,7 +134,7 @@ export class Dict {
   /**
    * Return if a key is present.
    */
-  async contains(key: any): Promise<boolean> {
+  async contains(key: K): Promise<boolean> {
     const resp = await client.dictContains({
       dictId: this.dictId,
       key: dumps(key),
@@ -148,11 +155,24 @@ export class Dict {
   /**
    * Update the Dict with additional items.
    */
-  async update(items: Record<any, any>): Promise<void> {
-    const updates: DictEntry[] = Object.entries(items).map(([k, v]) => ({
-      key: dumps(k),
-      value: dumps(v),
-    }));
+  async update(items: DictUpdateItems<K, V>): Promise<void> {
+    const updates: DictEntry[] = [];
+
+    if (items instanceof Map) {
+      for (const [k, v] of items) {
+        updates.push({
+          key: dumps(k),
+          value: dumps(v),
+        });
+      }
+    } else {
+      for (const [k, v] of Object.entries(items)) {
+        updates.push({
+          key: dumps(k),
+          value: dumps(v),
+        });
+      }
+    }
 
     try {
       await client.dictUpdate({
@@ -173,11 +193,7 @@ export class Dict {
    * Returns true if the key-value pair was added and false if it wasn't
    * because the key already existed and `skipIfExists` was set.
    */
-  async put(
-    key: any,
-    value: any,
-    options: DictPutOptions = {},
-  ): Promise<boolean> {
+  async put(key: K, value: V, options: DictPutOptions = {}): Promise<boolean> {
     const updates: DictEntry[] = [
       {
         key: dumps(key),
@@ -203,7 +219,7 @@ export class Dict {
   /**
    * Remove a key from the Dict, returning the value if it exists.
    */
-  async pop(key: any): Promise<any> {
+  async pop(key: K): Promise<V> {
     const resp = await client.dictPop({
       dictId: this.dictId,
       key: dumps(key),
@@ -232,7 +248,7 @@ export class Dict {
   /**
    * Return an async iterator over the values in the Dict.
    */
-  async *values(): AsyncGenerator<any, void, unknown> {
+  async *values(): AsyncGenerator<V, void, unknown> {
     const request: DictContentsRequest = {
       dictId: this.dictId,
       keys: false,
@@ -247,7 +263,7 @@ export class Dict {
   /**
    * Return an async iterator over the [key, value] pairs in this Dict.
    */
-  async *items(): AsyncGenerator<[any, any], void, unknown> {
+  async *items(): AsyncGenerator<[any, V], void, unknown> {
     const request: DictContentsRequest = {
       dictId: this.dictId,
       keys: true,
