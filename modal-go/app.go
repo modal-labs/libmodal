@@ -266,16 +266,22 @@ func (app *App) CreateSandbox(image *Image, options *SandboxOptions) (*Sandbox, 
 }
 
 // ImageFromRegistry creates an Image from a registry tag.
+//
+// Deprecated: ImageFromRegistry is derpecated, use modal.NewImageFromAwsEcr instead
 func (app *App) ImageFromRegistry(tag string, options *ImageFromRegistryOptions) (*Image, error) {
 	return NewImageFromRegistry(tag, options).build(app)
 }
 
 // ImageFromAwsEcr creates an Image from an AWS ECR tag.
+//
+// Deprecated: ImageFromAwsEcr is derpecated, use modal.NewImageFromAwsEcr instead
 func (app *App) ImageFromAwsEcr(tag string, secret *Secret) (*Image, error) {
 	return NewImageFromAwsEcr(tag, secret).build(app)
 }
 
 // ImageFromGcpArtifactRegistry creates an Image from a GCP Artifact Registry tag.
+//
+// Deprecated: ImageFromGcpArtifactRegistry is derpecated, use modal.NewImageFromGcpArtifactRegistry instead
 func (app *App) ImageFromGcpArtifactRegistry(tag string, secret *Secret) (*Image, error) {
 	return NewImageFromGcpArtifactRegistry(tag, secret).build(app)
 }
