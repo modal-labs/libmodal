@@ -15,7 +15,7 @@ Both client libraries are pre-1.0, and they have separate versioning.
   - `workdir`: Set the working directory.
 - Add top level for Image objects that are lazy. The images are built when creating a sandbox.
   - `Image.fromRegistry` in typescript and `NewImageFromRegistry` in golang.
-  - `Image.fromAwsEcrTopLevel` in typescript and `NewImageImageFromAwsEcrTopLevel` in golang.
+  - `Image.fromAwsEcr` in typescript and `NewImageFromAwsEcr` in golang.
   - `Image.fromGcpArtifactRegistry` in typescript and `NewImageFromGcpArtifactRegistry` in golang.
 
 ## modal-js/v0.3.16, modal-go/v0.0.16
