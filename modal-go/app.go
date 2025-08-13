@@ -267,7 +267,7 @@ func (app *App) CreateSandbox(image *Image, options *SandboxOptions) (*Sandbox, 
 
 // ImageFromRegistry creates an Image from a registry tag.
 //
-// Deprecated: ImageFromRegistry is derpecated, use modal.NewImageFromAwsEcr instead
+// Deprecated: ImageFromRegistry is derpecated, use modal.NewImageFromRegistry instead
 func (app *App) ImageFromRegistry(tag string, options *ImageFromRegistryOptions) (*Image, error) {
 	return NewImageFromRegistry(tag, options).build(app)
 }
