@@ -68,7 +68,7 @@ export type QueueIterateOptions = {
 /**
  * Distributed, FIFO queue for data flow in Modal apps.
  */
-export class Queue {
+export class Queue<V = any> {
   readonly queueId: string;
   readonly #ephemeral: boolean;
   readonly #abortController?: AbortController;
@@ -97,13 +97,15 @@ export class Queue {
    * Create a nameless, temporary queue.
    * You will need to call `closeEphemeral()` to delete the queue.
    */
-  static async ephemeral(options: EphemeralOptions = {}): Promise<Queue> {
+  static async ephemeral<V = any>(
+    options: EphemeralOptions = {},
+  ): Promise<Queue<V>> {
     const resp = await client.queueGetOrCreate({
       objectCreationType: ObjectCreationType.OBJECT_CREATION_TYPE_EPHEMERAL,
       environmentName: environmentName(options.environment),
     });
 
-    const queue = new Queue(resp.queueId, true);
+    const queue = new Queue<V>(resp.queueId, true);
     const signal = queue.#abortController!.signal;
     (async () => {
       // Launch a background task to heartbeat the ephemeral queue.
@@ -135,10 +137,10 @@ export class Queue {
   /**
    * Lookup a queue by name.
    */
-  static async lookup(
+  static async lookup<V = any>(
     name: string,
     options: LookupOptions = {},
-  ): Promise<Queue> {
+  ): Promise<Queue<V>> {
     const resp = await client.queueGetOrCreate({
       deploymentName: name,
       objectCreationType: options.createIfMissing
@@ -146,7 +148,7 @@ export class Queue {
         : undefined,
       environmentName: environmentName(options.environment),
     });
-    return new Queue(resp.queueId);
+    return new Queue<V>(resp.queueId);
   }
 
   /** Delete a queue by name. */
@@ -228,7 +230,7 @@ export class Queue {
   }
 
   async #put(
-    values: any[],
+    values: V[],
     timeout?: number,
     partition?: string,
     partitionTtl?: number,
@@ -273,7 +275,7 @@ export class Queue {
    * provided `timeout` is reached, or indefinitely if `timeout` is not set.
    * Raises `QueueFullError` if the queue is still full after the timeout.
    */
-  async put(v: any, options: QueuePutOptions = {}): Promise<void> {
+  async put(v: V, options: QueuePutOptions = {}): Promise<void> {
     await this.#put(
       [v],
       options.timeout,
@@ -289,7 +291,7 @@ export class Queue {
    * provided `timeout` is reached, or indefinitely if `timeout` is not set.
    * Raises `QueueFullError` if the queue is still full after the timeout.
    */
-  async putMany(values: any[], options: QueuePutOptions = {}): Promise<void> {
+  async putMany(values: V[], options: QueuePutOptions = {}): Promise<void> {
     await this.#put(
       values,
       options.timeout,
