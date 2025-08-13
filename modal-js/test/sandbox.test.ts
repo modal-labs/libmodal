@@ -1,4 +1,4 @@
-import { App, Volume, Sandbox, Secret, Image } from "modal";
+import { App, Volume, Sandbox, Secret } from "modal";
 import { parseGpuConfig } from "../src/app";
 import { expect, test, onTestFinished } from "vitest";
 
