@@ -1,7 +1,7 @@
-import { App } from "modal";
+import { App, Image } from "modal";
 
 const app = await App.lookup("libmodal-example", { createIfMissing: true });
-const image = await app.imageFromRegistry(
+const image = await Image.fromRegistry(
   "nvidia/cuda:12.4.0-devel-ubuntu22.04",
 );
 

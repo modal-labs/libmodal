@@ -1,7 +1,7 @@
-import { App, Proxy } from "modal";
+import { App, Image, Proxy } from "modal";
 
 const app = await App.lookup("libmodal-example", { createIfMissing: true });
-const image = await app.imageFromRegistry("alpine/curl:8.14.1");
+const image = await Image.fromRegistry("alpine/curl:8.14.1");
 
 const proxy = await Proxy.fromName("libmodal-test-proxy");
 console.log("Using proxy:", proxy.proxyId);
