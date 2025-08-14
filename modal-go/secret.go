@@ -44,3 +44,31 @@ func SecretFromName(ctx context.Context, name string, options *SecretFromNameOpt
 
 	return &Secret{SecretId: resp.GetSecretId()}, nil
 }
+
+// SecretFromMapOptions are options for creating a Secret from a key/value map.
+type SecretFromMapOptions struct {
+	Environment string
+}
+
+// SecretFromMap creates a Secret from a map of key-value pairs.
+func SecretFromMap(ctx context.Context, keyValuePairs map[string]string, options *SecretFromMapOptions) (*Secret, error) {
+	var err error
+	ctx, err = clientContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if options == nil {
+		options = &SecretFromMapOptions{}
+	}
+
+	resp, err := client.SecretGetOrCreate(ctx, pb.SecretGetOrCreateRequest_builder{
+		ObjectCreationType: pb.ObjectCreationType_OBJECT_CREATION_TYPE_EPHEMERAL,
+		EnvDict:            keyValuePairs,
+		EnvironmentName:    environmentName(options.Environment),
+	}.Build())
+	if err != nil {
+		return nil, err
+	}
+	return &Secret{SecretId: resp.GetSecretId()}, nil
+}
