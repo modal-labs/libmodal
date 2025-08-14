@@ -69,3 +69,19 @@ export class SandboxTimeoutError extends Error {
     this.name = "SandboxTimeoutError";
   }
 }
+
+/** Key not found in a Dict. */
+export class KeyError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "KeyError";
+  }
+}
+
+/** Request payload is too large. */
+export class RequestSizeError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "RequestSizeError";
+  }
+}
