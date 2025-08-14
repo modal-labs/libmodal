@@ -43,3 +43,15 @@ test("FunctionCallInputPlane", async () => {
   const result = await function_.remote(["hello"]);
   expect(result).toBe("output: hello");
 });
+
+test("FunctionGetCurrentStats", async () => {
+  const function_ = await Function_.lookup(
+    "libmodal-test-support",
+    "echo_string",
+  );
+  const stats = await function_.getCurrentStats();
+  expect(typeof stats.backlog).toBe("number");
+  expect(typeof stats.numTotalRunners).toBe("number");
+  expect(stats.backlog).toBeGreaterThanOrEqual(0);
+  expect(stats.numTotalRunners).toBeGreaterThanOrEqual(0);
+});

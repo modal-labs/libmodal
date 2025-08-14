@@ -60,3 +60,16 @@ func TestFunctionCallInputPlane(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(result).Should(gomega.Equal("output: hello"))
 }
+
+func TestFunctionGetCurrentStats(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	function, err := modal.FunctionLookup(context.Background(), "libmodal-test-support", "echo_string", nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	stats, err := function.GetCurrentStats()
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(stats.Backlog).Should(gomega.BeNumerically(">=", 0))
+	g.Expect(stats.NumTotalRunners).Should(gomega.BeNumerically(">=", 0))
+}

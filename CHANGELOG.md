@@ -17,6 +17,7 @@ Both client libraries are pre-1.0, and they have separate versioning.
   - `Image.fromRegistry` in typescript and `NewImageFromRegistry` in golang.
   - `Image.fromAwsEcr` in typescript and `NewImageFromAwsEcr` in golang.
   - `Image.fromGcpArtifactRegistry` in typescript and `NewImageFromGcpArtifactRegistry` in golang.
+- Added support for `Function.getCurrentStats()` (JS) / `Function.GetCurrentStats()` (Go).
 
 ## modal-js/v0.3.16, modal-go/v0.0.16
 
