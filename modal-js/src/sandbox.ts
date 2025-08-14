@@ -289,7 +289,7 @@ export class Sandbox {
       throw new Error("Sandbox snapshot response missing image ID");
     }
 
-    return new Image(resp.imageId);
+    return new Image(resp.imageId, "");
   }
 
   /**

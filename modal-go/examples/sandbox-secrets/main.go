@@ -16,10 +16,7 @@ func main() {
 		log.Fatalf("Failed to lookup or create app: %v", err)
 	}
 
-	image, err := app.ImageFromRegistry("alpine:3.21", nil)
-	if err != nil {
-		log.Fatalf("Failed to create image from registry: %v", err)
-	}
+	image := modal.NewImageFromRegistry("alpine:3.21", nil)
 	secret, err := modal.SecretFromName(context.Background(), "libmodal-test-secret", &modal.SecretFromNameOptions{RequiredKeys: []string{"c"}})
 	if err != nil {
 		log.Fatalf("Failed finding a secret: %v", err)

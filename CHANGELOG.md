@@ -14,6 +14,10 @@ Both client libraries are pre-1.0, and they have separate versioning.
   - `proxy`: Connect a Modal Proxy to a Sandbox.
   - `workdir`: Set the working directory.
 - Added support for mounting `CloudBucketMount`s to Sandboxes.
+- Adds top level for Image objects that are lazy. The images are built when creating a sandbox.
+  - `Image.fromRegistry` in typescript and `NewImageFromRegistry` in golang.
+  - `Image.fromAwsEcr` in typescript and `NewImageFromAwsEcr` in golang.
+  - `Image.fromGcpArtifactRegistry` in typescript and `NewImageFromGcpArtifactRegistry` in golang.
 - Added support for the `Dict` object to interact with [Modal Dict](https://modal.com/docs/guide/dicts) key-value stores.
   - Dicts have a similar interface as Python, with `get()`, `put()`, `update()`, etc.
   - You can put structured objects onto Dicts, with limited support for the pickle format, same as for Queues.

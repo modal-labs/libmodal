@@ -16,10 +16,7 @@ func main() {
 		log.Fatalf("Failed to lookup or create app: %v", err)
 	}
 
-	image, err := app.ImageFromRegistry("alpine/curl:8.14.1", nil)
-	if err != nil {
-		log.Fatalf("Failed to create image from registry: %v", err)
-	}
+	image := modal.NewImageFromRegistry("alpine/curl:8.14.1", nil)
 
 	proxy, err := modal.ProxyFromName(ctx, "libmodal-test-proxy", nil)
 	if err != nil {

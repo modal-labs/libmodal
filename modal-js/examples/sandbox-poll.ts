@@ -1,7 +1,7 @@
-import { App } from "modal";
+import { App, Image } from "modal";
 
 const app = await App.lookup("libmodal-example", { createIfMissing: true });
-const image = await app.imageFromRegistry("alpine:3.21");
+const image = await Image.fromRegistry("alpine:3.21");
 
 // Create a sandbox that waits for input, then exits with code 42
 const sandbox = await app.createSandbox(image, {

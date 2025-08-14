@@ -17,10 +17,7 @@ func main() {
 		log.Fatalf("Failed to lookup or create app: %v", err)
 	}
 
-	image, err := app.ImageFromRegistry("alpine:3.21", nil)
-	if err != nil {
-		log.Fatalf("Failed to create image from registry: %v", err)
-	}
+	image := modal.NewImageFromRegistry("alpine:3.21", nil)
 
 	sb, err := app.CreateSandbox(image, &modal.SandboxOptions{})
 	if err != nil {

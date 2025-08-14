@@ -16,10 +16,7 @@ func main() {
 		log.Fatalf("Failed to lookup or create app: %v", err)
 	}
 
-	image, err := app.ImageFromRegistry("nvidia/cuda:12.4.0-devel-ubuntu22.04", nil)
-	if err != nil {
-		log.Fatalf("Failed to create image from registry: %v", err)
-	}
+	image := modal.NewImageFromRegistry("nvidia/cuda:12.4.0-devel-ubuntu22.04", nil)
 
 	sb, err := app.CreateSandbox(image, &modal.SandboxOptions{
 		GPU: "A10G",

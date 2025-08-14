@@ -28,16 +28,6 @@ def run_cli(cmd, *args, **kwargs):
     return run(cmd, *args, **kwargs, check=True)
 
 
-def get_current_go_version() -> dict:
-    git_tag = run_cli(["git", "tag", "--list", "modal-go*", "--sort=-v:refname"], text=True, capture_output=True)
-    version_str = git_tag.stdout.splitlines()[0]
-    match = re.match(r"modal-go/v(?P<major>[\d]+)\.(?P<minor>[\d]+)\.(?P<patch>[\d]+)", version_str)
-    if not match:
-        raise RuntimeError("Unable to parse modal-go version")
-    current_go_verison = {key: int(match.group(key)) for key in ["major", "minor", "patch"]}
-    return current_go_verison
-
-
 def check_unreleased_has_items(changelog_content: str):
     """Check that there are items in the Unreleased section."""
 
@@ -72,6 +62,14 @@ def check_git_clean():
         raise RuntimeError(f"git status is not clean:\n{git_status.stdout}")
 
 
+def get_current_go_version_from_changelog(changelog_content: str):
+    match = re.search(r"modal-go/v(?P<major>[\d]+)\.(?P<minor>[\d]+)\.(?P<patch>[\d]+)", changelog_content)
+    if not match:
+        raise RuntimeError("Unable to parse modal-go version")
+    current_go_verison = {key: int(match.group(key)) for key in ["major", "minor", "patch"]}
+    return current_go_verison
+
+
 def update_version(args):
     """Updates version and changelog to prepare for release.."""
     if args.update not in ["major", "minor", "patch"]:
@@ -85,7 +83,7 @@ def update_version(args):
     check_git_clean()
 
     # Get updated go version
-    go_version = get_current_go_version()
+    go_version = get_current_go_version_from_changelog(changelog_content)
     go_version[args.update] += 1
     new_go_version = f"v{go_version['major']}.{go_version['minor']}.{go_version['patch']}"
 
@@ -111,7 +109,7 @@ def update_version(args):
 
     run_cli(["git", "diff"])
     run_cli(["git", "add", str(changelog_path)])
-    run_cli(["git", "commit", "-m", f"Update changelog for {version_header}"])
+    run_cli(["git", "commit", "-m", f"[RELEASE] Prepare release for {version_header}"])
 
 
 def publish(args):
@@ -119,7 +117,7 @@ def publish(args):
     check_git_clean()
     run_cli(["npm", "publish"], cwd="modal-js")
 
-    go_version = get_current_go_version()
+    go_version = get_current_go_version_from_changelog(Path("CHANGELOG.md").read_text())
     go_version_str = f"v{go_version['major']}.{go_version['minor']}.{go_version['patch']}"
 
     run_cli(["git", "tag", f"modal-go/{go_version_str}"])

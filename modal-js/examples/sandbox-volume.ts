@@ -1,7 +1,7 @@
-import { App, Volume } from "modal";
+import { App, Image, Volume } from "modal";
 
 const app = await App.lookup("libmodal-example", { createIfMissing: true });
-const image = await app.imageFromRegistry("alpine:3.21");
+const image = await Image.fromRegistry("alpine:3.21");
 
 const volume = await Volume.fromName("libmodal-example-volume", {
   createIfMissing: true,

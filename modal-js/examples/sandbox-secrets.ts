@@ -1,7 +1,7 @@
-import { App, Secret } from "modal";
+import { App, Image, Secret } from "modal";
 
 const app = await App.lookup("libmodal-example", { createIfMissing: true });
-const image = await app.imageFromRegistry("alpine:3.21");
+const image = await Image.fromRegistry("alpine:3.21");
 const secret = await Secret.fromName("libmodal-test-secret", {
   requiredKeys: ["c"],
 });

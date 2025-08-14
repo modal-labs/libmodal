@@ -20,10 +20,7 @@ func main() {
 	}
 
 	// Create a sandbox with Python's built-in HTTP server
-	image, err := app.ImageFromRegistry("python:3.12-alpine", nil)
-	if err != nil {
-		log.Fatalf("Failed to create image from registry: %v", err)
-	}
+	image := modal.NewImageFromRegistry("python:3.12-alpine", nil)
 
 	sandbox, err := app.CreateSandbox(image, &modal.SandboxOptions{
 		Command:        []string{"python3", "-m", "http.server", "8000"},

@@ -1,4 +1,4 @@
-import { App } from "modal";
+import { App, Image } from "modal";
 
 /**
  * Example demonstrating filesystem operations in a Modal sandbox.
@@ -11,7 +11,7 @@ import { App } from "modal";
  */
 
 const app = await App.lookup("libmodal-example", { createIfMissing: true });
-const image = await app.imageFromRegistry("alpine:3.21");
+const image = await Image.fromRegistry("alpine:3.21");
 
 // Create a sandbox
 const sb = await app.createSandbox(image);
