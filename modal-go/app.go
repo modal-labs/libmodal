@@ -15,7 +15,9 @@ import (
 // App references a deployed Modal App.
 type App struct {
 	AppId string
-	ctx   context.Context
+	// Name is the user-provided name of the App, if known.
+	Name string
+	ctx  context.Context
 }
 
 // LookupOptions are options for finding deployed Modal objects.
@@ -118,7 +120,7 @@ func AppLookup(ctx context.Context, name string, options *LookupOptions) (*App, 
 		return nil, err
 	}
 
-	return &App{AppId: resp.GetAppId(), ctx: ctx}, nil
+	return &App{AppId: resp.GetAppId(), Name: name, ctx: ctx}, nil
 }
 
 // CreateSandbox creates a new Sandbox in the App with the specified image and options.

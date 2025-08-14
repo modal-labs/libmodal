@@ -9,6 +9,7 @@ test("QueueInvalidName", async () => {
 
 test("QueueEphemeral", async () => {
   const queue = await Queue.ephemeral();
+  expect(queue.name).toBeUndefined();
   await queue.put(123);
   expect(await queue.len()).toBe(1);
   expect(await queue.get()).toBe(123);
@@ -80,6 +81,7 @@ test("QueueNonEphemeral", async () => {
   const queueName = `test-queue-${Date.now()}`;
 
   const queue1 = await Queue.lookup(queueName, { createIfMissing: true });
+  expect(queue1.name).toBe(queueName);
 
   onTestFinished(async () => {
     await Queue.delete(queueName);

@@ -22,6 +22,7 @@ type DictPutOptions struct {
 // Dict is a distributed dictionary for key-value storage in Modal apps.
 type Dict struct {
 	DictId    string
+	Name      string
 	cancel    context.CancelFunc // only for ephemeral Dicts
 	ephemeral bool
 	ctx       context.Context
@@ -103,7 +104,7 @@ func DictLookup(ctx context.Context, name string, options *LookupOptions) (*Dict
 	if err != nil {
 		return nil, err
 	}
-	return &Dict{ctx: ctx, DictId: resp.GetDictId()}, nil
+	return &Dict{ctx: ctx, DictId: resp.GetDictId(), Name: name}, nil
 }
 
 // DictDelete removes a Dict by name.

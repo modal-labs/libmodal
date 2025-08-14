@@ -16,6 +16,7 @@ func TestCreateOneSandbox(t *testing.T) {
 	g := gomega.NewWithT(t)
 	app, err := modal.AppLookup(context.Background(), "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(app.Name).To(gomega.Equal("libmodal-test"))
 
 	image, err := app.ImageFromRegistry("alpine:3.21", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
