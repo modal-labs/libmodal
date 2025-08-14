@@ -1,5 +1,5 @@
 import { Function_, NotFoundError } from "modal";
-import { expect, test } from "vitest";
+import { expect, onTestFinished, test, vi } from "vitest";
 
 test("FunctionCall", async () => {
   const function_ = await Function_.lookup(
@@ -45,36 +45,61 @@ test("FunctionCallInputPlane", async () => {
 });
 
 test("FunctionGetCurrentStats", async () => {
-  const function_ = await Function_.lookup(
-    "libmodal-test-support",
-    "echo_string",
-  );
+  const { MockGrpc } = await import("../test-support/grpc_mock");
+  const mock = await MockGrpc.install();
+  onTestFinished(async () => {
+    mock.assertExhausted();
+    await mock.uninstall();
+  });
+
+  mock
+    .on("FunctionGetCurrentStats")
+    .expect({ functionId: "fid-stats" })
+    .reply({ backlog: 3, numTotalTasks: 7 });
+
+  const { Function_ } = await import("../src/function");
+  const function_ = new Function_("fid-stats");
   const stats = await function_.getCurrentStats();
-  expect(typeof stats.backlog).toBe("number");
-  expect(typeof stats.numTotalRunners).toBe("number");
-  expect(stats.backlog).toBeGreaterThanOrEqual(0);
-  expect(stats.numTotalRunners).toBeGreaterThanOrEqual(0);
+  expect(stats).toEqual({ backlog: 3, numTotalRunners: 7 });
 });
 
 test("FunctionUpdateAutoscaler", async () => {
-  const function_ = await Function_.lookup(
-    "libmodal-test-support",
-    "echo_string",
-  );
-  // Test updating various autoscaler settings - should not throw
+  const { MockGrpc } = await import("../test-support/grpc_mock");
+  const mock = await MockGrpc.install();
+  onTestFinished(async () => {
+    mock.assertExhausted();
+    await mock.uninstall();
+  });
+  mock
+    .on("FunctionUpdateSchedulingParams")
+    .expect({
+      functionId: "fid-auto",
+      warmPoolSizeOverride: 0,
+      settings: {
+        minContainers: 1,
+        maxContainers: 10,
+        bufferContainers: 2,
+        scaledownWindow: 300,
+      },
+    })
+    .reply({});
+
+  mock
+    .on("FunctionUpdateSchedulingParams")
+    .expect({
+      functionId: "fid-auto",
+      warmPoolSizeOverride: 0,
+      settings: { minContainers: 2 },
+    })
+    .reply({});
+
+  const { Function_ } = await import("../src/function");
+  const function_ = new Function_("fid-auto");
   await function_.updateAutoscaler({
     minContainers: 1,
     maxContainers: 10,
     bufferContainers: 2,
     scaledownWindow: 300,
   });
-
-  // Test partial updates
-  await function_.updateAutoscaler({
-    minContainers: 2,
-  });
-
-  await function_.updateAutoscaler({
-    scaledownWindow: 600,
-  });
+  await function_.updateAutoscaler({ minContainers: 2 });
 });
