@@ -13,10 +13,11 @@ Both client libraries are pre-1.0, and they have separate versioning.
   - `verbose`: Enable verbose logging.
   - `proxy`: Connect a Modal Proxy to a Sandbox.
   - `workdir`: Set the working directory.
-- Adds top level for Image objects that are lazy. The images are built when creating a sandbox.
+- Added top level for Image objects that are lazy. The images are built when creating a sandbox.
   - `Image.fromRegistry` in typescript and `NewImageFromRegistry` in golang.
   - `Image.fromAwsEcr` in typescript and `NewImageFromAwsEcr` in golang.
   - `Image.fromGcpArtifactRegistry` in typescript and `NewImageFromGcpArtifactRegistry` in golang.
+- Added `Secret.fromObject()` (JS) / `SecretFromMap()` (Go) to create a Secret from key-value pairs (like `from_dict()` in Python).
 
 ## modal-js/v0.3.16, modal-go/v0.0.16
 
