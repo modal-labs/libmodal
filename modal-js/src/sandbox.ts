@@ -220,7 +220,7 @@ export class Sandbox {
     while (true) {
       const resp = await client.sandboxWait({
         sandboxId: this.sandboxId,
-        timeout: 55,
+        timeout: 10,
       });
       if (resp.result) {
         return Sandbox.#getReturnCode(resp.result)!;

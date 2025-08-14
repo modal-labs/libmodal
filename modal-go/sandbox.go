@@ -202,7 +202,7 @@ func (sb *Sandbox) Wait() (int, error) {
 	for {
 		resp, err := client.SandboxWait(sb.ctx, pb.SandboxWaitRequest_builder{
 			SandboxId: sb.SandboxId,
-			Timeout:   55,
+			Timeout:   10,
 		}.Build())
 		if err != nil {
 			return 0, err
