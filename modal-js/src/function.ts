@@ -32,6 +32,14 @@ export interface FunctionStats {
   numTotalRunners: number;
 }
 
+/** Options for overriding a Function's autoscaler behavior. */
+export interface UpdateAutoscalerOptions {
+  minContainers?: number;
+  maxContainers?: number;
+  bufferContainers?: number;
+  scaledownWindow?: number;
+}
+
 /** Represents a deployed Modal Function, which can be invoked remotely. */
 export class Function_ {
   readonly functionId: string;
@@ -131,6 +139,20 @@ export class Function_ {
       backlog: resp.backlog,
       numTotalRunners: resp.numTotalTasks,
     };
+  }
+
+  // Overrides the current autoscaler behavior for this Function.
+  async updateAutoscaler(options: UpdateAutoscalerOptions): Promise<void> {
+    await client.functionUpdateSchedulingParams({
+      functionId: this.functionId,
+      warmPoolSizeOverride: 0, // Deprecated field, always set to 0
+      settings: {
+        minContainers: options.minContainers,
+        maxContainers: options.maxContainers,
+        bufferContainers: options.bufferContainers,
+        scaledownWindow: options.scaledownWindow,
+      },
+    });
   }
 
   async #createInput(

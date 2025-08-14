@@ -55,3 +55,26 @@ test("FunctionGetCurrentStats", async () => {
   expect(stats.backlog).toBeGreaterThanOrEqual(0);
   expect(stats.numTotalRunners).toBeGreaterThanOrEqual(0);
 });
+
+test("FunctionUpdateAutoscaler", async () => {
+  const function_ = await Function_.lookup(
+    "libmodal-test-support",
+    "echo_string",
+  );
+  // Test updating various autoscaler settings - should not throw
+  await function_.updateAutoscaler({
+    minContainers: 1,
+    maxContainers: 10,
+    bufferContainers: 2,
+    scaledownWindow: 300,
+  });
+
+  // Test partial updates
+  await function_.updateAutoscaler({
+    minContainers: 2,
+  });
+
+  await function_.updateAutoscaler({
+    scaledownWindow: 600,
+  });
+});
