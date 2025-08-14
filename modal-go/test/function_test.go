@@ -73,3 +73,38 @@ func TestFunctionGetCurrentStats(t *testing.T) {
 	g.Expect(stats.Backlog).Should(gomega.BeNumerically(">=", 0))
 	g.Expect(stats.NumTotalRunners).Should(gomega.BeNumerically(">=", 0))
 }
+
+func TestFunctionUpdateAutoscaler(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	function, err := modal.FunctionLookup(context.Background(), "libmodal-test-support", "echo_string", nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	// Test updating various autoscaler settings - should not error
+	minContainers := uint32(1)
+	maxContainers := uint32(10)
+	bufferContainers := uint32(2)
+	scaledownWindow := uint32(300)
+
+	err = function.UpdateAutoscaler(modal.UpdateAutoscalerOptions{
+		MinContainers:    &minContainers,
+		MaxContainers:    &maxContainers,
+		BufferContainers: &bufferContainers,
+		ScaledownWindow:  &scaledownWindow,
+	})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	// Test partial updates
+	minContainers2 := uint32(2)
+	err = function.UpdateAutoscaler(modal.UpdateAutoscalerOptions{
+		MinContainers: &minContainers2,
+	})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	scaledownWindow2 := uint32(600)
+	err = function.UpdateAutoscaler(modal.UpdateAutoscalerOptions{
+		ScaledownWindow: &scaledownWindow2,
+	})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+}

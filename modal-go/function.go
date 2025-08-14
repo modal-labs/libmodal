@@ -38,6 +38,14 @@ type FunctionStats struct {
 	NumTotalRunners int
 }
 
+// UpdateAutoscalerOptions contains options for overriding a Function's autoscaler behavior.
+type UpdateAutoscalerOptions struct {
+	MinContainers    *uint32
+	MaxContainers    *uint32
+	BufferContainers *uint32
+	ScaledownWindow  *uint32
+}
+
 // Function references a deployed Modal Function.
 type Function struct {
 	FunctionId    string
@@ -194,6 +202,24 @@ func (f *Function) GetCurrentStats() (*FunctionStats, error) {
 		Backlog:         int(resp.GetBacklog()),
 		NumTotalRunners: int(resp.GetNumTotalTasks()),
 	}, nil
+}
+
+// UpdateAutoscaler overrides the current autoscaler behavior for this Function.
+func (f *Function) UpdateAutoscaler(opts UpdateAutoscalerOptions) error {
+	settings := pb.AutoscalerSettings_builder{
+		MinContainers:    opts.MinContainers,
+		MaxContainers:    opts.MaxContainers,
+		BufferContainers: opts.BufferContainers,
+		ScaledownWindow:  opts.ScaledownWindow,
+	}.Build()
+
+	_, err := client.FunctionUpdateSchedulingParams(f.ctx, pb.FunctionUpdateSchedulingParamsRequest_builder{
+		FunctionId:           f.FunctionId,
+		WarmPoolSizeOverride: 0, // Deprecated field, always set to 0
+		Settings:             settings,
+	}.Build())
+
+	return err
 }
 
 // blobUpload uploads a blob to storage and returns its ID.
