@@ -51,6 +51,7 @@ type Function struct {
 	FunctionId    string
 	MethodName    *string // used for class methods
 	inputPlaneUrl string  // if empty, use control plane
+	webURL        string  // web URL if this function is a web endpoint
 	ctx           context.Context
 }
 
@@ -79,12 +80,14 @@ func FunctionLookup(ctx context.Context, appName string, name string, options *L
 	}
 
 	var inputPlaneUrl string
+	var webURL string
 	if meta := resp.GetHandleMetadata(); meta != nil {
 		if url := meta.GetInputPlaneUrl(); url != "" {
 			inputPlaneUrl = url
 		}
+		webURL = meta.GetWebUrl()
 	}
-	return &Function{FunctionId: resp.GetFunctionId(), inputPlaneUrl: inputPlaneUrl, ctx: ctx}, nil
+	return &Function{FunctionId: resp.GetFunctionId(), inputPlaneUrl: inputPlaneUrl, webURL: webURL, ctx: ctx}, nil
 }
 
 // Serialize Go data types to the Python pickle format.
@@ -220,6 +223,12 @@ func (f *Function) UpdateAutoscaler(opts UpdateAutoscalerOptions) error {
 	}.Build())
 
 	return err
+}
+
+// GetWebURL returns the URL of a Function running as a web endpoint.
+// Returns empty string if this function is not a web endpoint.
+func (f *Function) GetWebURL() string {
+	return f.webURL
 }
 
 // blobUpload uploads a blob to storage and returns its ID.

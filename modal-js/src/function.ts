@@ -45,12 +45,19 @@ export class Function_ {
   readonly functionId: string;
   readonly methodName?: string;
   #inputPlaneUrl?: string;
+  #webUrl?: string;
 
   /** @ignore */
-  constructor(functionId: string, methodName?: string, inputPlaneUrl?: string) {
+  constructor(
+    functionId: string,
+    methodName?: string,
+    inputPlaneUrl?: string,
+    webUrl?: string,
+  ) {
     this.functionId = functionId;
     this.methodName = methodName;
     this.#inputPlaneUrl = inputPlaneUrl;
+    this.#webUrl = webUrl;
   }
 
   static async lookup(
@@ -68,6 +75,7 @@ export class Function_ {
         resp.functionId,
         undefined,
         resp.handleMetadata?.inputPlaneUrl,
+        resp.handleMetadata?.webUrl,
       );
     } catch (err) {
       if (err instanceof ClientError && err.code === Status.NOT_FOUND)
@@ -153,6 +161,14 @@ export class Function_ {
         scaledownWindow: options.scaledownWindow,
       },
     });
+  }
+
+  /**
+   * URL of a Function running as a web endpoint.
+   * @returns The web URL if this function is a web endpoint, otherwise undefined
+   */
+  async getWebUrl(): Promise<string | undefined> {
+    return this.#webUrl || undefined;
   }
 
   async #createInput(

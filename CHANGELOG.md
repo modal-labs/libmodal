@@ -22,6 +22,7 @@ Both client libraries are pre-1.0, and they have separate versioning.
 - Added `name` field to `App`s, `Sandboxe`s, `Secret`s, `Volume`s, and `Queue`s.
 - Added support for `Function.getCurrentStats()` (JS) / `Function.GetCurrentStats()` (Go).
 - Added support for `Function.updateAutoscaler()` (JS) / `Function.UpdateAutoscaler()` (Go).
+- Added support for `Function.getWebURL()` (JS) / `Function.GetWebURL()` (Go).
 
 ## modal-js/v0.3.16, modal-go/v0.0.16
 
