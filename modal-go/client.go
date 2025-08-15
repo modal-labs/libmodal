@@ -88,7 +88,7 @@ func init() {
 	defaultProfile = getProfile(os.Getenv("MODAL_PROFILE"))
 	clientProfile = defaultProfile
 	var err error
-	_, client, err = newClient(clientProfile)
+	_, client, err = clientFactory(clientProfile)
 	if err != nil {
 		panic(fmt.Sprintf("failed to initialize Modal client at startup: %v", err))
 	}
@@ -112,7 +112,7 @@ func InitializeClient(options ClientOptions) error {
 	mergedProfile.Environment = firstNonEmpty(options.Environment, mergedProfile.Environment)
 	clientProfile = mergedProfile
 	var err error
-	_, client, err = newClient(mergedProfile)
+	_, client, err = clientFactory(mergedProfile)
 	return err
 }
 
@@ -124,12 +124,18 @@ func getOrCreateInputPlaneClient(serverURL string) (pb.ModalClientClient, error)
 
 	profile := clientProfile
 	profile.ServerURL = serverURL
-	_, client, err := newClient(profile)
+	_, client, err := clientFactory(profile)
 	if err != nil {
 		return nil, err
 	}
 	inputPlaneClients[serverURL] = client
 	return client, nil
+}
+
+// clientFactory is the factory used to construct gRPC connections and stubs.
+// Tests may override this variable to install a mock.
+var clientFactory func(Profile) (grpc.ClientConnInterface, pb.ModalClientClient, error) = func(profile Profile) (grpc.ClientConnInterface, pb.ModalClientClient, error) {
+	return newClient(profile)
 }
 
 // newClient dials the given server URL with auth/timeout/retry interceptors installed.

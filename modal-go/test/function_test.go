@@ -4,7 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/modal-labs/libmodal/modal-go"
+	modal "github.com/modal-labs/libmodal/modal-go"
+	pb "github.com/modal-labs/libmodal/modal-go/proto/modal_proto"
+	"github.com/modal-labs/libmodal/modal-go/testsupport/grpcmock"
 	"github.com/onsi/gomega"
 )
 
@@ -62,49 +64,67 @@ func TestFunctionCallInputPlane(t *testing.T) {
 }
 
 func TestFunctionGetCurrentStats(t *testing.T) {
-	t.Parallel()
 	g := gomega.NewWithT(t)
 
-	function, err := modal.FunctionLookup(context.Background(), "libmodal-test-support", "echo_string", nil)
-	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	mock, cleanup := grpcmock.Install()
+	t.Cleanup(cleanup)
 
-	stats, err := function.GetCurrentStats()
+	grpcmock.HandleUnary[*pb.FunctionGetCurrentStatsRequest, *pb.FunctionStats](
+		mock, "FunctionGetCurrentStats",
+		func(req *pb.FunctionGetCurrentStatsRequest) (*pb.FunctionStats, error) {
+			g.Expect(req.GetFunctionId()).To(gomega.Equal("fid-stats"))
+			return pb.FunctionStats_builder{Backlog: 3, NumTotalTasks: 7}.Build(), nil
+		},
+	)
+
+	f := &modal.Function{FunctionId: "fid-stats"}
+	stats, err := f.GetCurrentStats()
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(stats.Backlog).Should(gomega.BeNumerically(">=", 0))
-	g.Expect(stats.NumTotalRunners).Should(gomega.BeNumerically(">=", 0))
+	g.Expect(stats).To(gomega.Equal(&modal.FunctionStats{Backlog: 3, NumTotalRunners: 7}))
 }
 
 func TestFunctionUpdateAutoscaler(t *testing.T) {
-	t.Parallel()
 	g := gomega.NewWithT(t)
 
-	function, err := modal.FunctionLookup(context.Background(), "libmodal-test-support", "echo_string", nil)
-	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	mock, cleanup := grpcmock.Install()
+	t.Cleanup(cleanup)
 
-	// Test updating various autoscaler settings - should not error
-	minContainers := uint32(1)
-	maxContainers := uint32(10)
-	bufferContainers := uint32(2)
-	scaledownWindow := uint32(300)
+	grpcmock.HandleUnary[*pb.FunctionUpdateSchedulingParamsRequest, *pb.FunctionUpdateSchedulingParamsResponse](
+		mock, "FunctionUpdateSchedulingParams",
+		func(req *pb.FunctionUpdateSchedulingParamsRequest) (*pb.FunctionUpdateSchedulingParamsResponse, error) {
+			g.Expect(req.GetFunctionId()).To(gomega.Equal("fid-auto"))
+			s := req.GetSettings()
+			g.Expect(s.GetMinContainers()).To(gomega.Equal(uint32(1)))
+			g.Expect(s.GetMaxContainers()).To(gomega.Equal(uint32(10)))
+			g.Expect(s.GetBufferContainers()).To(gomega.Equal(uint32(2)))
+			g.Expect(s.GetScaledownWindow()).To(gomega.Equal(uint32(300)))
+			return &pb.FunctionUpdateSchedulingParamsResponse{}, nil
+		},
+	)
 
-	err = function.UpdateAutoscaler(modal.UpdateAutoscalerOptions{
-		MinContainers:    &minContainers,
-		MaxContainers:    &maxContainers,
-		BufferContainers: &bufferContainers,
-		ScaledownWindow:  &scaledownWindow,
+	f := &modal.Function{FunctionId: "fid-auto"}
+
+	err := f.UpdateAutoscaler(modal.UpdateAutoscalerOptions{
+		MinContainers:    ptrU32(1),
+		MaxContainers:    ptrU32(10),
+		BufferContainers: ptrU32(2),
+		ScaledownWindow:  ptrU32(300),
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	// Test partial updates
-	minContainers2 := uint32(2)
-	err = function.UpdateAutoscaler(modal.UpdateAutoscalerOptions{
-		MinContainers: &minContainers2,
-	})
-	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	grpcmock.HandleUnary[*pb.FunctionUpdateSchedulingParamsRequest, *pb.FunctionUpdateSchedulingParamsResponse](
+		mock, "FunctionUpdateSchedulingParams",
+		func(req *pb.FunctionUpdateSchedulingParamsRequest) (*pb.FunctionUpdateSchedulingParamsResponse, error) {
+			g.Expect(req.GetFunctionId()).To(gomega.Equal("fid-auto"))
+			g.Expect(req.GetSettings().GetMinContainers()).To(gomega.Equal(uint32(2)))
+			return &pb.FunctionUpdateSchedulingParamsResponse{}, nil
+		},
+	)
 
-	scaledownWindow2 := uint32(600)
-	err = function.UpdateAutoscaler(modal.UpdateAutoscalerOptions{
-		ScaledownWindow: &scaledownWindow2,
+	err = f.UpdateAutoscaler(modal.UpdateAutoscalerOptions{
+		MinContainers: ptrU32(2),
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 }
+
+func ptrU32(v uint32) *uint32 { return &v }
