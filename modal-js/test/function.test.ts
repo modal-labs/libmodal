@@ -1,5 +1,5 @@
 import { Function_, NotFoundError } from "modal";
-import { expect, test } from "vitest";
+import { expect, onTestFinished, test, vi } from "vitest";
 
 test("FunctionCall", async () => {
   const function_ = await Function_.lookup(
@@ -42,4 +42,64 @@ test("FunctionCallInputPlane", async () => {
   );
   const result = await function_.remote(["hello"]);
   expect(result).toBe("output: hello");
+});
+
+test("FunctionGetCurrentStats", async () => {
+  const { MockGrpc } = await import("../test-support/grpc_mock");
+  const mock = await MockGrpc.install();
+  onTestFinished(async () => {
+    mock.assertExhausted();
+    await mock.uninstall();
+  });
+
+  mock
+    .on("FunctionGetCurrentStats")
+    .expect({ functionId: "fid-stats" })
+    .reply({ backlog: 3, numTotalTasks: 7 });
+
+  const { Function_ } = await import("../src/function");
+  const function_ = new Function_("fid-stats");
+  const stats = await function_.getCurrentStats();
+  expect(stats).toEqual({ backlog: 3, numTotalRunners: 7 });
+});
+
+test("FunctionUpdateAutoscaler", async () => {
+  const { MockGrpc } = await import("../test-support/grpc_mock");
+  const mock = await MockGrpc.install();
+  onTestFinished(async () => {
+    mock.assertExhausted();
+    await mock.uninstall();
+  });
+  mock
+    .on("FunctionUpdateSchedulingParams")
+    .expect({
+      functionId: "fid-auto",
+      warmPoolSizeOverride: 0,
+      settings: {
+        minContainers: 1,
+        maxContainers: 10,
+        bufferContainers: 2,
+        scaledownWindow: 300,
+      },
+    })
+    .reply({});
+
+  mock
+    .on("FunctionUpdateSchedulingParams")
+    .expect({
+      functionId: "fid-auto",
+      warmPoolSizeOverride: 0,
+      settings: { minContainers: 2 },
+    })
+    .reply({});
+
+  const { Function_ } = await import("../src/function");
+  const function_ = new Function_("fid-auto");
+  await function_.updateAutoscaler({
+    minContainers: 1,
+    maxContainers: 10,
+    bufferContainers: 2,
+    scaledownWindow: 300,
+  });
+  await function_.updateAutoscaler({ minContainers: 2 });
 });

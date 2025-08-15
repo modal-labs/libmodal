@@ -17,7 +17,11 @@ export {
   QueueFullError,
   SandboxTimeoutError,
 } from "./errors";
-export { Function_ } from "./function";
+export {
+  Function_,
+  type FunctionStats,
+  type UpdateAutoscalerOptions,
+} from "./function";
 export {
   FunctionCall,
   type FunctionCallGetOptions,

@@ -32,6 +32,20 @@ func timeNowSeconds() float64 {
 	return float64(time.Now().UnixNano()) / 1e9
 }
 
+// FunctionStats represents statistics for a running Function.
+type FunctionStats struct {
+	Backlog         uint32
+	NumTotalRunners uint32
+}
+
+// UpdateAutoscalerOptions contains options for overriding a Function's autoscaler behavior.
+type UpdateAutoscalerOptions struct {
+	MinContainers *uint32
+	MaxContainers *uint32
+	BufferContainers *uint32
+	ScaledownWindow *uint32
+}
+
 // Function references a deployed Modal Function.
 type Function struct {
 	FunctionId    string
@@ -173,6 +187,39 @@ func (f *Function) Spawn(args []any, kwargs map[string]any) (*FunctionCall, erro
 		ctx:            f.ctx,
 	}
 	return &functionCall, nil
+}
+
+// GetCurrentStats returns a FunctionStats object with statistics about the Function.
+func (f *Function) GetCurrentStats() (*FunctionStats, error) {
+	resp, err := client.FunctionGetCurrentStats(f.ctx, pb.FunctionGetCurrentStatsRequest_builder{
+		FunctionId: f.FunctionId,
+	}.Build())
+	if err != nil {
+		return nil, err
+	}
+
+	return &FunctionStats{
+		Backlog:         resp.GetBacklog(),
+		NumTotalRunners: resp.GetNumTotalTasks(),
+	}, nil
+}
+
+// UpdateAutoscaler overrides the current autoscaler behavior for this Function.
+func (f *Function) UpdateAutoscaler(opts UpdateAutoscalerOptions) error {
+	settings := pb.AutoscalerSettings_builder{
+		MinContainers:    opts.MinContainers,
+		MaxContainers:    opts.MaxContainers,
+		BufferContainers: opts.BufferContainers,
+		ScaledownWindow:  opts.ScaledownWindow,
+	}.Build()
+
+	_, err := client.FunctionUpdateSchedulingParams(f.ctx, pb.FunctionUpdateSchedulingParamsRequest_builder{
+		FunctionId:           f.FunctionId,
+		WarmPoolSizeOverride: 0, // Deprecated field, always set to 0
+		Settings:             settings,
+	}.Build())
+
+	return err
 }
 
 // blobUpload uploads a blob to storage and returns its ID.
