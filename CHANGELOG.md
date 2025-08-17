@@ -13,6 +13,7 @@ Both client libraries are pre-1.0, and they have separate versioning.
   - `verbose`: Enable verbose logging.
   - `proxy`: Connect a Modal Proxy to a Sandbox.
   - `workdir`: Set the working directory.
+- Added support for mounting `CloudBucketMount`s to Sandboxes.
 - Added top level for Image objects that are lazy. The images are built when creating a sandbox.
   - `Image.fromRegistry` in typescript and `NewImageFromRegistry` in golang.
   - `Image.fromAwsEcr` in typescript and `NewImageFromAwsEcr` in golang.
@@ -22,7 +23,6 @@ Both client libraries are pre-1.0, and they have separate versioning.
 ## modal-js/v0.3.16, modal-go/v0.0.16
 
 - Added support for getting Sandboxes from an ID.
-- Added support for mounting `CloudBucketMount`s to Sandboxes.
 
 ## modal-js/v0.3.15, modal-go/v0.0.15
 
