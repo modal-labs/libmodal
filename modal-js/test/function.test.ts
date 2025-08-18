@@ -51,7 +51,7 @@ test("FunctionGetCurrentStats", async () => {
     await mock.uninstall();
   });
 
-  mock.handleUnary("FunctionGetCurrentStats", (req) => {
+  mock.handleUnary("/FunctionGetCurrentStats", (req) => {
     expect(req).toMatchObject({ functionId: "fid-stats" });
     return { backlog: 3, numTotalTasks: 7 };
   });
@@ -69,7 +69,7 @@ test("FunctionUpdateAutoscaler", async () => {
     await mock.uninstall();
   });
 
-  mock.handleUnary("FunctionUpdateSchedulingParams", (req) => {
+  mock.handleUnary("/FunctionUpdateSchedulingParams", (req) => {
     expect(req).toMatchObject({
       functionId: "fid-auto",
       settings: {
@@ -91,7 +91,7 @@ test("FunctionUpdateAutoscaler", async () => {
     scaledownWindow: 300,
   });
 
-  mock.handleUnary("FunctionUpdateSchedulingParams", (req) => {
+  mock.handleUnary("/FunctionUpdateSchedulingParams", (req) => {
     expect(req).toMatchObject({
       functionId: "fid-auto",
       settings: { minContainers: 2 },

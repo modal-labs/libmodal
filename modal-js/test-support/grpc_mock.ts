@@ -62,7 +62,7 @@ export class MockGrpc {
     rpcName: string,
     handler: (req: unknown) => unknown | Promise<unknown>,
   ) {
-    const methodKey = rpcToClientMethodName(rpcName);
+    const methodKey = rpcToClientMethodName(shortName(rpcName));
     const queue = this.methodHandlerQueues.get(methodKey) ?? [];
     queue.push(handler);
     this.methodHandlerQueues.set(methodKey, queue);
@@ -83,6 +83,16 @@ export class MockGrpc {
 
 function rpcToClientMethodName(name: string): string {
   return name.length ? name[0].toLowerCase() + name.slice(1) : name;
+}
+
+function shortName(method: string): string {
+  if (method.startsWith("/")) {
+    const idx = method.lastIndexOf("/");
+    if (idx >= 0 && idx + 1 < method.length) {
+      return method.slice(idx + 1);
+    }
+  }
+  return method;
 }
 
 function formatValue(v: unknown): string {

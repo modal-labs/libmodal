@@ -43,15 +43,16 @@ func Install() (*Mock, func()) {
 	return m, cleanup
 }
 
-// HandleUnary registers a typed handler for a unary RPC identified by its short method name, e.g. "FunctionGetCurrentStats".
+// HandleUnary registers a typed handler for a unary RPC, e.g. "/FunctionGetCurrentStats".
 func HandleUnary[Req proto.Message, Resp proto.Message](m *Mock, rpc string, handler func(Req) (Resp, error)) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	q := m.methodHandlerQueues[rpc]
+	name := shortName(rpc)
+	q := m.methodHandlerQueues[name]
 	wrapped := unaryHandler(func(in proto.Message) (proto.Message, error) {
 		req, ok := any(in).(Req)
 		if !ok {
-			return nil, fmt.Errorf("grpcmock: request type mismatch for %s: expected %T, got %T", rpc, *new(Req), in)
+			return nil, fmt.Errorf("grpcmock: request type mismatch for %s: expected %T, got %T", name, *new(Req), in)
 		}
 		resp, err := handler(req)
 		if err != nil {
@@ -60,7 +61,7 @@ func HandleUnary[Req proto.Message, Resp proto.Message](m *Mock, rpc string, han
 		var out proto.Message = resp
 		return out, nil
 	})
-	m.methodHandlerQueues[rpc] = append(q, wrapped)
+	m.methodHandlerQueues[name] = append(q, wrapped)
 }
 
 // AssertExhausted errors unless all registered mock expectations have been consumed.
