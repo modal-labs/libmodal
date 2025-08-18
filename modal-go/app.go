@@ -15,8 +15,8 @@ import (
 // App references a deployed Modal App.
 type App struct {
 	AppId string
-	Name string
-	ctx  context.Context
+	Name  string
+	ctx   context.Context
 }
 
 // LookupOptions are options for finding deployed Modal objects.
