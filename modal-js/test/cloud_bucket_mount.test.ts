@@ -1,9 +1,8 @@
+import { CloudBucketMount, Secret } from "modal";
 import {
-  CloudBucketMount,
   cloudBucketMountToProto,
   endpointUrlToBucketType,
 } from "../src/cloud_bucket_mount";
-import { Secret } from "../src/secret";
 import { CloudBucketMount_BucketType } from "../proto/modal_proto/api";
 import { expect, test } from "vitest";
 
