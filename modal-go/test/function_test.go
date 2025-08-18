@@ -69,7 +69,7 @@ func TestFunctionGetCurrentStats(t *testing.T) {
 	mock, cleanup := grpcmock.Install()
 	t.Cleanup(cleanup)
 
-	grpcmock.HandleUnary[*pb.FunctionGetCurrentStatsRequest, *pb.FunctionStats](
+	grpcmock.HandleUnary(
 		mock, "FunctionGetCurrentStats",
 		func(req *pb.FunctionGetCurrentStatsRequest) (*pb.FunctionStats, error) {
 			g.Expect(req.GetFunctionId()).To(gomega.Equal("fid-stats"))
@@ -89,7 +89,7 @@ func TestFunctionUpdateAutoscaler(t *testing.T) {
 	mock, cleanup := grpcmock.Install()
 	t.Cleanup(cleanup)
 
-	grpcmock.HandleUnary[*pb.FunctionUpdateSchedulingParamsRequest, *pb.FunctionUpdateSchedulingParamsResponse](
+	grpcmock.HandleUnary(
 		mock, "FunctionUpdateSchedulingParams",
 		func(req *pb.FunctionUpdateSchedulingParamsRequest) (*pb.FunctionUpdateSchedulingParamsResponse, error) {
 			g.Expect(req.GetFunctionId()).To(gomega.Equal("fid-auto"))
@@ -112,7 +112,7 @@ func TestFunctionUpdateAutoscaler(t *testing.T) {
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	grpcmock.HandleUnary[*pb.FunctionUpdateSchedulingParamsRequest, *pb.FunctionUpdateSchedulingParamsResponse](
+	grpcmock.HandleUnary(
 		mock, "FunctionUpdateSchedulingParams",
 		func(req *pb.FunctionUpdateSchedulingParamsRequest) (*pb.FunctionUpdateSchedulingParamsResponse, error) {
 			g.Expect(req.GetFunctionId()).To(gomega.Equal("fid-auto"))
