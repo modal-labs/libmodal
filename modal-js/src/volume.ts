@@ -14,11 +14,13 @@ export type VolumeFromNameOptions = {
 export class Volume {
   readonly volumeId: string;
   readonly name?: string;
+  private _readOnly: boolean = false;
 
   /** @ignore */
-  constructor(volumeId: string, name?: string) {
+  constructor(volumeId: string, name?: string, readOnly: boolean = false) {
     this.volumeId = volumeId;
     this.name = name;
+    this._readOnly = readOnly;
   }
 
   static async fromName(
@@ -39,5 +41,14 @@ export class Volume {
         throw new NotFoundError(err.details);
       throw err;
     }
+  }
+
+  /** Configure Volume to mount as read-only. */
+  readOnly(): Volume {
+    return new Volume(this.volumeId, this.name, true);
+  }
+
+  get isReadOnly(): boolean {
+    return this._readOnly;
   }
 }

@@ -184,7 +184,7 @@ export class App {
           volumeId: volume.volumeId,
           mountPath,
           allowBackgroundCommits: true,
-          readOnly: false,
+          readOnly: volume.isReadOnly,
         }))
       : [];
 

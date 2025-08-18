@@ -191,6 +191,46 @@ func TestSandboxWithVolume(t *testing.T) {
 	g.Expect(exitCode).Should(gomega.Equal(0))
 }
 
+func TestSandboxWithReadOnlyVolume(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+
+	app, err := modal.AppLookup(ctx, "libmodal-test", &modal.LookupOptions{
+		CreateIfMissing: true,
+	})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	image := modal.NewImageFromRegistry("alpine:3.21", nil)
+
+	volume, err := modal.VolumeFromName(ctx, "libmodal-test-sandbox-volume", &modal.VolumeFromNameOptions{
+		CreateIfMissing: true,
+	})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	readOnlyVolume := volume.ReadOnly()
+	g.Expect(readOnlyVolume.IsReadOnly()).To(gomega.BeTrue())
+
+	sb, err := app.CreateSandbox(image, &modal.SandboxOptions{
+		Command: []string{"sh", "-c", "echo 'test' > /mnt/test/test.txt"},
+		Volumes: map[string]*modal.Volume{
+			"/mnt/test": readOnlyVolume,
+		},
+	})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	exitCode, err := sb.Wait()
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(exitCode).Should(gomega.Equal(1))
+
+	stderr, err := io.ReadAll(sb.Stderr)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(string(stderr)).Should(gomega.ContainSubstring("Read-only file system"))
+
+	err = sb.Terminate()
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+}
+
 func TestSandboxWithTunnels(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)

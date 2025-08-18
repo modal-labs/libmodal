@@ -1,4 +1,4 @@
-import { App, Volume, Sandbox, Secret } from "modal";
+import { App, Volume, Sandbox, Secret, Image } from "modal";
 import { parseGpuConfig } from "../src/app";
 import { expect, test, onTestFinished } from "vitest";
 
@@ -169,6 +169,28 @@ test("SandboxWithVolume", async () => {
 
   const exitCode = await sandbox.wait();
   expect(exitCode).toBe(0);
+});
+
+test("SandboxWithReadOnlyVolume", async () => {
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
+  const image = await Image.fromRegistry("alpine:3.21");
+
+  const volume = await Volume.fromName("libmodal-test-sandbox-volume", {
+    createIfMissing: true,
+  });
+
+  const readOnlyVolume = volume.readOnly();
+  expect(readOnlyVolume.isReadOnly).toBe(true);
+
+  const sb = await app.createSandbox(image, {
+    command: ["sh", "-c", "echo 'test' > /mnt/test/test.txt"],
+    volumes: { "/mnt/test": readOnlyVolume },
+  });
+
+  expect(await sb.wait()).toBe(1);
+  expect(await sb.stderr.readText()).toContain("Read-only file system");
+
+  await sb.terminate();
 });
 
 test("SandboxWithTunnels", async () => {

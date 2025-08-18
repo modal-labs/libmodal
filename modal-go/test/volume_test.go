@@ -23,3 +23,21 @@ func TestVolumeFromName(t *testing.T) {
 	_, err = modal.VolumeFromName(context.Background(), "missing-volume", nil)
 	g.Expect(err).Should(gomega.MatchError(gomega.ContainSubstring("Volume 'missing-volume' not found")))
 }
+
+func TestVolumeReadOnly(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	volume, err := modal.VolumeFromName(context.Background(), "libmodal-test-volume", &modal.VolumeFromNameOptions{
+		CreateIfMissing: true,
+	})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	g.Expect(volume.IsReadOnly()).To(gomega.BeFalse())
+
+	readOnlyVolume := volume.ReadOnly()
+	g.Expect(readOnlyVolume.IsReadOnly()).To(gomega.BeTrue())
+	g.Expect(readOnlyVolume.VolumeId).To(gomega.Equal(volume.VolumeId))
+	g.Expect(readOnlyVolume.Name).To(gomega.Equal(volume.Name))
+
+	g.Expect(volume.IsReadOnly()).To(gomega.BeFalse())
+}
