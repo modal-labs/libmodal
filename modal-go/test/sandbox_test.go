@@ -508,7 +508,7 @@ func TestSandboxSetTagsAndList(t *testing.T) {
 	}
 	g.Expect(before).To(gomega.HaveLen(0))
 
-	err = sb.SetTags(map[string]string{"test-key": unique}, nil)
+	err = sb.SetTags(map[string]string{"test-key": unique})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	var after []string
@@ -539,7 +539,7 @@ func TestSandboxSetMultipleTagsAndList(t *testing.T) {
 	tagB := fmt.Sprintf("%d", rand.Int())
 	tagC := fmt.Sprintf("%d", rand.Int())
 
-	err = sb.SetTags(map[string]string{"key-a": tagA, "key-b": tagB, "key-c": tagC}, nil)
+	err = sb.SetTags(map[string]string{"key-a": tagA, "key-b": tagB, "key-c": tagC})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	var ids []string

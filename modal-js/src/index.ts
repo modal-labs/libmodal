@@ -41,7 +41,6 @@ export type {
   StdioBehavior,
   StreamMode,
   Tunnel,
-  SandboxSetTagsOptions,
   SandboxListOptions,
 } from "./sandbox";
 export { ContainerProcess, Sandbox } from "./sandbox";

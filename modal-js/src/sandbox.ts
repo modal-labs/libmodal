@@ -37,12 +37,6 @@ export type StdioBehavior = "pipe" | "ignore";
  */
 export type StreamMode = "text" | "binary";
 
-/** Options for `Sandbox.setTags()`. */
-export type SandboxSetTagsOptions = {
-  /** Override environment for the request; defaults to current profile. */
-  environment?: string;
-};
-
 /** Options for `Sandbox.list()`. */
 export type SandboxListOptions = {
   /** Filter sandboxes for a specific app. */
@@ -132,17 +126,14 @@ export class Sandbox {
   }
 
   /** Set tags (key-value pairs) on the Sandbox. Tags can be used to filter results in `Sandbox.list`. */
-  async setTags(
-    tags: Record<string, string>,
-    options: SandboxSetTagsOptions = {},
-  ): Promise<void> {
+  async setTags(tags: Record<string, string>): Promise<void> {
     const tagsList = Object.entries(tags).map(([tagName, tagValue]) => ({
       tagName,
       tagValue,
     }));
     try {
       await client.sandboxTagsSet({
-        environmentName: environmentName(options.environment),
+        environmentName: environmentName(),
         sandboxId: this.sandboxId,
         tags: tagsList,
       });

@@ -287,22 +287,14 @@ func (sb *Sandbox) Poll() (*int, error) {
 	return getReturnCode(resp.GetResult()), nil
 }
 
-// SandboxSetTagsOptions are options for setting tags on a Sandbox.
-type SandboxSetTagsOptions struct {
-	Environment string // Override environment for this request
-}
-
 // SetTags sets key-value tags on the Sandbox. Tags can be used to filter results in SandboxList.
-func (sb *Sandbox) SetTags(tags map[string]string, options *SandboxSetTagsOptions) error {
-	if options == nil {
-		options = &SandboxSetTagsOptions{}
-	}
+func (sb *Sandbox) SetTags(tags map[string]string) error {
 	tagsList := make([]*pb.SandboxTag, 0, len(tags))
 	for k, v := range tags {
 		tagsList = append(tagsList, pb.SandboxTag_builder{TagName: k, TagValue: v}.Build())
 	}
 	_, err := client.SandboxTagsSet(sb.ctx, pb.SandboxTagsSetRequest_builder{
-		EnvironmentName: environmentName(options.Environment),
+		EnvironmentName: environmentName(""),
 		SandboxId:       sb.SandboxId,
 		Tags:            tagsList,
 	}.Build())
