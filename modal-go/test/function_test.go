@@ -128,3 +128,30 @@ func TestFunctionUpdateAutoscaler(t *testing.T) {
 }
 
 func ptrU32(v uint32) *uint32 { return &v }
+
+func TestFunctionGetWebURL(t *testing.T) {
+	g := gomega.NewWithT(t)
+
+	f, err := modal.FunctionLookup(context.Background(), "libmodal-test-support", "echo_string", nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(f.GetWebURL()).To(gomega.Equal(""))
+
+	mock, cleanup := grpcmock.Install()
+	t.Cleanup(cleanup)
+
+	grpcmock.HandleUnary(
+		mock, "FunctionGet",
+		func(req *pb.FunctionGetRequest) (*pb.FunctionGetResponse, error) {
+			g.Expect(req.GetAppName()).To(gomega.Equal("libmodal-test-support"))
+			g.Expect(req.GetObjectTag()).To(gomega.Equal("web_endpoint"))
+			return pb.FunctionGetResponse_builder{
+				FunctionId:     "fid-web",
+				HandleMetadata: pb.FunctionHandleMetadata_builder{WebUrl: "https://endpoint.internal"}.Build(),
+			}.Build(), nil
+		},
+	)
+
+	wef, err := modal.FunctionLookup(context.Background(), "libmodal-test-support", "web_endpoint", nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(wef.GetWebURL()).To(gomega.Equal("https://endpoint.internal"))
+}
