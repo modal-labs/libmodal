@@ -1,7 +1,7 @@
 import { Volume } from "modal";
 import { expect, test } from "vitest";
 
-test("VolumeFromName", async () => {
+test("Volume.fromName", async () => {
   const volume = await Volume.fromName("libmodal-test-volume", {
     createIfMissing: true,
   });
@@ -14,4 +14,19 @@ test("VolumeFromName", async () => {
   await expect(promise).rejects.toThrowError(
     /Volume 'missing-volume' not found/,
   );
+});
+
+test("Volume.readOnly", async () => {
+  const volume = await Volume.fromName("libmodal-test-volume", {
+    createIfMissing: true,
+  });
+
+  expect(volume.isReadOnly).toBe(false);
+
+  const readOnlyVolume = volume.readOnly();
+  expect(readOnlyVolume.isReadOnly).toBe(true);
+  expect(readOnlyVolume.volumeId).toBe(volume.volumeId);
+  expect(readOnlyVolume.name).toBe(volume.name);
+
+  expect(volume.isReadOnly).toBe(false);
 });

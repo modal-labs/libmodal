@@ -150,7 +150,7 @@ func (app *App) CreateSandbox(image *Image, options *SandboxOptions) (*Sandbox, 
 				VolumeId:               volume.VolumeId,
 				MountPath:              mountPath,
 				AllowBackgroundCommits: true,
-				ReadOnly:               false,
+				ReadOnly:               volume.IsReadOnly(),
 			}.Build())
 		}
 	}

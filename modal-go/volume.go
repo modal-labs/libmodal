@@ -13,6 +13,7 @@ import (
 type Volume struct {
 	VolumeId string
 	Name     string
+	readOnly bool
 
 	//lint:ignore U1000 may be used in future
 	ctx context.Context
@@ -54,5 +55,20 @@ func VolumeFromName(ctx context.Context, name string, options *VolumeFromNameOpt
 		return nil, err
 	}
 
-	return &Volume{VolumeId: resp.GetVolumeId(), Name: name, ctx: ctx}, nil
+	return &Volume{VolumeId: resp.GetVolumeId(), Name: name, readOnly: false, ctx: ctx}, nil
+}
+
+// ReadOnly configures Volume to mount as read-only.
+func (v *Volume) ReadOnly() *Volume {
+	return &Volume{
+		VolumeId: v.VolumeId,
+		Name:     v.Name,
+		readOnly: true,
+		ctx:      v.ctx,
+	}
+}
+
+// IsReadOnly returns true if the volume is configured to mount as read-only.
+func (v *Volume) IsReadOnly() bool {
+	return v.readOnly
 }

@@ -101,3 +101,37 @@ test("FunctionUpdateAutoscaler", async () => {
 
   await function_.updateAutoscaler({ minContainers: 2 });
 });
+
+test("FunctionGetWebUrl", async () => {
+  const { MockGrpc } = await import("../test-support/grpc_mock");
+  const mock = await MockGrpc.install();
+  onTestFinished(async () => {
+    await mock.uninstall();
+  });
+
+  mock.handleUnary("FunctionGet", (req) => {
+    expect(req).toMatchObject({
+      appName: "libmodal-test-support",
+      objectTag: "web_endpoint",
+    });
+    return {
+      functionId: "fid-web",
+      handleMetadata: { webUrl: "https://endpoint.internal" },
+    };
+  });
+
+  const { Function_ } = await import("../src/function");
+  const web_endpoint = await Function_.lookup(
+    "libmodal-test-support",
+    "web_endpoint",
+  );
+  expect(await web_endpoint.getWebUrl()).toBe("https://endpoint.internal");
+});
+
+test("FunctionGetWebUrlOnNonWebFunction", async () => {
+  const function_ = await Function_.lookup(
+    "libmodal-test-support",
+    "echo_string",
+  );
+  expect(await function_.getWebUrl()).toBeUndefined();
+});
