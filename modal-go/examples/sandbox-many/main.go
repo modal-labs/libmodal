@@ -11,6 +11,7 @@ import (
 
 func main() {
 	ctx := context.Background()
+	n_sandboxes := 30
 
 	app, err := modal.AppLookup(ctx, "libmodal-example", &modal.LookupOptions{CreateIfMissing: true})
 	if err != nil {
@@ -26,7 +27,7 @@ func main() {
 
 	sandboxes := []SandboxWithTunnel{}
 
-	for i := 0; i < 20; i++ {
+	for i := 0; i < n_sandboxes; i++ {
 		sb, err := app.CreateSandbox(image, nil)
 		if err != nil {
 			log.Fatalf("Failed to create sandbox: %v", err)
