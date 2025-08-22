@@ -122,10 +122,8 @@ def publish(args):
 
     run_cli(["git", "tag", f"modal-go/{go_version_str}"])
     run_cli(["git", "push", "--tags"])
-    run_cli(
-        ["go", "list", "-m", f"github.com/modal-labs/libmodal/modal-go@{go_version_str}"],
-        env={"GOPROXY": "proxy.golang.org"},
-    )
+
+    run_cli(["curl", f"https://proxy.golang.org/github.com/modal-labs/libmodal/modal-go/@v/{go_version_str}.info"])
 
 
 def main():
