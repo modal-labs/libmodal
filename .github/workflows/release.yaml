@@ -43,24 +43,19 @@ jobs:
         git config user.name "${GITHUB_ACTOR}"
         git config user.email "${GITHUB_ACTOR}@users.noreply.github.com"
 
+    - name: Switch to ci-release
+      run: |
+        git switch -c ci-release
+        git push origin ci-release --force
+
     - name: Make release commits
       run: |
         python ci/release.py version ${{ inputs.update }}
 
-    - name: Populate metadata for pull request
+    - name: Create Pull Request
       run: |
         PR_TITLE="$(git log -1 --pretty=%B)"
-        echo "PR_TITLE=${PR_TITLE}" >> "${GITHUB_ENV}"
+        gh pr create --title "$PR_TITLE" --body "$PR_TITLE" --base main --head ci-release
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Create Pull Request
-      id: cpr
-      uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e # v7.0.8
-      with:
-        title: ${{ env.PR_TITLE }}
-        body: ${{ env.PR_TITLE }}
-
-    - name: Check outputs
-      if: ${{ steps.cpr.outputs.pull-request-number }}
-      run: |
-        echo "Pull Request Number - ${{ steps.cpr.outputs.pull-request-number }}"
-        echo "Pull Request URL - ${{ steps.cpr.outputs.pull-request-url }}"
