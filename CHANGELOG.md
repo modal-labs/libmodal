@@ -4,6 +4,10 @@ Both client libraries are pre-1.0, and they have separate versioning.
 
 ## Unreleased
 
+No unreleased changes.
+
+## modal-js/v0.3.17, modal-go/v0.0.17
+
 - Added support for more parameters to `Sandbox.create()`:
   - `blockNetwork`: Whether to block all network access from the sandbox.
   - `cidrAllowlist`: List of CIDRs the sandbox is allowed to access.
