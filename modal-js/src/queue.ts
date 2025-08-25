@@ -109,7 +109,7 @@ export class Queue {
     const signal = queue.#abortController!.signal;
     (async () => {
       // Launch a background task to heartbeat the ephemeral queue.
-      while (true) {
+      while (!signal.aborted) {
         await client.queueHeartbeat({ queueId: resp.queueId });
         await Promise.race([
           new Promise((resolve) =>
