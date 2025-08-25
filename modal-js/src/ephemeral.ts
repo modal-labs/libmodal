@@ -6,6 +6,7 @@ export class EphemeralHeartbeatManager {
   private readonly objectId: string;
   private readonly heartbeatFn: HeartbeatFunction;
   private readonly abortController: AbortController;
+  private timerId?: NodeJS.Timeout;
 
   constructor(objectId: string, heartbeatFn: HeartbeatFunction) {
     this.objectId = objectId;
@@ -21,9 +22,10 @@ export class EphemeralHeartbeatManager {
       while (!signal.aborted) {
         await this.heartbeatFn(this.objectId);
         await Promise.race([
-          new Promise((resolve) =>
-            setTimeout(resolve, ephemeralObjectHeartbeatSleep),
-          ),
+          new Promise((resolve) => {
+            this.timerId = setTimeout(resolve, ephemeralObjectHeartbeatSleep);
+            this.timerId.unref(); // Don't let the heartbeat timer prevent the process from exiting
+          }),
           new Promise((resolve) => {
             signal.addEventListener("abort", resolve, { once: true });
           }),
