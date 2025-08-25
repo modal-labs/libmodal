@@ -12,7 +12,7 @@ import { client } from "./client";
 import { FunctionCall } from "./function_call";
 import { environmentName } from "./config";
 import { InternalFailure, NotFoundError } from "./errors";
-import { dumps } from "./pickle";
+import { encode as cborEncode } from "cbor-x";
 import { ClientError, Status } from "nice-grpc";
 import {
   ControlPlaneInvocation,
@@ -175,7 +175,7 @@ export class Function_ {
     args: any[] = [],
     kwargs: Record<string, any> = {},
   ): Promise<FunctionInput> {
-    const payload = dumps([args, kwargs]);
+    const payload = cborEncode([args, kwargs]);
 
     let argsBlobId: string | undefined = undefined;
     if (payload.length > maxObjectSizeBytes) {
@@ -186,7 +186,7 @@ export class Function_ {
     return {
       args: argsBlobId ? undefined : payload,
       argsBlobId,
-      dataFormat: DataFormat.DATA_FORMAT_PICKLE,
+      dataFormat: DataFormat.DATA_FORMAT_CBOR,
       methodName: this.methodName,
       finalInput: false, // This field isn't specified in the Python client, so it defaults to false.
     };

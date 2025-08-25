@@ -8,7 +8,7 @@ import type { DeleteOptions, EphemeralOptions, LookupOptions } from "./app";
 import { client } from "./client";
 import { environmentName } from "./config";
 import { InvalidError, QueueEmptyError, QueueFullError } from "./errors";
-import { dumps, loads } from "./pickle";
+import { dumps as pickleEncode, loads as pickleDecode } from "./pickle";
 import { ClientError, Status } from "nice-grpc";
 
 // From: modal/_object.py
@@ -193,7 +193,7 @@ export class Queue {
         nValues: n,
       });
       if (response.values && response.values.length > 0) {
-        return response.values.map((value) => loads(value));
+        return response.values.map((value) => pickleDecode(value));
       }
       if (timeout !== undefined) {
         const remaining = timeout - (Date.now() - startTime);
@@ -235,7 +235,7 @@ export class Queue {
     partition?: string,
     partitionTtl?: number,
   ): Promise<void> {
-    const valuesEncoded = values.map((v) => dumps(v));
+    const valuesEncoded = values.map((v) => pickleEncode(v));
     const partitionKey = Queue.#validatePartitionKey(partition);
 
     let delay = queueInitialPutBackoff;
@@ -341,7 +341,7 @@ export class Queue {
       const response = await client.queueNextItems(request);
       if (response.items && response.items.length > 0) {
         for (const item of response.items) {
-          yield loads(item.value);
+          yield pickleDecode(item.value);
           lastEntryId = item.entryId;
         }
         fetchDeadline = Date.now() + itemPollTimeout;

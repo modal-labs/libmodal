@@ -13,7 +13,8 @@ import {
 } from "../proto/modal_proto/api";
 import { client, getOrCreateInputPlaneClient } from "./client";
 import { FunctionTimeoutError, InternalFailure, RemoteError } from "./errors";
-import { loads } from "./pickle";
+import { loads as pickleDecode } from "./pickle";
+import { decode as cborDecode } from "cbor-x";
 
 // From: modal-client/modal/_utils/function_utils.py
 const outputsTimeout = 55 * 1000;
@@ -151,6 +152,7 @@ export class InputPlaneInvocation implements Invocation {
       input,
       r2Failed: false,
       r2LatencyMs: 0,
+      r2ThroughputBytesS: 0,
     };
     const client = getOrCreateInputPlaneClient(inputPlaneUrl);
     // Single input sync invocation
@@ -289,9 +291,11 @@ function deserializeDataFormat(
 
   switch (dataFormat) {
     case DataFormat.DATA_FORMAT_PICKLE:
-      return loads(data);
+      return pickleDecode(data);
+    case DataFormat.DATA_FORMAT_CBOR:
+      return cborDecode(data);
     case DataFormat.DATA_FORMAT_ASGI:
-      throw new Error("ASGI data format is not supported in Go");
+      throw new Error("ASGI data format is not supported in modal-js");
     case DataFormat.DATA_FORMAT_GENERATOR_DONE:
       return GeneratorDone.decode(data);
     default:
