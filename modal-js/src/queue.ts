@@ -10,9 +10,7 @@ import { environmentName } from "./config";
 import { InvalidError, QueueEmptyError, QueueFullError } from "./errors";
 import { dumps, loads } from "./pickle";
 import { ClientError, Status } from "nice-grpc";
-
-// From: modal/_object.py
-const ephemeralObjectHeartbeatSleep = 300_000; // 300 seconds
+import { EphemeralHeartbeatManager } from "./ephemeral";
 
 const queueInitialPutBackoff = 100; // 100 milliseconds
 const queueDefaultPartitionTtl = 24 * 3600 * 1000; // 24 hours
@@ -71,15 +69,17 @@ export type QueueIterateOptions = {
 export class Queue {
   readonly queueId: string;
   readonly name?: string;
-  readonly #ephemeral: boolean;
-  readonly #abortController?: AbortController;
+  readonly #ephemeralHbManager?: EphemeralHeartbeatManager;
 
   /** @ignore */
-  constructor(queueId: string, name?: string, ephemeral: boolean = false) {
+  constructor(
+    queueId: string,
+    name?: string,
+    ephemeralHbManager?: EphemeralHeartbeatManager,
+  ) {
     this.queueId = queueId;
     this.name = name;
-    this.#ephemeral = ephemeral;
-    this.#abortController = ephemeral ? new AbortController() : undefined;
+    this.#ephemeralHbManager = ephemeralHbManager;
   }
 
   static #validatePartitionKey(partition: string | undefined): Uint8Array {
@@ -105,30 +105,17 @@ export class Queue {
       environmentName: environmentName(options.environment),
     });
 
-    const queue = new Queue(resp.queueId, undefined, true);
-    const signal = queue.#abortController!.signal;
-    (async () => {
-      // Launch a background task to heartbeat the ephemeral queue.
-      while (!signal.aborted) {
-        await client.queueHeartbeat({ queueId: resp.queueId });
-        await Promise.race([
-          new Promise((resolve) =>
-            setTimeout(resolve, ephemeralObjectHeartbeatSleep),
-          ),
-          new Promise((resolve) => {
-            signal.addEventListener("abort", resolve, { once: true });
-          }),
-        ]);
-      }
-    })();
+    const ephemeralHbManager = new EphemeralHeartbeatManager(() =>
+      client.queueHeartbeat({ queueId: resp.queueId }),
+    );
 
-    return queue;
+    return new Queue(resp.queueId, undefined, ephemeralHbManager);
   }
 
   /** Delete the ephemeral queue. Only usable with `Queue.ephemeral()`. */
   closeEphemeral(): void {
-    if (this.#ephemeral) {
-      this.#abortController!.abort();
+    if (this.#ephemeralHbManager) {
+      this.#ephemeralHbManager.stop();
     } else {
       throw new InvalidError("Queue is not ephemeral.");
     }
