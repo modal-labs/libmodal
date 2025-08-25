@@ -56,7 +56,7 @@ test("FunctionGetCurrentStats", async () => {
     return { backlog: 3, numTotalTasks: 7 };
   });
 
-  const { Function_ } = await import("../src/function");
+  const { Function_ } = await import("modal");
   const function_ = new Function_("fid-stats");
   const stats = await function_.getCurrentStats();
   expect(stats).toEqual({ backlog: 3, numTotalRunners: 7 });
@@ -82,7 +82,7 @@ test("FunctionUpdateAutoscaler", async () => {
     return {};
   });
 
-  const { Function_ } = await import("../src/function");
+  const { Function_ } = await import("modal");
   const function_ = new Function_("fid-auto");
   await function_.updateAutoscaler({
     minContainers: 1,
@@ -120,7 +120,7 @@ test("FunctionGetWebUrl", async () => {
     };
   });
 
-  const { Function_ } = await import("../src/function");
+  const { Function_ } = await import("modal");
   const web_endpoint = await Function_.lookup(
     "libmodal-test-support",
     "web_endpoint",

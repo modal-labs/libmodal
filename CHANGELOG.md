@@ -4,7 +4,7 @@ Both client libraries are pre-1.0, and they have separate versioning.
 
 ## Unreleased
 
-No unreleased changes.
+- Added support for instantiating a Cls with custom options, using `Cls.withOptions()`/`.withConcurrency()`/`.withBatching()` (JS) / `Cls.WithOptions()`/`.WithConcurrency()`/`.WithBatching()` (Go).
 
 ## modal-js/v0.3.17, modal-go/v0.0.17
 

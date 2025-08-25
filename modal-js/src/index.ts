@@ -6,7 +6,13 @@ export {
   type SandboxCreateOptions,
 } from "./app";
 export { type ClientOptions, initializeClient } from "./client";
-export { Cls, ClsInstance } from "./cls";
+export {
+  Cls,
+  ClsInstance,
+  type ClsOptions,
+  type ClsConcurrencyOptions,
+  type ClsBatchingOptions,
+} from "./cls";
 export {
   FunctionTimeoutError,
   RemoteError,
@@ -36,6 +42,7 @@ export {
   type QueuePutOptions,
 } from "./queue";
 export { Image } from "./image";
+export { Retries } from "./retries";
 export type {
   ExecOptions,
   StdioBehavior,
