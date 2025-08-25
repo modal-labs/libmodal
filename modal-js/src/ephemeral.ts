@@ -19,9 +19,10 @@ export class EphemeralHeartbeatManager {
       while (!signal.aborted) {
         await this.heartbeatFn();
         await Promise.race([
-          new Promise((resolve) =>
-            setTimeout(resolve, ephemeralObjectHeartbeatSleep),
-          ),
+          new Promise((resolve) => {
+            // unref so the heartbeat timer doesn't prevent the process from exiting
+            setTimeout(resolve, ephemeralObjectHeartbeatSleep).unref();
+          }),
           new Promise((resolve) => {
             signal.addEventListener("abort", resolve, { once: true });
           }),
