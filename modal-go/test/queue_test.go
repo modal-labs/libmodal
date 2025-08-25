@@ -200,3 +200,24 @@ func TestQueueNonEphemeral(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(value).To(gomega.Equal("data"))
 }
+
+func TestQueueCloseEphemeral(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	ctx := context.Background()
+	queue, err := modal.QueueEphemeral(ctx, nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	err = queue.Put("test-data", nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	queue.CloseEphemeral()
+
+	err = queue.Put("should-fail", nil)
+	g.Expect(err).Should(gomega.HaveOccurred())
+	g.Expect(err.Error()).Should(gomega.ContainSubstring("context canceled"))
+
+	// The external context should not have been cancelled by CloseEphemeral
+	g.Expect(ctx.Err()).Should(gomega.BeNil())
+}
