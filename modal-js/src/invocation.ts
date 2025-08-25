@@ -267,10 +267,11 @@ async function processResult(
       // Handle other statuses, e.g., remote error.
       if (
         typeof result.exception === "string" &&
-
+        // client isn't updated to handle cbor decoding:
         (result.exception.includes("Encountered an error when deserializing") &&
         result.exception.includes("unregistered extension code 129"))
         ||
+        // cbor2 not "installed" in container - image builder version should be updated to 2025.06 or newer
         (result.exception.includes("CBOR support requires the 'cbor2' package to be installed"))
       ) {
         // Special handling of the expected error state when the remote function can't decode cbor2
