@@ -329,9 +329,7 @@ test("SandboxExecSecret", async () => {
   const secret = await Secret.fromName("libmodal-test-secret", {
     requiredKeys: ["c"],
   });
-  const secret2 = await Secret.fromName("libmodal-test-secret-2", {
-    requiredKeys: ["d"],
-  });
+  const secret2 = await Secret.fromObject({d: "3"})
   const printSecret = await sb.exec(["printenv", "c", "d"], {
     stdout: "pipe",
     secrets: [secret, secret2],

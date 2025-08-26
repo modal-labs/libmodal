@@ -10,9 +10,6 @@ echo "Deploying libmodal-test-secret..."
 modal secret create --force libmodal-test-secret \
   a=1 b=2 c="hello world" >/dev/null
 
-modal secret create --force libmodal-test-secret-2 \
-  d=3 >/dev/null
-
 # Must be signed into AWS CLI for Modal Labs
 echo "Deploying libmodal-aws-ecr-test..."
 ecr_test_secret=$(aws secretsmanager get-secret-value \
