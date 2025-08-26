@@ -4,6 +4,7 @@ Both client libraries are pre-1.0, and they have separate versioning.
 
 ## Unreleased
 
+- Adds `Image.build` (JS) and `Image.Build` (Go).
 - Adds `Image.fromId` (JS) / `NewImageFromId` (Go).
 - Operations on an ehpemeral Queue after having called `CloseEhpemeral()` will now explicitly fail in Go.
 - Added support for instantiating a Cls with custom options, using `Cls.withOptions()`/`.withConcurrency()`/`.withBatching()` (JS) / `Cls.WithOptions()`/`.WithConcurrency()`/`.WithBatching()` (Go).

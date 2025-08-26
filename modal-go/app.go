@@ -129,7 +129,7 @@ func (app *App) CreateSandbox(image *Image, options *SandboxOptions) (*Sandbox, 
 		options = &SandboxOptions{}
 	}
 
-	image, err := image.build(app)
+	image, err := image.Build(app)
 	if err != nil {
 		return nil, err
 	}
@@ -275,19 +275,19 @@ func (app *App) CreateSandbox(image *Image, options *SandboxOptions) (*Sandbox, 
 //
 // Deprecated: ImageFromRegistry is deprecated, use modal.NewImageFromRegistry instead
 func (app *App) ImageFromRegistry(tag string, options *ImageFromRegistryOptions) (*Image, error) {
-	return NewImageFromRegistry(tag, options).build(app)
+	return NewImageFromRegistry(tag, options).Build(app)
 }
 
 // ImageFromAwsEcr creates an Image from an AWS ECR tag.
 //
 // Deprecated: ImageFromAwsEcr is deprecated, use modal.NewImageFromAwsEcr instead
 func (app *App) ImageFromAwsEcr(tag string, secret *Secret) (*Image, error) {
-	return NewImageFromAwsEcr(tag, secret).build(app)
+	return NewImageFromAwsEcr(tag, secret).Build(app)
 }
 
 // ImageFromGcpArtifactRegistry creates an Image from a GCP Artifact Registry tag.
 //
 // Deprecated: ImageFromGcpArtifactRegistry is deprecated, use modal.NewImageFromGcpArtifactRegistry instead
 func (app *App) ImageFromGcpArtifactRegistry(tag string, secret *Secret) (*Image, error) {
-	return NewImageFromGcpArtifactRegistry(tag, secret).build(app)
+	return NewImageFromGcpArtifactRegistry(tag, secret).Build(app)
 }

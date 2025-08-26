@@ -174,7 +174,7 @@ export class App {
         `Timeout must be a multiple of 1000ms, got ${options.timeout}`,
       );
     }
-    await image._build(this.appId);
+    await image.build(this);
 
     if (options.workdir && !options.workdir.startsWith("/")) {
       throw new Error(
@@ -298,14 +298,14 @@ export class App {
    * @deprecated Use `Image.fromRegistry` instead.
    */
   async imageFromRegistry(tag: string, secret?: Secret): Promise<Image> {
-    return await Image.fromRegistry(tag, secret)._build(this.appId);
+    return await Image.fromRegistry(tag, secret).build(this);
   }
 
   /**
    * @deprecated Use `Image.fromAwsEcr` instead.
    */
   async imageFromAwsEcr(tag: string, secret: Secret): Promise<Image> {
-    return await Image.fromAwsEcr(tag, secret)._build(this.appId);
+    return await Image.fromAwsEcr(tag, secret).build(this);
   }
 
   /**
@@ -315,6 +315,6 @@ export class App {
     tag: string,
     secret: Secret,
   ): Promise<Image> {
-    return await Image.fromGcpArtifactRegistry(tag, secret)._build(this.appId);
+    return await Image.fromGcpArtifactRegistry(tag, secret).build(this);
   }
 }
