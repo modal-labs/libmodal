@@ -34,8 +34,8 @@ export class Image {
    *
    * @param imageId - Image id.
    */
-  static fromId(imageID: string): Image {
-    return new Image(imageID, "");
+  static fromId(imageId: string): Image {
+    return new Image(imageId, "");
   }
 
   /**
