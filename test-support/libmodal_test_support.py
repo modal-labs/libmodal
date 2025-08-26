@@ -32,7 +32,7 @@ class EchoCls:
         return "output: " + s
 
 
-@app.cls(min_containers=1, experimental_options={"input_plane_region": "us-east"})
+@app.cls(min_containers=1, experimental_options={"input_plane_region": "us-west"})
 class EchoClsInputPlane:
     @modal.method()
     def echo_string(self, s: str) -> str:
