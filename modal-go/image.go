@@ -66,7 +66,7 @@ func NewImageFromGcpArtifactRegistry(tag string, secret *Secret) *Image {
 	}
 }
 
-func (image *Image) build(app *App) (*Image, error) {
+func (image *Image) Build(app *App) (*Image, error) {
 	if image == nil {
 		return nil, InvalidError{"image must be non-nil"}
 	}

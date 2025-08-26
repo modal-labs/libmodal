@@ -6,6 +6,7 @@ import {
   ImageRegistryConfig,
 } from "../proto/modal_proto/api";
 import { client } from "./client";
+import { App } from "./app";
 import { Secret } from "./secret";
 import { imageBuilderVersion } from "./config";
 
@@ -96,17 +97,18 @@ export class Image {
   }
 
   /**
-   * @internal
-   * Build image object
+   * Builds an `Image`.
+   *
+   * @param app - App to use to build image.
    */
-  async _build(appId: string): Promise<Image> {
+  async build(app: App): Promise<Image> {
     if (this.imageId !== "") {
       // Image is already built with an image ID
       return this;
     }
 
     const resp = await client.imageGetOrCreate({
-      appId,
+      appId: app.appId,
       image: {
         dockerfileCommands: [`FROM ${this.#tag}`],
         imageRegistryConfig: this.#imageRegistryConfig,
