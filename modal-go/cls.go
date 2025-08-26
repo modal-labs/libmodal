@@ -447,9 +447,11 @@ func buildFunctionOptionsProto(opts *serviceOptions) (*pb.FunctionOptions, error
 	}
 
 	if opts.secrets != nil {
-		secretIds := make([]string, 0, len(*opts.secrets))
+		secretIds := []string{}
 		for _, secret := range *opts.secrets {
-			secretIds = append(secretIds, secret.SecretId)
+			if secret != nil {
+				secretIds = append(secretIds, secret.SecretId)
+			}
 		}
 		builder.SecretIds = secretIds
 		if len(secretIds) > 0 {
@@ -458,14 +460,16 @@ func buildFunctionOptionsProto(opts *serviceOptions) (*pb.FunctionOptions, error
 	}
 
 	if opts.volumes != nil {
-		volumeMounts := make([]*pb.VolumeMount, 0, len(*opts.volumes))
+		volumeMounts := []*pb.VolumeMount{}
 		for mountPath, volume := range *opts.volumes {
-			volumeMounts = append(volumeMounts, pb.VolumeMount_builder{
-				VolumeId:               volume.VolumeId,
-				MountPath:              mountPath,
-				AllowBackgroundCommits: true,
-				ReadOnly:               volume.IsReadOnly(),
-			}.Build())
+			if volume != nil {
+				volumeMounts = append(volumeMounts, pb.VolumeMount_builder{
+					VolumeId:               volume.VolumeId,
+					MountPath:              mountPath,
+					AllowBackgroundCommits: true,
+					ReadOnly:               volume.IsReadOnly(),
+				}.Build())
+			}
 		}
 		builder.VolumeMounts = volumeMounts
 		if len(volumeMounts) > 0 {
