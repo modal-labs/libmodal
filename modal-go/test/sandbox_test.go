@@ -597,3 +597,51 @@ func TestSandboxListByAppId(t *testing.T) {
 	}
 	g.Expect(count).ToNot(gomega.Equal(0))
 }
+
+func TestNamedSandbox(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+
+	app, err := modal.AppLookup(ctx, "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	image, err := app.ImageFromRegistry("alpine:3.21", nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	sandboxName := fmt.Sprintf("test-sandbox-%d", rand.Int())
+
+	sb, err := app.CreateSandbox(image, &modal.SandboxOptions{
+		Name:    sandboxName,
+		Command: []string{"sleep", "60"},
+	})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(sb.SandboxId).ShouldNot(gomega.BeEmpty())
+
+	defer sb.Terminate()
+
+	sb1FromName, err := modal.SandboxFromName(ctx, "libmodal-test", sandboxName, nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(sb1FromName.SandboxId).To(gomega.Equal(sb.SandboxId))
+
+	sb2FromName, err := modal.SandboxFromName(ctx, "libmodal-test", sandboxName, nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(sb2FromName.SandboxId).To(gomega.Equal(sb1FromName.SandboxId))
+
+	_, err = app.CreateSandbox(image, &modal.SandboxOptions{
+		Name:    sandboxName,
+		Command: []string{"sleep", "60"},
+	})
+	g.Expect(err).Should(gomega.HaveOccurred())
+	g.Expect(err.Error()).To(gomega.ContainSubstring("already exists"))
+}
+
+func TestNamedSandboxNotFound(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+
+	_, err := modal.SandboxFromName(ctx, "libmodal-test", "non-existent-sandbox", nil)
+	g.Expect(err).Should(gomega.HaveOccurred())
+	g.Expect(err.Error()).To(gomega.ContainSubstring("not found"))
+}

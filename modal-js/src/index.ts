@@ -19,6 +19,7 @@ export {
   InternalFailure,
   NotFoundError,
   InvalidError,
+  AlreadyExistsError,
   QueueEmptyError,
   QueueFullError,
   SandboxTimeoutError,

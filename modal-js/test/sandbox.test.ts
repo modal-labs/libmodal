@@ -457,3 +457,37 @@ test("SandboxListByAppId", async () => {
   }
   expect(count).toBeGreaterThan(0);
 });
+
+test("NamedSandbox", async () => {
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
+  const image = await app.imageFromRegistry("alpine:3.21");
+
+  const sandboxName = `test-sandbox-${Math.random().toString().substring(2, 10)}`;
+
+  const sb = await app.createSandbox(image, {
+    name: sandboxName,
+    command: ["sleep", "60"],
+  });
+
+  onTestFinished(async () => {
+    await sb.terminate();
+  });
+
+  const sb1FromName = await Sandbox.fromName("libmodal-test", sandboxName);
+  expect(sb1FromName.sandboxId).toBe(sb.sandboxId);
+  const sb2FromName = await Sandbox.fromName("libmodal-test", sandboxName);
+  expect(sb2FromName.sandboxId).toBe(sb1FromName.sandboxId);
+
+  await expect(
+    app.createSandbox(image, {
+      name: sandboxName,
+      command: ["sleep", "60"],
+    }),
+  ).rejects.toThrow("already exists");
+});
+
+test("NamedSandboxNotFound", async () => {
+  await expect(
+    Sandbox.fromName("libmodal-test", "non-existent-sandbox"),
+  ).rejects.toThrow("not found");
+});

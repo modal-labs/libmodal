@@ -47,6 +47,15 @@ func (e NotFoundError) Error() string {
 	return "NotFoundError: " + e.Exception
 }
 
+// AlreadyExistsError is returned when a resource already exists.
+type AlreadyExistsError struct {
+	Exception string
+}
+
+func (e AlreadyExistsError) Error() string {
+	return "AlreadyExistsError: " + e.Exception
+}
+
 // InvalidError represents an invalid request or operation.
 type InvalidError struct {
 	Exception string

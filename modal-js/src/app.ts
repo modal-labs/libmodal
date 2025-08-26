@@ -14,7 +14,7 @@ import { client } from "./client";
 import { environmentName } from "./config";
 import { Image } from "./image";
 import { Sandbox } from "./sandbox";
-import { NotFoundError } from "./errors";
+import { NotFoundError, AlreadyExistsError } from "./errors";
 import { Secret } from "./secret";
 import { Volume } from "./volume";
 import { Proxy } from "./proxy";
@@ -97,6 +97,9 @@ export type SandboxCreateOptions = {
 
   /** Reference to a Modal Proxy to use in front of this Sandbox. */
   proxy?: Proxy;
+
+  /** Optional name for the sandbox. Unique within an app. */
+  name?: string;
 };
 
 /**
@@ -252,32 +255,41 @@ export class App {
       regions: options.regions ?? [],
     });
 
-    const createResp = await client.sandboxCreate({
-      appId: this.appId,
-      definition: {
-        // Sleep default is implicit in image builder version <=2024.10
-        entrypointArgs: options.command ?? ["sleep", "48h"],
-        imageId: image.imageId,
-        timeoutSecs:
-          options.timeout != undefined ? options.timeout / 1000 : 600,
-        workdir: options.workdir ?? undefined,
-        networkAccess,
-        resources: {
-          // https://modal.com/docs/guide/resources
-          milliCpu: Math.round(1000 * (options.cpu ?? 0.125)),
-          memoryMb: options.memory ?? 128,
-          gpuConfig,
+    let createResp;
+    try {
+      createResp = await client.sandboxCreate({
+        appId: this.appId,
+        definition: {
+          // Sleep default is implicit in image builder version <=2024.10
+          entrypointArgs: options.command ?? ["sleep", "48h"],
+          imageId: image.imageId,
+          timeoutSecs:
+            options.timeout != undefined ? options.timeout / 1000 : 600,
+          workdir: options.workdir ?? undefined,
+          networkAccess,
+          resources: {
+            // https://modal.com/docs/guide/resources
+            milliCpu: Math.round(1000 * (options.cpu ?? 0.125)),
+            memoryMb: options.memory ?? 128,
+            gpuConfig,
+          },
+          volumeMounts,
+          cloudBucketMounts,
+          secretIds,
+          openPorts: openPorts.length > 0 ? { ports: openPorts } : undefined,
+          cloudProviderStr: options.cloud ?? "",
+          schedulerPlacement,
+          verbose: options.verbose ?? false,
+          proxyId: options.proxy?.proxyId,
+          name: options.name,
         },
-        volumeMounts,
-        cloudBucketMounts,
-        secretIds,
-        openPorts: openPorts.length > 0 ? { ports: openPorts } : undefined,
-        cloudProviderStr: options.cloud ?? "",
-        schedulerPlacement,
-        verbose: options.verbose ?? false,
-        proxyId: options.proxy?.proxyId,
-      },
-    });
+      });
+    } catch (err) {
+      if (err instanceof ClientError && err.code === Status.ALREADY_EXISTS) {
+        throw new AlreadyExistsError(err.details || err.message);
+      }
+      throw err;
+    }
 
     return new Sandbox(createResp.sandboxId);
   }

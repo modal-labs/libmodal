@@ -55,6 +55,7 @@ type SandboxOptions struct {
 	Regions           []string                     // Region(s) to run the sandbox on.
 	Verbose           bool                         // Enable verbose logging.
 	Proxy             *Proxy                       // Reference to a Modal Proxy to use in front of this Sandbox.
+	Name              string                       // Optional name for the sandbox. Unique within an app.
 }
 
 // ImageFromRegistryOptions are options for creating an Image from a registry.
@@ -256,10 +257,14 @@ func (app *App) CreateSandbox(image *Image, options *SandboxOptions) (*Sandbox, 
 			SchedulerPlacement: schedulerPlacement,
 			Verbose:            options.Verbose,
 			ProxyId:            proxyId,
+			Name:               &options.Name,
 		}.Build(),
 	}.Build())
 
 	if err != nil {
+		if status, ok := status.FromError(err); ok && status.Code() == codes.AlreadyExists {
+			return nil, AlreadyExistsError{Exception: status.Message()}
+		}
 		return nil, err
 	}
 
