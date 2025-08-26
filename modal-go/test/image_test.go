@@ -8,6 +8,15 @@ import (
 	"github.com/onsi/gomega"
 )
 
+func TestImageFromId(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	imageId := "im-23134214dfasfsaf"
+	image := modal.NewImageFromId(imageId)
+	g.Expect(image.ImageId).Should(gomega.Equal(imageId))
+}
+
 //nolint:staticcheck
 func TestImageFromRegistry(t *testing.T) {
 	t.Parallel()

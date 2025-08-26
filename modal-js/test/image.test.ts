@@ -1,6 +1,15 @@
 import { App, Secret, Image } from "modal";
 import { expect, test } from "vitest";
 
+test("ImageFromId", async () => {
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
+  expect(app.appId).toBeTruthy();
+
+  const imageId = "im-23134214dfasfsaf";
+  const image = await Image.fromId(imageId);
+  expect(image.imageId).toBe(imageId);
+});
+
 test("ImageFromRegistry", async () => {
   const app = await App.lookup("libmodal-test", { createIfMissing: true });
   expect(app.appId).toBeTruthy();
