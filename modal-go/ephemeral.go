@@ -16,7 +16,7 @@ func startEphemeralHeartbeat(ctx context.Context, heartbeatFn func() error) {
 			case <-ctx.Done():
 				return
 			case <-t.C:
-				_ = heartbeatFn()
+				_ = heartbeatFn() // ignore errors – next call will retry or context will cancel
 			}
 		}
 	}()
