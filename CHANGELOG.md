@@ -4,7 +4,7 @@ Both client libraries are pre-1.0, and they have separate versioning.
 
 ## Unreleased
 
-No unreleased changes.
+- Operations on an ehpemeral Queue after having called `CloseEhpemeral()` will now explicitly fail in Go.
 
 ## modal-js/v0.3.17, modal-go/v0.0.17
 
