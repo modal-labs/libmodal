@@ -1,3 +1,6 @@
+// We use `Image.Build` to create an Image object on Modal
+// that eagerly pulls from the registry. The first sandbox created with this image
+// will ues this "pre-warmed" image and will start faster.
 package main
 
 import (
@@ -16,9 +19,8 @@ func main() {
 		log.Fatalf("Failed to lookup or create app: %v", err)
 	}
 
-	// We use `Image.Build` to create a Image object on Modal
-	// that eagerly pulls from the registry. The first sandbox created with this image
-	// will ues this "pre-warmed" image and will start faster.
+	// With `.Build(app)`, we create an Image object on Modal that eagerly pulls
+	// from the registry.
 	image, err := modal.NewImageFromRegistry("alpine:3.21", nil).Build(app)
 	if err != nil {
 		log.Fatalf("Unable to build image: %v", err)
