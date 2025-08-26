@@ -1,5 +1,6 @@
 import { Queue, QueueEmptyError } from "modal";
-import { expect, onTestFinished, test } from "vitest";
+import { expect, onTestFinished, test, vi } from "vitest";
+import { ephemeralObjectHeartbeatSleep } from "../src/ephemeral";
 
 test("QueueInvalidName", async () => {
   for (const name of ["has space", "has/slash", "a".repeat(65)]) {
@@ -92,4 +93,37 @@ test("QueueNonEphemeral", async () => {
 
   const queue2 = await Queue.lookup(queueName);
   expect(await queue2.get()).toBe("data");
+});
+
+test("QueueEphemeralHeartbeatStopsAfterClose", async () => {
+  const { MockGrpc } = await import("../test-support/grpc_mock");
+  const mock = await MockGrpc.install();
+  onTestFinished(async () => {
+    await mock.uninstall();
+  });
+
+  vi.useFakeTimers();
+  onTestFinished(() => {
+    vi.useRealTimers();
+  });
+
+  let heartbeatCount = 0;
+
+  mock.handleUnary("/QueueGetOrCreate", () => ({
+    queueId: "test-queue-id",
+  }));
+
+  mock.handleUnary("/QueueHeartbeat", (_req) => {
+    heartbeatCount++;
+    return {};
+  });
+
+  const { Queue } = await import("../src/queue");
+  const queue = await Queue.ephemeral();
+
+  expect(heartbeatCount).toBe(1); // initial heartbeat
+  queue.closeEphemeral();
+
+  await vi.advanceTimersByTimeAsync(ephemeralObjectHeartbeatSleep * 3);
+  expect(heartbeatCount).toBe(1);
 });

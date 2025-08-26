@@ -1,3 +1,4 @@
+import os
 import time
 
 import modal
@@ -32,7 +33,7 @@ class EchoCls:
         return "output: " + s
 
 
-@app.cls(min_containers=1, experimental_options={"input_plane_region": "us-east"})
+@app.cls(min_containers=1, experimental_options={"input_plane_region": "us-west"})
 class EchoClsInputPlane:
     @modal.method()
     def echo_string(self, s: str) -> str:
@@ -46,3 +47,7 @@ class EchoClsParametrized:
     @modal.method()
     def echo_parameter(self) -> str:
         return "output: " + self.name
+
+    @modal.method()
+    def echo_env_var(self, var_name: str) -> str:
+        return f"output: {var_name}='{os.getenv(var_name, '[not set]')}'"

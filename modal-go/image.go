@@ -66,6 +66,11 @@ func NewImageFromGcpArtifactRegistry(tag string, secret *Secret) *Image {
 	}
 }
 
+// NewImageFromId creates an Image from an ID
+func NewImageFromId(imageId string) *Image {
+	return &Image{ImageId: imageId}
+}
+
 func (image *Image) build(app *App) (*Image, error) {
 	if image == nil {
 		return nil, InvalidError{"image must be non-nil"}

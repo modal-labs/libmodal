@@ -4,13 +4,50 @@ import {
   ClassParameterSet,
   ClassParameterSpec,
   ClassParameterValue,
+  FunctionOptions,
+  FunctionRetryPolicy,
   ParameterType,
+  VolumeMount,
 } from "../proto/modal_proto/api";
 import type { LookupOptions } from "./app";
 import { NotFoundError } from "./errors";
 import { client } from "./client";
 import { environmentName } from "./config";
 import { Function_ } from "./function";
+import { parseGpuConfig } from "./app";
+import type { Secret } from "./secret";
+import { Retries, parseRetries } from "./retries";
+import type { Volume } from "./volume";
+
+export type ClsOptions = {
+  cpu?: number;
+  memory?: number;
+  gpu?: string;
+  secrets?: Secret[];
+  volumes?: Record<string, Volume>;
+  retries?: number | Retries;
+  maxContainers?: number;
+  bufferContainers?: number;
+  scaledownWindow?: number; // in milliseconds
+  timeout?: number; // in milliseconds
+};
+
+export type ClsConcurrencyOptions = {
+  maxInputs: number;
+  targetInputs?: number;
+};
+
+export type ClsBatchingOptions = {
+  maxBatchSize: number;
+  waitMs: number;
+};
+
+type ServiceOptions = ClsOptions & {
+  maxConcurrentInputs?: number;
+  targetConcurrentInputs?: number;
+  batchMaxSize?: number;
+  batchWaitMs?: number;
+};
 
 /** Represents a deployed Modal Cls. */
 export class Cls {
@@ -18,6 +55,7 @@ export class Cls {
   #schema: ClassParameterSpec[];
   #methodNames: string[];
   #inputPlaneUrl?: string;
+  #options?: ServiceOptions;
 
   /** @ignore */
   constructor(
@@ -25,11 +63,13 @@ export class Cls {
     schema: ClassParameterSpec[],
     methodNames: string[],
     inputPlaneUrl?: string,
+    options?: ServiceOptions,
   ) {
     this.#serviceFunctionId = serviceFunctionId;
     this.#schema = schema;
     this.#methodNames = methodNames;
     this.#inputPlaneUrl = inputPlaneUrl;
+    this.#options = options;
   }
 
   static async lookup(
@@ -73,6 +113,7 @@ export class Cls {
         schema,
         methodNames,
         serviceFunction.handleMetadata?.inputPlaneUrl,
+        undefined,
       );
     } catch (err) {
       if (err instanceof ClientError && err.code === Status.NOT_FOUND)
@@ -81,10 +122,10 @@ export class Cls {
     }
   }
 
-  /** Create a new instance of the Cls with parameters. */
+  /** Create a new instance of the Cls with parameters and/or runtime options. */
   async instance(params: Record<string, any> = {}): Promise<ClsInstance> {
     let functionId: string;
-    if (this.#schema.length === 0) {
+    if (this.#schema.length === 0 && this.#options === undefined) {
       functionId = this.#serviceFunctionId;
     } else {
       functionId = await this.#bindParameters(params);
@@ -96,12 +137,56 @@ export class Cls {
     return new ClsInstance(methods);
   }
 
+  /** Override the static Function configuration at runtime. */
+  withOptions(options: ClsOptions): Cls {
+    const merged = mergeServiceOptions(this.#options, options);
+    return new Cls(
+      this.#serviceFunctionId,
+      this.#schema,
+      this.#methodNames,
+      this.#inputPlaneUrl,
+      merged,
+    );
+  }
+
+  /** Create an instance of the Cls with input concurrency enabled or overridden with new values. */
+  withConcurrency(options: ClsConcurrencyOptions): Cls {
+    const merged = mergeServiceOptions(this.#options, {
+      maxConcurrentInputs: options.maxInputs,
+      targetConcurrentInputs: options.targetInputs,
+    });
+    return new Cls(
+      this.#serviceFunctionId,
+      this.#schema,
+      this.#methodNames,
+      this.#inputPlaneUrl,
+      merged,
+    );
+  }
+
+  /** Create an instance of the Cls with dynamic batching enabled or overridden with new values. */
+  withBatching(options: ClsBatchingOptions): Cls {
+    const merged = mergeServiceOptions(this.#options, {
+      batchMaxSize: options.maxBatchSize,
+      batchWaitMs: options.waitMs,
+    });
+    return new Cls(
+      this.#serviceFunctionId,
+      this.#schema,
+      this.#methodNames,
+      this.#inputPlaneUrl,
+      merged,
+    );
+  }
+
   /** Bind parameters to the Cls function. */
   async #bindParameters(params: Record<string, any>): Promise<string> {
     const serializedParams = encodeParameterSet(this.#schema, params);
+    const functionOptions = buildFunctionOptionsProto(this.#options);
     const bindResp = await client.functionBindParams({
       functionId: this.#serviceFunctionId,
       serializedParams,
+      functionOptions,
     });
     return bindResp.boundFunctionId;
   }
@@ -119,6 +204,84 @@ export function encodeParameterSet(
   // Sort keys, identical to Python `SerializeToString(deterministic=True)`.
   encoded.sort((a, b) => a.name.localeCompare(b.name));
   return ClassParameterSet.encode({ parameters: encoded }).finish();
+}
+
+function mergeServiceOptions(
+  base: ServiceOptions | undefined,
+  diff: Partial<ServiceOptions>,
+): ServiceOptions | undefined {
+  const filteredDiff = Object.fromEntries(
+    Object.entries(diff).filter(([, value]) => value !== undefined),
+  ) as Partial<ServiceOptions>;
+  const merged = { ...(base ?? {}), ...filteredDiff } as ServiceOptions;
+  return Object.keys(merged).length === 0 ? undefined : merged;
+}
+
+function buildFunctionOptionsProto(
+  options?: ServiceOptions,
+): FunctionOptions | undefined {
+  if (!options) return undefined;
+  const o = options ?? {};
+
+  const gpuConfig = parseGpuConfig(o.gpu);
+  const resources =
+    o.cpu !== undefined || o.memory !== undefined || gpuConfig
+      ? {
+          milliCpu: o.cpu !== undefined ? Math.round(1000 * o.cpu) : undefined,
+          memoryMb: o.memory,
+          gpuConfig,
+        }
+      : undefined;
+
+  const secretIds = o.secrets ? o.secrets.map((s) => s.secretId) : [];
+
+  const volumeMounts: VolumeMount[] = o.volumes
+    ? Object.entries(o.volumes).map(([mountPath, volume]) => ({
+        volumeId: volume.volumeId,
+        mountPath,
+        allowBackgroundCommits: true,
+        readOnly: volume.isReadOnly,
+      }))
+    : [];
+
+  const parsedRetries = parseRetries(o.retries);
+  const retryPolicy: FunctionRetryPolicy | undefined = parsedRetries
+    ? {
+        retries: parsedRetries.maxRetries,
+        backoffCoefficient: parsedRetries.backoffCoefficient,
+        initialDelayMs: parsedRetries.initialDelayMs,
+        maxDelayMs: parsedRetries.maxDelayMs,
+      }
+    : undefined;
+
+  if (o.scaledownWindow !== undefined && o.scaledownWindow % 1000 !== 0) {
+    throw new Error(
+      `scaledownWindow must be a multiple of 1000ms, got ${o.scaledownWindow}`,
+    );
+  }
+  if (o.timeout !== undefined && o.timeout % 1000 !== 0) {
+    throw new Error(`timeout must be a multiple of 1000ms, got ${o.timeout}`);
+  }
+
+  const functionOptions = FunctionOptions.create({
+    secretIds,
+    replaceSecretIds: secretIds.length > 0,
+    replaceVolumeMounts: volumeMounts.length > 0,
+    volumeMounts,
+    resources,
+    retryPolicy,
+    concurrencyLimit: o.maxContainers,
+    bufferContainers: o.bufferContainers,
+    taskIdleTimeoutSecs:
+      o.scaledownWindow !== undefined ? o.scaledownWindow / 1000 : undefined,
+    timeoutSecs: o.timeout !== undefined ? o.timeout / 1000 : undefined,
+    maxConcurrentInputs: o.maxConcurrentInputs,
+    targetConcurrentInputs: o.targetConcurrentInputs,
+    batchMaxSize: o.batchMaxSize,
+    batchLingerMs: o.batchWaitMs,
+  });
+
+  return functionOptions;
 }
 
 function encodeParameter(

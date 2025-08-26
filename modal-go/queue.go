@@ -13,9 +13,6 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// From: modal/_object.py
-const ephemeralObjectHeartbeatSleep = 300 * time.Second
-
 const queueInitialPutBackoff = 100 * time.Millisecond
 const queueDefaultPartitionTtl = 24 * time.Hour
 
@@ -58,11 +55,10 @@ type QueueIterateOptions struct {
 
 // Queue is a distributed, FIFO queue for data flow in Modal apps.
 type Queue struct {
-	QueueId   string
-	Name      string
-	cancel    context.CancelFunc // only for ephemeral queues
-	ephemeral bool
-	ctx       context.Context
+	QueueId string
+	Name    string
+	cancel  context.CancelFunc
+	ctx     context.Context
 }
 
 // QueueEphemeral creates a nameless, temporary queue. Caller must CloseEphemeral.
@@ -84,32 +80,27 @@ func QueueEphemeral(ctx context.Context, options *EphemeralOptions) (*Queue, err
 		return nil, err
 	}
 
-	heartbeatCtx, cancel := context.WithCancel(ctx)
-	q := &Queue{QueueId: resp.GetQueueId(), cancel: cancel, ephemeral: true, ctx: ctx}
+	ephemeralCtx, cancel := context.WithCancel(ctx)
+	startEphemeralHeartbeat(ephemeralCtx, func() error {
+		_, err := client.QueueHeartbeat(ephemeralCtx, pb.QueueHeartbeatRequest_builder{
+			QueueId: resp.GetQueueId(),
+		}.Build())
+		return err
+	})
 
-	// backgroundheart‑beat goroutine
-	go func() {
-		t := time.NewTicker(ephemeralObjectHeartbeatSleep)
-		defer t.Stop()
-		for {
-			select {
-			case <-heartbeatCtx.Done():
-				return
-			case <-t.C:
-				_, _ = client.QueueHeartbeat(heartbeatCtx, pb.QueueHeartbeatRequest_builder{
-					QueueId: q.QueueId,
-				}.Build()) // ignore errors – next call will retry or context will cancel
-			}
-		}
-	}()
+	q := &Queue{
+		QueueId: resp.GetQueueId(),
+		cancel:  cancel,
+		ctx:     ephemeralCtx,
+	}
 
 	return q, nil
 }
 
 // CloseEphemeral deletes an ephemeral queue, only used with QueueEphemeral.
 func (q *Queue) CloseEphemeral() {
-	if q.ephemeral {
-		q.cancel() // will stop heartbeat
+	if q.cancel != nil {
+		q.cancel()
 	} else {
 		// We panic in this case because of invalid usage. In general, methods
 		// used with `defer` like CloseEphemeral should not return errors.
@@ -141,7 +132,7 @@ func QueueLookup(ctx context.Context, name string, options *LookupOptions) (*Que
 	if err != nil {
 		return nil, err
 	}
-	return &Queue{ctx: ctx, QueueId: resp.GetQueueId(), Name: name}, nil
+	return &Queue{ctx: ctx, QueueId: resp.GetQueueId(), Name: name, cancel: nil}, nil
 }
 
 // QueueDelete removes a queue by name.

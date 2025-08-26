@@ -30,6 +30,15 @@ export class Image {
   }
 
   /**
+   * Creates an `Image` instance from an image id
+   *
+   * @param imageId - Image id.
+   */
+  static fromId(imageId: string): Image {
+    return new Image(imageId, "");
+  }
+
+  /**
    * Creates an `Image` instance from a raw registry tag, optionally using a secret for authentication.
    *
    * @param tag - The registry tag for the image.

@@ -31,6 +31,7 @@ Examples:
 - [Call a deployed function](./modal-js/examples/function-call.ts)
 - [Spawn a deployed function](./modal-js/examples/function-spawn.ts)
 - [Call a deployed cls](./modal-js/examples/cls-call.ts)
+- [Call a deployed cls, and override its options](./modal-js/examples/cls-call-with-options.ts)
 - [Create a sandbox](./modal-js/examples/sandbox.ts)
 - [Create a sandbox with GPU](./modal-js/examples/sandbox-gpu.ts)
 - [Create a sandbox using a private image from AWS ECR](./modal-js/examples/sandbox-private-image.ts)
@@ -40,7 +41,7 @@ Examples:
 - [Access sandbox filesystem](./modal-js/examples/sandbox-filesystem.ts)
 - [Expose ports on a sandbox](./modal-js/examples/sandbox-tunnels.ts)
 - [Include secrets in sandbox](./modal-js/examples/sandbox-secrets.ts)
-- [Mount a volume to a sandbox](./modal-js/examples/sandbox-volume.ts)
+- [Mount a volume to a sandbox](./modal-js/examples/sandbox-volume.ts), and same but with an [ephemeral volume](./modal-js/examples/sandbox-volume-ephemeral.ts)
 - [Mount a cloud bucket to a sandbox](./modal-js/examples/sandbox-cloud-bucket.ts)
 
 ### Go (`modal-go/`)
@@ -62,6 +63,7 @@ Examples:
 - [Call a deployed function](./modal-go/examples/function-call/main.go)
 - [Spawn a deployed function](./modal-go/examples/function-spawn/main.go)
 - [Call a deployed cls](./modal-go/examples/cls-call/main.go)
+- [Call a deployed cls, and override its options](./modal-go/examples/cls-call-with-options/main.go)
 - [Create a sandbox](./modal-go/examples/sandbox/main.go)
 - [Create a sandbox with GPU](./modal-go/examples/sandbox-gpu/main.go)
 - [Create a sandbox using a private image from AWS ECR](./modal-go/examples/sandbox-private-image/main.go)
@@ -71,7 +73,7 @@ Examples:
 - [Access sandbox filesystem](./modal-go/examples/sandbox-filesystem/main.go)
 - [Expose ports on a sandbox](./modal-go/examples/sandbox-tunnels/main.go)
 - [Include secrets in sandbox](./modal-go/examples/sandbox-secrets/main.go)
-- [Mount a volume to a sandbox](./modal-go/examples/sandbox-volume/main.go)
+- [Mount a volume to a sandbox](./modal-go/examples/sandbox-volume/main.go), and same but with an [ephemeral volume](./modal-go/examples/sandbox-volume-ephemeral/main.go)
 - [Mount a cloud bucket to a sandbox](./modal-go/examples/sandbox-cloud-bucket/main.go)
 
 ### Python
@@ -99,3 +101,10 @@ To keep complexity manageable, we try to maintain identical behavior across lang
 ## License
 
 Code is released under [a permissive license](./LICENSE).
+
+
+## Community SDKs
+
+There are also open-source Modal libraries built and maintained by our community. These projects are not officially supported by Modal and we thus can't vouch for them, but feel free to explore and contribute.
+
+- Ruby: [anthonycorletti/modal-rb](https://github.com/anthonycorletti/modal-rb)
