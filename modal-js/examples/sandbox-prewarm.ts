@@ -1,11 +1,10 @@
-// In this example, we use `Image.build` to create a Image object on Modal
-// that eagerly pulls from the registry. The first sandbox created with this image
-// will ues this "pre-warmed" image and will start faster.
 import { App, Image, Sandbox } from "modal";
 
 const app = await App.lookup("libmodal-example", { createIfMissing: true });
 
-// Prewarm image
+// We use `Image.build` to create a Image object on Modal
+// that eagerly pulls from the registry. The first sandbox created with this image
+// will ues this "pre-warmed" image and will start faster.
 const image = await Image.fromRegistry("alpine:3.21").build(app);
 console.log("image id:", image.imageId);
 
