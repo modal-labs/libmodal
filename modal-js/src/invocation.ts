@@ -55,10 +55,10 @@ export class ControlPlaneInvocation implements Invocation {
     input: FunctionInput,
     invocationType: FunctionCallInvocationType,
   ) {
-    const functionPutInputsItem = {
+    const functionPutInputsItem = FunctionPutInputsItem.create({
       idx: 0,
       input,
-    };
+    });
 
     const functionMapResponse = await client.functionMap({
       functionId,
@@ -146,12 +146,10 @@ export class InputPlaneInvocation implements Invocation {
     functionId: string,
     input: FunctionInput,
   ) {
-    const functionPutInputsItem = {
+    const functionPutInputsItem = FunctionPutInputsItem.create({
       idx: 0,
       input,
-      r2Failed: false,
-      r2LatencyMs: 0,
-    };
+    });
     const client = getOrCreateInputPlaneClient(inputPlaneUrl);
     // Single input sync invocation
     const attemptStartResponse = await client.attemptStart({

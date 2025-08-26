@@ -164,6 +164,37 @@ export class Sandbox {
     return new Sandbox(sandboxId);
   }
 
+  /** Get a running Sandbox by name from a deployed App.
+   *
+   * Raises a NotFoundError if no running Sandbox is found with the given name.
+   * A Sandbox's name is the `name` argument passed to `App.createSandbox`.
+   *
+   * @param appName - Name of the deployed app
+   * @param name - Name of the sandbox
+   * @param environment - Optional override for the environment
+   * @returns Promise that resolves to a Sandbox
+   */
+  static async fromName(
+    appName: string,
+    name: string,
+    environment?: string,
+  ): Promise<Sandbox> {
+    try {
+      const resp = await client.sandboxGetFromName({
+        sandboxName: name,
+        appName,
+        environmentName: environmentName(environment),
+      });
+      return new Sandbox(resp.sandboxId);
+    } catch (err) {
+      if (err instanceof ClientError && err.code === Status.NOT_FOUND)
+        throw new NotFoundError(
+          `Sandbox with name '${name}' not found in app '${appName}'`,
+        );
+      throw err;
+    }
+  }
+
   /**
    * Open a file in the sandbox filesystem.
    * @param path - Path to the file to open

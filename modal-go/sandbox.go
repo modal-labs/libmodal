@@ -111,6 +111,40 @@ func SandboxFromId(ctx context.Context, sandboxId string) (*Sandbox, error) {
 	return newSandbox(ctx, sandboxId), nil
 }
 
+// SandboxFromNameOptions are options for finding deployed Sandbox objects by name.
+type SandboxFromNameOptions struct {
+	Environment string
+}
+
+// SandboxFromName gets a running Sandbox by name from a deployed App.
+//
+// Raises a NotFoundError if no running sandbox is found with the given name.
+// A Sandbox's name is the `Name` argument passed to `App.CreateSandbox`.
+func SandboxFromName(ctx context.Context, appName, name string, options *SandboxFromNameOptions) (*Sandbox, error) {
+	ctx, err := clientContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if options == nil {
+		options = &SandboxFromNameOptions{}
+	}
+
+	resp, err := client.SandboxGetFromName(ctx, pb.SandboxGetFromNameRequest_builder{
+		SandboxName:     name,
+		AppName:         appName,
+		EnvironmentName: environmentName(options.Environment),
+	}.Build())
+	if err != nil {
+		if status, ok := status.FromError(err); ok && status.Code() == codes.NotFound {
+			return nil, NotFoundError{Exception: fmt.Sprintf("Sandbox with name '%s' not found in app '%s'", name, appName)}
+		}
+		return nil, err
+	}
+
+	return newSandbox(ctx, resp.GetSandboxId()), nil
+}
+
 // Exec runs a command in the sandbox and returns text streams.
 func (sb *Sandbox) Exec(command []string, opts ExecOptions) (*ContainerProcess, error) {
 	if err := sb.ensureTaskId(); err != nil {

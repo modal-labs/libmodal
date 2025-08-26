@@ -30,6 +30,14 @@ export class NotFoundError extends Error {
   }
 }
 
+/** A resource already exists. */
+export class AlreadyExistsError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "AlreadyExistsError";
+  }
+}
+
 /** A request or other operation was invalid. */
 export class InvalidError extends Error {
   constructor(message: string) {
