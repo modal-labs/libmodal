@@ -420,12 +420,15 @@ func TestSandboxExecSecret(t *testing.T) {
 	secret, err := modal.SecretFromName(context.Background(), "libmodal-test-secret", &modal.SecretFromNameOptions{RequiredKeys: []string{"c"}})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	p, err := sb.Exec([]string{"printenv", "c"}, modal.ExecOptions{Stdout: modal.Pipe, Secrets: []*modal.Secret{secret}})
+	secret2, err := modal.SecretFromMap(context.Background(), map[string]string{"d": "3"}, nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	p, err := sb.Exec([]string{"printenv", "c", "d"}, modal.ExecOptions{Stdout: modal.Pipe, Secrets: []*modal.Secret{secret, secret2}})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	buf, err := io.ReadAll(p.Stdout)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(string(buf)).Should(gomega.Equal("hello world\n"))
+	g.Expect(string(buf)).Should(gomega.Equal("hello world\n3\n"))
 }
 
 func TestSandboxFromId(t *testing.T) {
