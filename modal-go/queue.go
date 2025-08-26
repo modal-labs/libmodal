@@ -84,8 +84,8 @@ func QueueEphemeral(ctx context.Context, options *EphemeralOptions) (*Queue, err
 		return nil, err
 	}
 
-	heartbeatCtx, cancel := context.WithCancel(ctx)
-	q := &Queue{QueueId: resp.GetQueueId(), cancel: cancel, ephemeral: true, ctx: ctx}
+	emphemeralCtx, cancel := context.WithCancel(ctx)
+	q := &Queue{QueueId: resp.GetQueueId(), cancel: cancel, ephemeral: true, ctx: emphemeralCtx}
 
 	// backgroundheart‑beat goroutine
 	go func() {
@@ -93,10 +93,10 @@ func QueueEphemeral(ctx context.Context, options *EphemeralOptions) (*Queue, err
 		defer t.Stop()
 		for {
 			select {
-			case <-heartbeatCtx.Done():
+			case <-emphemeralCtx.Done():
 				return
 			case <-t.C:
-				_, _ = client.QueueHeartbeat(heartbeatCtx, pb.QueueHeartbeatRequest_builder{
+				_, _ = client.QueueHeartbeat(emphemeralCtx, pb.QueueHeartbeatRequest_builder{
 					QueueId: q.QueueId,
 				}.Build()) // ignore errors – next call will retry or context will cancel
 			}
