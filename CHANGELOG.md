@@ -4,6 +4,10 @@ Both client libraries are pre-1.0, and they have separate versioning.
 
 ## Unreleased
 
+No unreleased changes.
+
+## modal-js/v0.3.18, modal-go/v0.0.18
+
 - Adds `Image.build` (JS) and `Image.Build` (Go).
 - Adds `Image.fromId` (JS) / `NewImageFromId` (Go).
 - Operations on an ehpemeral Queue after having called `CloseEhpemeral()` will now explicitly fail in Go.
