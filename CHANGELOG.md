@@ -4,6 +4,10 @@ Both client libraries are pre-1.0, and they have separate versioning.
 
 ## Unreleased
 
+No unreleased changes.
+
+## modal-js/v0.3.19, modal-go/v0.0.19
+
 - `Sandbox.exec` in JS now correctly accepts a list of Secrets.
 
 ## modal-js/v0.3.18, modal-go/v0.0.18
