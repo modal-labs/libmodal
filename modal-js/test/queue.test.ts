@@ -1,5 +1,6 @@
 import { Queue, QueueEmptyError } from "modal";
 import { expect, onTestFinished, test, vi } from "vitest";
+import { ephemeralObjectHeartbeatSleep } from "../src/ephemeral";
 
 test("QueueInvalidName", async () => {
   for (const name of ["has space", "has/slash", "a".repeat(65)]) {
@@ -123,6 +124,6 @@ test("QueueEphemeralHeartbeatStopsAfterClose", async () => {
   expect(heartbeatCount).toBe(1); // initial heartbeat
   queue.closeEphemeral();
 
-  await vi.advanceTimersByTimeAsync(900_000);
+  await vi.advanceTimersByTimeAsync(ephemeralObjectHeartbeatSleep * 3);
   expect(heartbeatCount).toBe(1);
 });

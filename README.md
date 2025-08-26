@@ -41,7 +41,7 @@ Examples:
 - [Access sandbox filesystem](./modal-js/examples/sandbox-filesystem.ts)
 - [Expose ports on a sandbox](./modal-js/examples/sandbox-tunnels.ts)
 - [Include secrets in sandbox](./modal-js/examples/sandbox-secrets.ts)
-- [Mount a volume to a sandbox](./modal-js/examples/sandbox-volume.ts)
+- [Mount a volume to a sandbox](./modal-js/examples/sandbox-volume.ts), and same but with an [ephemeral volume](./modal-js/examples/sandbox-volume-ephemeral.ts)
 - [Mount a cloud bucket to a sandbox](./modal-js/examples/sandbox-cloud-bucket.ts)
 
 ### Go (`modal-go/`)
@@ -73,7 +73,7 @@ Examples:
 - [Access sandbox filesystem](./modal-go/examples/sandbox-filesystem/main.go)
 - [Expose ports on a sandbox](./modal-go/examples/sandbox-tunnels/main.go)
 - [Include secrets in sandbox](./modal-go/examples/sandbox-secrets/main.go)
-- [Mount a volume to a sandbox](./modal-go/examples/sandbox-volume/main.go)
+- [Mount a volume to a sandbox](./modal-go/examples/sandbox-volume/main.go), and same but with an [ephemeral volume](./modal-go/examples/sandbox-volume-ephemeral/main.go)
 - [Mount a cloud bucket to a sandbox](./modal-go/examples/sandbox-cloud-bucket/main.go)
 
 ### Python

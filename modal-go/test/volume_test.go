@@ -41,3 +41,16 @@ func TestVolumeReadOnly(t *testing.T) {
 
 	g.Expect(volume.IsReadOnly()).To(gomega.BeFalse())
 }
+
+func TestVolumeEphemeral(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	volume, err := modal.VolumeEphemeral(context.Background(), nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	defer volume.CloseEphemeral()
+	g.Expect(volume.Name).To(gomega.BeEmpty())
+	g.Expect(volume.VolumeId).Should(gomega.HavePrefix("vo-"))
+	g.Expect(volume.IsReadOnly()).To(gomega.BeFalse())
+	g.Expect(volume.ReadOnly().IsReadOnly()).To(gomega.BeTrue())
+}
