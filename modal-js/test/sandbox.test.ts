@@ -329,12 +329,15 @@ test("SandboxExecSecret", async () => {
   const secret = await Secret.fromName("libmodal-test-secret", {
     requiredKeys: ["c"],
   });
-  const printSecret = await sb.exec(["printenv", "c"], {
+  const secret2 = await Secret.fromName("libmodal-test-secret-2", {
+    requiredKeys: ["d"],
+  });
+  const printSecret = await sb.exec(["printenv", "c", "d"], {
     stdout: "pipe",
-    secrets: [secret],
+    secrets: [secret, secret2],
   });
   const secretText = await printSecret.stdout.readText();
-  expect(secretText).toBe("hello world\n");
+  expect(secretText).toBe("hello world\n3\n");
 });
 
 test("SandboxFromId", async () => {
