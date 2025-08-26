@@ -106,7 +106,7 @@ export class Image {
   }
 
   /**
-   * Builds an `Image`.
+   * Eagerly builds an `Image` on Modal.
    *
    * @param app - App to use to build image.
    */
