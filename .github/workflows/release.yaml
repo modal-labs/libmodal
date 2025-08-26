@@ -46,11 +46,11 @@ jobs:
     - name: Switch to ci-release
       run: |
         git switch -c ci-release
-        git push origin ci-release --force
 
     - name: Make release commits
       run: |
         python ci/release.py version ${{ inputs.update }}
+        git push origin ci-release --force
 
     - name: Create Pull Request
       run: |
