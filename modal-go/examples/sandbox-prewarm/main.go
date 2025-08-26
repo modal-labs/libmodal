@@ -1,3 +1,6 @@
+// In this example, we use `Image.build` to create a Image object on Modal
+// that eagerly pulls from the registry. The first sandbox created with this image
+// will ues this "pre-warmed" image and will start faster.
 package main
 
 import (
