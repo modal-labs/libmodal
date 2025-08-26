@@ -43,12 +43,9 @@ jobs:
         git config user.name "${GITHUB_ACTOR}"
         git config user.email "${GITHUB_ACTOR}@users.noreply.github.com"
 
-    - name: Switch to ci-release
+    - name: Switch to ci-release and make release commits
       run: |
         git switch -c ci-release
-
-    - name: Make release commits
-      run: |
         python ci/release.py version ${{ inputs.update }}
         git push origin ci-release --force
 
