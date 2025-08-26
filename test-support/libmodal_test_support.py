@@ -1,3 +1,4 @@
+import os
 import time
 
 import modal
@@ -46,3 +47,7 @@ class EchoClsParametrized:
     @modal.method()
     def echo_parameter(self) -> str:
         return "output: " + self.name
+
+    @modal.method()
+    def echo_env_var(self, var_name: str) -> str:
+        return f"output: {var_name}='{os.getenv(var_name, '[not set]')}'"
