@@ -42,6 +42,7 @@ Examples:
 - [Include secrets in sandbox](./modal-js/examples/sandbox-secrets.ts)
 - [Mount a volume to a sandbox](./modal-js/examples/sandbox-volume.ts)
 - [Mount a cloud bucket to a sandbox](./modal-js/examples/sandbox-cloud-bucket.ts)
+- [Eagarly build an image for a sandbox](./modal-js/examples/sandbox-prewarm.ts)
 
 ### Go (`modal-go/`)
 
@@ -73,6 +74,7 @@ Examples:
 - [Include secrets in sandbox](./modal-go/examples/sandbox-secrets/main.go)
 - [Mount a volume to a sandbox](./modal-go/examples/sandbox-volume/main.go)
 - [Mount a cloud bucket to a sandbox](./modal-go/examples/sandbox-cloud-bucket/main.go)
+- [Eagarly build an image for a sandbox](./modal-go/examples/sandbox-prewarm/main.go)
 
 ### Python
 
