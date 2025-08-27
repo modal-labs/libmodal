@@ -13,7 +13,6 @@ import (
 func main() {
 	ctx := context.Background()
 
-	// Lookup a deployed Cls.
 	cls, err := modal.ClsLookup(ctx, "libmodal-test-support", "EchoClsParametrized", nil)
 	if err != nil {
 		log.Fatalf("Failed to lookup Cls: %v", err)
@@ -30,10 +29,10 @@ func main() {
 	}
 
 	secret, err := modal.SecretFromMap(ctx, map[string]string{
-		"SECRET_MESSAGE": "hello, secret",
+		"SECRET_MESSAGE": "hello, Secret",
 	}, nil)
 	if err != nil {
-		log.Fatalf("Failed to create secret: %v", err)
+		log.Fatalf("Failed to create Secret: %v", err)
 	}
 
 	instanceWithOptions, err := cls.
@@ -51,14 +50,14 @@ func main() {
 		log.Fatalf("Failed to access Cls method with options: %v", err)
 	}
 
-	// Call the Cls function, without the secret being set.
+	// Call the Cls function, without the Secret being set.
 	result, err := method.Remote([]any{"SECRET_MESSAGE"}, nil)
 	if err != nil {
 		log.Fatalf("Failed to call Cls method: %v", err)
 	}
 	log.Println(result)
 
-	// Call the Cls function with overrides, and confirm that the secret is set.
+	// Call the Cls function with overrides, and confirm that the Secret is set.
 	result, err = methodWithOptions.Remote([]any{"SECRET_MESSAGE"}, nil)
 	if err != nil {
 		log.Fatalf("Failed to call Cls method with options: %v", err)

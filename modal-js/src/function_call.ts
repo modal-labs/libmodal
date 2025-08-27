@@ -26,12 +26,12 @@ export class FunctionCall {
     this.functionCallId = functionCallId;
   }
 
-  /** Create a new function call from ID. */
+  /** Create a new Function call from ID. */
   fromId(functionCallId: string): FunctionCall {
     return new FunctionCall(functionCallId);
   }
 
-  /** Get the result of a function call, optionally waiting with a timeout. */
+  /** Get the result of a Function call, optionally waiting with a timeout. */
   async get(options: FunctionCallGetOptions = {}): Promise<any> {
     const timeout = options.timeout;
     const invocation = ControlPlaneInvocation.fromFunctionCallId(
@@ -40,7 +40,7 @@ export class FunctionCall {
     return invocation.awaitOutput(timeout);
   }
 
-  /** Cancel a running function call. */
+  /** Cancel a running Function call. */
   async cancel(options: FunctionCallCancelOptions = {}) {
     await client.functionCallCancel({
       functionCallId: this.functionCallId,

@@ -31,7 +31,7 @@ import { Image } from "./image";
 export type StdioBehavior = "pipe" | "ignore";
 
 /**
- * Specifies the type of data that will be read from the sandbox or container
+ * Specifies the type of data that will be read from the Sandbox or container
  * process. "text" means the data will be read as UTF-8 text, while "binary"
  * means the data will be read as raw bytes (Uint8Array).
  */
@@ -39,9 +39,9 @@ export type StreamMode = "text" | "binary";
 
 /** Options for `Sandbox.list()`. */
 export type SandboxListOptions = {
-  /** Filter sandboxes for a specific app. */
+  /** Filter Sandboxes for a specific App. */
   appId?: string;
-  /** Only return sandboxes that include all specified tags. */
+  /** Only return Sandboxes that include all specified tags. */
   tags?: Record<string, string>;
   /** Override environment for the request; defaults to current profile. */
   environment?: string;
@@ -63,7 +63,7 @@ export type ExecOptions = {
   secrets?: Secret[];
 };
 
-/** A port forwarded from within a running Modal sandbox. */
+/** A port forwarded from within a running Modal Sandbox. */
 export class Tunnel {
   /** @ignore */
   constructor(
@@ -169,8 +169,8 @@ export class Sandbox {
    * Raises a NotFoundError if no running Sandbox is found with the given name.
    * A Sandbox's name is the `name` argument passed to `App.createSandbox`.
    *
-   * @param appName - Name of the deployed app
-   * @param name - Name of the sandbox
+   * @param appName - Name of the deployed App
+   * @param name - Name of the Sandbox
    * @param environment - Optional override for the environment
    * @returns Promise that resolves to a Sandbox
    */
@@ -189,14 +189,14 @@ export class Sandbox {
     } catch (err) {
       if (err instanceof ClientError && err.code === Status.NOT_FOUND)
         throw new NotFoundError(
-          `Sandbox with name '${name}' not found in app '${appName}'`,
+          `Sandbox with name '${name}' not found in App '${appName}'`,
         );
       throw err;
     }
   }
 
   /**
-   * Open a file in the sandbox filesystem.
+   * Open a file in the Sandbox filesystem.
    * @param path - Path to the file to open
    * @param mode - File open mode (r, w, a, r+, w+, a+)
    * @returns Promise that resolves to a SandboxFile
@@ -290,7 +290,7 @@ export class Sandbox {
     }
   }
 
-  /** Get Tunnel metadata for the sandbox.
+  /** Get Tunnel metadata for the Sandbox.
    *
    * Raises `SandboxTimeoutError` if the tunnels are not available after the timeout.
    *
@@ -348,7 +348,7 @@ export class Sandbox {
     }
 
     if (!resp.imageId) {
-      throw new Error("Sandbox snapshot response missing image ID");
+      throw new Error("Sandbox snapshot response missing `imageId`");
     }
 
     return new Image(resp.imageId, "");

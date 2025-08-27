@@ -10,7 +10,7 @@ export type SecretFromNameOptions = {
   requiredKeys?: string[];
 };
 
-/** Secrets provide a dictionary of environment variables for images. */
+/** Secrets provide a dictionary of environment variables for Images. */
 export class Secret {
   readonly secretId: string;
   readonly name?: string;

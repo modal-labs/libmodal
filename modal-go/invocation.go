@@ -62,7 +62,7 @@ func (c *controlPlaneInvocation) awaitOutput(timeout *time.Duration) (any, error
 
 func (c *controlPlaneInvocation) retry(retryCount uint32) error {
 	if c.input == nil {
-		return fmt.Errorf("cannot retry function invocation - input missing")
+		return fmt.Errorf("cannot retry Function invocation - input missing")
 	}
 	retryItem := pb.FunctionRetryInputsItem_builder{
 		InputJwt:   c.inputJwt,
@@ -100,7 +100,7 @@ func (c *controlPlaneInvocation) getOutput(timeout time.Duration) (*pb.FunctionG
 	return nil, nil
 }
 
-// InputPlaneInvocation implements the Invocation interface for the input plane.
+// inputPlaneInvocation implements the Invocation interface for the input plane.
 type inputPlaneInvocation struct {
 	client       pb.ModalClientClient
 	functionId   string
@@ -109,7 +109,7 @@ type inputPlaneInvocation struct {
 	ctx          context.Context
 }
 
-// CreateInputPlaneInvocation creates a new InputPlaneInvocation by starting an attempt.
+// createInputPlaneInvocation creates a new InputPlaneInvocation by starting an attempt.
 func createInputPlaneInvocation(ctx context.Context, inputPlaneUrl string, functionId string, input *pb.FunctionInput) (*inputPlaneInvocation, error) {
 	functionPutInputsItem := pb.FunctionPutInputsItem_builder{
 		Idx:   0,

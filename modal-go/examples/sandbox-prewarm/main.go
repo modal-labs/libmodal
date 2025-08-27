@@ -1,6 +1,6 @@
 // We use `Image.Build` to create an Image object on Modal
-// that eagerly pulls from the registry. The first sandbox created with this image
-// will ues this "pre-warmed" image and will start faster.
+// that eagerly pulls from the registry. The first Sandbox created with this Image
+// will ues this "pre-warmed" Image and will start faster.
 package main
 
 import (
@@ -15,18 +15,18 @@ func main() {
 
 	app, err := modal.AppLookup(ctx, "libmodal-example", &modal.LookupOptions{CreateIfMissing: true})
 	if err != nil {
-		log.Fatalf("Failed to lookup or create app: %v", err)
+		log.Fatalf("Failed to lookup or create App: %v", err)
 	}
 
 	// With `.Build(app)`, we create an Image object on Modal that eagerly pulls
 	// from the registry.
 	image, err := modal.NewImageFromRegistry("alpine:3.21", nil).Build(app)
 	if err != nil {
-		log.Fatalf("Unable to build image: %v", err)
+		log.Fatalf("Unable to build Image: %v", err)
 	}
-	log.Printf("Image has id: %v", image.ImageId)
+	log.Printf("Image has ID: %v", image.ImageId)
 
-	// You can save the ImageId and create a new image object that referes to it.
+	// You can save the ImageId and create a new Image object that referes to it.
 	imageId := image.ImageId
 	image2 := modal.NewImageFromId(imageId)
 
@@ -35,7 +35,7 @@ func main() {
 	})
 	defer sb.Terminate()
 	if err != nil {
-		log.Fatalf("Failed to create sandbox: %v", err)
+		log.Fatalf("Failed to create Sandbox: %v", err)
 	}
-	log.Printf("sandbox: %s\n", sb.SandboxId)
+	log.Printf("Sandbox: %s\n", sb.SandboxId)
 }

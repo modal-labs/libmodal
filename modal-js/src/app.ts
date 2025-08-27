@@ -41,19 +41,19 @@ export type EphemeralOptions = {
 
 /** Options for `App.createSandbox()`. */
 export type SandboxCreateOptions = {
-  /** Reservation of physical CPU cores for the sandbox, can be fractional. */
+  /** Reservation of physical CPU cores for the Sandbox, can be fractional. */
   cpu?: number;
 
   /** Reservation of memory in MiB. */
   memory?: number;
 
-  /** GPU reservation for the sandbox (e.g. "A100", "T4:2", "A100-80GB:4"). */
+  /** GPU reservation for the Sandbox (e.g. "A100", "T4:2", "A100-80GB:4"). */
   gpu?: string;
 
-  /** Timeout of the sandbox container, defaults to 10 minutes. */
+  /** Timeout of the Sandbox container, defaults to 10 minutes. */
   timeout?: number;
 
-  /** Working directory of the sandbox. */
+  /** Working directory of the Sandbox. */
   workdir?: string;
 
   /**
@@ -62,7 +62,7 @@ export type SandboxCreateOptions = {
    */
   command?: string[]; // default is ["sleep", "48h"]
 
-  /** Secrets to inject into the sandbox. */
+  /** Secrets to inject into the Sandbox. */
   secrets?: Secret[];
 
   /** Mount points for Modal Volumes. */
@@ -71,25 +71,25 @@ export type SandboxCreateOptions = {
   /** Mount points for cloud buckets. */
   cloudBucketMounts?: Record<string, CloudBucketMount>;
 
-  /** List of ports to tunnel into the sandbox. Encrypted ports are tunneled with TLS. */
+  /** List of ports to tunnel into the Sandbox. Encrypted ports are tunneled with TLS. */
   encryptedPorts?: number[];
 
-  /** List of encrypted ports to tunnel into the sandbox, using HTTP/2. */
+  /** List of encrypted ports to tunnel into the Sandbox, using HTTP/2. */
   h2Ports?: number[];
 
-  /** List of ports to tunnel into the sandbox without encryption. */
+  /** List of ports to tunnel into the Sandbox without encryption. */
   unencryptedPorts?: number[];
 
-  /** Whether to block all network access from the sandbox. */
+  /** Whether to block all network access from the Sandbox. */
   blockNetwork?: boolean;
 
-  /** List of CIDRs the sandbox is allowed to access. If None, all CIDRs are allowed. Cannot be used with blockNetwork. */
+  /** List of CIDRs the Sandbox is allowed to access. If None, all CIDRs are allowed. Cannot be used with blockNetwork. */
   cidrAllowlist?: string[];
 
-  /** Cloud provider to run the sandbox on. */
+  /** Cloud provider to run the Sandbox on. */
   cloud?: string;
 
-  /** Region(s) to run the sandbox on. */
+  /** Region(s) to run the Sandbox on. */
   regions?: string[];
 
   /** Enable verbose logging. */
@@ -98,7 +98,7 @@ export type SandboxCreateOptions = {
   /** Reference to a Modal Proxy to use in front of this Sandbox. */
   proxy?: Proxy;
 
-  /** Optional name for the sandbox. Unique within an app. */
+  /** Optional name for the Sandbox. Unique within an App. */
   name?: string;
 };
 
@@ -144,7 +144,7 @@ export class App {
     this.name = name;
   }
 
-  /** Lookup a deployed app by name, or create if it does not exist. */
+  /** Lookup a deployed App by name, or create if it does not exist. */
   static async lookup(name: string, options: LookupOptions = {}): Promise<App> {
     try {
       const resp = await client.appGetOrCreate({

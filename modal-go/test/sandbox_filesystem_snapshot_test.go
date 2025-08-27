@@ -39,7 +39,7 @@ func TestSnapshotFilesystem(t *testing.T) {
 	err = sb.Terminate()
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	// Create new sandbox from snapshot
+	// Create new Sandbox from snapshot
 	sb2, err := app.CreateSandbox(snapshotImage, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	defer sb2.Terminate()

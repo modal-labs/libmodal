@@ -14,7 +14,7 @@ func main() {
 
 	app, err := modal.AppLookup(ctx, "libmodal-example", &modal.LookupOptions{CreateIfMissing: true})
 	if err != nil {
-		log.Fatalf("Failed to lookup or create app: %v", err)
+		log.Fatalf("Failed to lookup or create App: %v", err)
 	}
 
 	image := modal.NewImageFromRegistry("alpine:3.21", nil)
@@ -26,10 +26,10 @@ func main() {
 		Command: []string{"cat"},
 	})
 	if err != nil {
-		log.Fatalf("Failed to create sandbox: %v", err)
+		log.Fatalf("Failed to create Sandbox: %v", err)
 	}
 
-	fmt.Printf("Created sandbox with name: %s\n", sandboxName)
+	fmt.Printf("Created Sandbox with name: %s\n", sandboxName)
 	fmt.Printf("Sandbox ID: %s\n", sb.SandboxId)
 
 	_, err = app.CreateSandbox(image, &modal.SandboxOptions{

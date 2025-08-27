@@ -9,7 +9,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// Proxy represents a Modal proxy.
+// Proxy represents a Modal Proxy.
 type Proxy struct {
 	ProxyId string
 

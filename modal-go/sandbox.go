@@ -20,13 +20,13 @@ import (
 type StdioBehavior string
 
 const (
-	// Pipe allows the sandbox to pipe the streams.
+	// Pipe allows the Sandbox to pipe the streams.
 	Pipe StdioBehavior = "pipe"
 	// Ignore ignores the streams, meaning they will not be available.
 	Ignore StdioBehavior = "ignore"
 )
 
-// ExecOptions defines options for executing commands in a sandbox.
+// ExecOptions defines options for executing commands in a Sandbox.
 type ExecOptions struct {
 	// Stdout defines whether to pipe or ignore standard output.
 	Stdout StdioBehavior
@@ -40,7 +40,7 @@ type ExecOptions struct {
 	Secrets []*Secret
 }
 
-// Tunnel represents a port forwarded from within a running Modal sandbox.
+// Tunnel represents a port forwarded from within a running Modal Sandbox.
 type Tunnel struct {
 	Host            string // The public hostname for the tunnel
 	Port            int    // The public port for the tunnel
@@ -48,7 +48,7 @@ type Tunnel struct {
 	UnencryptedPort int    // The unencrypted port (if applicable)
 }
 
-// Get the public HTTPS URL of the forwarded port.
+// URL gets the public HTTPS URL of the forwarded port.
 func (t *Tunnel) URL() string {
 	if t.Port == 443 {
 		return fmt.Sprintf("https://%s", t.Host)
@@ -56,12 +56,12 @@ func (t *Tunnel) URL() string {
 	return fmt.Sprintf("https://%s:%d", t.Host, t.Port)
 }
 
-// Get the public TLS socket as a (host, port) tuple.
+// TLSSocket gets the public TLS socket as a (host, port) tuple.
 func (t *Tunnel) TLSSocket() (string, int) {
 	return t.Host, t.Port
 }
 
-// Get the public TCP socket as a (host, port) tuple.
+// TCPSocket gets the public TCP socket as a (host, port) tuple.
 func (t *Tunnel) TCPSocket() (string, int, error) {
 	if t.UnencryptedHost == "" || t.UnencryptedPort == 0 {
 		return "", 0, InvalidError{Exception: "This tunnel is not configured for unencrypted TCP."}
@@ -69,7 +69,7 @@ func (t *Tunnel) TCPSocket() (string, int, error) {
 	return t.UnencryptedHost, t.UnencryptedPort, nil
 }
 
-// Sandbox represents a Modal sandbox, which can run commands and manage
+// Sandbox represents a Modal Sandbox, which can run commands and manage
 // input/output streams for a remote process.
 type Sandbox struct {
 	SandboxId string
@@ -118,7 +118,7 @@ type SandboxFromNameOptions struct {
 
 // SandboxFromName gets a running Sandbox by name from a deployed App.
 //
-// Raises a NotFoundError if no running sandbox is found with the given name.
+// Raises a NotFoundError if no running Sandbox is found with the given name.
 // A Sandbox's name is the `Name` argument passed to `App.CreateSandbox`.
 func SandboxFromName(ctx context.Context, appName, name string, options *SandboxFromNameOptions) (*Sandbox, error) {
 	ctx, err := clientContext(ctx)
@@ -137,7 +137,7 @@ func SandboxFromName(ctx context.Context, appName, name string, options *Sandbox
 	}.Build())
 	if err != nil {
 		if status, ok := status.FromError(err); ok && status.Code() == codes.NotFound {
-			return nil, NotFoundError{Exception: fmt.Sprintf("Sandbox with name '%s' not found in app '%s'", name, appName)}
+			return nil, NotFoundError{Exception: fmt.Sprintf("Sandbox with name '%s' not found in pp '%s'", name, appName)}
 		}
 		return nil, err
 	}
@@ -145,7 +145,7 @@ func SandboxFromName(ctx context.Context, appName, name string, options *Sandbox
 	return newSandbox(ctx, resp.GetSandboxId()), nil
 }
 
-// Exec runs a command in the sandbox and returns text streams.
+// Exec runs a command in the Sandbox and returns text streams.
 func (sb *Sandbox) Exec(command []string, opts ExecOptions) (*ContainerProcess, error) {
 	if err := sb.ensureTaskId(); err != nil {
 		return nil, err
@@ -174,7 +174,7 @@ func (sb *Sandbox) Exec(command []string, opts ExecOptions) (*ContainerProcess, 
 	return newContainerProcess(sb.ctx, resp.GetExecId(), opts), nil
 }
 
-// Open opens a file in the sandbox filesystem.
+// Open opens a file in the Sandbox filesystem.
 // The mode parameter follows the same conventions as os.OpenFile:
 // "r" for read-only, "w" for write-only (truncates), "a" for append, etc.
 func (sb *Sandbox) Open(path, mode string) (*SandboxFile, error) {
@@ -220,7 +220,7 @@ func (sb *Sandbox) ensureTaskId() error {
 	return nil
 }
 
-// Terminate stops the sandbox.
+// Terminate stops the Sandbox.
 func (sb *Sandbox) Terminate() error {
 	_, err := client.SandboxTerminate(sb.ctx, pb.SandboxTerminateRequest_builder{
 		SandboxId: sb.SandboxId,
@@ -232,7 +232,7 @@ func (sb *Sandbox) Terminate() error {
 	return nil
 }
 
-// Wait blocks until the sandbox exits.
+// Wait blocks until the Sandbox exits.
 func (sb *Sandbox) Wait() (int, error) {
 	for {
 		resp, err := client.SandboxWait(sb.ctx, pb.SandboxWaitRequest_builder{
@@ -252,7 +252,7 @@ func (sb *Sandbox) Wait() (int, error) {
 	}
 }
 
-// Tunnels gets Tunnel metadata for the sandbox.
+// Tunnels gets Tunnel metadata for the Sandbox.
 // Returns SandboxTimeoutError if the tunnels are not available after the timeout.
 // Returns a map of Tunnel objects keyed by the container port.
 func (sb *Sandbox) Tunnels(timeout time.Duration) (map[int]*Tunnel, error) {
@@ -285,7 +285,7 @@ func (sb *Sandbox) Tunnels(timeout time.Duration) (map[int]*Tunnel, error) {
 	return sb.tunnels, nil
 }
 
-// Snapshot the filesystem of the Sandbox.
+// SnapshotFilesystem takes a snapshot of the Sandbox's filesystem.
 // Returns an Image object which can be used to spawn a new Sandbox with the same filesystem.
 func (sb *Sandbox) SnapshotFilesystem(timeout time.Duration) (*Image, error) {
 	resp, err := client.SandboxSnapshotFs(sb.ctx, pb.SandboxSnapshotFsRequest_builder{
@@ -338,7 +338,7 @@ func (sb *Sandbox) SetTags(tags map[string]string) error {
 // SandboxListOptions are options for listing Sandboxes.
 type SandboxListOptions struct {
 	AppId       string            // Filter by App ID
-	Tags        map[string]string // Only include sandboxes that have all these tags
+	Tags        map[string]string // Only include Sandboxes that have all these tags
 	Environment string            // Override environment for this request
 }
 
@@ -409,7 +409,7 @@ func getReturnCode(result *pb.GenericResult) *int {
 // ContainerProcess represents a process running in a Modal container, allowing
 // interaction with its standard input/output/error streams.
 //
-// It is created by executing a command in a sandbox.
+// It is created by executing a command in a Sandbox.
 type ContainerProcess struct {
 	Stdin  io.WriteCloser
 	Stdout io.ReadCloser
@@ -468,7 +468,7 @@ func inputStreamSb(ctx context.Context, sandboxId string) io.WriteCloser {
 
 type sbStdin struct {
 	sandboxId string
-	ctx       context.Context // context for the sandbox operations
+	ctx       context.Context
 
 	mu    sync.Mutex // protects index
 	index uint32

@@ -13,14 +13,14 @@ func main() {
 
 	app, err := modal.AppLookup(ctx, "libmodal-example", &modal.LookupOptions{CreateIfMissing: true})
 	if err != nil {
-		log.Fatalf("Failed to lookup or create app: %v", err)
+		log.Fatalf("Failed to lookup or create App: %v", err)
 	}
 
 	image := modal.NewImageFromRegistry("alpine:3.21", nil)
 
 	secret, err := modal.SecretFromName(ctx, "libmodal-aws-bucket-secret", nil)
 	if err != nil {
-		log.Fatalf("Failed to lookup secret: %v", err)
+		log.Fatalf("Failed to lookup Secret: %v", err)
 	}
 
 	keyPrefix := "data/"
@@ -30,7 +30,7 @@ func main() {
 		ReadOnly:  true,
 	})
 	if err != nil {
-		log.Fatalf("Failed to create cloud bucket mount: %v", err)
+		log.Fatalf("Failed to create Cloud Bucket Mount: %v", err)
 	}
 
 	sb, err := app.CreateSandbox(image, &modal.SandboxOptions{
@@ -40,19 +40,19 @@ func main() {
 		},
 	})
 	if err != nil {
-		log.Fatalf("Failed to create sandbox: %v", err)
+		log.Fatalf("Failed to create Sandbox: %v", err)
 	}
 
-	log.Printf("S3 sandbox: %s", sb.SandboxId)
+	log.Printf("S3 Sandbox: %s", sb.SandboxId)
 
 	output, err := io.ReadAll(sb.Stdout)
 	if err != nil {
-		log.Fatalf("Failed to read from sandbox stdout: %v", err)
+		log.Fatalf("Failed to read from Sandbox stdout: %v", err)
 	}
 
 	log.Printf("Sandbox directory listing of /mnt/s3-bucket:\n%s", string(output))
 
 	if err := sb.Terminate(); err != nil {
-		log.Printf("Failed to terminate sandbox: %v", err)
+		log.Printf("Failed to terminate Sandbox: %v", err)
 	}
 }

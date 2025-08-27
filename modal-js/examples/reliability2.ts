@@ -1,4 +1,4 @@
-// Quick script for making sure sandboxes can be created and wait() without stalling.
+// Quick script for making sure Sandboxes can be created and wait() without stalling.
 
 import PQueue from "p-queue";
 import { App } from "modal";
@@ -35,7 +35,7 @@ for (let i = 0; i < 150; i++) {
       console.log("Sandbox created and waited successfully.", i);
     } catch (error) {
       failure++;
-      console.error("Error in sandbox creation/waiting:", error, i);
+      console.error("Error in Sandbox creation/waiting:", error, i);
     }
   });
 }

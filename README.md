@@ -2,7 +2,7 @@
 
 Modal client libraries for JavaScript and Go. **(Alpha)**
 
-This repository provides lightweight alternatives to the [Modal Python Library](https://github.com/modal-labs/modal-client). They let you start sandboxes (secure VMs), call Modal Functions, and manage containers. However, they don't support deploying Modal Functions — those still need to be written in Python!
+This repository provides lightweight alternatives to the [Modal Python Library](https://github.com/modal-labs/modal-client). They let you start Sandboxes (secure VMs), call Modal Functions, and manage containers. However, they don't support deploying Modal Functions — those still need to be written in Python!
 
 Each language in this repository has a library with similar features and API, so you can use Modal from any project.
 
@@ -28,23 +28,23 @@ npm install modal
 
 Examples:
 
-- [Call a deployed function](./modal-js/examples/function-call.ts)
-- [Spawn a deployed function](./modal-js/examples/function-spawn.ts)
-- [Call a deployed cls](./modal-js/examples/cls-call.ts)
-- [Call a deployed cls, and override its options](./modal-js/examples/cls-call-with-options.ts)
-- [Create a sandbox](./modal-js/examples/sandbox.ts)
-- [Create a named sandbox](./modal-js/examples/sandbox-named.ts)
-- [Create a sandbox with GPU](./modal-js/examples/sandbox-gpu.ts)
-- [Create a sandbox using a private image from AWS ECR](./modal-js/examples/sandbox-private-image.ts)
-- [Take a snapshot of the filesystem of a sandbox](./modal-js/examples/sandbox-filesystem-snapshot.ts)
-- [Execute sandbox commands](./modal-js/examples/sandbox-exec.ts)
-- [Check the status and exit code of a sandbox](./modal-js/examples/sandbox-poll.ts)
-- [Access sandbox filesystem](./modal-js/examples/sandbox-filesystem.ts)
-- [Expose ports on a sandbox](./modal-js/examples/sandbox-tunnels.ts)
-- [Include secrets in sandbox](./modal-js/examples/sandbox-secrets.ts)
-- [Mount a volume to a sandbox](./modal-js/examples/sandbox-volume.ts), and same but with an [ephemeral volume](./modal-js/examples/sandbox-volume-ephemeral.ts)
-- [Mount a cloud bucket to a sandbox](./modal-js/examples/sandbox-cloud-bucket.ts)
-- [Eagarly build an image for a sandbox](./modal-js/examples/sandbox-prewarm.ts)
+- [Call a deployed Function](./modal-js/examples/function-call.ts)
+- [Spawn a deployed Function](./modal-js/examples/function-spawn.ts)
+- [Call a deployed Cls](./modal-js/examples/cls-call.ts)
+- [Call a deployed Cls, and override its options](./modal-js/examples/cls-call-with-options.ts)
+- [Create a Sandbox](./modal-js/examples/sandbox.ts)
+- [Create a named Sandbox](./modal-js/examples/sandbox-named.ts)
+- [Create a Sandbox with GPU](./modal-js/examples/sandbox-gpu.ts)
+- [Create a Sandbox using a private image from AWS ECR](./modal-js/examples/sandbox-private-image.ts)
+- [Take a snapshot of the filesystem of a Sandbox](./modal-js/examples/sandbox-filesystem-snapshot.ts)
+- [Execute Sandbox commands](./modal-js/examples/sandbox-exec.ts)
+- [Check the status and exit code of a Sandbox](./modal-js/examples/sandbox-poll.ts)
+- [Access Sandbox filesystem](./modal-js/examples/sandbox-filesystem.ts)
+- [Expose ports on a Sandbox using Tunnels](./modal-js/examples/sandbox-tunnels.ts)
+- [Include Secrets in Sandbox](./modal-js/examples/sandbox-secrets.ts)
+- [Mount a Volume to a Sandbox](./modal-js/examples/sandbox-volume.ts), and same but with an [ephemeral Volume](./modal-js/examples/sandbox-volume-ephemeral.ts)
+- [Mount a cloud bucket to a Sandbox](./modal-js/examples/sandbox-cloud-bucket.ts)
+- [Eagarly build an Image for a Sandbox](./modal-js/examples/sandbox-prewarm.ts)
 
 ### Go (`modal-go/`)
 
@@ -62,23 +62,23 @@ import "github.com/modal-labs/libmodal/modal-go"
 
 Examples:
 
-- [Call a deployed function](./modal-go/examples/function-call/main.go)
-- [Spawn a deployed function](./modal-go/examples/function-spawn/main.go)
-- [Call a deployed cls](./modal-go/examples/cls-call/main.go)
-- [Call a deployed cls, and override its options](./modal-go/examples/cls-call-with-options/main.go)
-- [Create a sandbox](./modal-go/examples/sandbox/main.go)
-- [Create a named sandbox](./modal-go/examples/sandbox-named/main.go)
-- [Create a sandbox with GPU](./modal-go/examples/sandbox-gpu/main.go)
-- [Create a sandbox using a private image from AWS ECR](./modal-go/examples/sandbox-private-image/main.go)
-- [Take a snapshot of the filesystem of a sandbox](./modal-go/examples/sandbox-filesystem-snapshot/main.go)
-- [Execute sandbox commands](./modal-go/examples/sandbox-exec/main.go)
-- [Check the status and exit code of a sandbox](./modal-go/examples/sandbox-poll/main.go)
-- [Access sandbox filesystem](./modal-go/examples/sandbox-filesystem/main.go)
-- [Expose ports on a sandbox](./modal-go/examples/sandbox-tunnels/main.go)
-- [Include secrets in sandbox](./modal-go/examples/sandbox-secrets/main.go)
-- [Mount a volume to a sandbox](./modal-go/examples/sandbox-volume/main.go), and same but with an [ephemeral volume](./modal-go/examples/sandbox-volume-ephemeral/main.go)
-- [Mount a cloud bucket to a sandbox](./modal-go/examples/sandbox-cloud-bucket/main.go)
-- [Eagarly build an image for a sandbox](./modal-go/examples/sandbox-prewarm/main.go)
+- [Call a deployed Function](./modal-go/examples/function-call/main.go)
+- [Spawn a deployed Function](./modal-go/examples/function-spawn/main.go)
+- [Call a deployed Cls](./modal-go/examples/cls-call/main.go)
+- [Call a deployed Cls, and override its options](./modal-go/examples/cls-call-with-options/main.go)
+- [Create a Sandbox](./modal-go/examples/sandbox/main.go)
+- [Create a named Sandbox](./modal-go/examples/sandbox-named/main.go)
+- [Create a Sandbox with GPU](./modal-go/examples/sandbox-gpu/main.go)
+- [Create a Sandbox using a private image from AWS ECR](./modal-go/examples/sandbox-private-image/main.go)
+- [Take a snapshot of the filesystem of a Sandbox](./modal-go/examples/sandbox-filesystem-snapshot/main.go)
+- [Execute Sandbox commands](./modal-go/examples/sandbox-exec/main.go)
+- [Check the status and exit code of a Sandbox](./modal-go/examples/sandbox-poll/main.go)
+- [Access Sandbox filesystem](./modal-go/examples/sandbox-filesystem/main.go)
+- [Expose ports on a Sandbox using Tunnels](./modal-go/examples/sandbox-tunnels/main.go)
+- [Include Secrets in Sandbox](./modal-go/examples/sandbox-secrets/main.go)
+- [Mount a Volume to a Sandbox](./modal-go/examples/sandbox-volume/main.go), and same but with an [ephemeral Volume](./modal-go/examples/sandbox-volume-ephemeral/main.go)
+- [Mount a cloud bucket to a Sandbox](./modal-go/examples/sandbox-cloud-bucket/main.go)
+- [Eagarly build an Image for a Sandbox](./modal-go/examples/sandbox-prewarm/main.go)
 
 ### Python
 

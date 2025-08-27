@@ -10,7 +10,7 @@ const sb = await app.createSandbox(image, {
   command: ["cat"],
 });
 
-console.log(`Created sandbox with name: ${sandboxName}`);
+console.log(`Created Sandbox with name: ${sandboxName}`);
 console.log(`Sandbox ID: ${sb.sandboxId}`);
 
 try {
@@ -30,7 +30,7 @@ try {
 }
 
 const sbFromName = await Sandbox.fromName("libmodal-example", sandboxName);
-console.log(`Retrieved the same sandbox from name: ${sbFromName.sandboxId}`);
+console.log(`Retrieved the same Sandbox from name: ${sbFromName.sandboxId}`);
 
 await sbFromName.stdin.writeText("hello, named Sandbox");
 await sbFromName.stdin.close();

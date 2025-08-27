@@ -16,10 +16,10 @@ func main() {
 
 	app, err := modal.AppLookup(ctx, "libmodal-example", &modal.LookupOptions{CreateIfMissing: true})
 	if err != nil {
-		log.Fatalf("Failed to lookup or create app: %v", err)
+		log.Fatalf("Failed to lookup or create App: %v", err)
 	}
 
-	// Create a sandbox with Python's built-in HTTP server
+	// Create a Sandbox with Python's built-in HTTP server
 	image := modal.NewImageFromRegistry("python:3.12-alpine", nil)
 
 	sandbox, err := app.CreateSandbox(image, &modal.SandboxOptions{
@@ -28,7 +28,7 @@ func main() {
 		Timeout:        1 * time.Minute,
 	})
 	if err != nil {
-		log.Fatalf("Failed to create sandbox: %v", err)
+		log.Fatalf("Failed to create Sandbox: %v", err)
 	}
 
 	log.Printf("Sandbox created: %s", sandbox.SandboxId)
@@ -81,6 +81,6 @@ func main() {
 
 	err = sandbox.Terminate()
 	if err != nil {
-		log.Fatalf("Failed to terminate sandbox: %v", err)
+		log.Fatalf("Failed to terminate Sandbox: %v", err)
 	}
 }

@@ -103,7 +103,7 @@ export class ControlPlaneInvocation implements Invocation {
   async retry(retryCount: number): Promise<void> {
     // we do not expect this to happen
     if (!this.input) {
-      throw new Error("Cannot retry function invocation - input missing");
+      throw new Error("Cannot retry Function invocation - input missing");
     }
 
     const retryItem: FunctionRetryInputsItem = {

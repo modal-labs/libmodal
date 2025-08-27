@@ -8,7 +8,7 @@ import (
 	pb "github.com/modal-labs/libmodal/modal-go/proto/modal_proto"
 )
 
-// Image represents a Modal image, which can be used to create sandboxes.
+// Image represents a Modal Image, which can be used to create Sandboxes.
 type Image struct {
 	ImageId string
 

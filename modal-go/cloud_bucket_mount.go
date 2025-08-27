@@ -8,7 +8,7 @@ import (
 	pb "github.com/modal-labs/libmodal/modal-go/proto/modal_proto"
 )
 
-// CloudBucketMount provides access to cloud storage buckets within Modal functions.
+// CloudBucketMount provides access to cloud storage buckets within Modal Functions.
 type CloudBucketMount struct {
 	BucketName        string
 	Secret            *Secret

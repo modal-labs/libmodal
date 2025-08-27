@@ -16,14 +16,14 @@ func main() {
 		CreateIfMissing: true,
 	})
 	if err != nil {
-		log.Fatalf("Failed to lookup app: %v", err)
+		log.Fatalf("Failed to lookup App: %v", err)
 	}
 
 	image := modal.NewImageFromRegistry("alpine:3.21", nil)
 
 	volume, err := modal.VolumeEphemeral(ctx, nil)
 	if err != nil {
-		log.Fatalf("Failed to create ephemeral volume: %v", err)
+		log.Fatalf("Failed to create ephemeral Volume: %v", err)
 	}
 	defer volume.CloseEphemeral()
 
@@ -31,25 +31,25 @@ func main() {
 		Command: []string{
 			"sh",
 			"-c",
-			"echo 'Hello from writer sandbox!' > /mnt/volume/message.txt",
+			"echo 'Hello from writer Sandbox!' > /mnt/volume/message.txt",
 		},
 		Volumes: map[string]*modal.Volume{
 			"/mnt/volume": volume,
 		},
 	})
 	if err != nil {
-		log.Fatalf("Failed to create writer sandbox: %v", err)
+		log.Fatalf("Failed to create writer Sandbox: %v", err)
 	}
-	fmt.Printf("Writer sandbox: %s\n", writerSandbox.SandboxId)
+	fmt.Printf("Writer Sandbox: %s\n", writerSandbox.SandboxId)
 
 	exitCode, err := writerSandbox.Wait()
 	if err != nil {
-		log.Fatalf("Failed to wait for writer sandbox: %v", err)
+		log.Fatalf("Failed to wait for writer Sandbox: %v", err)
 	}
 	fmt.Printf("Writer finished with exit code: %d\n", exitCode)
 
 	if err := writerSandbox.Terminate(); err != nil {
-		log.Printf("Failed to terminate writer sandbox: %v", err)
+		log.Printf("Failed to terminate writer Sandbox: %v", err)
 	}
 
 	readerSandbox, err := app.CreateSandbox(image, &modal.SandboxOptions{
@@ -59,9 +59,9 @@ func main() {
 		},
 	})
 	if err != nil {
-		log.Fatalf("Failed to create reader sandbox: %v", err)
+		log.Fatalf("Failed to create reader Sandbox: %v", err)
 	}
-	fmt.Printf("Reader sandbox: %s\n", readerSandbox.SandboxId)
+	fmt.Printf("Reader Sandbox: %s\n", readerSandbox.SandboxId)
 
 	readerOutput, err := io.ReadAll(readerSandbox.Stdout)
 	if err != nil {
@@ -70,6 +70,6 @@ func main() {
 	fmt.Printf("Reader output: %s", string(readerOutput))
 
 	if err := readerSandbox.Terminate(); err != nil {
-		log.Printf("Failed to terminate reader sandbox: %v", err)
+		log.Printf("Failed to terminate reader Sandbox: %v", err)
 	}
 }
