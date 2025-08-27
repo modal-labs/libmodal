@@ -17,6 +17,7 @@ No unreleased changes.
 - Operations on an ehpemeral Queue after having called `CloseEhpemeral()` will now explicitly fail in Go.
 - Added support for instantiating a Cls with custom options, using `Cls.withOptions()`/`.withConcurrency()`/`.withBatching()` (JS) / `Cls.WithOptions()`/`.WithConcurrency()`/`.WithBatching()` (Go).
 - Added support for [Named Sandboxes](https://modal.com/docs/guide/sandbox#named-sandboxes) (examples in [JS](./modal-js/examples/sandbox-named.ts) and [Go](./modal-go/examples/sandbox-named/main.go)).
+- Added support for `Volume.ephemeral()` (JS) / `VolumeEphemeral()` (Go).
 
 ## modal-js/v0.3.17, modal-go/v0.0.17
 
