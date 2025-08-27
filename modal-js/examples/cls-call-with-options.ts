@@ -3,7 +3,6 @@
 
 import { Cls, Secret } from "modal";
 
-// Lookup a deployed Cls.
 const cls = await Cls.lookup("libmodal-test-support", "EchoClsParametrized");
 const instance = await cls.instance();
 const method = instance.method("echo_env_var");

@@ -468,7 +468,7 @@ func inputStreamSb(ctx context.Context, sandboxId string) io.WriteCloser {
 
 type sbStdin struct {
 	sandboxId string
-	ctx       context.Context // context for the sandbox operations
+	ctx       context.Context
 
 	mu    sync.Mutex // protects index
 	index uint32

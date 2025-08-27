@@ -14,12 +14,10 @@ const sb = await app.createSandbox(image, {
 });
 console.log("Sandbox:", sb.sandboxId);
 
-// Write to the sandbox's stdin and read from its stdout.
 await sb.stdin.writeText(
   "this is input that should be mirrored by the Python one-liner",
 );
 await sb.stdin.close();
 console.log("output:", await sb.stdout.readText());
 
-// Terminate the sandbox.
 await sb.terminate();

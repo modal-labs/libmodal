@@ -14,9 +14,7 @@ const imageId = image.imageId;
 // You can save the Image ID and create a new Image object that referes to it.
 const image2 = Image.fromId(imageId);
 
-// Spawn a sandbox running the "cat" command.
 const sb = await app.createSandbox(image2, { command: ["cat"] });
 console.log("Sandbox:", sb.sandboxId);
 
-// Terminate the sandbox.
 await sb.terminate();
