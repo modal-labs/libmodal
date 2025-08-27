@@ -60,7 +60,7 @@ export type ExecOptions = {
   /** Timeout for the process in milliseconds. Defaults to 0 (no timeout). */
   timeout?: number;
   /** Secrets with environment variables for the command. */
-  secrets?: [Secret];
+  secrets?: Secret[];
 };
 
 /** A port forwarded from within a running Modal Sandbox. */
@@ -233,7 +233,7 @@ export class Sandbox {
       stderr?: StdioBehavior;
       workdir?: string;
       timeout?: number;
-      secrets?: [Secret];
+      secrets?: Secret[];
     },
   ): Promise<ContainerProcess> {
     const taskId = await this.#getTaskId();
