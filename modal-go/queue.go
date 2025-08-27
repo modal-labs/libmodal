@@ -22,7 +22,7 @@ func validatePartitionKey(partition string) ([]byte, error) {
 	}
 	b := []byte(partition)
 	if len(b) == 0 || len(b) > 64 {
-		return nil, InvalidError{"queue partition key must be 1–64 bytes long"}
+		return nil, InvalidError{"Queue partition key must be 1–64 bytes long"}
 	}
 	return b, nil
 }
@@ -53,7 +53,7 @@ type QueueIterateOptions struct {
 	Partition       string
 }
 
-// Queue is a distributed, FIFO queue for data flow in Modal apps.
+// Queue is a distributed, FIFO queue for data flow in Modal Apps.
 type Queue struct {
 	QueueId string
 	Name    string
@@ -61,7 +61,7 @@ type Queue struct {
 	ctx     context.Context
 }
 
-// QueueEphemeral creates a nameless, temporary queue. Caller must CloseEphemeral.
+// QueueEphemeral creates a nameless, temporary Queue. Caller must CloseEphemeral.
 func QueueEphemeral(ctx context.Context, options *EphemeralOptions) (*Queue, error) {
 	if options == nil {
 		options = &EphemeralOptions{}
@@ -97,18 +97,18 @@ func QueueEphemeral(ctx context.Context, options *EphemeralOptions) (*Queue, err
 	return q, nil
 }
 
-// CloseEphemeral deletes an ephemeral queue, only used with QueueEphemeral.
+// CloseEphemeral deletes an ephemeral Queue, only used with QueueEphemeral.
 func (q *Queue) CloseEphemeral() {
 	if q.cancel != nil {
 		q.cancel()
 	} else {
 		// We panic in this case because of invalid usage. In general, methods
 		// used with `defer` like CloseEphemeral should not return errors.
-		panic(fmt.Sprintf("queue %s is not ephemeral", q.QueueId))
+		panic(fmt.Sprintf("Queue %s is not ephemeral", q.QueueId))
 	}
 }
 
-// QueueLookup returns a handle to a (possibly new) queue by deployment name.
+// QueueLookup returns a handle to a (possibly new) Queue by name.
 func QueueLookup(ctx context.Context, name string, options *LookupOptions) (*Queue, error) {
 	if options == nil {
 		options = &LookupOptions{}
@@ -135,7 +135,7 @@ func QueueLookup(ctx context.Context, name string, options *LookupOptions) (*Que
 	return &Queue{ctx: ctx, QueueId: resp.GetQueueId(), Name: name, cancel: nil}, nil
 }
 
-// QueueDelete removes a queue by name.
+// QueueDelete removes a Queue by name.
 func QueueDelete(ctx context.Context, name string, options *DeleteOptions) error {
 	if options == nil {
 		options = &DeleteOptions{}
@@ -154,7 +154,7 @@ func QueueDelete(ctx context.Context, name string, options *DeleteOptions) error
 	return err
 }
 
-// Clear removes all objects from a queue partition.
+// Clear removes all objects from a Queue partition.
 func (q *Queue) Clear(options *QueueClearOptions) error {
 	if options == nil {
 		options = &QueueClearOptions{}
@@ -214,7 +214,7 @@ func (q *Queue) get(n int, options *QueueGetOptions) ([]any, error) {
 		if options.Timeout != nil {
 			remaining := *options.Timeout - time.Since(startTime)
 			if remaining <= 0 {
-				message := fmt.Sprintf("queue %s did not return values within %s", q.QueueId, *options.Timeout)
+				message := fmt.Sprintf("Queue %s did not return values within %s", q.QueueId, *options.Timeout)
 				return nil, QueueEmptyError{message}
 			}
 			pollTimeout = min(pollTimeout, remaining)
@@ -224,7 +224,7 @@ func (q *Queue) get(n int, options *QueueGetOptions) ([]any, error) {
 
 // Get removes and returns one item (blocking by default).
 //
-// By default, this will wait until at least one item is present in the queue.
+// By default, this will wait until at least one item is present in the Queue.
 // If `timeout` is set, returns `QueueEmptyError` if no items are available
 // within that timeout in milliseconds.
 func (q *Queue) Get(options *QueueGetOptions) (any, error) {
@@ -237,7 +237,7 @@ func (q *Queue) Get(options *QueueGetOptions) (any, error) {
 
 // GetMany removes up to n items.
 //
-// By default, this will wait until at least one item is present in the queue.
+// By default, this will wait until at least one item is present in the Queue.
 // If `timeout` is set, returns `QueueEmptyError` if no items are available
 // within that timeout in milliseconds.
 func (q *Queue) GetMany(n int, options *QueueGetOptions) ([]any, error) {
@@ -306,25 +306,25 @@ func (q *Queue) put(values []any, options *QueuePutOptions) error {
 	}
 }
 
-// Put adds a single item to the end of the queue.
+// Put adds a single item to the end of the Queue.
 //
-// If the queue is full, this will retry with exponential backoff until the
+// If the Queue is full, this will retry with exponential backoff until the
 // provided `timeout` is reached, or indefinitely if `timeout` is not set.
-// Raises `QueueFullError` if the queue is still full after the timeout.
+// Raises `QueueFullError` if the Queue is still full after the timeout.
 func (q *Queue) Put(v any, options *QueuePutOptions) error {
 	return q.put([]any{v}, options)
 }
 
-// PutMany adds multiple items to the end of the queue.
+// PutMany adds multiple items to the end of the Queue.
 //
-// If the queue is full, this will retry with exponential backoff until the
+// If the Queue is full, this will retry with exponential backoff until the
 // provided `timeout` is reached, or indefinitely if `timeout` is not set.
-// Raises `QueueFullError` if the queue is still full after the timeout.
+// Raises `QueueFullError` if the Queue is still full after the timeout.
 func (q *Queue) PutMany(values []any, options *QueuePutOptions) error {
 	return q.put(values, options)
 }
 
-// Len returns the number of objects in the queue.
+// Len returns the number of objects in the Queue.
 func (q *Queue) Len(options *QueueLenOptions) (int, error) {
 	if options == nil {
 		options = &QueueLenOptions{}
@@ -347,7 +347,7 @@ func (q *Queue) Len(options *QueueLenOptions) (int, error) {
 	return int(resp.GetLen()), nil
 }
 
-// Iterate yields items from the queue until it is empty.
+// Iterate yields items from the Queue until it is empty.
 func (q *Queue) Iterate(options *QueueIterateOptions) iter.Seq2[any, error] {
 	if options == nil {
 		options = &QueueIterateOptions{}

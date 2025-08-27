@@ -4,7 +4,7 @@ import {
 } from "../proto/modal_proto/api";
 import { Secret } from "./secret";
 
-/** Cloud bucket mounts provide access to cloud storage buckets within Modal functions. */
+/** Cloud Bucket Mounts provide access to cloud storage buckets within Modal Functions. */
 export class CloudBucketMount {
   readonly bucketName: string;
   readonly secret?: Secret;

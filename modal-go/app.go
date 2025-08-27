@@ -39,23 +39,23 @@ type EphemeralOptions struct {
 type SandboxOptions struct {
 	CPU               float64                      // CPU request in physical cores.
 	Memory            int                          // Memory request in MiB.
-	GPU               string                       // GPU reservation for the sandbox (e.g. "A100", "T4:2", "A100-80GB:4").
+	GPU               string                       // GPU reservation for the Sandbox (e.g. "A100", "T4:2", "A100-80GB:4").
 	Timeout           time.Duration                // Maximum duration for the Sandbox.
-	Workdir           string                       // Working directory of the sandbox.
+	Workdir           string                       // Working directory of the Sandbox.
 	Command           []string                     // Command to run in the Sandbox on startup.
 	Secrets           []*Secret                    // Secrets to inject into the Sandbox.
 	Volumes           map[string]*Volume           // Mount points for Volumes.
 	CloudBucketMounts map[string]*CloudBucketMount // Mount points for cloud buckets.
-	EncryptedPorts    []int                        // List of encrypted ports to tunnel into the sandbox, with TLS encryption.
-	H2Ports           []int                        // List of encrypted ports to tunnel into the sandbox, using HTTP/2.
-	UnencryptedPorts  []int                        // List of ports to tunnel into the sandbox without encryption.
-	BlockNetwork      bool                         // Whether to block all network access from the sandbox.
-	CIDRAllowlist     []string                     // List of CIDRs the sandbox is allowed to access. Cannot be used with BlockNetwork.
-	Cloud             string                       // Cloud provider to run the sandbox on.
-	Regions           []string                     // Region(s) to run the sandbox on.
+	EncryptedPorts    []int                        // List of encrypted ports to tunnel into the Sandbox, with TLS encryption.
+	H2Ports           []int                        // List of encrypted ports to tunnel into the Sandbox, using HTTP/2.
+	UnencryptedPorts  []int                        // List of ports to tunnel into the Sandbox without encryption.
+	BlockNetwork      bool                         // Whether to block all network access from the Sandbox.
+	CIDRAllowlist     []string                     // List of CIDRs the Sandbox is allowed to access. Cannot be used with BlockNetwork.
+	Cloud             string                       // Cloud provider to run the Sandbox on.
+	Regions           []string                     // Region(s) to run the Sandbox on.
 	Verbose           bool                         // Enable verbose logging.
 	Proxy             *Proxy                       // Reference to a Modal Proxy to use in front of this Sandbox.
-	Name              string                       // Optional name for the sandbox. Unique within an app.
+	Name              string                       // Optional name for the Sandbox. Unique within an App.
 }
 
 // ImageFromRegistryOptions are options for creating an Image from a registry.
@@ -114,7 +114,7 @@ func AppLookup(ctx context.Context, name string, options *LookupOptions) (*App, 
 	}.Build())
 
 	if status, ok := status.FromError(err); ok && status.Code() == codes.NotFound {
-		return nil, NotFoundError{fmt.Sprintf("app '%s' not found", name)}
+		return nil, NotFoundError{fmt.Sprintf("App '%s' not found", name)}
 	}
 	if err != nil {
 		return nil, err
@@ -123,7 +123,7 @@ func AppLookup(ctx context.Context, name string, options *LookupOptions) (*App, 
 	return &App{AppId: resp.GetAppId(), Name: name, ctx: ctx}, nil
 }
 
-// CreateSandbox creates a new Sandbox in the App with the specified image and options.
+// CreateSandbox creates a new Sandbox in the App with the specified Image and options.
 func (app *App) CreateSandbox(image *Image, options *SandboxOptions) (*Sandbox, error) {
 	if options == nil {
 		options = &SandboxOptions{}

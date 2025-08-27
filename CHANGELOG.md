@@ -17,21 +17,21 @@ No unreleased changes.
 ## modal-js/v0.3.17, modal-go/v0.0.17
 
 - Added support for more parameters to `Sandbox.create()`:
-  - `blockNetwork`: Whether to block all network access from the sandbox.
-  - `cidrAllowlist`: List of CIDRs the sandbox is allowed to access.
-  - `gpu`: GPU reservation for the sandbox (e.g. "A100", "T4:2", "A100-80GB:4").
-  - `cloud`: Cloud provider to run the sandbox on.
-  - `regions`: Region(s) to run the sandbox on.
+  - `blockNetwork`: Whether to block all network access from the Sandbox.
+  - `cidrAllowlist`: List of CIDRs the Sandbox is allowed to access.
+  - `gpu`: GPU reservation for the Sandbox (e.g. "A100", "T4:2", "A100-80GB:4").
+  - `cloud`: Cloud provider to run the Sandbox on.
+  - `regions`: Region(s) to run the Sandbox on.
   - `verbose`: Enable verbose logging.
   - `proxy`: Connect a Modal Proxy to a Sandbox.
   - `workdir`: Set the working directory.
 - Added support for mounting `CloudBucketMount`s to Sandboxes.
-- Added top level for Image objects that are lazy. The images are built when creating a sandbox.
+- Added top level for Image objects that are lazy. The Images are built when creating a Sandbox.
   - `Image.fromRegistry` in typescript and `NewImageFromRegistry` in golang.
   - `Image.fromAwsEcr` in typescript and `NewImageFromAwsEcr` in golang.
   - `Image.fromGcpArtifactRegistry` in typescript and `NewImageFromGcpArtifactRegistry` in golang.
 - Added `Secret.fromObject()` (JS) / `SecretFromMap()` (Go) to create a Secret from key-value pairs (like `from_dict()` in Python).
-- Added `name` field to `App`s, `Sandboxe`s, `Secret`s, `Volume`s, and `Queue`s.
+- Added `name` field to `App`s, `Sandbox`es, `Secret`s, `Volume`s, and `Queue`s.
 - Added support for `Function.getCurrentStats()` (JS) / `Function.GetCurrentStats()` (Go).
 - Added support for `Function.updateAutoscaler()` (JS) / `Function.UpdateAutoscaler()` (Go).
 - Added support for `Function.getWebURL()` (JS) / `Function.GetWebURL()` (Go).
@@ -47,7 +47,7 @@ No unreleased changes.
 - Added support for snapshotting the filesystem of a Sandbox.
 - Added support for polling Sandboxes to check if they are still running, or get the exit code.
 - Added support to execute commands in Sandboxes with Secrets.
-- Added support for creating Sandboxes with secrets.
+- Added support for creating Sandboxes with Secrets.
 
 ## modal-js/v0.3.14, modal-go/v0.0.14
 
@@ -60,14 +60,14 @@ No unreleased changes.
 
 ## modal-js/v0.3.12, modal-go/v0.0.12
 
-- Added support for passing a Secret to `imageFromRegistry()` (TS) / `ImageFromRegistry()` (Go) to pull images from private registries.
-- Added support for pulling images from Google Artifact Registry with `imageFromGcpArtifactRegistry()` (TS) / `ImageFromGcpArtifactRegistry()` (Go).
-- Added experimental support for calling remote functions deployed with the `input_plane_region` option in Python.
+- Added support for passing a Secret to `imageFromRegistry()` (JS) / `ImageFromRegistry()` (Go) to pull images from private registries.
+- Added support for creating Images from Google Artifact Registry with `imageFromGcpArtifactRegistry()` (JS) / `ImageFromGcpArtifactRegistry()` (Go).
+- Added experimental support for calling remote Functions deployed with the `input_plane_region` option in Python.
 
 ## modal-js/v0.3.11, modal-go/v0.0.11
 
-- Add `InitializeClient()` (Go) / `initializeClient()` (TS) to initialize the client at runtime with credentials.
-- Client libraries no longer panic at startup if no token ID / secret is provided. Instead, they will throw an error when trying to use the client.
+- Add `InitializeClient()` (Go) / `initializeClient()` (JS) to initialize the client at runtime with credentials.
+- Client libraries no longer panic at startup if no token ID / Secret is provided. Instead, they will throw an error when trying to use the client.
 
 ## modal-js/v0.3.10, modal-go/v0.0.10
 
@@ -83,8 +83,8 @@ No unreleased changes.
 
 ## modal-js/v0.3.7, modal-go/v0.0.8
 
-- Added support for creating images from AWS ECR with `App.imageFromAwsEcr()` (TS) / `App.ImageFromAwsEcr()` (Go).
-- Added support for accessing Modal secrets with `Secret.fromName()` (TS) / `modal.SecretFromName()` (Go).
+- Added support for creating Images from AWS ECR with `App.imageFromAwsEcr()` (JS) / `App.ImageFromAwsEcr()` (Go).
+- Added support for accessing Modal Secrets with `Secret.fromName()` (JS) / `modal.SecretFromName()` (Go).
 - Fixed serialization of some pickled objects (negative ints, dicts) in modal-js.
 
 ## modal-js/v0.3.6, modal-go/v0.0.7
@@ -98,7 +98,7 @@ No unreleased changes.
 
 ## modal-js/v0.3.5, modal-go/v0.0.6
 
-- Added support for spawning functions with `Function_.spawn()` (TS) / `Function.Spawn()` (Go).
+- Added support for spawning Functions with `Function_.spawn()` (JS) / `Function.Spawn()` (Go).
 
 ## modal-js/v0.3.4, modal-go/v0.0.5
 
@@ -107,7 +107,7 @@ No unreleased changes.
 
 ## modal-js/v0.3.3, modal-go/v0.0.4
 
-- Support calling remote functions with arguments greater than 2 MiB in byte payload size.
+- Support calling remote Functions with arguments greater than 2 MiB in byte payload size.
 
 ## modal-js/v0.3.2, modal-go/v0.0.3
 

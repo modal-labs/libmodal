@@ -51,7 +51,7 @@ type Function struct {
 	FunctionId    string
 	MethodName    *string // used for class methods
 	inputPlaneUrl string  // if empty, use control plane
-	webURL        string  // web URL if this function is a web endpoint
+	webURL        string  // web URL if this Function is a web endpoint
 	ctx           context.Context
 }
 
@@ -73,7 +73,7 @@ func FunctionLookup(ctx context.Context, appName string, name string, options *L
 	}.Build())
 
 	if status, ok := status.FromError(err); ok && status.Code() == codes.NotFound {
-		return nil, NotFoundError{fmt.Sprintf("function '%s/%s' not found", appName, name)}
+		return nil, NotFoundError{fmt.Sprintf("Function '%s/%s' not found", appName, name)}
 	}
 	if err != nil {
 		return nil, err
@@ -175,7 +175,7 @@ func (f *Function) createRemoteInvocation(input *pb.FunctionInput) (invocation, 
 	return createControlPlaneInvocation(f.ctx, f.FunctionId, input, pb.FunctionCallInvocationType_FUNCTION_CALL_INVOCATION_TYPE_SYNC)
 }
 
-// Spawn starts running a single input on a remote function.
+// Spawn starts running a single input on a remote Function.
 func (f *Function) Spawn(args []any, kwargs map[string]any) (*FunctionCall, error) {
 	input, err := f.createInput(args, kwargs)
 	if err != nil {
@@ -226,7 +226,7 @@ func (f *Function) UpdateAutoscaler(opts UpdateAutoscalerOptions) error {
 }
 
 // GetWebURL returns the URL of a Function running as a web endpoint.
-// Returns empty string if this function is not a web endpoint.
+// Returns empty string if this Function is not a web endpoint.
 func (f *Function) GetWebURL() string {
 	return f.webURL
 }
@@ -249,7 +249,7 @@ func blobUpload(ctx context.Context, data []byte) (string, error) {
 
 	switch resp.WhichUploadTypeOneof() {
 	case pb.BlobCreateResponse_Multipart_case:
-		return "", fmt.Errorf("function input size exceeds multipart upload threshold, unsupported by this SDK version")
+		return "", fmt.Errorf("Function input size exceeds multipart upload threshold, unsupported by this SDK version")
 
 	case pb.BlobCreateResponse_UploadUrl_case:
 		req, err := http.NewRequest("PUT", resp.GetUploadUrl(), bytes.NewReader(data))

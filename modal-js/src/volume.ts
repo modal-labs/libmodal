@@ -12,7 +12,7 @@ export type VolumeFromNameOptions = {
   createIfMissing?: boolean;
 };
 
-/** Volumes provide persistent storage that can be mounted in Modal functions. */
+/** Volumes provide persistent storage that can be mounted in Modal Functions. */
 export class Volume {
   readonly volumeId: string;
   readonly name?: string;
@@ -62,8 +62,8 @@ export class Volume {
   }
 
   /**
-   * Create a nameless, temporary volume.
-   * You will need to call `closeEphemeral()` to delete the volume.
+   * Create a nameless, temporary Volume.
+   * You will need to call `closeEphemeral()` to delete the Volume.
    */
   static async ephemeral(options: EphemeralOptions = {}): Promise<Volume> {
     const resp = await client.volumeGetOrCreate({
@@ -78,7 +78,7 @@ export class Volume {
     return new Volume(resp.volumeId, undefined, false, ephemeralHbManager);
   }
 
-  /** Delete the ephemeral volume. Only usable with `Volume.ephemeral()`. */
+  /** Delete the ephemeral Volume. Only usable with `Volume.ephemeral()`. */
   closeEphemeral(): void {
     if (this.#ephemeralHbManager) {
       this.#ephemeralHbManager.stop();

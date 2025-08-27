@@ -5,11 +5,11 @@ const image = await Image.fromRegistry("alpine:3.21");
 
 // Spawn a sandbox running the "cat" command.
 const sb = await app.createSandbox(image, { command: ["cat"] });
-console.log("sandbox:", sb.sandboxId);
+console.log("Sandbox:", sb.sandboxId);
 
 // Get running sandbox from ID
 const sbFromId = await Sandbox.fromId(sb.sandboxId);
-console.log("Queried sandbox from ID:", sbFromId.sandboxId);
+console.log("Queried Sandbox from ID:", sbFromId.sandboxId);
 
 // Write to the sandbox's stdin and read from its stdout.
 await sb.stdin.writeText("this is input that should be mirrored by cat");

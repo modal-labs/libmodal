@@ -1,4 +1,4 @@
-// This example spawns a function defined in `libmodal_test_support.py`, and
+// This example spawns a Function defined in `libmodal_test_support.py`, and
 // later gets its outputs.
 
 package main
@@ -15,17 +15,17 @@ func main() {
 
 	echo, err := modal.FunctionLookup(ctx, "libmodal-test-support", "echo_string", nil)
 	if err != nil {
-		log.Fatalf("Failed to lookup function: %v", err)
+		log.Fatalf("Failed to lookup Function: %v", err)
 	}
 
 	fc, err := echo.Spawn(nil, map[string]any{"s": "Hello world!"})
 	if err != nil {
-		log.Fatalf("Failed to spawn function: %v", err)
+		log.Fatalf("Failed to spawn Function: %v", err)
 	}
 
 	ret, err := fc.Get(nil)
 	if err != nil {
-		log.Fatalf("Failed to get function results: %v", err)
+		log.Fatalf("Failed to get Function results: %v", err)
 	}
 	log.Println("Response:", ret)
 }

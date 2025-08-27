@@ -13,7 +13,7 @@ func main() {
 
 	app, err := modal.AppLookup(ctx, "libmodal-example", &modal.LookupOptions{CreateIfMissing: true})
 	if err != nil {
-		log.Fatalf("Failed to lookup or create app: %v", err)
+		log.Fatalf("Failed to lookup or create App: %v", err)
 	}
 
 	image := modal.NewImageFromRegistry("alpine:3.21", nil)
@@ -22,28 +22,28 @@ func main() {
 		Command: []string{"cat"},
 	})
 	if err != nil {
-		log.Fatalf("Failed to create sandbox: %v", err)
+		log.Fatalf("Failed to create Sandbox: %v", err)
 	}
 	log.Printf("sandbox: %s\n", sb.SandboxId)
 
 	sbFromId, err := modal.SandboxFromId(ctx, sb.SandboxId)
 	if err != nil {
-		log.Fatalf("Failed to get sandbox with Id: %v", err)
+		log.Fatalf("Failed to get Sandbox with ID: %v", err)
 	}
-	log.Printf("Queried sandbox with id: %v", sbFromId.SandboxId)
+	log.Printf("Queried Sandbox with ID: %v", sbFromId.SandboxId)
 
 	_, err = sb.Stdin.Write([]byte("this is input that should be mirrored by cat"))
 	if err != nil {
-		log.Fatalf("Failed to write to sandbox stdin: %v", err)
+		log.Fatalf("Failed to write to Sandbox stdin: %v", err)
 	}
 	err = sb.Stdin.Close()
 	if err != nil {
-		log.Fatalf("Failed to close sandbox stdin: %v", err)
+		log.Fatalf("Failed to close Sandbox stdin: %v", err)
 	}
 
 	output, err := io.ReadAll(sb.Stdout)
 	if err != nil {
-		log.Fatalf("Failed to read from sandbox stdout: %v", err)
+		log.Fatalf("Failed to read from Sandbox stdout: %v", err)
 	}
 
 	log.Printf("output: %s\n", string(output))

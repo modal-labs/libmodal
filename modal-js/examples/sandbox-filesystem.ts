@@ -1,7 +1,7 @@
 import { App, Image } from "modal";
 
 /**
- * Example demonstrating filesystem operations in a Modal sandbox.
+ * Example demonstrating filesystem operations in a Modal Sandbox.
  *
  * This example shows how to:
  * - Open files for reading and writing
@@ -15,7 +15,7 @@ const image = await Image.fromRegistry("alpine:3.21");
 
 // Create a sandbox
 const sb = await app.createSandbox(image);
-console.log("Started sandbox:", sb.sandboxId);
+console.log("Started Sandbox:", sb.sandboxId);
 
 try {
   // Write a file

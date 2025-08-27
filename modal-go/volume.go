@@ -9,7 +9,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// Volume represents a Modal volume that provides persistent storage.
+// Volume represents a Modal Volume that provides persistent storage.
 type Volume struct {
 	VolumeId string
 	Name     string
@@ -18,7 +18,7 @@ type Volume struct {
 	ctx      context.Context
 }
 
-// VolumeFromNameOptions are options for finding Modal volumes.
+// VolumeFromNameOptions are options for finding Modal Volumes.
 type VolumeFromNameOptions struct {
 	Environment     string
 	CreateIfMissing bool
@@ -68,12 +68,12 @@ func (v *Volume) ReadOnly() *Volume {
 	}
 }
 
-// IsReadOnly returns true if the volume is configured to mount as read-only.
+// IsReadOnly returns true if the Volume is configured to mount as read-only.
 func (v *Volume) IsReadOnly() bool {
 	return v.readOnly
 }
 
-// VolumeEphemeral creates a nameless, temporary volume. Caller must CloseEphemeral.
+// VolumeEphemeral creates a nameless, temporary Volume. Caller must CloseEphemeral.
 func VolumeEphemeral(ctx context.Context, options *EphemeralOptions) (*Volume, error) {
 	if options == nil {
 		options = &EphemeralOptions{}
@@ -108,13 +108,13 @@ func VolumeEphemeral(ctx context.Context, options *EphemeralOptions) (*Volume, e
 	}, nil
 }
 
-// CloseEphemeral deletes an ephemeral volume, only used with VolumeEphemeral.
+// CloseEphemeral deletes an ephemeral Volume, only used with VolumeEphemeral.
 func (v *Volume) CloseEphemeral() {
 	if v.cancel != nil {
 		v.cancel()
 	} else {
 		// We panic in this case because of invalid usage. In general, methods
 		// used with `defer` like CloseEphemeral should not return errors.
-		panic(fmt.Sprintf("volume %s is not ephemeral", v.VolumeId))
+		panic(fmt.Sprintf("Volume %s is not ephemeral", v.VolumeId))
 	}
 }

@@ -14,16 +14,16 @@ func main() {
 
 	app, err := modal.AppLookup(ctx, "libmodal-example", &modal.LookupOptions{CreateIfMissing: true})
 	if err != nil {
-		log.Fatalf("Failed to lookup app: %v", err)
+		log.Fatalf("Failed to lookup App: %v", err)
 	}
 
 	baseImage := modal.NewImageFromRegistry("alpine:3.21", nil)
 
 	sb, err := app.CreateSandbox(baseImage, &modal.SandboxOptions{})
 	if err != nil {
-		log.Fatalf("Failed to create sandbox: %v", err)
+		log.Fatalf("Failed to create Sandbox: %v", err)
 	}
-	log.Printf("Started sandbox: %s", sb.SandboxId)
+	log.Printf("Started Sandbox: %s", sb.SandboxId)
 
 	defer sb.Terminate()
 
@@ -32,27 +32,27 @@ func main() {
 		log.Fatalf("Failed to create directory: %v", err)
 	}
 
-	_, err = sb.Exec([]string{"sh", "-c", "echo 'This file was created in the first sandbox' > /app/data/info.txt"}, modal.ExecOptions{})
+	_, err = sb.Exec([]string{"sh", "-c", "echo 'This file was created in the first Sandbox' > /app/data/info.txt"}, modal.ExecOptions{})
 	if err != nil {
 		log.Fatalf("Failed to create file: %v", err)
 	}
-	log.Printf("Created file in first sandbox")
+	log.Printf("Created file in first Sandbox")
 
 	snapshotImage, err := sb.SnapshotFilesystem(55 * time.Second)
 	if err != nil {
 		log.Fatalf("Failed to snapshot filesystem: %v", err)
 	}
-	log.Printf("Filesystem snapshot created with image ID: %s", snapshotImage.ImageId)
+	log.Printf("Filesystem snapshot created with Image ID: %s", snapshotImage.ImageId)
 
 	sb.Terminate()
-	log.Printf("Terminated first sandbox")
+	log.Printf("Terminated first Sandbox")
 
-	// Create new sandbox from snapshot image
+	// Create new Sandbox from snapshot Image
 	sb2, err := app.CreateSandbox(snapshotImage, nil)
 	if err != nil {
-		log.Fatalf("Failed to create sandbox from snapshot: %v", err)
+		log.Fatalf("Failed to create Sandbox from snapshot: %v", err)
 	}
-	log.Printf("Started new sandbox from snapshot: %s", sb2.SandboxId)
+	log.Printf("Started new Sandbox from snapshot: %s", sb2.SandboxId)
 
 	defer sb2.Terminate()
 
@@ -65,7 +65,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to read output: %v", err)
 	}
-	log.Printf("File data read in second sandbox: %s", string(content))
+	log.Printf("File data read in second Sandbox: %s", string(content))
 
 	sb2.Terminate()
 }

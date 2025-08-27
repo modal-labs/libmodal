@@ -16,7 +16,7 @@ const sb = await app.createSandbox(image, {
   },
 });
 
-console.log("S3 sandbox:", sb.sandboxId);
+console.log("S3 Sandbox:", sb.sandboxId);
 console.log(
   "Sandbox directory listing of /mnt/s3-bucket:",
   await sb.stdout.readText(),

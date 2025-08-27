@@ -62,7 +62,7 @@ func (c *controlPlaneInvocation) awaitOutput(timeout *time.Duration) (any, error
 
 func (c *controlPlaneInvocation) retry(retryCount uint32) error {
 	if c.input == nil {
-		return fmt.Errorf("cannot retry function invocation - input missing")
+		return fmt.Errorf("cannot retry Function invocation - input missing")
 	}
 	retryItem := pb.FunctionRetryInputsItem_builder{
 		InputJwt:   c.inputJwt,

@@ -13,16 +13,16 @@ func main() {
 
 	app, err := modal.AppLookup(ctx, "libmodal-example", &modal.LookupOptions{CreateIfMissing: true})
 	if err != nil {
-		log.Fatalf("Failed to lookup or create app: %v", err)
+		log.Fatalf("Failed to lookup or create App: %v", err)
 	}
 
 	image := modal.NewImageFromRegistry("alpine/curl:8.14.1", nil)
 
 	proxy, err := modal.ProxyFromName(ctx, "libmodal-test-proxy", nil)
 	if err != nil {
-		log.Fatalf("Failed to get proxy: %v", err)
+		log.Fatalf("Failed to get Proxy: %v", err)
 	}
-	log.Printf("Using proxy: %s", proxy.ProxyId)
+	log.Printf("Using Proxy: %s", proxy.ProxyId)
 
 	sb, err := app.CreateSandbox(image, &modal.SandboxOptions{
 		Proxy: proxy,
@@ -46,6 +46,6 @@ func main() {
 
 	err = sb.Terminate()
 	if err != nil {
-		log.Fatalf("Failed to terminate sandbox: %v", err)
+		log.Fatalf("Failed to terminate Sandbox: %v", err)
 	}
 }

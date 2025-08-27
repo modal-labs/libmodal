@@ -3,7 +3,7 @@
 // The library mirrors the core feature-set of Modal’s Python client while
 // feeling natural in Go:
 //
-//   - Spin up sandboxes — fast, secure, ephemeral VMs for running code.
+//   - Spin up Sandboxes — fast, secure, ephemeral VMs for running code.
 //   - Invoke Modal Functions and manage their inputs / outputs.
 //   - Read, write, and list files in Modal Volumes.
 //   - Create or inspect containers, streams, and logs.

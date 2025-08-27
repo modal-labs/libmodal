@@ -10,7 +10,7 @@ import { App } from "./app";
 import { Secret } from "./secret";
 import { imageBuilderVersion } from "./config";
 
-/** A container image, used for starting sandboxes. */
+/** A container image, used for starting Sandboxes. */
 export class Image {
   #imageId: string;
   #tag: string;
@@ -31,19 +31,19 @@ export class Image {
   }
 
   /**
-   * Creates an `Image` instance from an image id
+   * Creates an Image from an Image ID
    *
-   * @param imageId - Image id.
+   * @param imageId - Image ID.
    */
   static fromId(imageId: string): Image {
     return new Image(imageId, "");
   }
 
   /**
-   * Creates an `Image` instance from a raw registry tag, optionally using a secret for authentication.
+   * Creates an Image from a raw registry tag, optionally using a Secret for authentication.
    *
-   * @param tag - The registry tag for the image.
-   * @param secret - Optional. A `Secret` instance containing credentials for registry authentication.
+   * @param tag - The registry tag for the Image.
+   * @param secret - Optional. A Secret containing credentials for registry authentication.
    */
   static fromRegistry(tag: string, secret?: Secret): Image {
     let imageRegistryConfig;
@@ -62,10 +62,10 @@ export class Image {
   }
 
   /**
-   * Creates an `Image` instance from a raw registry tag, optionally using a secret for authentication.
+   * Creates an Image from a raw registry tag, optionally using a Secret for authentication.
    *
-   * @param tag - The registry tag for the image.
-   * @param secret - A `Secret` instance containing credentials for registry authentication.
+   * @param tag - The registry tag for the Image.
+   * @param secret - A Secret containing credentials for registry authentication.
    */
   static fromAwsEcr(tag: string, secret: Secret): Image {
     let imageRegistryConfig;
@@ -84,10 +84,10 @@ export class Image {
   }
 
   /**
-   * Creates an `Image` instance from a raw registry tag, optionally using a secret for authentication.
+   * Creates an Image from a raw registry tag, optionally using a Secret for authentication.
    *
-   * @param tag - The registry tag for the image.
-   * @param secret - A `Secret` instance containing credentials for registry authentication.
+   * @param tag - The registry tag for the Image.
+   * @param secret - A Secret containing credentials for registry authentication.
    */
   static fromGcpArtifactRegistry(tag: string, secret: Secret): Image {
     let imageRegistryConfig;
@@ -106,13 +106,13 @@ export class Image {
   }
 
   /**
-   * Eagerly builds an `Image` on Modal.
+   * Eagerly builds an Image on Modal.
    *
-   * @param app - App to use to build image.
+   * @param app - App to use to build the Image.
    */
   async build(app: App): Promise<Image> {
     if (this.imageId !== "") {
-      // Image is already built with an image ID
+      // Image is already built with an Image ID
       return this;
     }
 
