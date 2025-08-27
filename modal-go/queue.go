@@ -61,7 +61,7 @@ type Queue struct {
 	ctx     context.Context
 }
 
-// QueueEphemeral creates a nameless, temporary Queue. Caller must CloseEphemeral.
+// QueueEphemeral creates a nameless, temporary Queue, that persists until CloseEphemeral is called, or the process exits.
 func QueueEphemeral(ctx context.Context, options *EphemeralOptions) (*Queue, error) {
 	if options == nil {
 		options = &EphemeralOptions{}

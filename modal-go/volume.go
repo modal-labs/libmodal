@@ -73,7 +73,7 @@ func (v *Volume) IsReadOnly() bool {
 	return v.readOnly
 }
 
-// VolumeEphemeral creates a nameless, temporary Volume. Caller must CloseEphemeral.
+// VolumeEphemeral creates a nameless, temporary Volume, that persists until CloseEphemeral is called, or the process exits.
 func VolumeEphemeral(ctx context.Context, options *EphemeralOptions) (*Volume, error) {
 	if options == nil {
 		options = &EphemeralOptions{}
