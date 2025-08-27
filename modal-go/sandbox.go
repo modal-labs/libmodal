@@ -48,7 +48,7 @@ type Tunnel struct {
 	UnencryptedPort int    // The unencrypted port (if applicable)
 }
 
-// Get the public HTTPS URL of the forwarded port.
+// URL gets the public HTTPS URL of the forwarded port.
 func (t *Tunnel) URL() string {
 	if t.Port == 443 {
 		return fmt.Sprintf("https://%s", t.Host)
@@ -56,12 +56,12 @@ func (t *Tunnel) URL() string {
 	return fmt.Sprintf("https://%s:%d", t.Host, t.Port)
 }
 
-// Get the public TLS socket as a (host, port) tuple.
+// TLSSocket gets the public TLS socket as a (host, port) tuple.
 func (t *Tunnel) TLSSocket() (string, int) {
 	return t.Host, t.Port
 }
 
-// Get the public TCP socket as a (host, port) tuple.
+// TCPSocket gets the public TCP socket as a (host, port) tuple.
 func (t *Tunnel) TCPSocket() (string, int, error) {
 	if t.UnencryptedHost == "" || t.UnencryptedPort == 0 {
 		return "", 0, InvalidError{Exception: "This tunnel is not configured for unencrypted TCP."}
@@ -285,7 +285,7 @@ func (sb *Sandbox) Tunnels(timeout time.Duration) (map[int]*Tunnel, error) {
 	return sb.tunnels, nil
 }
 
-// Snapshot the filesystem of the Sandbox.
+// SnapshotFilesystem takes a snapshot of the Sandbox's filesystem.
 // Returns an Image object which can be used to spawn a new Sandbox with the same filesystem.
 func (sb *Sandbox) SnapshotFilesystem(timeout time.Duration) (*Image, error) {
 	resp, err := client.SandboxSnapshotFs(sb.ctx, pb.SandboxSnapshotFsRequest_builder{

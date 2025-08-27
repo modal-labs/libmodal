@@ -174,7 +174,7 @@ func (q *Queue) Clear(options *QueueClearOptions) error {
 	return err
 }
 
-// internal helper for both Get and GetMany.
+// get is an internal helper for both Get and GetMany.
 func (q *Queue) get(n int, options *QueueGetOptions) ([]any, error) {
 	if options == nil {
 		options = &QueueGetOptions{}
@@ -244,7 +244,7 @@ func (q *Queue) GetMany(n int, options *QueueGetOptions) ([]any, error) {
 	return q.get(n, options)
 }
 
-// internal put helper (single/many).
+// put is an internal helper for both Put and PutMany.
 func (q *Queue) put(values []any, options *QueuePutOptions) error {
 	if options == nil {
 		options = &QueuePutOptions{}

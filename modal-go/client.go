@@ -76,7 +76,7 @@ var clientProfile Profile
 // client is the default Modal client that talks to the control plane.
 var client pb.ModalClientClient
 
-// clients is a map of server URL to input-plane client.
+// inputPlaneClients is a map of server URL to input-plane client.
 var inputPlaneClients = map[string]pb.ModalClientClient{}
 
 // authToken is the auth token received from the control plane on the first request, and sent with all

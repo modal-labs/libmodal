@@ -90,7 +90,7 @@ func FunctionLookup(ctx context.Context, appName string, name string, options *L
 	return &Function{FunctionId: resp.GetFunctionId(), inputPlaneUrl: inputPlaneUrl, webURL: webURL, ctx: ctx}, nil
 }
 
-// Serialize Go data types to the Python pickle format.
+// pickleSerialize serializes Go data types to the Python pickle format.
 func pickleSerialize(v any) (bytes.Buffer, error) {
 	var inputBuffer bytes.Buffer
 
@@ -103,7 +103,7 @@ func pickleSerialize(v any) (bytes.Buffer, error) {
 	return inputBuffer, nil
 }
 
-// Deserialize from Python pickle into Go basic types.
+// pickleDeserialize deserializes from Python pickle into Go basic types.
 func pickleDeserialize(buffer []byte) (any, error) {
 	decoder := pickle.NewDecoder(bytes.NewReader(buffer))
 	result, err := decoder.Decode()
@@ -113,7 +113,7 @@ func pickleDeserialize(buffer []byte) (any, error) {
 	return result, nil
 }
 
-// Serializes inputs, make a function call and return its ID
+// createInput serializes inputs, makes a function call and returns its ID
 func (f *Function) createInput(args []any, kwargs map[string]any) (*pb.FunctionInput, error) {
 	payload, err := pickleSerialize(pickle.Tuple{args, kwargs})
 	if err != nil {
