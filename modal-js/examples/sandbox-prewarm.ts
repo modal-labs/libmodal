@@ -12,7 +12,7 @@ console.log("image id:", image.imageId);
 
 const imageId = image.imageId;
 // You can save the Image ID and create a new Image object that referes to it.
-const image2 = Image.fromId(imageId);
+const image2 = await Image.fromId(imageId);
 
 const sb = await app.createSandbox(image2, { command: ["cat"] });
 console.log("Sandbox:", sb.sandboxId);

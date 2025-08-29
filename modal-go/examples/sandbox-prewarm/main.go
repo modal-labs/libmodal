@@ -28,7 +28,10 @@ func main() {
 
 	// You can save the ImageId and create a new Image object that referes to it.
 	imageId := image.ImageId
-	image2 := modal.NewImageFromId(imageId)
+	image2, err := modal.NewImageFromId(ctx, imageId)
+	if err != nil {
+		log.Fatalf("Unable to look up Image from ID: %v", err)
+	}
 
 	sb, err := app.CreateSandbox(image2, &modal.SandboxOptions{
 		Command: []string{"cat"},

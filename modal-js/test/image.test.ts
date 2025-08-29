@@ -2,9 +2,16 @@ import { App, Secret, Image } from "modal";
 import { expect, test } from "vitest";
 
 test("ImageFromId", async () => {
-  const imageId = "im-23134214dfasfsaf";
-  const image = await Image.fromId(imageId);
-  expect(image.imageId).toBe(imageId);
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
+  expect(app.appId).toBeTruthy();
+
+  const image = await Image.fromRegistry("alpine:3.21").build(app);
+  expect(image.imageId).toBeTruthy();
+
+  const imageFromId = await Image.fromId(image.imageId);
+  expect(imageFromId.imageId).toBe(image.imageId);
+
+  await expect(Image.fromId("im-nonexistent")).rejects.toThrow();
 });
 
 test("ImageFromRegistry", async () => {
@@ -142,7 +149,14 @@ test("ImageDelete", async () => {
   expect(image.imageId).toBeTruthy();
   expect(image.imageId).toMatch(/^im-/);
 
+  const imageFromId = await Image.fromId(image.imageId);
+  expect(imageFromId.imageId).toBe(image.imageId);
+
   await Image.delete(image.imageId);
+
+  await expect(Image.fromId(image.imageId)).rejects.toThrow(
+    "Could not find image with ID",
+  );
 
   const newImage = await Image.fromRegistry("alpine:3.13").build(app);
   expect(newImage.imageId).toBeTruthy();

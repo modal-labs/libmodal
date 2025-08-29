@@ -6,6 +6,8 @@ import (
 	"io"
 
 	pb "github.com/modal-labs/libmodal/modal-go/proto/modal_proto"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // Image represents a Modal Image, which can be used to create Sandboxes.
@@ -66,9 +68,28 @@ func NewImageFromGcpArtifactRegistry(tag string, secret *Secret) *Image {
 	}
 }
 
-// NewImageFromId creates an Image from an ID
-func NewImageFromId(imageId string) *Image {
-	return &Image{ImageId: imageId}
+// NewImageFromId looks up an Image from an ID
+func NewImageFromId(ctx context.Context, imageId string) (*Image, error) {
+	var err error
+	ctx, err = clientContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := client.ImageFromId(
+		ctx,
+		pb.ImageFromIdRequest_builder{
+			ImageId: imageId,
+		}.Build(),
+	)
+	if status, ok := status.FromError(err); ok && status.Code() == codes.NotFound {
+		return nil, NotFoundError{fmt.Sprintf("Image '%s' not found", imageId)}
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return &Image{ImageId: resp.GetImageId()}, nil
 }
 
 // Build eagerly builds an Image on Modal.
@@ -168,7 +189,11 @@ func ImageDelete(ctx context.Context, imageId string, options *ImageDeleteOption
 		return err
 	}
 
-	image := NewImageFromId(imageId)
+	image, err := NewImageFromId(ctx, imageId)
+	if err != nil {
+		return err
+	}
+
 	_, err = client.ImageDelete(ctx, pb.ImageDeleteRequest_builder{ImageId: image.ImageId}.Build())
 	return err
 }

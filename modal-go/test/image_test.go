@@ -12,9 +12,20 @@ func TestImageFromId(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
-	imageId := "im-23134214dfasfsaf"
-	image := modal.NewImageFromId(imageId)
-	g.Expect(image.ImageId).Should(gomega.Equal(imageId))
+	ctx := context.Background()
+
+	app, err := modal.AppLookup(ctx, "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	image, err := modal.NewImageFromRegistry("alpine:3.21", nil).Build(app)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	imageFromId, err := modal.NewImageFromId(ctx, image.ImageId)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(imageFromId.ImageId).Should(gomega.Equal(image.ImageId))
+
+	_, err = modal.NewImageFromId(ctx, "im-nonexistent")
+	g.Expect(err).Should(gomega.HaveOccurred())
 }
 
 //nolint:staticcheck
@@ -187,8 +198,15 @@ func TestImageDelete(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(image.ImageId).Should(gomega.HavePrefix("im-"))
 
+	imageFromId, err := modal.NewImageFromId(ctx, image.ImageId)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(imageFromId.ImageId).Should(gomega.Equal(image.ImageId))
+
 	err = modal.ImageDelete(ctx, image.ImageId, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	_, err = modal.NewImageFromId(ctx, image.ImageId)
+	g.Expect(err).Should(gomega.MatchError(gomega.MatchRegexp("Image .+ not found")))
 
 	newImage, err := modal.NewImageFromRegistry("alpine:3.13", nil).Build(app)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
