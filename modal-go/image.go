@@ -155,3 +155,20 @@ func (image *Image) Build(app *App) (*Image, error) {
 	image.ctx = app.ctx
 	return image, nil
 }
+
+// ImageDeleteOptions are options for deleting an Image.
+type ImageDeleteOptions struct {
+}
+
+// ImageDelete deletes an Image by ID. Warning: This removes an *entire Image*, and cannot be undone.
+func ImageDelete(ctx context.Context, imageId string, options *ImageDeleteOptions) error {
+	var err error
+	ctx, err = clientContext(ctx)
+	if err != nil {
+		return err
+	}
+
+	image := NewImageFromId(imageId)
+	_, err = client.ImageDelete(ctx, pb.ImageDeleteRequest_builder{ImageId: image.ImageId}.Build())
+	return err
+}

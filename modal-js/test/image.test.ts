@@ -133,3 +133,22 @@ test("ImageFromGcpEcrTopLevel", async () => {
 
   expect(image.imageId).toMatch(/^im-/);
 });
+
+test("ImageDelete", async () => {
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
+  expect(app.appId).toBeTruthy();
+
+  const image = await Image.fromRegistry("alpine:3.13").build(app);
+  expect(image.imageId).toBeTruthy();
+  expect(image.imageId).toMatch(/^im-/);
+
+  await Image.delete(image.imageId);
+
+  const newImage = await Image.fromRegistry("alpine:3.13").build(app);
+  expect(newImage.imageId).toBeTruthy();
+  expect(newImage.imageId).not.toBe(image.imageId);
+
+  await expect(Image.delete("im-nonexistent")).rejects.toThrow(
+    "No Image with ID",
+  );
+});

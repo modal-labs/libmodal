@@ -4,7 +4,7 @@ Both client libraries are pre-1.0, and they have separate versioning.
 
 ## Unreleased
 
-No unreleased changes.
+- Added `Image.delete()` (JS) and `ImageDelete()` (Go).
 
 ## modal-js/v0.3.19, modal-go/v0.0.19
 

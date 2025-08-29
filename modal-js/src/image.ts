@@ -10,6 +10,9 @@ import { App } from "./app";
 import { Secret } from "./secret";
 import { imageBuilderVersion } from "./config";
 
+/** Options for deleting an Image. */
+export type ImageDeleteOptions = Record<never, never>;
+
 /** A container image, used for starting Sandboxes. */
 export class Image {
   #imageId: string;
@@ -181,5 +184,11 @@ export class Image {
     }
     this.#imageId = resp.imageId;
     return this;
+  }
+
+  /** Delete an Image by ID. Warning: This removes an *entire Image*, and cannot be undone. */
+  static async delete(name: string, _: ImageDeleteOptions = {}): Promise<void> {
+    const image = await Image.fromId(name);
+    await client.imageDelete({ imageId: image.imageId });
   }
 }

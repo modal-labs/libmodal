@@ -173,3 +173,27 @@ func TestImageFromGcpEcrTopLevel(t *testing.T) {
 
 	g.Expect(image.ImageId).Should(gomega.HavePrefix("im-"))
 }
+
+func TestImageDelete(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	ctx := context.Background()
+
+	app, err := modal.AppLookup(ctx, "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	image, err := modal.NewImageFromRegistry("alpine:3.13", nil).Build(app)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(image.ImageId).Should(gomega.HavePrefix("im-"))
+
+	err = modal.ImageDelete(ctx, image.ImageId, nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	newImage, err := modal.NewImageFromRegistry("alpine:3.13", nil).Build(app)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(newImage.ImageId).ShouldNot(gomega.Equal(image.ImageId))
+
+	_, err = modal.NewImageFromId(ctx, "im-nonexistent")
+	g.Expect(err).Should(gomega.MatchError(gomega.MatchRegexp("Image .+ not found")))
+}
