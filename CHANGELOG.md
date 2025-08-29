@@ -12,8 +12,8 @@ No unreleased changes.
 
 ## modal-js/v0.3.18, modal-go/v0.0.18
 
-- Adds `Image.build` (JS) and `Image.Build` (Go).
-- Adds `Image.fromId` (JS) / `NewImageFromId` (Go).
+- Added `Image.build` (JS) and `Image.Build` (Go).
+- Added `Image.fromId` (JS) / `NewImageFromId` (Go).
 - Operations on an ehpemeral Queue after having called `CloseEhpemeral()` will now explicitly fail in Go.
 - Added support for instantiating a Cls with custom options, using `Cls.withOptions()`/`.withConcurrency()`/`.withBatching()` (JS) / `Cls.WithOptions()`/`.WithConcurrency()`/`.WithBatching()` (Go).
 - Added support for [Named Sandboxes](https://modal.com/docs/guide/sandbox#named-sandboxes) (examples in [JS](./modal-js/examples/sandbox-named.ts) and [Go](./modal-go/examples/sandbox-named/main.go)).
@@ -71,7 +71,7 @@ No unreleased changes.
 
 ## modal-js/v0.3.11, modal-go/v0.0.11
 
-- Add `InitializeClient()` (Go) / `initializeClient()` (JS) to initialize the client at runtime with credentials.
+- Added `InitializeClient()` (Go) / `initializeClient()` (JS) to initialize the client at runtime with credentials.
 - Client libraries no longer panic at startup if no token ID / Secret is provided. Instead, they will throw an error when trying to use the client.
 
 ## modal-js/v0.3.10, modal-go/v0.0.10
