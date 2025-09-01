@@ -236,7 +236,9 @@ function encodeValue(val: any, w: Writer, proto: Protocol) {
     return;
   }
 
-  throw new PickleError(`Unsupported type in dumps(): ${typeof val}`);
+  throw new PickleError(
+    `The JS Modal SDK does not support encoding/pickling data of type ${typeof val}`,
+  );
 }
 
 function maybeMemoize(w: Writer, proto: Protocol) {
@@ -247,7 +249,9 @@ function maybeMemoize(w: Writer, proto: Protocol) {
 
 export function dumps(obj: any, protocol: Protocol = 4): Uint8Array {
   if (![3, 4, 5].includes(protocol))
-    throw new PickleError("Protocol must be 3, 4, or 5");
+    throw new PickleError(
+      `The JS Modal SDK does not support pickle protocol version ${protocol}`,
+    );
   const w = new Writer();
   w.byte(Op.PROTO);
   w.byte(protocol);
@@ -267,8 +271,10 @@ export function loads(buf: Uint8Array): any {
   const op0 = r.byte();
   if (op0 !== Op.PROTO) throw new PickleError("pickle missing PROTO header");
   const proto: Protocol = r.byte() as Protocol;
-  if (!(proto === 3 || proto === 4 || proto === 5))
-    throw new PickleError(`Unsupported protocol ${proto}`);
+  if (![3, 4, 5].includes(proto))
+    throw new PickleError(
+      `The JS Modal SDK does not support pickle protocol version ${proto}`,
+    );
 
   const stack: any[] = [];
   const memo: any[] = [];
@@ -446,7 +452,9 @@ export function loads(buf: Uint8Array): any {
       }
 
       default:
-        throw new PickleError(`Unsupported opcode 0x${op.toString(16)}`);
+        throw new PickleError(
+          `The JS Modal SDK does not support decoding/unpickling this kind of data. Error: unsupported opcode 0x${op.toString(16)}`,
+        );
     }
   }
   throw new PickleError("pickle stream ended without STOP");
