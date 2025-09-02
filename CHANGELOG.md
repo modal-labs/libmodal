@@ -5,7 +5,7 @@ Both client libraries are pre-1.0, and they have separate versioning.
 ## Unreleased
 
 - Added `Image.delete()` (JS) and `ImageDelete()` (Go).
-- Changed `Image.fromId()` (JS) and `NewImageFromId()` (Go) to throw a `NotFoundError` if the Image does not exist.
+- Changed `Image.fromId()` (JS) and `NewImageFromId()` (Go) to throw a `NotFoundError` if the Image does not exist. Note that the signature of `NewImageFromId()` has changed.
 
 ## modal-js/v0.3.19, modal-go/v0.0.19
 
