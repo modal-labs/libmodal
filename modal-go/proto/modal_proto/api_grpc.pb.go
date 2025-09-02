@@ -105,6 +105,7 @@ const (
 	ModalClient_FunctionRetryInputs_FullMethodName              = "/modal.client.ModalClient/FunctionRetryInputs"
 	ModalClient_FunctionStartPtyShell_FullMethodName            = "/modal.client.ModalClient/FunctionStartPtyShell"
 	ModalClient_FunctionUpdateSchedulingParams_FullMethodName   = "/modal.client.ModalClient/FunctionUpdateSchedulingParams"
+	ModalClient_ImageDelete_FullMethodName                      = "/modal.client.ModalClient/ImageDelete"
 	ModalClient_ImageFromId_FullMethodName                      = "/modal.client.ModalClient/ImageFromId"
 	ModalClient_ImageGetOrCreate_FullMethodName                 = "/modal.client.ModalClient/ImageGetOrCreate"
 	ModalClient_ImageJoinStreaming_FullMethodName               = "/modal.client.ModalClient/ImageJoinStreaming"
@@ -291,6 +292,7 @@ type ModalClientClient interface {
 	FunctionStartPtyShell(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	FunctionUpdateSchedulingParams(ctx context.Context, in *FunctionUpdateSchedulingParamsRequest, opts ...grpc.CallOption) (*FunctionUpdateSchedulingParamsResponse, error)
 	// Images
+	ImageDelete(ctx context.Context, in *ImageDeleteRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	ImageFromId(ctx context.Context, in *ImageFromIdRequest, opts ...grpc.CallOption) (*ImageFromIdResponse, error)
 	ImageGetOrCreate(ctx context.Context, in *ImageGetOrCreateRequest, opts ...grpc.CallOption) (*ImageGetOrCreateResponse, error)
 	ImageJoinStreaming(ctx context.Context, in *ImageJoinStreamingRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ImageJoinStreamingResponse], error)
@@ -1299,6 +1301,16 @@ func (c *modalClientClient) FunctionUpdateSchedulingParams(ctx context.Context, 
 	return out, nil
 }
 
+func (c *modalClientClient) ImageDelete(ctx context.Context, in *ImageDeleteRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, ModalClient_ImageDelete_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *modalClientClient) ImageFromId(ctx context.Context, in *ImageFromIdRequest, opts ...grpc.CallOption) (*ImageFromIdResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ImageFromIdResponse)
@@ -2257,6 +2269,7 @@ type ModalClientServer interface {
 	FunctionStartPtyShell(context.Context, *emptypb.Empty) (*emptypb.Empty, error)
 	FunctionUpdateSchedulingParams(context.Context, *FunctionUpdateSchedulingParamsRequest) (*FunctionUpdateSchedulingParamsResponse, error)
 	// Images
+	ImageDelete(context.Context, *ImageDeleteRequest) (*emptypb.Empty, error)
 	ImageFromId(context.Context, *ImageFromIdRequest) (*ImageFromIdResponse, error)
 	ImageGetOrCreate(context.Context, *ImageGetOrCreateRequest) (*ImageGetOrCreateResponse, error)
 	ImageJoinStreaming(*ImageJoinStreamingRequest, grpc.ServerStreamingServer[ImageJoinStreamingResponse]) error
@@ -2615,6 +2628,9 @@ func (UnimplementedModalClientServer) FunctionStartPtyShell(context.Context, *em
 }
 func (UnimplementedModalClientServer) FunctionUpdateSchedulingParams(context.Context, *FunctionUpdateSchedulingParamsRequest) (*FunctionUpdateSchedulingParamsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method FunctionUpdateSchedulingParams not implemented")
+}
+func (UnimplementedModalClientServer) ImageDelete(context.Context, *ImageDeleteRequest) (*emptypb.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ImageDelete not implemented")
 }
 func (UnimplementedModalClientServer) ImageFromId(context.Context, *ImageFromIdRequest) (*ImageFromIdResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ImageFromId not implemented")
@@ -4368,6 +4384,24 @@ func _ModalClient_FunctionUpdateSchedulingParams_Handler(srv interface{}, ctx co
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ModalClient_ImageDelete_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ImageDeleteRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ModalClientServer).ImageDelete(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ModalClient_ImageDelete_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ModalClientServer).ImageDelete(ctx, req.(*ImageDeleteRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _ModalClient_ImageFromId_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ImageFromIdRequest)
 	if err := dec(in); err != nil {
@@ -6113,6 +6147,10 @@ var ModalClient_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "FunctionUpdateSchedulingParams",
 			Handler:    _ModalClient_FunctionUpdateSchedulingParams_Handler,
+		},
+		{
+			MethodName: "ImageDelete",
+			Handler:    _ModalClient_ImageDelete_Handler,
 		},
 		{
 			MethodName: "ImageFromId",

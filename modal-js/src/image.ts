@@ -9,6 +9,12 @@ import { client } from "./client";
 import { App } from "./app";
 import { Secret } from "./secret";
 import { imageBuilderVersion } from "./config";
+import { ClientError } from "nice-grpc";
+import { Status } from "nice-grpc";
+import { NotFoundError } from "./errors";
+
+/** Options for deleting an Image. */
+export type ImageDeleteOptions = Record<never, never>;
 
 /** A container image, used for starting Sandboxes. */
 export class Image {
@@ -35,8 +41,21 @@ export class Image {
    *
    * @param imageId - Image ID.
    */
-  static fromId(imageId: string): Image {
-    return new Image(imageId, "");
+  static async fromId(imageId: string): Promise<Image> {
+    try {
+      const resp = await client.imageFromId({ imageId });
+      return new Image(resp.imageId, "");
+    } catch (err) {
+      if (err instanceof ClientError && err.code === Status.NOT_FOUND)
+        throw new NotFoundError(err.details);
+      if (
+        err instanceof ClientError &&
+        err.code === Status.FAILED_PRECONDITION &&
+        err.details.includes("Could not find image with ID")
+      )
+        throw new NotFoundError(err.details);
+      throw err;
+    }
   }
 
   /**
@@ -181,5 +200,14 @@ export class Image {
     }
     this.#imageId = resp.imageId;
     return this;
+  }
+
+  /** Delete an Image by ID. Warning: This removes an *entire Image*, and cannot be undone. */
+  static async delete(
+    imageId: string,
+    _: ImageDeleteOptions = {},
+  ): Promise<void> {
+    const image = await Image.fromId(imageId);
+    await client.imageDelete({ imageId: image.imageId });
   }
 }
