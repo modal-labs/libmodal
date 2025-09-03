@@ -26,12 +26,6 @@ type VolumeFromNameOptions struct {
 
 // VolumeFromName references a modal.Volume by its name.
 func VolumeFromName(ctx context.Context, name string, options *VolumeFromNameOptions) (*Volume, error) {
-	var err error
-	ctx, err = clientContext(ctx)
-	if err != nil {
-		return nil, err
-	}
-
 	if options == nil {
 		options = &VolumeFromNameOptions{}
 	}
@@ -77,11 +71,6 @@ func (v *Volume) IsReadOnly() bool {
 func VolumeEphemeral(ctx context.Context, options *EphemeralOptions) (*Volume, error) {
 	if options == nil {
 		options = &EphemeralOptions{}
-	}
-	var err error
-	ctx, err = clientContext(ctx)
-	if err != nil {
-		return nil, err
 	}
 
 	resp, err := client.VolumeGetOrCreate(ctx, pb.VolumeGetOrCreateRequest_builder{

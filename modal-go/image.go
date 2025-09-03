@@ -70,12 +70,6 @@ func NewImageFromGcpArtifactRegistry(tag string, secret *Secret) *Image {
 
 // NewImageFromId looks up an Image from an ID
 func NewImageFromId(ctx context.Context, imageId string) (*Image, error) {
-	var err error
-	ctx, err = clientContext(ctx)
-	if err != nil {
-		return nil, err
-	}
-
 	resp, err := client.ImageFromId(
 		ctx,
 		pb.ImageFromIdRequest_builder{
@@ -183,11 +177,6 @@ type ImageDeleteOptions struct {
 
 // ImageDelete deletes an Image by ID. Warning: This removes an *entire Image*, and cannot be undone.
 func ImageDelete(ctx context.Context, imageId string, options *ImageDeleteOptions) error {
-	var err error
-	ctx, err = clientContext(ctx)
-	if err != nil {
-		return err
-	}
 
 	image, err := NewImageFromId(ctx, imageId)
 	if err != nil {
