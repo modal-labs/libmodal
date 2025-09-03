@@ -10,22 +10,26 @@ import (
 
 func main() {
 	ctx := context.Background()
+	mc, err := modal.NewClient()
+	if err != nil {
+		log.Fatalf("Failed to create client: %v", err)
+	}
 
-	app, err := modal.AppLookup(ctx, "libmodal-example", &modal.LookupOptions{CreateIfMissing: true})
+	app, err := mc.Apps.Lookup(ctx, "libmodal-example", &modal.LookupOptions{CreateIfMissing: true})
 	if err != nil {
 		log.Fatalf("Failed to lookup or create App: %v", err)
 	}
 
-	secret, err := modal.SecretFromName(ctx, "libmodal-aws-ecr-test", &modal.SecretFromNameOptions{
+	secret, err := mc.Secrets.FromName(ctx, "libmodal-aws-ecr-test", &modal.SecretFromNameOptions{
 		RequiredKeys: []string{"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"},
 	})
 	if err != nil {
 		log.Fatalf("Failed to get Secret: %v", err)
 	}
 
-	image := modal.NewImageFromAwsEcr("459781239556.dkr.ecr.us-east-1.amazonaws.com/ecr-private-registry-test-7522615:python", secret)
+	image := mc.Images.FromAwsEcr("459781239556.dkr.ecr.us-east-1.amazonaws.com/ecr-private-registry-test-7522615:python", secret)
 
-	sb, err := app.CreateSandbox(image, &modal.SandboxOptions{
+	sb, err := mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateOptions{
 		Command: []string{"python", "-c", `import sys; sys.stdout.write(sys.stdin.read())`},
 	})
 	if err != nil {

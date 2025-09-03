@@ -21,9 +21,12 @@ var mockFunctionProto = pb.FunctionGetResponse_builder{
 
 func TestClsWithOptionsStacking(t *testing.T) {
 	g := gomega.NewWithT(t)
+	ctx := context.Background()
 
-	mock, cleanup := grpcmock.Install()
-	t.Cleanup(cleanup)
+	mock := grpcmock.NewMockClient()
+	defer func() {
+		g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
+	}()
 
 	grpcmock.HandleUnary(
 		mock, "FunctionGet",
@@ -32,7 +35,7 @@ func TestClsWithOptionsStacking(t *testing.T) {
 		},
 	)
 
-	cls, err := modal.ClsLookup(context.Background(), "libmodal-test-support", "EchoCls", nil)
+	cls, err := mock.Cls.Lookup(ctx, "libmodal-test-support", "EchoCls", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	grpcmock.HandleUnary(
@@ -71,16 +74,19 @@ func TestClsWithOptionsStacking(t *testing.T) {
 		WithOptions(modal.ClsOptions{Timeout: &newTimeout, Memory: &memory, GPU: &gpu}).
 		WithOptions(modal.ClsOptions{Secrets: []*modal.Secret{secret}, Volumes: map[string]*modal.Volume{"/mnt/test": volume}})
 
-	instance, err := optioned.Instance(nil)
+	instance, err := optioned.Instance(ctx, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(instance).ToNot(gomega.BeNil())
 }
 
 func TestClsWithConcurrencyWithBatchingChaining(t *testing.T) {
 	g := gomega.NewWithT(t)
+	ctx := context.Background()
 
-	mock, cleanup := grpcmock.Install()
-	t.Cleanup(cleanup)
+	mock := grpcmock.NewMockClient()
+	defer func() {
+		g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
+	}()
 
 	grpcmock.HandleUnary(
 		mock, "FunctionGet",
@@ -89,7 +95,7 @@ func TestClsWithConcurrencyWithBatchingChaining(t *testing.T) {
 		},
 	)
 
-	cls, err := modal.ClsLookup(context.Background(), "libmodal-test-support", "EchoCls", nil)
+	cls, err := mock.Cls.Lookup(ctx, "libmodal-test-support", "EchoCls", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	grpcmock.HandleUnary(
@@ -112,16 +118,19 @@ func TestClsWithConcurrencyWithBatchingChaining(t *testing.T) {
 		WithConcurrency(modal.ClsConcurrencyOptions{MaxInputs: 10}).
 		WithBatching(modal.ClsBatchingOptions{MaxBatchSize: 11, Wait: 12 * time.Millisecond})
 
-	instance, err := chained.Instance(nil)
+	instance, err := chained.Instance(ctx, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(instance).ToNot(gomega.BeNil())
 }
 
 func TestClsWithOptionsRetries(t *testing.T) {
 	g := gomega.NewWithT(t)
+	ctx := context.Background()
 
-	mock, cleanup := grpcmock.Install()
-	t.Cleanup(cleanup)
+	mock := grpcmock.NewMockClient()
+	defer func() {
+		g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
+	}()
 
 	grpcmock.HandleUnary(
 		mock, "FunctionGet",
@@ -130,7 +139,7 @@ func TestClsWithOptionsRetries(t *testing.T) {
 		},
 	)
 
-	cls, err := modal.ClsLookup(context.Background(), "libmodal-test-support", "EchoCls", nil)
+	cls, err := mock.Cls.Lookup(ctx, "libmodal-test-support", "EchoCls", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	grpcmock.HandleUnary(
@@ -157,15 +166,18 @@ func TestClsWithOptionsRetries(t *testing.T) {
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	_, err = cls.WithOptions(modal.ClsOptions{Retries: retries}).Instance(nil)
+	_, err = cls.WithOptions(modal.ClsOptions{Retries: retries}).Instance(ctx, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 }
 
 func TestClsWithOptionsInvalidValues(t *testing.T) {
 	g := gomega.NewWithT(t)
+	ctx := context.Background()
 
-	mock, cleanup := grpcmock.Install()
-	t.Cleanup(cleanup)
+	mock := grpcmock.NewMockClient()
+	defer func() {
+		g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
+	}()
 
 	grpcmock.HandleUnary(
 		mock, "FunctionGet",
@@ -174,35 +186,38 @@ func TestClsWithOptionsInvalidValues(t *testing.T) {
 		},
 	)
 
-	cls, err := modal.ClsLookup(context.Background(), "libmodal-test-support", "EchoCls", nil)
+	cls, err := mock.Cls.Lookup(ctx, "libmodal-test-support", "EchoCls", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	timeout := 500 * time.Millisecond
-	_, err = cls.WithOptions(modal.ClsOptions{Timeout: &timeout}).Instance(nil)
+	_, err = cls.WithOptions(modal.ClsOptions{Timeout: &timeout}).Instance(ctx, nil)
 	g.Expect(err).Should(gomega.HaveOccurred())
 	g.Expect(err.Error()).Should(gomega.ContainSubstring("timeout must be at least 1 second"))
 
 	scaledownWindow := 100 * time.Millisecond
-	_, err = cls.WithOptions(modal.ClsOptions{ScaledownWindow: &scaledownWindow}).Instance(nil)
+	_, err = cls.WithOptions(modal.ClsOptions{ScaledownWindow: &scaledownWindow}).Instance(ctx, nil)
 	g.Expect(err).Should(gomega.HaveOccurred())
 	g.Expect(err.Error()).Should(gomega.ContainSubstring("scaledownWindow must be at least 1 second"))
 
 	fractionalTimeout := 1500 * time.Millisecond
-	_, err = cls.WithOptions(modal.ClsOptions{Timeout: &fractionalTimeout}).Instance(nil)
+	_, err = cls.WithOptions(modal.ClsOptions{Timeout: &fractionalTimeout}).Instance(ctx, nil)
 	g.Expect(err).Should(gomega.HaveOccurred())
 	g.Expect(err.Error()).Should(gomega.ContainSubstring("whole number of seconds"))
 
 	fractionalScaledown := 1500 * time.Millisecond
-	_, err = cls.WithOptions(modal.ClsOptions{ScaledownWindow: &fractionalScaledown}).Instance(nil)
+	_, err = cls.WithOptions(modal.ClsOptions{ScaledownWindow: &fractionalScaledown}).Instance(ctx, nil)
 	g.Expect(err).Should(gomega.HaveOccurred())
 	g.Expect(err.Error()).Should(gomega.ContainSubstring("whole number of seconds"))
 }
 
 func TestWithOptionsEmptySecretsDoesNotReplace(t *testing.T) {
 	g := gomega.NewWithT(t)
+	ctx := context.Background()
 
-	mock, cleanup := grpcmock.Install()
-	t.Cleanup(cleanup)
+	mock := grpcmock.NewMockClient()
+	defer func() {
+		g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
+	}()
 
 	grpcmock.HandleUnary(
 		mock, "FunctionGet",
@@ -211,7 +226,7 @@ func TestWithOptionsEmptySecretsDoesNotReplace(t *testing.T) {
 		},
 	)
 
-	cls, err := modal.ClsLookup(context.Background(), "libmodal-test-support", "EchoCls", nil)
+	cls, err := mock.Cls.Lookup(ctx, "libmodal-test-support", "EchoCls", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	grpcmock.HandleUnary(
@@ -226,15 +241,18 @@ func TestWithOptionsEmptySecretsDoesNotReplace(t *testing.T) {
 		},
 	)
 
-	_, err = cls.WithOptions(modal.ClsOptions{Secrets: []*modal.Secret{}}).Instance(nil)
+	_, err = cls.WithOptions(modal.ClsOptions{Secrets: []*modal.Secret{}}).Instance(ctx, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 }
 
 func TestWithOptionsEmptyVolumesDoesNotReplace(t *testing.T) {
 	g := gomega.NewWithT(t)
+	ctx := context.Background()
 
-	mock, cleanup := grpcmock.Install()
-	t.Cleanup(cleanup)
+	mock := grpcmock.NewMockClient()
+	defer func() {
+		g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
+	}()
 
 	grpcmock.HandleUnary(
 		mock, "FunctionGet",
@@ -243,7 +261,7 @@ func TestWithOptionsEmptyVolumesDoesNotReplace(t *testing.T) {
 		},
 	)
 
-	cls, err := modal.ClsLookup(context.Background(), "libmodal-test-support", "EchoCls", nil)
+	cls, err := mock.Cls.Lookup(ctx, "libmodal-test-support", "EchoCls", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	grpcmock.HandleUnary(
@@ -258,6 +276,6 @@ func TestWithOptionsEmptyVolumesDoesNotReplace(t *testing.T) {
 		},
 	)
 
-	_, err = cls.WithOptions(modal.ClsOptions{Volumes: map[string]*modal.Volume{}}).Instance(nil)
+	_, err = cls.WithOptions(modal.ClsOptions{Volumes: map[string]*modal.Volume{}}).Instance(ctx, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 }

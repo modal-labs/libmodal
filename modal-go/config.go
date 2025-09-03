@@ -14,11 +14,11 @@ import (
 
 // Profile holds a fully-resolved configuration ready for use by the client.
 type Profile struct {
-	ServerURL           string // e.g. https://api.modal.com:443
-	TokenId             string // optional (if InitializeClient is called)
-	TokenSecret         string // optional (if InitializeClient is called)
-	Environment         string // optional
-	ImageBuilderVersion string // optional
+	ServerURL           string
+	TokenId             string
+	TokenSecret         string
+	Environment         string
+	ImageBuilderVersion string
 }
 
 // rawProfile mirrors the TOML structure on disk.
@@ -59,9 +59,9 @@ func readConfigFile() (config, error) {
 // the first profile in the configuration file with `active = true`.
 //
 // Returned Profile is ready for use; error describes what is missing.
-func getProfile(name string) Profile {
+func getProfile(name string, cfg config) Profile {
 	if name == "" {
-		for n, p := range defaultConfig {
+		for n, p := range cfg {
 			if p.Active {
 				name = n
 				break
@@ -71,7 +71,7 @@ func getProfile(name string) Profile {
 
 	var raw rawProfile
 	if name != "" {
-		raw = defaultConfig[name]
+		raw = cfg[name]
 	}
 
 	// Env-vars override file values.
@@ -99,10 +99,10 @@ func firstNonEmpty(values ...string) string {
 	return ""
 }
 
-func environmentName(environment string) string {
-	return firstNonEmpty(environment, clientProfile.Environment)
+func environmentName(environment string, profile Profile) string {
+	return firstNonEmpty(environment, profile.Environment)
 }
 
-func imageBuilderVersion(version string) string {
-	return firstNonEmpty(version, clientProfile.ImageBuilderVersion, "2024.10")
+func imageBuilderVersion(version string, profile Profile) string {
+	return firstNonEmpty(version, profile.ImageBuilderVersion, "2024.10")
 }

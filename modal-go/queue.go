@@ -13,6 +13,9 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// QueueService provides Queue related operations.
+type QueueService struct{ client *Client }
+
 const queueInitialPutBackoff = 100 * time.Millisecond
 const queueDefaultPartitionTtl = 24 * time.Hour
 
@@ -55,21 +58,22 @@ type QueueIterateOptions struct {
 
 // Queue is a distributed, FIFO queue for data flow in Modal Apps.
 type Queue struct {
-	QueueId string
-	Name    string
-	cancel  context.CancelFunc
-	ctx     context.Context
+	QueueId         string
+	Name            string
+	cancelEphemeral context.CancelFunc
+
+	client *Client
 }
 
-// QueueEphemeral creates a nameless, temporary Queue, that persists until CloseEphemeral is called, or the process exits.
-func QueueEphemeral(ctx context.Context, options *EphemeralOptions) (*Queue, error) {
+// Ephemeral creates a nameless, temporary Queue, that persists until CloseEphemeral is called, or the process exits.
+func (s *QueueService) Ephemeral(ctx context.Context, options *EphemeralOptions) (*Queue, error) {
 	if options == nil {
 		options = &EphemeralOptions{}
 	}
 
-	resp, err := client.QueueGetOrCreate(ctx, pb.QueueGetOrCreateRequest_builder{
+	resp, err := s.client.cpClient.QueueGetOrCreate(ctx, pb.QueueGetOrCreateRequest_builder{
 		ObjectCreationType: pb.ObjectCreationType_OBJECT_CREATION_TYPE_EPHEMERAL,
-		EnvironmentName:    environmentName(options.Environment),
+		EnvironmentName:    environmentName(options.Environment, s.client.profile),
 	}.Build())
 	if err != nil {
 		return nil, err
@@ -77,16 +81,16 @@ func QueueEphemeral(ctx context.Context, options *EphemeralOptions) (*Queue, err
 
 	ephemeralCtx, cancel := context.WithCancel(ctx)
 	startEphemeralHeartbeat(ephemeralCtx, func() error {
-		_, err := client.QueueHeartbeat(ephemeralCtx, pb.QueueHeartbeatRequest_builder{
+		_, err := s.client.cpClient.QueueHeartbeat(ephemeralCtx, pb.QueueHeartbeatRequest_builder{
 			QueueId: resp.GetQueueId(),
 		}.Build())
 		return err
 	})
 
 	q := &Queue{
-		QueueId: resp.GetQueueId(),
-		cancel:  cancel,
-		ctx:     ephemeralCtx,
+		QueueId:         resp.GetQueueId(),
+		cancelEphemeral: cancel,
+		client:          s.client,
 	}
 
 	return q, nil
@@ -94,8 +98,8 @@ func QueueEphemeral(ctx context.Context, options *EphemeralOptions) (*Queue, err
 
 // CloseEphemeral deletes an ephemeral Queue, only used with QueueEphemeral.
 func (q *Queue) CloseEphemeral() {
-	if q.cancel != nil {
-		q.cancel()
+	if q.cancelEphemeral != nil {
+		q.cancelEphemeral()
 	} else {
 		// We panic in this case because of invalid usage. In general, methods
 		// used with `defer` like CloseEphemeral should not return errors.
@@ -103,8 +107,8 @@ func (q *Queue) CloseEphemeral() {
 	}
 }
 
-// QueueLookup returns a handle to a (possibly new) Queue by name.
-func QueueLookup(ctx context.Context, name string, options *LookupOptions) (*Queue, error) {
+// Lookup returns a handle to a (possibly new) Queue by name.
+func (s *QueueService) Lookup(ctx context.Context, name string, options *LookupOptions) (*Queue, error) {
 	if options == nil {
 		options = &LookupOptions{}
 	}
@@ -114,33 +118,38 @@ func QueueLookup(ctx context.Context, name string, options *LookupOptions) (*Que
 		creationType = pb.ObjectCreationType_OBJECT_CREATION_TYPE_CREATE_IF_MISSING
 	}
 
-	resp, err := client.QueueGetOrCreate(ctx, pb.QueueGetOrCreateRequest_builder{
+	resp, err := s.client.cpClient.QueueGetOrCreate(ctx, pb.QueueGetOrCreateRequest_builder{
 		DeploymentName:     name,
-		EnvironmentName:    environmentName(options.Environment),
+		EnvironmentName:    environmentName(options.Environment, s.client.profile),
 		ObjectCreationType: creationType,
 	}.Build())
 	if err != nil {
 		return nil, err
 	}
-	return &Queue{ctx: ctx, QueueId: resp.GetQueueId(), Name: name, cancel: nil}, nil
+	return &Queue{
+		QueueId:         resp.GetQueueId(),
+		Name:            name,
+		cancelEphemeral: nil,
+		client:          s.client,
+	}, nil
 }
 
-// QueueDelete removes a Queue by name.
-func QueueDelete(ctx context.Context, name string, options *DeleteOptions) error {
+// Delete removes a Queue by name.
+func (s *QueueService) Delete(ctx context.Context, name string, options *DeleteOptions) error {
 	if options == nil {
 		options = &DeleteOptions{}
 	}
 
-	q, err := QueueLookup(ctx, name, &LookupOptions{Environment: options.Environment})
+	q, err := s.Lookup(ctx, name, &LookupOptions{Environment: options.Environment})
 	if err != nil {
 		return err
 	}
-	_, err = client.QueueDelete(ctx, pb.QueueDeleteRequest_builder{QueueId: q.QueueId}.Build())
+	_, err = s.client.cpClient.QueueDelete(ctx, pb.QueueDeleteRequest_builder{QueueId: q.QueueId}.Build())
 	return err
 }
 
 // Clear removes all objects from a Queue partition.
-func (q *Queue) Clear(options *QueueClearOptions) error {
+func (q *Queue) Clear(ctx context.Context, options *QueueClearOptions) error {
 	if options == nil {
 		options = &QueueClearOptions{}
 	}
@@ -151,7 +160,7 @@ func (q *Queue) Clear(options *QueueClearOptions) error {
 	if err != nil {
 		return err
 	}
-	_, err = client.QueueClear(q.ctx, pb.QueueClearRequest_builder{
+	_, err = q.client.cpClient.QueueClear(ctx, pb.QueueClearRequest_builder{
 		QueueId:       q.QueueId,
 		PartitionKey:  key,
 		AllPartitions: options.All,
@@ -160,7 +169,7 @@ func (q *Queue) Clear(options *QueueClearOptions) error {
 }
 
 // get is an internal helper for both Get and GetMany.
-func (q *Queue) get(n int, options *QueueGetOptions) ([]any, error) {
+func (q *Queue) get(ctx context.Context, n int, options *QueueGetOptions) ([]any, error) {
 	if options == nil {
 		options = &QueueGetOptions{}
 	}
@@ -176,7 +185,7 @@ func (q *Queue) get(n int, options *QueueGetOptions) ([]any, error) {
 	}
 
 	for {
-		resp, err := client.QueueGet(q.ctx, pb.QueueGetRequest_builder{
+		resp, err := q.client.cpClient.QueueGet(ctx, pb.QueueGetRequest_builder{
 			QueueId:      q.QueueId,
 			PartitionKey: partitionKey,
 			Timeout:      float32(pollTimeout.Seconds()),
@@ -212,8 +221,8 @@ func (q *Queue) get(n int, options *QueueGetOptions) ([]any, error) {
 // By default, this will wait until at least one item is present in the Queue.
 // If `timeout` is set, returns `QueueEmptyError` if no items are available
 // within that timeout in milliseconds.
-func (q *Queue) Get(options *QueueGetOptions) (any, error) {
-	vals, err := q.get(1, options)
+func (q *Queue) Get(ctx context.Context, options *QueueGetOptions) (any, error) {
+	vals, err := q.get(ctx, 1, options)
 	if err != nil {
 		return nil, err
 	}
@@ -225,12 +234,12 @@ func (q *Queue) Get(options *QueueGetOptions) (any, error) {
 // By default, this will wait until at least one item is present in the Queue.
 // If `timeout` is set, returns `QueueEmptyError` if no items are available
 // within that timeout in milliseconds.
-func (q *Queue) GetMany(n int, options *QueueGetOptions) ([]any, error) {
-	return q.get(n, options)
+func (q *Queue) GetMany(ctx context.Context, n int, options *QueueGetOptions) ([]any, error) {
+	return q.get(ctx, n, options)
 }
 
 // put is an internal helper for both Put and PutMany.
-func (q *Queue) put(values []any, options *QueuePutOptions) error {
+func (q *Queue) put(ctx context.Context, values []any, options *QueuePutOptions) error {
 	if options == nil {
 		options = &QueuePutOptions{}
 	}
@@ -260,7 +269,7 @@ func (q *Queue) put(values []any, options *QueuePutOptions) error {
 	}
 
 	for {
-		_, err := client.QueuePut(q.ctx, pb.QueuePutRequest_builder{
+		_, err := q.client.cpClient.QueuePut(ctx, pb.QueuePutRequest_builder{
 			QueueId:             q.QueueId,
 			Values:              valuesEncoded,
 			PartitionKey:        key,
@@ -284,8 +293,8 @@ func (q *Queue) put(values []any, options *QueuePutOptions) error {
 			delay = min(delay, remaining)
 		}
 		select {
-		case <-q.ctx.Done():
-			return q.ctx.Err()
+		case <-ctx.Done():
+			return ctx.Err()
 		case <-time.After(delay):
 		}
 	}
@@ -296,8 +305,8 @@ func (q *Queue) put(values []any, options *QueuePutOptions) error {
 // If the Queue is full, this will retry with exponential backoff until the
 // provided `timeout` is reached, or indefinitely if `timeout` is not set.
 // Raises `QueueFullError` if the Queue is still full after the timeout.
-func (q *Queue) Put(v any, options *QueuePutOptions) error {
-	return q.put([]any{v}, options)
+func (q *Queue) Put(ctx context.Context, v any, options *QueuePutOptions) error {
+	return q.put(ctx, []any{v}, options)
 }
 
 // PutMany adds multiple items to the end of the Queue.
@@ -305,12 +314,12 @@ func (q *Queue) Put(v any, options *QueuePutOptions) error {
 // If the Queue is full, this will retry with exponential backoff until the
 // provided `timeout` is reached, or indefinitely if `timeout` is not set.
 // Raises `QueueFullError` if the Queue is still full after the timeout.
-func (q *Queue) PutMany(values []any, options *QueuePutOptions) error {
-	return q.put(values, options)
+func (q *Queue) PutMany(ctx context.Context, values []any, options *QueuePutOptions) error {
+	return q.put(ctx, values, options)
 }
 
 // Len returns the number of objects in the Queue.
-func (q *Queue) Len(options *QueueLenOptions) (int, error) {
+func (q *Queue) Len(ctx context.Context, options *QueueLenOptions) (int, error) {
 	if options == nil {
 		options = &QueueLenOptions{}
 	}
@@ -321,7 +330,7 @@ func (q *Queue) Len(options *QueueLenOptions) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	resp, err := client.QueueLen(q.ctx, pb.QueueLenRequest_builder{
+	resp, err := q.client.cpClient.QueueLen(ctx, pb.QueueLenRequest_builder{
 		QueueId:      q.QueueId,
 		PartitionKey: key,
 		Total:        options.Total,
@@ -333,7 +342,7 @@ func (q *Queue) Len(options *QueueLenOptions) (int, error) {
 }
 
 // Iterate yields items from the Queue until it is empty.
-func (q *Queue) Iterate(options *QueueIterateOptions) iter.Seq2[any, error] {
+func (q *Queue) Iterate(ctx context.Context, options *QueueIterateOptions) iter.Seq2[any, error] {
 	if options == nil {
 		options = &QueueIterateOptions{}
 	}
@@ -352,7 +361,7 @@ func (q *Queue) Iterate(options *QueueIterateOptions) iter.Seq2[any, error] {
 		fetchDeadline := time.Now().Add(itemPoll)
 		for {
 			pollDuration := max(0, min(maxPoll, time.Until(fetchDeadline)))
-			resp, err := client.QueueNextItems(q.ctx, pb.QueueNextItemsRequest_builder{
+			resp, err := q.client.cpClient.QueueNextItems(ctx, pb.QueueNextItemsRequest_builder{
 				QueueId:         q.QueueId,
 				PartitionKey:    key,
 				ItemPollTimeout: float32(pollDuration.Seconds()),

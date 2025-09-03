@@ -11,23 +11,27 @@ import (
 
 func main() {
 	ctx := context.Background()
+	mc, err := modal.NewClient()
+	if err != nil {
+		log.Fatalf("Failed to create client: %v", err)
+	}
 
-	app, err := modal.AppLookup(ctx, "libmodal-example", &modal.LookupOptions{
+	app, err := mc.Apps.Lookup(ctx, "libmodal-example", &modal.LookupOptions{
 		CreateIfMissing: true,
 	})
 	if err != nil {
 		log.Fatalf("Failed to lookup App: %v", err)
 	}
 
-	image := modal.NewImageFromRegistry("alpine:3.21", nil)
+	image := mc.Images.FromRegistry("alpine:3.21", nil)
 
-	volume, err := modal.VolumeEphemeral(ctx, nil)
+	volume, err := mc.Volumes.Ephemeral(ctx, nil)
 	if err != nil {
 		log.Fatalf("Failed to create ephemeral Volume: %v", err)
 	}
 	defer volume.CloseEphemeral()
 
-	writerSandbox, err := app.CreateSandbox(image, &modal.SandboxOptions{
+	writerSandbox, err := mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateOptions{
 		Command: []string{
 			"sh",
 			"-c",
@@ -42,17 +46,17 @@ func main() {
 	}
 	fmt.Printf("Writer Sandbox: %s\n", writerSandbox.SandboxId)
 
-	exitCode, err := writerSandbox.Wait()
+	exitCode, err := writerSandbox.Wait(ctx)
 	if err != nil {
 		log.Fatalf("Failed to wait for writer Sandbox: %v", err)
 	}
 	fmt.Printf("Writer finished with exit code: %d\n", exitCode)
 
-	if err := writerSandbox.Terminate(); err != nil {
+	if err := writerSandbox.Terminate(ctx); err != nil {
 		log.Printf("Failed to terminate writer Sandbox: %v", err)
 	}
 
-	readerSandbox, err := app.CreateSandbox(image, &modal.SandboxOptions{
+	readerSandbox, err := mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateOptions{
 		Command: []string{"cat", "/mnt/volume/message.txt"},
 		Volumes: map[string]*modal.Volume{
 			"/mnt/volume": volume.ReadOnly(),
@@ -69,7 +73,7 @@ func main() {
 	}
 	fmt.Printf("Reader output: %s", string(readerOutput))
 
-	if err := readerSandbox.Terminate(); err != nil {
+	if err := readerSandbox.Terminate(ctx); err != nil {
 		log.Printf("Failed to terminate reader Sandbox: %v", err)
 	}
 }

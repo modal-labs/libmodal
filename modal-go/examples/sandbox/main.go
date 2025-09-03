@@ -10,15 +10,19 @@ import (
 
 func main() {
 	ctx := context.Background()
+	mc, err := modal.NewClient()
+	if err != nil {
+		log.Fatalf("Failed to create client: %v", err)
+	}
 
-	app, err := modal.AppLookup(ctx, "libmodal-example", &modal.LookupOptions{CreateIfMissing: true})
+	app, err := mc.Apps.Lookup(ctx, "libmodal-example", &modal.LookupOptions{CreateIfMissing: true})
 	if err != nil {
 		log.Fatalf("Failed to lookup or create App: %v", err)
 	}
 
-	image := modal.NewImageFromRegistry("alpine:3.21", nil)
+	image := mc.Images.FromRegistry("alpine:3.21", nil)
 
-	sb, err := app.CreateSandbox(image, &modal.SandboxOptions{
+	sb, err := mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateOptions{
 		Command: []string{"cat"},
 	})
 	if err != nil {
@@ -26,7 +30,7 @@ func main() {
 	}
 	log.Printf("sandbox: %s\n", sb.SandboxId)
 
-	sbFromId, err := modal.SandboxFromId(ctx, sb.SandboxId)
+	sbFromId, err := mc.Sandboxes.FromId(ctx, sb.SandboxId)
 	if err != nil {
 		log.Fatalf("Failed to get Sandbox with ID: %v", err)
 	}

@@ -10,22 +10,26 @@ import (
 
 func main() {
 	ctx := context.Background()
+	mc, err := modal.NewClient()
+	if err != nil {
+		log.Fatalf("Failed to create client: %v", err)
+	}
 
-	app, err := modal.AppLookup(ctx, "libmodal-example", &modal.LookupOptions{CreateIfMissing: true})
+	app, err := mc.Apps.Lookup(ctx, "libmodal-example", &modal.LookupOptions{CreateIfMissing: true})
 	if err != nil {
 		log.Fatalf("Failed to lookup or create App: %v", err)
 	}
 
-	image := modal.NewImageFromRegistry("python:3.13-slim", nil)
+	image := mc.Images.FromRegistry("python:3.13-slim", nil)
 
-	sb, err := app.CreateSandbox(image, nil)
+	sb, err := mc.Sandboxes.Create(ctx, app, image, nil)
 	if err != nil {
 		log.Fatalf("Failed to create Sandbox: %v", err)
 	}
 	log.Println("Started Sandbox:", sb.SandboxId)
-	defer sb.Terminate()
+	defer sb.Terminate(ctx)
 
-	p, err := sb.Exec(
+	p, err := sb.Exec(ctx,
 		[]string{
 			"python",
 			"-c",
@@ -57,19 +61,19 @@ for i in range(50000):
 	}
 
 	log.Printf("Got %d bytes stdout and %d bytes stderr\n", len(contentStdout), len(contentStderr))
-	returnCode, err := p.Wait()
+	returnCode, err := p.Wait(ctx)
 	if err != nil {
 		log.Fatalf("Failed to wait for process completion: %v", err)
 	}
 	log.Println("Return code:", returnCode)
 
-	secret, err := modal.SecretFromName(context.Background(), "libmodal-test-secret", &modal.SecretFromNameOptions{RequiredKeys: []string{"c"}})
+	secret, err := mc.Secrets.FromName(ctx, "libmodal-test-secret", &modal.SecretFromNameOptions{RequiredKeys: []string{"c"}})
 	if err != nil {
 		log.Fatalf("Unable to get Secret: %v", err)
 	}
 
 	// Passing Secrets in a command
-	p, err = sb.Exec([]string{"printenv", "c"}, modal.ExecOptions{Stdout: modal.Pipe, Stderr: modal.Pipe, Secrets: []*modal.Secret{secret}})
+	p, err = sb.Exec(ctx, []string{"printenv", "c"}, modal.ExecOptions{Stdout: modal.Pipe, Stderr: modal.Pipe, Secrets: []*modal.Secret{secret}})
 	if err != nil {
 		log.Fatalf("Faield to execute env command in Sandbox: %v", err)
 	}

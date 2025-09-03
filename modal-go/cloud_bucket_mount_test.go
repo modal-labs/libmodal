@@ -7,11 +7,15 @@ import (
 	"github.com/onsi/gomega"
 )
 
+func newTestMount(bucketName string, options *CloudBucketMountOptions) (*CloudBucketMount, error) {
+	return (&CloudBucketMountService{}).New(bucketName, options)
+}
+
 func TestNewCloudBucketMount_MinimalOptions(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
-	mount, err := NewCloudBucketMount("my-bucket", nil)
+	mount, err := newTestMount("my-bucket", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(mount.BucketName).Should(gomega.Equal("my-bucket"))
 	g.Expect(mount.ReadOnly).Should(gomega.BeFalse())
@@ -35,7 +39,7 @@ func TestNewCloudBucketMount_AllOptions(t *testing.T) {
 	keyPrefix := "prefix/"
 	oidcRole := "arn:aws:iam::123456789:role/MyRole"
 
-	mount, err := NewCloudBucketMount("my-bucket", &CloudBucketMountOptions{
+	mount, err := newTestMount("my-bucket", &CloudBucketMountOptions{
 		Secret:            mockSecret,
 		ReadOnly:          true,
 		RequesterPays:     true,
@@ -99,7 +103,7 @@ func TestGetBucketTypeFromEndpointURL(t *testing.T) {
 				options.BucketEndpointUrl = &tc.endpointURL
 			}
 
-			mount, err := NewCloudBucketMount("my-bucket", options)
+			mount, err := newTestMount("my-bucket", options)
 			g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 			bucketType, err := getBucketTypeFromEndpointURL(mount.BucketEndpointUrl)
@@ -124,7 +128,7 @@ func TestNewCloudBucketMount_ValidationRequesterPaysWithoutSecret(t *testing.T) 
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
-	_, err := NewCloudBucketMount("my-bucket", &CloudBucketMountOptions{
+	_, err := newTestMount("my-bucket", &CloudBucketMountOptions{
 		RequesterPays: true,
 	})
 
@@ -136,7 +140,7 @@ func TestNewCloudBucketMount_ValidationKeyPrefixWithoutTrailingSlash(t *testing.
 	g := gomega.NewWithT(t)
 
 	keyPrefix := "prefix"
-	_, err := NewCloudBucketMount("my-bucket", &CloudBucketMountOptions{
+	_, err := newTestMount("my-bucket", &CloudBucketMountOptions{
 		KeyPrefix: &keyPrefix,
 	})
 
@@ -147,7 +151,7 @@ func TestCloudBucketMount_ToProtoMinimalOptions(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
-	mount, err := NewCloudBucketMount("my-bucket", nil)
+	mount, err := newTestMount("my-bucket", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	proto, err := mount.toProto("/mnt/bucket")
@@ -173,7 +177,7 @@ func TestCloudBucketMount_ToProtoAllOptions(t *testing.T) {
 	keyPrefix := "prefix/"
 	oidcRole := "arn:aws:iam::123456789:role/MyRole"
 
-	mount, err := NewCloudBucketMount("my-bucket", &CloudBucketMountOptions{
+	mount, err := newTestMount("my-bucket", &CloudBucketMountOptions{
 		Secret:            mockSecret,
 		ReadOnly:          true,
 		RequesterPays:     true,

@@ -1,4 +1,3 @@
-//nolint:staticcheck // SA1019 We need to use deprecated API for testing
 package test
 
 import (
@@ -12,20 +11,21 @@ import (
 )
 
 func createSandbox(g *gomega.WithT) *modal.Sandbox {
-	app, err := modal.AppLookup(context.Background(), "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
+	ctx := context.Background()
+
+	app, err := tc.Apps.Lookup(ctx, "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	image, err := app.ImageFromRegistry("alpine:3.21", nil)
-	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	image := tc.Images.FromRegistry("alpine:3.21", nil)
 
-	sb, err := app.CreateSandbox(image, nil)
+	sb, err := tc.Sandboxes.Create(ctx, app, image, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(sb.SandboxId).ShouldNot(gomega.BeEmpty())
 	return sb
 }
 
 func terminateSandbox(g *gomega.WithT, sb *modal.Sandbox) {
-	err := sb.Terminate()
+	err := sb.Terminate(context.Background())
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 }
 
@@ -34,8 +34,9 @@ func TestSandboxWriteAndReadBinaryFile(t *testing.T) {
 	g := gomega.NewWithT(t)
 	sb := createSandbox(g)
 	defer terminateSandbox(g, sb)
+	ctx := context.Background()
 
-	writer, err := sb.Open("/tmp/test.bin", "w")
+	writer, err := sb.Open(ctx, "/tmp/test.bin", "w")
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	text := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
@@ -45,7 +46,7 @@ func TestSandboxWriteAndReadBinaryFile(t *testing.T) {
 	err = writer.Close()
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	reader, err := sb.Open("/tmp/test.bin", "r")
+	reader, err := sb.Open(ctx, "/tmp/test.bin", "r")
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	output := make([]byte, 10)
@@ -63,8 +64,9 @@ func TestSandboxAppendToFileBinary(t *testing.T) {
 	g := gomega.NewWithT(t)
 	sb := createSandbox(g)
 	defer terminateSandbox(g, sb)
+	ctx := context.Background()
 
-	writer, err := sb.Open("/tmp/append.txt", "w")
+	writer, err := sb.Open(ctx, "/tmp/append.txt", "w")
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	text := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
@@ -74,12 +76,12 @@ func TestSandboxAppendToFileBinary(t *testing.T) {
 	err = writer.Close()
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	appender, err := sb.Open("/tmp/append.txt", "a")
+	appender, err := sb.Open(ctx, "/tmp/append.txt", "a")
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	more_text := []byte{7, 8, 9, 10}
 	appender.Write(more_text)
 
-	reader, err := sb.Open("/tmp/append.txt", "r")
+	reader, err := sb.Open(ctx, "/tmp/append.txt", "r")
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	expected_text := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 7, 8, 9, 10}
@@ -95,8 +97,9 @@ func TestSandboxFileFlush(t *testing.T) {
 	g := gomega.NewWithT(t)
 	sb := createSandbox(g)
 	defer terminateSandbox(g, sb)
+	ctx := context.Background()
 
-	writer, err := sb.Open("/tmp/flush.txt", "w")
+	writer, err := sb.Open(ctx, "/tmp/flush.txt", "w")
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	text := []byte("Test data")
@@ -106,7 +109,7 @@ func TestSandboxFileFlush(t *testing.T) {
 	err = writer.Flush()
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	reader, err := sb.Open("/tmp/flush.txt", "r")
+	reader, err := sb.Open(ctx, "/tmp/flush.txt", "r")
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	out, err := io.ReadAll(reader)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -124,9 +127,10 @@ func TestSandboxMultipleFileOperations(t *testing.T) {
 	g := gomega.NewWithT(t)
 	sb := createSandbox(g)
 	defer terminateSandbox(g, sb)
+	ctx := context.Background()
 
 	content1 := []byte("File 1 content")
-	writer, err := sb.Open("/tmp/file1.txt", "w")
+	writer, err := sb.Open(ctx, "/tmp/file1.txt", "w")
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	n, err := writer.Write(content1)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -135,7 +139,7 @@ func TestSandboxMultipleFileOperations(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	content2 := []byte("File 2 content")
-	writer, err = sb.Open("/tmp/file2.txt", "w")
+	writer, err = sb.Open(ctx, "/tmp/file2.txt", "w")
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	n, err = writer.Write(content2)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -143,14 +147,14 @@ func TestSandboxMultipleFileOperations(t *testing.T) {
 	err = writer.Close()
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	reader1, err := sb.Open("/tmp/file1.txt", "r")
+	reader1, err := sb.Open(ctx, "/tmp/file1.txt", "r")
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	readContent1, err := io.ReadAll(reader1)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	err = reader1.Close()
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	reader2, err := sb.Open("/tmp/file2.txt", "r")
+	reader2, err := sb.Open(ctx, "/tmp/file2.txt", "r")
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	readContent2, err := io.ReadAll(reader2)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -167,10 +171,11 @@ func TestSandboxFileOpenModes(t *testing.T) {
 	g := gomega.NewWithT(t)
 	sb := createSandbox(g)
 	defer terminateSandbox(g, sb)
+	ctx := context.Background()
 
 	// Test write mode (truncates)
 	content1 := []byte("Initial content")
-	writer, err := sb.Open("/tmp/modes.txt", "w")
+	writer, err := sb.Open(ctx, "/tmp/modes.txt", "w")
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	n, err := writer.Write(content1)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -179,7 +184,7 @@ func TestSandboxFileOpenModes(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	// Test read mode
-	reader1, err := sb.Open("/tmp/modes.txt", "r")
+	reader1, err := sb.Open(ctx, "/tmp/modes.txt", "r")
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	readContent1, err := io.ReadAll(reader1)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -189,7 +194,7 @@ func TestSandboxFileOpenModes(t *testing.T) {
 
 	// Test append mode
 	content2 := []byte(" appended")
-	appender, err := sb.Open("/tmp/modes.txt", "a")
+	appender, err := sb.Open(ctx, "/tmp/modes.txt", "a")
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	n, err = appender.Write(content2)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -197,7 +202,7 @@ func TestSandboxFileOpenModes(t *testing.T) {
 	err = appender.Close()
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	reader2, err := sb.Open("/tmp/modes.txt", "r")
+	reader2, err := sb.Open(ctx, "/tmp/modes.txt", "r")
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	readContent2, err := io.ReadAll(reader2)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -213,11 +218,12 @@ func TestSandboxLargeFileOperations(t *testing.T) {
 	g := gomega.NewWithT(t)
 	sb := createSandbox(g)
 	defer terminateSandbox(g, sb)
+	ctx := context.Background()
 
 	xByte := []byte{'x'}
 	largeData := bytes.Repeat(xByte, 1000)
 
-	writer, err := sb.Open("/tmp/large.txt", "w")
+	writer, err := sb.Open(ctx, "/tmp/large.txt", "w")
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	n, err := writer.Write(largeData)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -225,7 +231,7 @@ func TestSandboxLargeFileOperations(t *testing.T) {
 	err = writer.Close()
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	reader1, err := sb.Open("/tmp/large.txt", "r")
+	reader1, err := sb.Open(ctx, "/tmp/large.txt", "r")
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	readContent1, err := io.ReadAll(reader1)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())

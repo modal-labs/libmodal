@@ -14,6 +14,9 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+// ClsService provides Cls related operations.
+type ClsService struct{ client *Client }
+
 // ClsOptions represents runtime options for a Modal Cls.
 type ClsOptions struct {
 	CPU              *float64
@@ -60,32 +63,33 @@ type serviceOptions struct {
 // Cls represents a Modal class definition that can be instantiated with parameters.
 // It contains metadata about the class and its methods.
 type Cls struct {
-	ctx               context.Context
 	serviceFunctionId string
 	schema            []*pb.ClassParameterSpec
 	methodNames       []string
 	inputPlaneUrl     string // if empty, use control plane
 	options           *serviceOptions
+
+	client *Client
 }
 
-// ClsLookup looks up an existing Cls on a deployed App.
-func ClsLookup(ctx context.Context, appName string, name string, options *LookupOptions) (*Cls, error) {
+// Lookup looks up an existing Cls on a deployed App.
+func (s *ClsService) Lookup(ctx context.Context, appName string, name string, options *LookupOptions) (*Cls, error) {
 	if options == nil {
 		options = &LookupOptions{}
 	}
 
 	cls := Cls{
 		methodNames: []string{},
-		ctx:         ctx,
+		client:      s.client,
 	}
 
 	// Find class service function metadata. Service functions are used to implement class methods,
 	// which are invoked using a combination of service function ID and the method name.
 	serviceFunctionName := fmt.Sprintf("%s.*", name)
-	serviceFunction, err := client.FunctionGet(ctx, pb.FunctionGetRequest_builder{
+	serviceFunction, err := s.client.cpClient.FunctionGet(ctx, pb.FunctionGetRequest_builder{
 		AppName:         appName,
 		ObjectTag:       serviceFunctionName,
-		EnvironmentName: environmentName(options.Environment),
+		EnvironmentName: environmentName(options.Environment, s.client.profile),
 	}.Build())
 
 	if status, ok := status.FromError(err); ok && status.Code() == codes.NotFound {
@@ -124,12 +128,12 @@ func ClsLookup(ctx context.Context, appName string, name string, options *Lookup
 }
 
 // Instance creates a new instance of the class with the provided parameters.
-func (c *Cls) Instance(params map[string]any) (*ClsInstance, error) {
+func (c *Cls) Instance(ctx context.Context, params map[string]any) (*ClsInstance, error) {
 	var functionId string
 	if len(c.schema) == 0 && !hasOptions(c.options) {
 		functionId = c.serviceFunctionId
 	} else {
-		boundFunctionId, err := c.bindParameters(params)
+		boundFunctionId, err := c.bindParameters(ctx, params)
 		if err != nil {
 			return nil, err
 		}
@@ -142,7 +146,7 @@ func (c *Cls) Instance(params map[string]any) (*ClsInstance, error) {
 			FunctionId:    functionId,
 			MethodName:    &name,
 			inputPlaneUrl: c.inputPlaneUrl,
-			ctx:           c.ctx,
+			client:        c.client,
 		}
 	}
 	return &ClsInstance{methods: methods}, nil
@@ -175,12 +179,12 @@ func (c *Cls) WithOptions(opts ClsOptions) *Cls {
 	})
 
 	return &Cls{
-		ctx:               c.ctx,
 		serviceFunctionId: c.serviceFunctionId,
 		schema:            c.schema,
 		methodNames:       c.methodNames,
 		inputPlaneUrl:     c.inputPlaneUrl,
 		options:           merged,
+		client:            c.client,
 	}
 }
 
@@ -192,12 +196,12 @@ func (c *Cls) WithConcurrency(opts ClsConcurrencyOptions) *Cls {
 	})
 
 	return &Cls{
-		ctx:               c.ctx,
 		serviceFunctionId: c.serviceFunctionId,
 		schema:            c.schema,
 		methodNames:       c.methodNames,
 		inputPlaneUrl:     c.inputPlaneUrl,
 		options:           merged,
+		client:            c.client,
 	}
 }
 
@@ -209,17 +213,17 @@ func (c *Cls) WithBatching(opts ClsBatchingOptions) *Cls {
 	})
 
 	return &Cls{
-		ctx:               c.ctx,
 		serviceFunctionId: c.serviceFunctionId,
 		schema:            c.schema,
 		methodNames:       c.methodNames,
 		inputPlaneUrl:     c.inputPlaneUrl,
 		options:           merged,
+		client:            c.client,
 	}
 }
 
 // bindParameters processes the parameters and binds them to the class function.
-func (c *Cls) bindParameters(params map[string]any) (string, error) {
+func (c *Cls) bindParameters(ctx context.Context, params map[string]any) (string, error) {
 	serializedParams, err := encodeParameterSet(c.schema, params)
 	if err != nil {
 		return "", fmt.Errorf("failed to serialize parameters: %w", err)
@@ -231,7 +235,7 @@ func (c *Cls) bindParameters(params map[string]any) (string, error) {
 	}
 
 	// Bind parameters to create a parameterized function
-	bindResp, err := client.FunctionBindParams(c.ctx, pb.FunctionBindParamsRequest_builder{
+	bindResp, err := c.client.cpClient.FunctionBindParams(ctx, pb.FunctionBindParamsRequest_builder{
 		FunctionId:       c.serviceFunctionId,
 		SerializedParams: serializedParams,
 		FunctionOptions:  functionOptions,

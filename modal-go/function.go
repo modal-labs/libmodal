@@ -19,6 +19,9 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// FunctionService provides Function related operations.
+type FunctionService struct{ client *Client }
+
 // From: modal/_utils/blob_utils.py
 const maxObjectSizeBytes int = 2 * 1024 * 1024 // 2 MiB
 
@@ -52,19 +55,20 @@ type Function struct {
 	MethodName    *string // used for class methods
 	inputPlaneUrl string  // if empty, use control plane
 	webURL        string  // web URL if this Function is a web endpoint
-	ctx           context.Context
+
+	client *Client
 }
 
-// FunctionLookup looks up an existing Function.
-func FunctionLookup(ctx context.Context, appName string, name string, options *LookupOptions) (*Function, error) {
+// Lookup looks up an existing Function on a deployed App.
+func (s *FunctionService) Lookup(ctx context.Context, appName string, name string, options *LookupOptions) (*Function, error) {
 	if options == nil {
 		options = &LookupOptions{}
 	}
 
-	resp, err := client.FunctionGet(ctx, pb.FunctionGetRequest_builder{
+	resp, err := s.client.cpClient.FunctionGet(ctx, pb.FunctionGetRequest_builder{
 		AppName:         appName,
 		ObjectTag:       name,
-		EnvironmentName: environmentName(options.Environment),
+		EnvironmentName: environmentName(options.Environment, s.client.profile),
 	}.Build())
 
 	if status, ok := status.FromError(err); ok && status.Code() == codes.NotFound {
@@ -82,7 +86,12 @@ func FunctionLookup(ctx context.Context, appName string, name string, options *L
 		}
 		webURL = meta.GetWebUrl()
 	}
-	return &Function{FunctionId: resp.GetFunctionId(), inputPlaneUrl: inputPlaneUrl, webURL: webURL, ctx: ctx}, nil
+	return &Function{
+		FunctionId:    resp.GetFunctionId(),
+		inputPlaneUrl: inputPlaneUrl,
+		webURL:        webURL,
+		client:        s.client,
+	}, nil
 }
 
 // pickleSerialize serializes Go data types to the Python pickle format.
@@ -109,7 +118,7 @@ func pickleDeserialize(buffer []byte) (any, error) {
 }
 
 // createInput serializes inputs, makes a function call and returns its ID
-func (f *Function) createInput(args []any, kwargs map[string]any) (*pb.FunctionInput, error) {
+func (f *Function) createInput(ctx context.Context, args []any, kwargs map[string]any) (*pb.FunctionInput, error) {
 	payload, err := pickleSerialize(pickle.Tuple{args, kwargs})
 	if err != nil {
 		return nil, err
@@ -118,7 +127,7 @@ func (f *Function) createInput(args []any, kwargs map[string]any) (*pb.FunctionI
 	argsBytes := payload.Bytes()
 	var argsBlobId *string
 	if payload.Len() > maxObjectSizeBytes {
-		blobId, err := blobUpload(f.ctx, argsBytes)
+		blobId, err := blobUpload(ctx, f.client.cpClient, argsBytes)
 		if err != nil {
 			return nil, err
 		}
@@ -135,24 +144,24 @@ func (f *Function) createInput(args []any, kwargs map[string]any) (*pb.FunctionI
 }
 
 // Remote executes a single input on a remote Function.
-func (f *Function) Remote(args []any, kwargs map[string]any) (any, error) {
-	input, err := f.createInput(args, kwargs)
+func (f *Function) Remote(ctx context.Context, args []any, kwargs map[string]any) (any, error) {
+	input, err := f.createInput(ctx, args, kwargs)
 	if err != nil {
 		return nil, err
 	}
-	invocation, err := f.createRemoteInvocation(input)
+	invocation, err := f.createRemoteInvocation(ctx, input)
 	if err != nil {
 		return nil, err
 	}
 	// TODO(ryan): Add tests for retries.
 	retryCount := uint32(0)
 	for {
-		output, err := invocation.awaitOutput(nil)
+		output, err := invocation.awaitOutput(ctx, nil)
 		if err == nil {
 			return output, nil
 		}
 		if errors.As(err, &InternalFailure{}) && retryCount <= maxSystemRetries {
-			if retryErr := invocation.retry(retryCount); retryErr != nil {
+			if retryErr := invocation.retry(ctx, retryCount); retryErr != nil {
 				return nil, retryErr
 			}
 			retryCount++
@@ -163,33 +172,37 @@ func (f *Function) Remote(args []any, kwargs map[string]any) (any, error) {
 }
 
 // createRemoteInvocation creates an Invocation using either the input plane or control plane.
-func (f *Function) createRemoteInvocation(input *pb.FunctionInput) (invocation, error) {
+func (f *Function) createRemoteInvocation(ctx context.Context, input *pb.FunctionInput) (invocation, error) {
 	if f.inputPlaneUrl != "" {
-		return createInputPlaneInvocation(f.ctx, f.inputPlaneUrl, f.FunctionId, input)
+		ipClient, err := f.client.ipClient(f.inputPlaneUrl)
+		if err != nil {
+			return nil, err
+		}
+		return createInputPlaneInvocation(ctx, ipClient, f.FunctionId, input)
 	}
-	return createControlPlaneInvocation(f.ctx, f.FunctionId, input, pb.FunctionCallInvocationType_FUNCTION_CALL_INVOCATION_TYPE_SYNC)
+	return createControlPlaneInvocation(ctx, f.client.cpClient, f.FunctionId, input, pb.FunctionCallInvocationType_FUNCTION_CALL_INVOCATION_TYPE_SYNC)
 }
 
 // Spawn starts running a single input on a remote Function.
-func (f *Function) Spawn(args []any, kwargs map[string]any) (*FunctionCall, error) {
-	input, err := f.createInput(args, kwargs)
+func (f *Function) Spawn(ctx context.Context, args []any, kwargs map[string]any) (*FunctionCall, error) {
+	input, err := f.createInput(ctx, args, kwargs)
 	if err != nil {
 		return nil, err
 	}
-	invocation, err := createControlPlaneInvocation(f.ctx, f.FunctionId, input, pb.FunctionCallInvocationType_FUNCTION_CALL_INVOCATION_TYPE_SYNC)
+	invocation, err := createControlPlaneInvocation(ctx, f.client.cpClient, f.FunctionId, input, pb.FunctionCallInvocationType_FUNCTION_CALL_INVOCATION_TYPE_SYNC)
 	if err != nil {
 		return nil, err
 	}
 	functionCall := FunctionCall{
 		FunctionCallId: invocation.FunctionCallId,
-		ctx:            f.ctx,
+		client:         f.client,
 	}
 	return &functionCall, nil
 }
 
 // GetCurrentStats returns a FunctionStats object with statistics about the Function.
-func (f *Function) GetCurrentStats() (*FunctionStats, error) {
-	resp, err := client.FunctionGetCurrentStats(f.ctx, pb.FunctionGetCurrentStatsRequest_builder{
+func (f *Function) GetCurrentStats(ctx context.Context) (*FunctionStats, error) {
+	resp, err := f.client.cpClient.FunctionGetCurrentStats(ctx, pb.FunctionGetCurrentStatsRequest_builder{
 		FunctionId: f.FunctionId,
 	}.Build())
 	if err != nil {
@@ -203,7 +216,7 @@ func (f *Function) GetCurrentStats() (*FunctionStats, error) {
 }
 
 // UpdateAutoscaler overrides the current autoscaler behavior for this Function.
-func (f *Function) UpdateAutoscaler(opts UpdateAutoscalerOptions) error {
+func (f *Function) UpdateAutoscaler(ctx context.Context, opts UpdateAutoscalerOptions) error {
 	settings := pb.AutoscalerSettings_builder{
 		MinContainers:    opts.MinContainers,
 		MaxContainers:    opts.MaxContainers,
@@ -211,7 +224,7 @@ func (f *Function) UpdateAutoscaler(opts UpdateAutoscalerOptions) error {
 		ScaledownWindow:  opts.ScaledownWindow,
 	}.Build()
 
-	_, err := client.FunctionUpdateSchedulingParams(f.ctx, pb.FunctionUpdateSchedulingParamsRequest_builder{
+	_, err := f.client.cpClient.FunctionUpdateSchedulingParams(ctx, pb.FunctionUpdateSchedulingParamsRequest_builder{
 		FunctionId:           f.FunctionId,
 		WarmPoolSizeOverride: 0, // Deprecated field, always set to 0
 		Settings:             settings,
@@ -227,7 +240,7 @@ func (f *Function) GetWebURL() string {
 }
 
 // blobUpload uploads a blob to storage and returns its ID.
-func blobUpload(ctx context.Context, data []byte) (string, error) {
+func blobUpload(ctx context.Context, client pb.ModalClientClient, data []byte) (string, error) {
 	md5sum := md5.Sum(data)
 	sha256sum := sha256.Sum256(data)
 	contentMd5 := base64.StdEncoding.EncodeToString(md5sum[:])

@@ -6,13 +6,13 @@ import (
 	pb "github.com/modal-labs/libmodal/modal-go/proto/modal_proto"
 )
 
+// SecretService provides Secret related operations.
+type SecretService struct{ client *Client }
+
 // Secret represents a Modal Secret.
 type Secret struct {
 	SecretId string
 	Name     string
-
-	//lint:ignore U1000 may be used in future
-	ctx context.Context
 }
 
 // SecretFromNameOptions are options for finding Modal Secrets.
@@ -21,15 +21,15 @@ type SecretFromNameOptions struct {
 	RequiredKeys []string
 }
 
-// SecretFromName references a modal.Secret by its name.
-func SecretFromName(ctx context.Context, name string, options *SecretFromNameOptions) (*Secret, error) {
+// FromName references a Secret by its name.
+func (s *SecretService) FromName(ctx context.Context, name string, options *SecretFromNameOptions) (*Secret, error) {
 	if options == nil {
 		options = &SecretFromNameOptions{}
 	}
 
-	resp, err := client.SecretGetOrCreate(ctx, pb.SecretGetOrCreateRequest_builder{
+	resp, err := s.client.cpClient.SecretGetOrCreate(ctx, pb.SecretGetOrCreateRequest_builder{
 		DeploymentName:  name,
-		EnvironmentName: environmentName(options.Environment),
+		EnvironmentName: environmentName(options.Environment, s.client.profile),
 		RequiredKeys:    options.RequiredKeys,
 	}.Build())
 
@@ -45,16 +45,16 @@ type SecretFromMapOptions struct {
 	Environment string
 }
 
-// SecretFromMap creates a Secret from a map of key-value pairs.
-func SecretFromMap(ctx context.Context, keyValuePairs map[string]string, options *SecretFromMapOptions) (*Secret, error) {
+// FromMap creates a Secret from a map of key-value pairs.
+func (s *SecretService) FromMap(ctx context.Context, keyValuePairs map[string]string, options *SecretFromMapOptions) (*Secret, error) {
 	if options == nil {
 		options = &SecretFromMapOptions{}
 	}
 
-	resp, err := client.SecretGetOrCreate(ctx, pb.SecretGetOrCreateRequest_builder{
+	resp, err := s.client.cpClient.SecretGetOrCreate(ctx, pb.SecretGetOrCreateRequest_builder{
 		ObjectCreationType: pb.ObjectCreationType_OBJECT_CREATION_TYPE_EPHEMERAL,
 		EnvDict:            keyValuePairs,
-		EnvironmentName:    environmentName(options.Environment),
+		EnvironmentName:    environmentName(options.Environment, s.client.profile),
 	}.Build())
 	if err != nil {
 		return nil, err

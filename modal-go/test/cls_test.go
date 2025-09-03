@@ -11,11 +11,12 @@ import (
 func TestClsCall(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
+	ctx := context.Background()
 
-	cls, err := modal.ClsLookup(context.Background(), "libmodal-test-support", "EchoCls", nil)
+	cls, err := tc.Cls.Lookup(ctx, "libmodal-test-support", "EchoCls", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	instance, err := cls.Instance(nil)
+	instance, err := cls.Instance(ctx, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	// Try accessing a non-existent method
@@ -25,20 +26,20 @@ func TestClsCall(t *testing.T) {
 	function, err := instance.Method("echo_string")
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	result, err := function.Remote(nil, map[string]any{"s": "hello"})
+	result, err := function.Remote(ctx, nil, map[string]any{"s": "hello"})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(result).Should(gomega.Equal("output: hello"))
 
-	cls, err = modal.ClsLookup(context.Background(), "libmodal-test-support", "EchoClsParametrized", nil)
+	cls, err = tc.Cls.Lookup(ctx, "libmodal-test-support", "EchoClsParametrized", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	instance, err = cls.Instance(map[string]any{"name": "hello-init"})
+	instance, err = cls.Instance(ctx, map[string]any{"name": "hello-init"})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	function, err = instance.Method("echo_parameter")
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	result, _ = function.Remote(nil, nil)
+	result, _ = function.Remote(ctx, nil, nil)
 	g.Expect(result).Should(gomega.Equal("output: hello-init"))
 }
 
@@ -46,24 +47,25 @@ func TestClsNotFound(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
-	_, err := modal.ClsLookup(context.Background(), "libmodal-test-support", "NotRealClassName", nil)
+	_, err := tc.Cls.Lookup(context.Background(), "libmodal-test-support", "NotRealClassName", nil)
 	g.Expect(err).Should(gomega.BeAssignableToTypeOf(modal.NotFoundError{}))
 }
 
 func TestClsCallInputPlane(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
+	ctx := context.Background()
 
-	cls, err := modal.ClsLookup(context.Background(), "libmodal-test-support", "EchoClsInputPlane", nil)
+	cls, err := tc.Cls.Lookup(ctx, "libmodal-test-support", "EchoClsInputPlane", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	instance, err := cls.Instance(nil)
+	instance, err := cls.Instance(ctx, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	function, err := instance.Method("echo_string")
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	result, err := function.Remote(nil, map[string]any{"s": "hello"})
+	result, err := function.Remote(ctx, nil, map[string]any{"s": "hello"})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(result).Should(gomega.Equal("output: hello"))
 }
