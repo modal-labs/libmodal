@@ -37,6 +37,12 @@ jobs:
       run: npm install
       working-directory: ./modal-js
 
+    - name: Generate a token
+      id: generate-token
+      uses: actions/create-github-app-token@a8d616148505b5069dccd32f177bb87d7f39123b # v2.1.1
+      with:
+        app-id: ${{ vars.RELEASE_APP_ID }}
+        private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
 
     - name: Config git user
       run: |
@@ -54,5 +60,5 @@ jobs:
         PR_TITLE="$(git log -1 --pretty=%B)"
         gh pr create --title "$PR_TITLE" --body "$PR_TITLE" --base main --head ci-release
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GH_TOKEN: ${{ steps.generate-token.outputs.token }}
 
