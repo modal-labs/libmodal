@@ -53,7 +53,7 @@ export type SandboxCreateOptions = {
   /** Timeout of the Sandbox container, defaults to 10 minutes. */
   timeout?: number;
 
-  /** The amount of time in seconds that a sandbox can be idle before being terminated. */
+  /** The amount of time in milliseconds that a sandbox can be idle before being terminated. */
   idleTimeout?: number;
 
   /** Working directory of the Sandbox. */
