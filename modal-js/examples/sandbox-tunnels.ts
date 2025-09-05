@@ -8,6 +8,7 @@ const sandbox = await app.createSandbox(image, {
   command: ["python3", "-m", "http.server", "8000"],
   encryptedPorts: [8000],
   timeout: 60000, // 1 minute
+  idleTimeout: 30000, // 30 seconds
 });
 
 console.log("Sandbox created:", sandbox.sandboxId);

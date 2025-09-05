@@ -53,6 +53,9 @@ export type SandboxCreateOptions = {
   /** Timeout of the Sandbox container, defaults to 10 minutes. */
   timeout?: number;
 
+  /** The amount of time in seconds that a sandbox can be idle before being terminated. */
+  idleTimeout?: number;
+
   /** Working directory of the Sandbox. */
   workdir?: string;
 
@@ -168,13 +171,17 @@ export class App {
   ): Promise<Sandbox> {
     const gpuConfig = parseGpuConfig(options.gpu);
 
+    // The gRPC API only accepts a whole number of seconds.
     if (options.timeout && options.timeout % 1000 !== 0) {
-      // The gRPC API only accepts a whole number of seconds.
       throw new Error(
-        `Timeout must be a multiple of 1000ms, got ${options.timeout}`,
+        `timeout must be a multiple of 1000ms, got ${options.timeout}`,
       );
     }
-    await image.build(this);
+    if (options.idleTimeout && options.idleTimeout % 1000 !== 0) {
+      throw new Error(
+        `idleTimeout must be a multiple of 1000ms, got ${options.idleTimeout}`,
+      );
+    }
 
     if (options.workdir && !options.workdir.startsWith("/")) {
       throw new Error(
@@ -255,6 +262,8 @@ export class App {
       regions: options.regions ?? [],
     });
 
+    await image.build(this);
+
     let createResp;
     try {
       createResp = await client.sandboxCreate({
@@ -265,6 +274,10 @@ export class App {
           imageId: image.imageId,
           timeoutSecs:
             options.timeout != undefined ? options.timeout / 1000 : 600,
+          idleTimeoutSecs:
+            options.idleTimeout != undefined
+              ? options.idleTimeout / 1000
+              : undefined,
           workdir: options.workdir ?? undefined,
           networkAccess,
           resources: {
