@@ -22,11 +22,13 @@ func main() {
 	// Create a Sandbox with Python's built-in HTTP server
 	image := modal.NewImageFromRegistry("python:3.12-alpine", nil)
 
+	timeout := 1 * time.Minute
+	idleTimeout := 30 * time.Second
 	sandbox, err := app.CreateSandbox(image, &modal.SandboxOptions{
 		Command:        []string{"python3", "-m", "http.server", "8000"},
 		EncryptedPorts: []int{8000},
-		Timeout:        1 * time.Minute,
-		IdleTimeout:    30 * time.Second,
+		Timeout:        &timeout,
+		IdleTimeout:    &idleTimeout,
 	})
 	if err != nil {
 		log.Fatalf("Failed to create Sandbox: %v", err)

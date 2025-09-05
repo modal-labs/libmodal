@@ -5,6 +5,7 @@ Both client libraries are pre-1.0, and they have separate versioning.
 ## Unreleased
 
 - Added support for setting idle timeout when creating Sandboxes.
+- Set the default timeout to 5 minutes when creating Sandboxes, same as in the Python SDK.
 
 ## modal-js/v0.3.20, modal-go/v0.0.20
 

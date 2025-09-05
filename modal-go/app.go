@@ -40,8 +40,8 @@ type SandboxOptions struct {
 	CPU               float64                      // CPU request in physical cores.
 	Memory            int                          // Memory request in MiB.
 	GPU               string                       // GPU reservation for the Sandbox (e.g. "A100", "T4:2", "A100-80GB:4").
-	Timeout           time.Duration                // Maximum lifetime for the Sandbox.
-	IdleTimeout       time.Duration                // The amount of time that a Sandbox can be idle before being terminated.
+	Timeout           *time.Duration               // Maximum lifetime for the Sandbox, defaults to 5 minutes.
+	IdleTimeout       *time.Duration               // The amount of time that a Sandbox can be idle before being terminated.
 	Workdir           string                       // Working directory of the Sandbox.
 	Command           []string                     // Command to run in the Sandbox on startup.
 	Secrets           []*Secret                    // Secrets to inject into the Sandbox.
@@ -237,8 +237,15 @@ func (app *App) CreateSandbox(image *Image, options *SandboxOptions) (*Sandbox, 
 		workdir = &options.Workdir
 	}
 
+	var timeoutSecs uint32
+	if options.Timeout != nil {
+		timeoutSecs = uint32(options.Timeout.Seconds())
+	} else {
+		timeoutSecs = 300
+	}
+
 	var idleTimeoutSecs *uint32
-	if options.IdleTimeout != 0 {
+	if options.IdleTimeout != nil {
 		v := uint32(options.IdleTimeout.Seconds())
 		idleTimeoutSecs = &v
 	}
@@ -249,7 +256,7 @@ func (app *App) CreateSandbox(image *Image, options *SandboxOptions) (*Sandbox, 
 			EntrypointArgs:  options.Command,
 			ImageId:         image.ImageId,
 			SecretIds:       secretIds,
-			TimeoutSecs:     uint32(options.Timeout.Seconds()),
+			TimeoutSecs:     timeoutSecs,
 			IdleTimeoutSecs: idleTimeoutSecs,
 			Workdir:         workdir,
 			NetworkAccess:   networkAccess,

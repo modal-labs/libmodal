@@ -50,7 +50,7 @@ export type SandboxCreateOptions = {
   /** GPU reservation for the Sandbox (e.g. "A100", "T4:2", "A100-80GB:4"). */
   gpu?: string;
 
-  /** Timeout of the Sandbox container, defaults to 10 minutes. */
+  /** Maximum lifetime of the sandbox in seconds, defaults to 5 minutes. */
   timeout?: number;
 
   /** The amount of time in seconds that a sandbox can be idle before being terminated. */
@@ -273,7 +273,7 @@ export class App {
           entrypointArgs: options.command ?? ["sleep", "48h"],
           imageId: image.imageId,
           timeoutSecs:
-            options.timeout != undefined ? options.timeout / 1000 : 600,
+            options.timeout != undefined ? options.timeout / 1000 : 300,
           idleTimeoutSecs:
             options.idleTimeout != undefined
               ? options.idleTimeout / 1000
