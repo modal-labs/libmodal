@@ -79,7 +79,7 @@ func (s *QueueService) Ephemeral(ctx context.Context, options *EphemeralOptions)
 		return nil, err
 	}
 
-	ephemeralCtx, cancel := context.WithCancel(ctx)
+	ephemeralCtx, cancel := context.WithCancel(context.Background())
 	startEphemeralHeartbeat(ephemeralCtx, func() error {
 		_, err := s.client.cpClient.QueueHeartbeat(ephemeralCtx, pb.QueueHeartbeatRequest_builder{
 			QueueId: resp.GetQueueId(),

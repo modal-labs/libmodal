@@ -82,7 +82,7 @@ func (s *VolumeService) Ephemeral(ctx context.Context, options *EphemeralOptions
 		return nil, err
 	}
 
-	ephemeralCtx, cancel := context.WithCancel(ctx)
+	ephemeralCtx, cancel := context.WithCancel(context.Background())
 	startEphemeralHeartbeat(ephemeralCtx, func() error {
 		_, err := s.client.cpClient.VolumeHeartbeat(ephemeralCtx, pb.VolumeHeartbeatRequest_builder{
 			VolumeId: resp.GetVolumeId(),
