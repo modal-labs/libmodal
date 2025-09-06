@@ -24,12 +24,6 @@ type ProxyFromNameOptions struct {
 
 // ProxyFromName references a modal.Proxy by its name.
 func ProxyFromName(ctx context.Context, name string, options *ProxyFromNameOptions) (*Proxy, error) {
-	var err error
-	ctx, err = clientContext(ctx)
-	if err != nil {
-		return nil, err
-	}
-
 	if options == nil {
 		options = &ProxyFromNameOptions{}
 	}

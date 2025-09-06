@@ -23,12 +23,6 @@ type SecretFromNameOptions struct {
 
 // SecretFromName references a modal.Secret by its name.
 func SecretFromName(ctx context.Context, name string, options *SecretFromNameOptions) (*Secret, error) {
-	var err error
-	ctx, err = clientContext(ctx)
-	if err != nil {
-		return nil, err
-	}
-
 	if options == nil {
 		options = &SecretFromNameOptions{}
 	}
@@ -53,12 +47,6 @@ type SecretFromMapOptions struct {
 
 // SecretFromMap creates a Secret from a map of key-value pairs.
 func SecretFromMap(ctx context.Context, keyValuePairs map[string]string, options *SecretFromMapOptions) (*Secret, error) {
-	var err error
-	ctx, err = clientContext(ctx)
-	if err != nil {
-		return nil, err
-	}
-
 	if options == nil {
 		options = &SecretFromMapOptions{}
 	}

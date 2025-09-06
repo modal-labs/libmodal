@@ -66,11 +66,6 @@ func QueueEphemeral(ctx context.Context, options *EphemeralOptions) (*Queue, err
 	if options == nil {
 		options = &EphemeralOptions{}
 	}
-	var err error
-	ctx, err = clientContext(ctx)
-	if err != nil {
-		return nil, err
-	}
 
 	resp, err := client.QueueGetOrCreate(ctx, pb.QueueGetOrCreateRequest_builder{
 		ObjectCreationType: pb.ObjectCreationType_OBJECT_CREATION_TYPE_EPHEMERAL,
@@ -113,11 +108,6 @@ func QueueLookup(ctx context.Context, name string, options *LookupOptions) (*Que
 	if options == nil {
 		options = &LookupOptions{}
 	}
-	var err error
-	ctx, err = clientContext(ctx)
-	if err != nil {
-		return nil, err
-	}
 
 	creationType := pb.ObjectCreationType_OBJECT_CREATION_TYPE_UNSPECIFIED
 	if options.CreateIfMissing {
@@ -139,11 +129,6 @@ func QueueLookup(ctx context.Context, name string, options *LookupOptions) (*Que
 func QueueDelete(ctx context.Context, name string, options *DeleteOptions) error {
 	if options == nil {
 		options = &DeleteOptions{}
-	}
-	var err error
-	ctx, err = clientContext(ctx)
-	if err != nil {
-		return err
 	}
 
 	q, err := QueueLookup(ctx, name, &LookupOptions{Environment: options.Environment})

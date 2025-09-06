@@ -73,11 +73,6 @@ func ClsLookup(ctx context.Context, appName string, name string, options *Lookup
 	if options == nil {
 		options = &LookupOptions{}
 	}
-	var err error
-	ctx, err = clientContext(ctx)
-	if err != nil {
-		return nil, err
-	}
 
 	cls := Cls{
 		methodNames: []string{},
