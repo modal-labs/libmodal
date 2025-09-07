@@ -12,7 +12,6 @@ import (
 type SandboxFile struct {
 	fileDescriptor string
 	taskId         string
-	ctx            context.Context
 	cpClient       pb.ModalClientClient
 }
 
@@ -20,7 +19,7 @@ type SandboxFile struct {
 // It returns the number of bytes read and any error encountered.
 func (f *SandboxFile) Read(p []byte) (int, error) {
 	nBytes := uint32(len(p))
-	totalRead, _, err := runFilesystemExec(f.ctx, f.cpClient, pb.ContainerFilesystemExecRequest_builder{
+	totalRead, _, err := runFilesystemExec(context.Background(), f.cpClient, pb.ContainerFilesystemExecRequest_builder{
 		FileReadRequest: pb.ContainerFileReadRequest_builder{
 			FileDescriptor: f.fileDescriptor,
 			N:              &nBytes,
@@ -39,7 +38,7 @@ func (f *SandboxFile) Read(p []byte) (int, error) {
 // Write writes len(p) bytes from p to the file.
 // It returns the number of bytes written and any error encountered.
 func (f *SandboxFile) Write(p []byte) (n int, err error) {
-	_, _, err = runFilesystemExec(f.ctx, f.cpClient, pb.ContainerFilesystemExecRequest_builder{
+	_, _, err = runFilesystemExec(context.Background(), f.cpClient, pb.ContainerFilesystemExecRequest_builder{
 		FileWriteRequest: pb.ContainerFileWriteRequest_builder{
 			FileDescriptor: f.fileDescriptor,
 			Data:           p,
@@ -54,7 +53,7 @@ func (f *SandboxFile) Write(p []byte) (n int, err error) {
 
 // Flush flushes any buffered data to the file.
 func (f *SandboxFile) Flush() error {
-	_, _, err := runFilesystemExec(f.ctx, f.cpClient, pb.ContainerFilesystemExecRequest_builder{
+	_, _, err := runFilesystemExec(context.Background(), f.cpClient, pb.ContainerFilesystemExecRequest_builder{
 		FileFlushRequest: pb.ContainerFileFlushRequest_builder{
 			FileDescriptor: f.fileDescriptor,
 		}.Build(),
@@ -68,7 +67,7 @@ func (f *SandboxFile) Flush() error {
 
 // Close closes the file, rendering it unusable for I/O.
 func (f *SandboxFile) Close() error {
-	_, _, err := runFilesystemExec(f.ctx, f.cpClient, pb.ContainerFilesystemExecRequest_builder{
+	_, _, err := runFilesystemExec(context.Background(), f.cpClient, pb.ContainerFilesystemExecRequest_builder{
 		FileCloseRequest: pb.ContainerFileCloseRequest_builder{
 			FileDescriptor: f.fileDescriptor,
 		}.Build(),

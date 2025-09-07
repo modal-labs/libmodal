@@ -196,7 +196,7 @@ func (s *SandboxService) Create(ctx context.Context, app *App, image *Image, opt
 		return nil, err
 	}
 
-	return newSandbox(ctx, s.client, createResp.GetSandboxId()), nil
+	return newSandbox(s.client, createResp.GetSandboxId()), nil
 }
 
 // StdioBehavior defines how the standard input/output/error streams should behave.
@@ -267,14 +267,11 @@ type Sandbox struct {
 }
 
 // newSandbox creates a new Sandbox object from ID.
-func newSandbox(ctx context.Context, client *Client, sandboxId string) *Sandbox {
-	sb := &Sandbox{
-		SandboxId: sandboxId,
-		client:    client,
-	}
-	sb.Stdin = inputStreamSb(ctx, client.cpClient, sandboxId)
-	sb.Stdout = outputStreamSb(ctx, client.cpClient, sandboxId, pb.FileDescriptor_FILE_DESCRIPTOR_STDOUT)
-	sb.Stderr = outputStreamSb(ctx, client.cpClient, sandboxId, pb.FileDescriptor_FILE_DESCRIPTOR_STDERR)
+func newSandbox(client *Client, sandboxId string) *Sandbox {
+	sb := &Sandbox{SandboxId: sandboxId, client: client}
+	sb.Stdin = inputStreamSb(client.cpClient, sandboxId)
+	sb.Stdout = outputStreamSb(client.cpClient, sandboxId, pb.FileDescriptor_FILE_DESCRIPTOR_STDOUT)
+	sb.Stderr = outputStreamSb(client.cpClient, sandboxId, pb.FileDescriptor_FILE_DESCRIPTOR_STDERR)
 	return sb
 }
 
@@ -290,7 +287,7 @@ func (s *SandboxService) FromId(ctx context.Context, sandboxId string) (*Sandbox
 	if err != nil {
 		return nil, err
 	}
-	return newSandbox(ctx, s.client, sandboxId), nil
+	return newSandbox(s.client, sandboxId), nil
 }
 
 // SandboxFromNameOptions are options for finding deployed Sandbox objects by name.
@@ -319,7 +316,7 @@ func (s *SandboxService) FromName(ctx context.Context, appName, name string, opt
 		return nil, err
 	}
 
-	return newSandbox(ctx, s.client, resp.GetSandboxId()), nil
+	return newSandbox(s.client, resp.GetSandboxId()), nil
 }
 
 // Exec runs a command in the Sandbox and returns text streams.
@@ -348,7 +345,7 @@ func (sb *Sandbox) Exec(ctx context.Context, command []string, opts ExecOptions)
 	if err != nil {
 		return nil, err
 	}
-	return newContainerProcess(ctx, sb.client.cpClient, resp.GetExecId(), opts), nil
+	return newContainerProcess(sb.client.cpClient, resp.GetExecId(), opts), nil
 }
 
 // Open opens a file in the Sandbox filesystem.
@@ -374,7 +371,6 @@ func (sb *Sandbox) Open(ctx context.Context, path, mode string) (*SandboxFile, e
 	return &SandboxFile{
 		fileDescriptor: resp.GetFileDescriptor(),
 		taskId:         sb.taskId,
-		ctx:            ctx,
 		cpClient:       sb.client.cpClient,
 	}, nil
 }
@@ -550,7 +546,7 @@ func (s *SandboxService) List(ctx context.Context, options *SandboxListOptions) 
 				return
 			}
 			for _, info := range sandboxes {
-				if !yield(newSandbox(ctx, s.client, info.GetId()), nil) {
+				if !yield(newSandbox(s.client, info.GetId()), nil) {
 					return
 				}
 			}
@@ -587,12 +583,11 @@ type ContainerProcess struct {
 	Stdout io.ReadCloser
 	Stderr io.ReadCloser
 
-	ctx      context.Context
 	execId   string
 	cpClient pb.ModalClientClient
 }
 
-func newContainerProcess(ctx context.Context, cpClient pb.ModalClientClient, execId string, opts ExecOptions) *ContainerProcess {
+func newContainerProcess(cpClient pb.ModalClientClient, execId string, opts ExecOptions) *ContainerProcess {
 	stdoutBehavior := Pipe
 	stderrBehavior := Pipe
 	if opts.Stdout != "" {
@@ -602,15 +597,15 @@ func newContainerProcess(ctx context.Context, cpClient pb.ModalClientClient, exe
 		stderrBehavior = opts.Stderr
 	}
 
-	cp := &ContainerProcess{execId: execId, ctx: ctx, cpClient: cpClient}
-	cp.Stdin = inputStreamCp(ctx, cpClient, execId)
+	cp := &ContainerProcess{execId: execId, cpClient: cpClient}
+	cp.Stdin = inputStreamCp(cpClient, execId)
 
-	cp.Stdout = outputStreamCp(ctx, cpClient, execId, pb.FileDescriptor_FILE_DESCRIPTOR_STDOUT)
+	cp.Stdout = outputStreamCp(cpClient, execId, pb.FileDescriptor_FILE_DESCRIPTOR_STDOUT)
 	if stdoutBehavior == Ignore {
 		cp.Stdout.Close()
 		cp.Stdout = io.NopCloser(bytes.NewReader(nil))
 	}
-	cp.Stderr = outputStreamCp(ctx, cpClient, execId, pb.FileDescriptor_FILE_DESCRIPTOR_STDERR)
+	cp.Stderr = outputStreamCp(cpClient, execId, pb.FileDescriptor_FILE_DESCRIPTOR_STDERR)
 	if stderrBehavior == Ignore {
 		cp.Stderr.Close()
 		cp.Stderr = io.NopCloser(bytes.NewReader(nil))
@@ -635,13 +630,12 @@ func (cp *ContainerProcess) Wait(ctx context.Context) (int, error) {
 	}
 }
 
-func inputStreamSb(ctx context.Context, cpClient pb.ModalClientClient, sandboxId string) io.WriteCloser {
-	return &sbStdin{sandboxId: sandboxId, ctx: ctx, index: 1, cpClient: cpClient}
+func inputStreamSb(cpClient pb.ModalClientClient, sandboxId string) io.WriteCloser {
+	return &sbStdin{sandboxId: sandboxId, index: 1, cpClient: cpClient}
 }
 
 type sbStdin struct {
 	sandboxId string
-	ctx       context.Context
 	cpClient  pb.ModalClientClient
 
 	mu    sync.Mutex // protects index
@@ -653,7 +647,7 @@ func (sbs *sbStdin) Write(p []byte) (n int, err error) {
 	defer sbs.mu.Unlock()
 	index := sbs.index
 	sbs.index++
-	_, err = sbs.cpClient.SandboxStdinWrite(sbs.ctx, pb.SandboxStdinWriteRequest_builder{
+	_, err = sbs.cpClient.SandboxStdinWrite(context.Background(), pb.SandboxStdinWriteRequest_builder{
 		SandboxId: sbs.sandboxId,
 		Input:     p,
 		Index:     index,
@@ -667,7 +661,7 @@ func (sbs *sbStdin) Write(p []byte) (n int, err error) {
 func (sbs *sbStdin) Close() error {
 	sbs.mu.Lock()
 	defer sbs.mu.Unlock()
-	_, err := sbs.cpClient.SandboxStdinWrite(sbs.ctx, pb.SandboxStdinWriteRequest_builder{
+	_, err := sbs.cpClient.SandboxStdinWrite(context.Background(), pb.SandboxStdinWriteRequest_builder{
 		SandboxId: sbs.sandboxId,
 		Index:     sbs.index,
 		Eof:       true,
@@ -675,19 +669,18 @@ func (sbs *sbStdin) Close() error {
 	return err
 }
 
-func inputStreamCp(ctx context.Context, cpClient pb.ModalClientClient, execId string) io.WriteCloser {
-	return &cpStdin{execId: execId, messageIndex: 1, ctx: ctx, cpClient: cpClient}
+func inputStreamCp(cpClient pb.ModalClientClient, execId string) io.WriteCloser {
+	return &cpStdin{execId: execId, messageIndex: 1, cpClient: cpClient}
 }
 
 type cpStdin struct {
 	execId       string
 	messageIndex uint64
-	ctx          context.Context // context for the exec operations
 	cpClient     pb.ModalClientClient
 }
 
 func (cps *cpStdin) Write(p []byte) (n int, err error) {
-	_, err = cps.cpClient.ContainerExecPutInput(cps.ctx, pb.ContainerExecPutInputRequest_builder{
+	_, err = cps.cpClient.ContainerExecPutInput(context.Background(), pb.ContainerExecPutInputRequest_builder{
 		ExecId: cps.execId,
 		Input: pb.RuntimeInputMessage_builder{
 			Message:      p,
@@ -702,7 +695,7 @@ func (cps *cpStdin) Write(p []byte) (n int, err error) {
 }
 
 func (cps *cpStdin) Close() error {
-	_, err := cps.cpClient.ContainerExecPutInput(cps.ctx, pb.ContainerExecPutInputRequest_builder{
+	_, err := cps.cpClient.ContainerExecPutInput(context.Background(), pb.ContainerExecPutInputRequest_builder{
 		ExecId: cps.execId,
 		Input: pb.RuntimeInputMessage_builder{
 			MessageIndex: cps.messageIndex,
@@ -712,7 +705,7 @@ func (cps *cpStdin) Close() error {
 	return err
 }
 
-func outputStreamSb(ctx context.Context, cpClient pb.ModalClientClient, sandboxId string, fd pb.FileDescriptor) io.ReadCloser {
+func outputStreamSb(cpClient pb.ModalClientClient, sandboxId string, fd pb.FileDescriptor) io.ReadCloser {
 	pr, pw := nio.Pipe(buffer.New(64 * 1024))
 	go func() {
 		defer pw.Close()
@@ -720,7 +713,7 @@ func outputStreamSb(ctx context.Context, cpClient pb.ModalClientClient, sandboxI
 		completed := false
 		retries := 10
 		for !completed {
-			stream, err := cpClient.SandboxGetLogs(ctx, pb.SandboxGetLogsRequest_builder{
+			stream, err := cpClient.SandboxGetLogs(context.Background(), pb.SandboxGetLogsRequest_builder{
 				SandboxId:      sandboxId,
 				FileDescriptor: fd,
 				Timeout:        55,
@@ -762,7 +755,7 @@ func outputStreamSb(ctx context.Context, cpClient pb.ModalClientClient, sandboxI
 	return pr
 }
 
-func outputStreamCp(ctx context.Context, cpClient pb.ModalClientClient, execId string, fd pb.FileDescriptor) io.ReadCloser {
+func outputStreamCp(cpClient pb.ModalClientClient, execId string, fd pb.FileDescriptor) io.ReadCloser {
 	pr, pw := nio.Pipe(buffer.New(64 * 1024))
 	go func() {
 		defer pw.Close()
@@ -770,7 +763,7 @@ func outputStreamCp(ctx context.Context, cpClient pb.ModalClientClient, execId s
 		completed := false
 		retries := 10
 		for !completed {
-			stream, err := cpClient.ContainerExecGetOutput(ctx, pb.ContainerExecGetOutputRequest_builder{
+			stream, err := cpClient.ContainerExecGetOutput(context.Background(), pb.ContainerExecGetOutputRequest_builder{
 				ExecId:         execId,
 				FileDescriptor: fd,
 				Timeout:        55,
