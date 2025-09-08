@@ -20,6 +20,7 @@ var mockFunctionProto = pb.FunctionGetResponse_builder{
 }.Build()
 
 func TestClsWithOptionsStacking(t *testing.T) {
+	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
@@ -80,6 +81,7 @@ func TestClsWithOptionsStacking(t *testing.T) {
 }
 
 func TestClsWithConcurrencyWithBatchingChaining(t *testing.T) {
+	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
@@ -124,6 +126,7 @@ func TestClsWithConcurrencyWithBatchingChaining(t *testing.T) {
 }
 
 func TestClsWithOptionsRetries(t *testing.T) {
+	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
@@ -171,6 +174,7 @@ func TestClsWithOptionsRetries(t *testing.T) {
 }
 
 func TestClsWithOptionsInvalidValues(t *testing.T) {
+	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
@@ -211,6 +215,7 @@ func TestClsWithOptionsInvalidValues(t *testing.T) {
 }
 
 func TestWithOptionsEmptySecretsDoesNotReplace(t *testing.T) {
+	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
@@ -246,6 +251,7 @@ func TestWithOptionsEmptySecretsDoesNotReplace(t *testing.T) {
 }
 
 func TestWithOptionsEmptyVolumesDoesNotReplace(t *testing.T) {
+	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 

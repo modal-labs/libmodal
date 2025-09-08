@@ -68,6 +68,7 @@ func TestFunctionCallInputPlane(t *testing.T) {
 }
 
 func TestFunctionGetCurrentStats(t *testing.T) {
+	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
@@ -102,6 +103,7 @@ func TestFunctionGetCurrentStats(t *testing.T) {
 }
 
 func TestFunctionUpdateAutoscaler(t *testing.T) {
+	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
@@ -161,6 +163,7 @@ func TestFunctionUpdateAutoscaler(t *testing.T) {
 func ptrU32(v uint32) *uint32 { return &v }
 
 func TestFunctionGetWebURL(t *testing.T) {
+	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
