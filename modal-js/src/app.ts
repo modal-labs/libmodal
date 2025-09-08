@@ -182,6 +182,7 @@ export class App {
         `idleTimeout must be a multiple of 1000ms, got ${options.idleTimeout}`,
       );
     }
+    await image.build(this);
 
     if (options.workdir && !options.workdir.startsWith("/")) {
       throw new Error(
@@ -261,8 +262,6 @@ export class App {
     const schedulerPlacement = SchedulerPlacement.create({
       regions: options.regions ?? [],
     });
-
-    await image.build(this);
 
     let createResp;
     try {
