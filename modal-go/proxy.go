@@ -9,12 +9,12 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// ProxyService provides Proxy related operations.
+type ProxyService struct{ client *Client }
+
 // Proxy represents a Modal Proxy.
 type Proxy struct {
 	ProxyId string
-
-	//lint:ignore U1000 may be used in future
-	ctx context.Context
 }
 
 // ProxyFromNameOptions are options for looking up a Modal Proxy.
@@ -22,15 +22,15 @@ type ProxyFromNameOptions struct {
 	Environment string
 }
 
-// ProxyFromName references a modal.Proxy by its name.
-func ProxyFromName(ctx context.Context, name string, options *ProxyFromNameOptions) (*Proxy, error) {
+// FromName references a modal.Proxy by its name.
+func (s *ProxyService) FromName(ctx context.Context, name string, options *ProxyFromNameOptions) (*Proxy, error) {
 	if options == nil {
 		options = &ProxyFromNameOptions{}
 	}
 
-	resp, err := client.ProxyGet(ctx, pb.ProxyGetRequest_builder{
+	resp, err := s.client.cpClient.ProxyGet(ctx, pb.ProxyGetRequest_builder{
 		Name:            name,
-		EnvironmentName: environmentName(options.Environment),
+		EnvironmentName: environmentName(options.Environment, s.client.profile),
 	}.Build())
 
 	if status, ok := status.FromError(err); ok && status.Code() == codes.NotFound {
@@ -44,5 +44,5 @@ func ProxyFromName(ctx context.Context, name string, options *ProxyFromNameOptio
 		return nil, NotFoundError{fmt.Sprintf("Proxy '%s' not found", name)}
 	}
 
-	return &Proxy{ProxyId: resp.GetProxy().GetProxyId(), ctx: ctx}, nil
+	return &Proxy{ProxyId: resp.GetProxy().GetProxyId()}, nil
 }

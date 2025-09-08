@@ -23,12 +23,15 @@ func main() {
 		log.Fatal("CUSTOM_MODAL_SECRET environment variable not set")
 	}
 
-	modal.InitializeClient(modal.ClientOptions{
+	mc, err := modal.NewClientWithOptions(modal.ClientOptions{
 		TokenId:     modal_id,
 		TokenSecret: modal_secret,
 	})
+	if err != nil {
+		log.Fatalf("Failed to create client: %v", err)
+	}
 
-	echo, err := modal.FunctionLookup(ctx, "libmodal-test-support", "echo_string", nil)
+	echo, err := mc.Functions.Lookup(ctx, "libmodal-test-support", "echo_string", nil)
 	if err != nil {
 		log.Fatalf("Failed to lookup Function: %v", err)
 	}

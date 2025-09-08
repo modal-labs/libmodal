@@ -12,13 +12,17 @@ import (
 
 func main() {
 	ctx := context.Background()
+	mc, err := modal.NewClient()
+	if err != nil {
+		log.Fatalf("Failed to create client: %v", err)
+	}
 
-	cls, err := modal.ClsLookup(ctx, "libmodal-test-support", "EchoClsParametrized", nil)
+	cls, err := mc.Cls.Lookup(ctx, "libmodal-test-support", "EchoClsParametrized", nil)
 	if err != nil {
 		log.Fatalf("Failed to lookup Cls: %v", err)
 	}
 
-	instance, err := cls.Instance(nil)
+	instance, err := cls.Instance(ctx, nil)
 	if err != nil {
 		log.Fatalf("Failed to create Cls instance: %v", err)
 	}
@@ -28,7 +32,7 @@ func main() {
 		log.Fatalf("Failed to access Cls method: %v", err)
 	}
 
-	secret, err := modal.SecretFromMap(ctx, map[string]string{
+	secret, err := mc.Secrets.FromMap(ctx, map[string]string{
 		"SECRET_MESSAGE": "hello, Secret",
 	}, nil)
 	if err != nil {
@@ -40,7 +44,7 @@ func main() {
 			Secrets: []*modal.Secret{secret},
 		}).
 		WithConcurrency(modal.ClsConcurrencyOptions{MaxInputs: 1}).
-		Instance(nil)
+		Instance(ctx, nil)
 	if err != nil {
 		log.Fatalf("Failed to create Cls instance with options: %v", err)
 	}
@@ -51,14 +55,14 @@ func main() {
 	}
 
 	// Call the Cls function, without the Secret being set.
-	result, err := method.Remote([]any{"SECRET_MESSAGE"}, nil)
+	result, err := method.Remote(ctx, []any{"SECRET_MESSAGE"}, nil)
 	if err != nil {
 		log.Fatalf("Failed to call Cls method: %v", err)
 	}
 	log.Println(result)
 
 	// Call the Cls function with overrides, and confirm that the Secret is set.
-	result, err = methodWithOptions.Remote([]any{"SECRET_MESSAGE"}, nil)
+	result, err = methodWithOptions.Remote(ctx, []any{"SECRET_MESSAGE"}, nil)
 	if err != nil {
 		log.Fatalf("Failed to call Cls method with options: %v", err)
 	}

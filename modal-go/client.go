@@ -9,6 +9,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -21,6 +22,126 @@ import (
 
 	pb "github.com/modal-labs/libmodal/modal-go/proto/modal_proto"
 )
+
+// Client exposes services for interacting with Modal resources.
+// You should not instantiate it directly, and instead use [NewClient]/[NewClientWithOptions].
+type Client struct {
+	Apps              *AppService
+	CloudBucketMounts *CloudBucketMountService
+	Cls               *ClsService
+	Functions         *FunctionService
+	FunctionCalls     *FunctionCallService
+	Images            *ImageService
+	Proxies           *ProxyService
+	Queues            *QueueService
+	Sandboxes         *SandboxService
+	Secrets           *SecretService
+	Volumes           *VolumeService
+
+	config    config
+	profile   Profile
+	cpClient  pb.ModalClientClient            // control plane client
+	ipClients map[string]pb.ModalClientClient // input plane clients
+	authToken string
+	mu        sync.RWMutex
+}
+
+// NewClient generates a new client with the default profile configuration read from environment variables and ~/.modal.toml.
+func NewClient() (*Client, error) {
+	return NewClientWithOptions(ClientOptions{})
+}
+
+// ClientOptions defines credentials and options for initializing the Modal client.
+type ClientOptions struct {
+	TokenId            string
+	TokenSecret        string
+	Environment        string
+	Config             *config
+	ControlPlaneClient pb.ModalClientClient
+}
+
+// NewClientWithOptions generates a new client and allows overriding options in the default profile configuration.
+func NewClientWithOptions(options ClientOptions) (*Client, error) {
+	var cfg config
+	if options.Config != nil {
+		cfg = *options.Config
+	} else {
+		var err error
+		cfg, err = readConfigFile()
+		if err != nil {
+			return nil, fmt.Errorf("failed to read config file: %w", err)
+		}
+	}
+
+	profile := getProfile(os.Getenv("MODAL_PROFILE"), cfg)
+
+	if options.TokenId != "" {
+		profile.TokenId = options.TokenId
+	}
+	if options.TokenSecret != "" {
+		profile.TokenSecret = options.TokenSecret
+	}
+	if options.Environment != "" {
+		profile.Environment = options.Environment
+	}
+
+	c := &Client{
+		config:    cfg,
+		profile:   profile,
+		ipClients: make(map[string]pb.ModalClientClient),
+	}
+
+	var err error
+	if options.ControlPlaneClient != nil {
+		c.cpClient = options.ControlPlaneClient
+	} else {
+		_, c.cpClient, err = newClient(profile, c)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to create control plane client: %w", err)
+	}
+
+	c.Apps = &AppService{client: c}
+	c.CloudBucketMounts = &CloudBucketMountService{client: c}
+	c.Cls = &ClsService{client: c}
+	c.Functions = &FunctionService{client: c}
+	c.FunctionCalls = &FunctionCallService{client: c}
+	c.Images = &ImageService{client: c}
+	c.Proxies = &ProxyService{client: c}
+	c.Queues = &QueueService{client: c}
+	c.Sandboxes = &SandboxService{client: c}
+	c.Secrets = &SecretService{client: c}
+	c.Volumes = &VolumeService{client: c}
+
+	return c, nil
+}
+
+// ipClient returns the input plane client for the given server URL.
+// It creates a new client if one doesn't exist for that specific server URL, otherwise it returns the existing client.
+func (c *Client) ipClient(serverURL string) (pb.ModalClientClient, error) {
+	c.mu.RLock()
+	if client, ok := c.ipClients[serverURL]; ok {
+		c.mu.RUnlock()
+		return client, nil
+	}
+	c.mu.RUnlock()
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if client, ok := c.ipClients[serverURL]; ok {
+		return client, nil
+	}
+
+	prof := c.profile
+	prof.ServerURL = serverURL
+	_, client, err := newClient(prof, c)
+	if err != nil {
+		return nil, err
+	}
+	c.ipClients[serverURL] = client
+	return client, nil
+}
 
 // timeoutCallOption carries a per-RPC absolute timeout.
 type timeoutCallOption struct {
@@ -64,83 +185,9 @@ func isRetryableGrpc(err error) bool {
 	return false
 }
 
-// defaultConfig caches the parsed ~/.modal.toml contents (may be empty).
-var defaultConfig config
-
-// defaultProfile is resolved at package init from MODAL_PROFILE, ~/.modal.toml, etc.
-var defaultProfile Profile
-
-// clientProfile is the actual profile, from defaultProfile + InitializeClient().
-var clientProfile Profile
-
-// client is the default Modal client that talks to the control plane.
-var client pb.ModalClientClient
-
-// inputPlaneClients is a map of server URL to input-plane client.
-var inputPlaneClients = map[string]pb.ModalClientClient{}
-
-// authToken is the auth token received from the control plane on the first request, and sent with all
-// subsequent requests to both the control plane and the input plane.
-var authToken string
-
-func init() {
-	defaultConfig, _ = readConfigFile()
-	defaultProfile = getProfile(os.Getenv("MODAL_PROFILE"))
-	clientProfile = defaultProfile
-	var err error
-	_, client, err = clientFactory(clientProfile)
-	if err != nil {
-		panic(fmt.Sprintf("failed to initialize Modal client at startup: %v", err))
-	}
-}
-
-// ClientOptions defines credentials and options for initializing the Modal client at runtime.
-type ClientOptions struct {
-	TokenId     string
-	TokenSecret string
-	Environment string // optional, defaults to the profile's environment
-}
-
-// InitializeClient updates the global Modal client configuration with the provided options.
-//
-// This function is useful when you want to set the client options programmatically. It
-// should be called once at the start of your application.
-func InitializeClient(options ClientOptions) error {
-	mergedProfile := defaultProfile
-	mergedProfile.TokenId = options.TokenId
-	mergedProfile.TokenSecret = options.TokenSecret
-	mergedProfile.Environment = firstNonEmpty(options.Environment, mergedProfile.Environment)
-	clientProfile = mergedProfile
-	var err error
-	_, client, err = clientFactory(mergedProfile)
-	return err
-}
-
-// getOrCreateInputPlaneClient returns a client for the given server URL, creating it if it doesn't exist.
-func getOrCreateInputPlaneClient(serverURL string) (pb.ModalClientClient, error) {
-	if client, ok := inputPlaneClients[serverURL]; ok {
-		return client, nil
-	}
-
-	profile := clientProfile
-	profile.ServerURL = serverURL
-	_, client, err := clientFactory(profile)
-	if err != nil {
-		return nil, err
-	}
-	inputPlaneClients[serverURL] = client
-	return client, nil
-}
-
-// clientFactory is the factory used to construct gRPC connections and stubs.
-// Tests may override this variable to install a mock.
-var clientFactory func(Profile) (grpc.ClientConnInterface, pb.ModalClientClient, error) = func(profile Profile) (grpc.ClientConnInterface, pb.ModalClientClient, error) {
-	return newClient(profile)
-}
-
 // newClient dials the given server URL with auth/timeout/retry interceptors installed.
 // It returns (conn, stub). Close the conn when done.
-func newClient(profile Profile) (*grpc.ClientConn, pb.ModalClientClient, error) {
+func newClient(profile Profile, c *Client) (*grpc.ClientConn, pb.ModalClientClient, error) {
 	var target string
 	var creds credentials.TransportCredentials
 	if after, ok := strings.CutPrefix(profile.ServerURL, "https://"); ok {
@@ -161,13 +208,13 @@ func newClient(profile Profile) (*grpc.ClientConn, pb.ModalClientClient, error) 
 			grpc.MaxCallSendMsgSize(maxMessageSize),
 		),
 		grpc.WithChainUnaryInterceptor(
-			headerInjectorUnaryInterceptor(),
-			authTokenInterceptor(),
+			headerInjectorUnaryInterceptor(profile),
+			authTokenInterceptor(c),
 			retryInterceptor(),
 			timeoutInterceptor(),
 		),
 		grpc.WithChainStreamInterceptor(
-			headerInjectorStreamInterceptor(),
+			headerInjectorStreamInterceptor(profile),
 		),
 	)
 	if err != nil {
@@ -177,9 +224,9 @@ func newClient(profile Profile) (*grpc.ClientConn, pb.ModalClientClient, error) 
 }
 
 // injectRequiredHeaders adds required headers to the context.
-func injectRequiredHeaders(ctx context.Context) (context.Context, error) {
-	if clientProfile.TokenId == "" || clientProfile.TokenSecret == "" {
-		return nil, fmt.Errorf("missing token_id or token_secret, please set in .modal.toml, environment variables, or via InitializeClient()")
+func injectRequiredHeaders(ctx context.Context, profile Profile) (context.Context, error) {
+	if profile.TokenId == "" || profile.TokenSecret == "" {
+		return nil, fmt.Errorf("missing token_id or token_secret, please set in .modal.toml, environment variables, or via NewClientWithOptions()")
 	}
 
 	clientType := strconv.Itoa(int(pb.ClientType_CLIENT_TYPE_LIBMODAL_GO))
@@ -187,13 +234,13 @@ func injectRequiredHeaders(ctx context.Context) (context.Context, error) {
 		ctx,
 		"x-modal-client-type", clientType,
 		"x-modal-client-version", "1.0.0", // CLIENT VERSION: Behaves like this Python SDK version
-		"x-modal-token-id", clientProfile.TokenId,
-		"x-modal-token-secret", clientProfile.TokenSecret,
+		"x-modal-token-id", profile.TokenId,
+		"x-modal-token-secret", profile.TokenSecret,
 	), nil
 }
 
 // headerInjectorUnaryInterceptor adds required headers to outgoing unary RPCs.
-func headerInjectorUnaryInterceptor() grpc.UnaryClientInterceptor {
+func headerInjectorUnaryInterceptor(profile Profile) grpc.UnaryClientInterceptor {
 	return func(
 		ctx context.Context,
 		method string,
@@ -203,7 +250,7 @@ func headerInjectorUnaryInterceptor() grpc.UnaryClientInterceptor {
 		opts ...grpc.CallOption,
 	) error {
 		var err error
-		ctx, err = injectRequiredHeaders(ctx)
+		ctx, err = injectRequiredHeaders(ctx, profile)
 		if err != nil {
 			return err
 		}
@@ -212,7 +259,7 @@ func headerInjectorUnaryInterceptor() grpc.UnaryClientInterceptor {
 }
 
 // headerInjectorStreamInterceptor adds required headers to outgoing streaming RPCs.
-func headerInjectorStreamInterceptor() grpc.StreamClientInterceptor {
+func headerInjectorStreamInterceptor(profile Profile) grpc.StreamClientInterceptor {
 	return func(
 		ctx context.Context,
 		desc *grpc.StreamDesc,
@@ -222,7 +269,7 @@ func headerInjectorStreamInterceptor() grpc.StreamClientInterceptor {
 		opts ...grpc.CallOption,
 	) (grpc.ClientStream, error) {
 		var err error
-		ctx, err = injectRequiredHeaders(ctx)
+		ctx, err = injectRequiredHeaders(ctx, profile)
 		if err != nil {
 			return nil, err
 		}
@@ -233,7 +280,7 @@ func headerInjectorStreamInterceptor() grpc.StreamClientInterceptor {
 // authTokenInterceptor handles sending and receiving the "x-modal-auth-token" header.
 // We receive an auth token from the control plane on our first request. We then include that auth token in every
 // subsequent request to both the control plane and the input plane.
-func authTokenInterceptor() grpc.UnaryClientInterceptor {
+func authTokenInterceptor(c *Client) grpc.UnaryClientInterceptor {
 	return func(
 		ctx context.Context,
 		method string,
@@ -244,6 +291,9 @@ func authTokenInterceptor() grpc.UnaryClientInterceptor {
 	) error {
 		var headers, trailers metadata.MD
 		// Add authToken to outgoing context if it's set
+		c.mu.RLock()
+		authToken := c.authToken
+		c.mu.RUnlock()
 		if authToken != "" {
 			ctx = metadata.AppendToOutgoingContext(ctx, "x-modal-auth-token", authToken)
 		}
@@ -252,9 +302,13 @@ func authTokenInterceptor() grpc.UnaryClientInterceptor {
 		// If we're talking to the control plane, and no auth token was sent, it will return one.
 		// The python server returns it in the trailers, the worker returns it in the headers.
 		if val, ok := headers["x-modal-auth-token"]; ok {
-			authToken = val[0]
+			c.mu.Lock()
+			c.authToken = val[0]
+			c.mu.Unlock()
 		} else if val, ok := trailers["x-modal-auth-token"]; ok {
-			authToken = val[0]
+			c.mu.Lock()
+			c.authToken = val[0]
+			c.mu.Unlock()
 		}
 
 		return err

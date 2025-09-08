@@ -10,16 +10,20 @@ import (
 
 func main() {
 	ctx := context.Background()
+	mc, err := modal.NewClient()
+	if err != nil {
+		log.Fatalf("Failed to create client: %v", err)
+	}
 
-	app, err := modal.AppLookup(ctx, "libmodal-example", &modal.LookupOptions{CreateIfMissing: true})
+	app, err := mc.Apps.Lookup(ctx, "libmodal-example", &modal.LookupOptions{CreateIfMissing: true})
 	if err != nil {
 		log.Fatalf("Failed to lookup or create App: %v", err)
 	}
 
-	image := modal.NewImageFromRegistry("alpine:3.21", nil)
+	image := mc.Images.FromRegistry("alpine:3.21", nil)
 
 	// Create a sandbox that waits for input, then exits with code 42
-	sandbox, err := app.CreateSandbox(image, &modal.SandboxOptions{
+	sandbox, err := mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateOptions{
 		Command: []string{"sh", "-c", "read line; exit 42"},
 	})
 	if err != nil {
@@ -28,7 +32,7 @@ func main() {
 
 	fmt.Printf("Started Sandbox: %s\n", sandbox.SandboxId)
 
-	initialPoll, err := sandbox.Poll()
+	initialPoll, err := sandbox.Poll(ctx)
 	if err != nil {
 		log.Fatalf("Failed to poll Sandbox: %v", err)
 	}
@@ -44,13 +48,13 @@ func main() {
 		log.Fatalf("Failed to close stdin: %v", err)
 	}
 
-	exitCode, err := sandbox.Wait()
+	exitCode, err := sandbox.Wait(ctx)
 	if err != nil {
 		log.Fatalf("Failed to wait for Sandbox: %v", err)
 	}
 	fmt.Printf("\nSandbox completed with exit code: %d\n", exitCode)
 
-	finalPoll, err := sandbox.Poll()
+	finalPoll, err := sandbox.Poll(ctx)
 	if err != nil {
 		log.Fatalf("Failed to poll Sandbox after completion: %v", err)
 	}

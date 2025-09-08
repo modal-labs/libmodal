@@ -12,8 +12,8 @@ import (
 )
 
 type invocation interface {
-	awaitOutput(timeout *time.Duration) (any, error)
-	retry(retryCount uint32) error
+	awaitOutput(ctx context.Context, timeout *time.Duration) (any, error)
+	retry(ctx context.Context, retryCount uint32) error
 }
 
 // controlPlaneInvocation implements the invocation interface.
@@ -22,17 +22,18 @@ type controlPlaneInvocation struct {
 	input           *pb.FunctionInput
 	functionCallJwt string
 	inputJwt        string
-	ctx             context.Context
+
+	cpClient pb.ModalClientClient
 }
 
 // createControlPlaneInvocation executes a function call and returns a new controlPlaneInvocation.
-func createControlPlaneInvocation(ctx context.Context, functionId string, input *pb.FunctionInput, invocationType pb.FunctionCallInvocationType) (*controlPlaneInvocation, error) {
+func createControlPlaneInvocation(ctx context.Context, cpClient pb.ModalClientClient, functionId string, input *pb.FunctionInput, invocationType pb.FunctionCallInvocationType) (*controlPlaneInvocation, error) {
 	functionPutInputsItem := pb.FunctionPutInputsItem_builder{
 		Idx:   0,
 		Input: input,
 	}.Build()
 
-	functionMapResponse, err := client.FunctionMap(ctx, pb.FunctionMapRequest_builder{
+	functionMapResponse, err := cpClient.FunctionMap(ctx, pb.FunctionMapRequest_builder{
 		FunctionId:                 functionId,
 		FunctionCallType:           pb.FunctionCallType_FUNCTION_CALL_TYPE_UNARY,
 		FunctionCallInvocationType: invocationType,
@@ -47,20 +48,20 @@ func createControlPlaneInvocation(ctx context.Context, functionId string, input 
 		input:           input,
 		functionCallJwt: functionMapResponse.GetFunctionCallJwt(),
 		inputJwt:        functionMapResponse.GetPipelinedInputs()[0].GetInputJwt(),
-		ctx:             ctx,
+		cpClient:        cpClient,
 	}, nil
 }
 
 // controlPlaneInvocationFromFunctionCallId creates a controlPlaneInvocation from a function call ID.
-func controlPlaneInvocationFromFunctionCallId(ctx context.Context, functionCallId string) *controlPlaneInvocation {
-	return &controlPlaneInvocation{FunctionCallId: functionCallId, ctx: ctx}
+func controlPlaneInvocationFromFunctionCallId(cpClient pb.ModalClientClient, functionCallId string) *controlPlaneInvocation {
+	return &controlPlaneInvocation{FunctionCallId: functionCallId, cpClient: cpClient}
 }
 
-func (c *controlPlaneInvocation) awaitOutput(timeout *time.Duration) (any, error) {
-	return pollFunctionOutput(c.ctx, c.getOutput, timeout)
+func (c *controlPlaneInvocation) awaitOutput(ctx context.Context, timeout *time.Duration) (any, error) {
+	return pollFunctionOutput(ctx, c.cpClient, c.getOutput, timeout)
 }
 
-func (c *controlPlaneInvocation) retry(retryCount uint32) error {
+func (c *controlPlaneInvocation) retry(ctx context.Context, retryCount uint32) error {
 	if c.input == nil {
 		return fmt.Errorf("cannot retry Function invocation - input missing")
 	}
@@ -69,7 +70,7 @@ func (c *controlPlaneInvocation) retry(retryCount uint32) error {
 		Input:      c.input,
 		RetryCount: retryCount,
 	}.Build()
-	functionRetryResponse, err := client.FunctionRetryInputs(c.ctx, pb.FunctionRetryInputsRequest_builder{
+	functionRetryResponse, err := c.cpClient.FunctionRetryInputs(ctx, pb.FunctionRetryInputsRequest_builder{
 		FunctionCallJwt: c.functionCallJwt,
 		Inputs:          []*pb.FunctionRetryInputsItem{retryItem},
 	}.Build())
@@ -81,8 +82,8 @@ func (c *controlPlaneInvocation) retry(retryCount uint32) error {
 }
 
 // getOutput fetches the output for the current function call with a timeout in milliseconds.
-func (c *controlPlaneInvocation) getOutput(timeout time.Duration) (*pb.FunctionGetOutputsItem, error) {
-	response, err := client.FunctionGetOutputs(c.ctx, pb.FunctionGetOutputsRequest_builder{
+func (c *controlPlaneInvocation) getOutput(ctx context.Context, timeout time.Duration) (*pb.FunctionGetOutputsItem, error) {
+	response, err := c.cpClient.FunctionGetOutputs(ctx, pb.FunctionGetOutputsRequest_builder{
 		FunctionCallId: c.FunctionCallId,
 		MaxValues:      1,
 		Timeout:        float32(timeout.Seconds()),
@@ -102,24 +103,20 @@ func (c *controlPlaneInvocation) getOutput(timeout time.Duration) (*pb.FunctionG
 
 // inputPlaneInvocation implements the Invocation interface for the input plane.
 type inputPlaneInvocation struct {
-	client       pb.ModalClientClient
 	functionId   string
 	input        *pb.FunctionPutInputsItem
 	attemptToken string
-	ctx          context.Context
+
+	ipClient pb.ModalClientClient
 }
 
 // createInputPlaneInvocation creates a new InputPlaneInvocation by starting an attempt.
-func createInputPlaneInvocation(ctx context.Context, inputPlaneUrl string, functionId string, input *pb.FunctionInput) (*inputPlaneInvocation, error) {
+func createInputPlaneInvocation(ctx context.Context, ipClient pb.ModalClientClient, functionId string, input *pb.FunctionInput) (*inputPlaneInvocation, error) {
 	functionPutInputsItem := pb.FunctionPutInputsItem_builder{
 		Idx:   0,
 		Input: input,
 	}.Build()
-	client, err := getOrCreateInputPlaneClient(inputPlaneUrl)
-	if err != nil {
-		return nil, err
-	}
-	attemptStartResp, err := client.AttemptStart(ctx, pb.AttemptStartRequest_builder{
+	attemptStartResp, err := ipClient.AttemptStart(ctx, pb.AttemptStartRequest_builder{
 		FunctionId: functionId,
 		Input:      functionPutInputsItem,
 	}.Build())
@@ -127,22 +124,21 @@ func createInputPlaneInvocation(ctx context.Context, inputPlaneUrl string, funct
 		return nil, err
 	}
 	return &inputPlaneInvocation{
-		client:       client,
 		functionId:   functionId,
 		input:        functionPutInputsItem,
 		attemptToken: attemptStartResp.GetAttemptToken(),
-		ctx:          ctx,
+		ipClient:     ipClient,
 	}, nil
 }
 
 // awaitOutput waits for the output with an optional timeout.
-func (i *inputPlaneInvocation) awaitOutput(timeout *time.Duration) (any, error) {
-	return pollFunctionOutput(i.ctx, i.getOutput, timeout)
+func (i *inputPlaneInvocation) awaitOutput(ctx context.Context, timeout *time.Duration) (any, error) {
+	return pollFunctionOutput(ctx, i.ipClient, i.getOutput, timeout)
 }
 
 // getOutput fetches the output for the current attempt.
-func (i *inputPlaneInvocation) getOutput(timeout time.Duration) (*pb.FunctionGetOutputsItem, error) {
-	resp, err := i.client.AttemptAwait(i.ctx, pb.AttemptAwaitRequest_builder{
+func (i *inputPlaneInvocation) getOutput(ctx context.Context, timeout time.Duration) (*pb.FunctionGetOutputsItem, error) {
+	resp, err := i.ipClient.AttemptAwait(ctx, pb.AttemptAwaitRequest_builder{
 		AttemptToken: i.attemptToken,
 		RequestedAt:  timeNowSeconds(),
 		TimeoutSecs:  float32(timeout.Seconds()),
@@ -154,9 +150,9 @@ func (i *inputPlaneInvocation) getOutput(timeout time.Duration) (*pb.FunctionGet
 }
 
 // retry retries the invocation.
-func (i *inputPlaneInvocation) retry(retryCount uint32) error {
+func (i *inputPlaneInvocation) retry(ctx context.Context, retryCount uint32) error {
 	// We ignore retryCount - it is used only by controlPlaneInvocation.
-	resp, err := i.client.AttemptRetry(context.Background(), pb.AttemptRetryRequest_builder{
+	resp, err := i.ipClient.AttemptRetry(ctx, pb.AttemptRetryRequest_builder{
 		FunctionId:   i.functionId,
 		Input:        i.input,
 		AttemptToken: i.attemptToken,
@@ -170,12 +166,12 @@ func (i *inputPlaneInvocation) retry(retryCount uint32) error {
 
 // getOutput is a function type that takes a timeout and returns a FunctionGetOutputsItem or nil, and an error.
 // Used by `pollForOutputs` to fetch from either the control plane or the input plane, depending on the implementation.
-type getOutput func(timeout time.Duration) (*pb.FunctionGetOutputsItem, error)
+type getOutput func(ctx context.Context, timeout time.Duration) (*pb.FunctionGetOutputsItem, error)
 
 // pollFunctionOutput repeatedly tries to fetch an output using the provided `getOutput` function, and the specified
 // timeout value. We use a timeout value of 55 seconds if the caller does not specify a timeout value, or if the
 // specified timeout value is greater than 55 seconds.
-func pollFunctionOutput(ctx context.Context, getOutput getOutput, timeout *time.Duration) (any, error) {
+func pollFunctionOutput(ctx context.Context, client pb.ModalClientClient, getOutput getOutput, timeout *time.Duration) (any, error) {
 	startTime := time.Now()
 	pollTimeout := outputsTimeout
 	if timeout != nil {
@@ -184,14 +180,14 @@ func pollFunctionOutput(ctx context.Context, getOutput getOutput, timeout *time.
 	}
 
 	for {
-		output, err := getOutput(pollTimeout)
+		output, err := getOutput(ctx, pollTimeout)
 		if err != nil {
 			return nil, err
 		}
 		// Output serialization may fail if any of the output items can't be deserialized
 		// into a supported Go type. Users are expected to serialize outputs correctly.
 		if output != nil {
-			return processResult(ctx, output.GetResult(), output.GetDataFormat())
+			return processResult(ctx, client, output.GetResult(), output.GetDataFormat())
 		}
 
 		if timeout != nil {
@@ -206,7 +202,7 @@ func pollFunctionOutput(ctx context.Context, getOutput getOutput, timeout *time.
 }
 
 // processResult processes the result from an invocation.
-func processResult(ctx context.Context, result *pb.GenericResult, dataFormat pb.DataFormat) (any, error) {
+func processResult(ctx context.Context, client pb.ModalClientClient, result *pb.GenericResult, dataFormat pb.DataFormat) (any, error) {
 	if result == nil {
 		return nil, RemoteError{"Received null result from invocation"}
 	}
@@ -217,7 +213,7 @@ func processResult(ctx context.Context, result *pb.GenericResult, dataFormat pb.
 	case pb.GenericResult_Data_case:
 		data = result.GetData()
 	case pb.GenericResult_DataBlobId_case:
-		data, err = blobDownload(ctx, result.GetDataBlobId())
+		data, err = blobDownload(ctx, client, result.GetDataBlobId())
 		if err != nil {
 			return nil, err
 		}
@@ -242,7 +238,7 @@ func processResult(ctx context.Context, result *pb.GenericResult, dataFormat pb.
 }
 
 // blobDownload downloads a blob by its ID.
-func blobDownload(ctx context.Context, blobId string) ([]byte, error) {
+func blobDownload(ctx context.Context, client pb.ModalClientClient, blobId string) ([]byte, error) {
 	resp, err := client.BlobGet(ctx, pb.BlobGetRequest_builder{
 		BlobId: blobId,
 	}.Build())
