@@ -163,6 +163,7 @@ const (
 	ModalClient_SharedVolumeRemoveFile_FullMethodName           = "/modal.client.ModalClient/SharedVolumeRemoveFile"
 	ModalClient_TaskClusterHello_FullMethodName                 = "/modal.client.ModalClient/TaskClusterHello"
 	ModalClient_TaskCurrentInputs_FullMethodName                = "/modal.client.ModalClient/TaskCurrentInputs"
+	ModalClient_TaskGetAutoscalingMetrics_FullMethodName        = "/modal.client.ModalClient/TaskGetAutoscalingMetrics"
 	ModalClient_TaskList_FullMethodName                         = "/modal.client.ModalClient/TaskList"
 	ModalClient_TaskResult_FullMethodName                       = "/modal.client.ModalClient/TaskResult"
 	ModalClient_TokenFlowCreate_FullMethodName                  = "/modal.client.ModalClient/TokenFlowCreate"
@@ -359,6 +360,7 @@ type ModalClientClient interface {
 	// Tasks
 	TaskClusterHello(ctx context.Context, in *TaskClusterHelloRequest, opts ...grpc.CallOption) (*TaskClusterHelloResponse, error)
 	TaskCurrentInputs(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*TaskCurrentInputsResponse, error)
+	TaskGetAutoscalingMetrics(ctx context.Context, in *TaskGetAutoscalingMetricsRequest, opts ...grpc.CallOption) (*TaskGetAutoscalingMetricsResponse, error)
 	TaskList(ctx context.Context, in *TaskListRequest, opts ...grpc.CallOption) (*TaskListResponse, error)
 	TaskResult(ctx context.Context, in *TaskResultRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	// Tokens (web auth flow)
@@ -1908,6 +1910,16 @@ func (c *modalClientClient) TaskCurrentInputs(ctx context.Context, in *emptypb.E
 	return out, nil
 }
 
+func (c *modalClientClient) TaskGetAutoscalingMetrics(ctx context.Context, in *TaskGetAutoscalingMetricsRequest, opts ...grpc.CallOption) (*TaskGetAutoscalingMetricsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(TaskGetAutoscalingMetricsResponse)
+	err := c.cc.Invoke(ctx, ModalClient_TaskGetAutoscalingMetrics_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *modalClientClient) TaskList(ctx context.Context, in *TaskListRequest, opts ...grpc.CallOption) (*TaskListResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(TaskListResponse)
@@ -2336,6 +2348,7 @@ type ModalClientServer interface {
 	// Tasks
 	TaskClusterHello(context.Context, *TaskClusterHelloRequest) (*TaskClusterHelloResponse, error)
 	TaskCurrentInputs(context.Context, *emptypb.Empty) (*TaskCurrentInputsResponse, error)
+	TaskGetAutoscalingMetrics(context.Context, *TaskGetAutoscalingMetricsRequest) (*TaskGetAutoscalingMetricsResponse, error)
 	TaskList(context.Context, *TaskListRequest) (*TaskListResponse, error)
 	TaskResult(context.Context, *TaskResultRequest) (*emptypb.Empty, error)
 	// Tokens (web auth flow)
@@ -2802,6 +2815,9 @@ func (UnimplementedModalClientServer) TaskClusterHello(context.Context, *TaskClu
 }
 func (UnimplementedModalClientServer) TaskCurrentInputs(context.Context, *emptypb.Empty) (*TaskCurrentInputsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method TaskCurrentInputs not implemented")
+}
+func (UnimplementedModalClientServer) TaskGetAutoscalingMetrics(context.Context, *TaskGetAutoscalingMetricsRequest) (*TaskGetAutoscalingMetricsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method TaskGetAutoscalingMetrics not implemented")
 }
 func (UnimplementedModalClientServer) TaskList(context.Context, *TaskListRequest) (*TaskListResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method TaskList not implemented")
@@ -5407,6 +5423,24 @@ func _ModalClient_TaskCurrentInputs_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ModalClient_TaskGetAutoscalingMetrics_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TaskGetAutoscalingMetricsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ModalClientServer).TaskGetAutoscalingMetrics(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ModalClient_TaskGetAutoscalingMetrics_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ModalClientServer).TaskGetAutoscalingMetrics(ctx, req.(*TaskGetAutoscalingMetricsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _ModalClient_TaskList_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(TaskListRequest)
 	if err := dec(in); err != nil {
@@ -6367,6 +6401,10 @@ var ModalClient_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "TaskCurrentInputs",
 			Handler:    _ModalClient_TaskCurrentInputs_Handler,
+		},
+		{
+			MethodName: "TaskGetAutoscalingMetrics",
+			Handler:    _ModalClient_TaskGetAutoscalingMetrics_Handler,
 		},
 		{
 			MethodName: "TaskList",
