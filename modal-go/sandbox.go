@@ -93,12 +93,7 @@ func newSandbox(ctx context.Context, sandboxId string) *Sandbox {
 
 // SandboxFromId returns a running Sandbox object from an ID.
 func SandboxFromId(ctx context.Context, sandboxId string) (*Sandbox, error) {
-	ctx, err := clientContext(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	_, err = client.SandboxWait(ctx, pb.SandboxWaitRequest_builder{
+	_, err := client.SandboxWait(ctx, pb.SandboxWaitRequest_builder{
 		SandboxId: sandboxId,
 		Timeout:   0,
 	}.Build())
@@ -121,11 +116,6 @@ type SandboxFromNameOptions struct {
 // Raises a NotFoundError if no running Sandbox is found with the given name.
 // A Sandbox's name is the `Name` argument passed to `App.CreateSandbox`.
 func SandboxFromName(ctx context.Context, appName, name string, options *SandboxFromNameOptions) (*Sandbox, error) {
-	ctx, err := clientContext(ctx)
-	if err != nil {
-		return nil, err
-	}
-
 	if options == nil {
 		options = &SandboxFromNameOptions{}
 	}
@@ -346,12 +336,6 @@ type SandboxListOptions struct {
 func SandboxList(ctx context.Context, options *SandboxListOptions) (iter.Seq2[*Sandbox, error], error) {
 	if options == nil {
 		options = &SandboxListOptions{}
-	}
-
-	var err error
-	ctx, err = clientContext(ctx)
-	if err != nil {
-		return nil, err
 	}
 
 	tagsList := make([]*pb.SandboxTag, 0, len(options.Tags))
