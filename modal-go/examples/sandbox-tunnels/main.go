@@ -26,6 +26,7 @@ func main() {
 		Command:        []string{"python3", "-m", "http.server", "8000"},
 		EncryptedPorts: []int{8000},
 		Timeout:        1 * time.Minute,
+		IdleTimeout:    30 * time.Second,
 	})
 	if err != nil {
 		log.Fatalf("Failed to create Sandbox: %v", err)
