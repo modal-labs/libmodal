@@ -61,6 +61,9 @@ func buildSandboxCreateRequestProto(appID, imageID string, params SandboxCreateP
 	if params.Volumes != nil {
 		volumeMounts = make([]*pb.VolumeMount, 0, len(params.Volumes))
 		for mountPath, volume := range params.Volumes {
+			if volume == nil {
+				return nil, InvalidError{Exception: "invalid nil volume for mount path: " + mountPath}
+			}
 			volumeMounts = append(volumeMounts, pb.VolumeMount_builder{
 				VolumeId:               volume.VolumeID,
 				MountPath:              mountPath,
@@ -74,6 +77,9 @@ func buildSandboxCreateRequestProto(appID, imageID string, params SandboxCreateP
 	if params.CloudBucketMounts != nil {
 		cloudBucketMounts = make([]*pb.CloudBucketMount, 0, len(params.CloudBucketMounts))
 		for mountPath, mount := range params.CloudBucketMounts {
+			if mount == nil {
+				return nil, InvalidError{Exception: "invalid nil cloud bucket mount for mount path: " + mountPath}
+			}
 			proto, err := mount.toProto(mountPath)
 			if err != nil {
 				return nil, err
