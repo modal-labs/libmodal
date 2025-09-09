@@ -81,7 +81,9 @@ func TestImageFromAwsEcr(t *testing.T) {
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	image, err := tc.Images.FromAwsEcr("459781239556.dkr.ecr.us-east-1.amazonaws.com/ecr-private-registry-test-7522615:python", secret).Build(ctx, app)
+	img, err := tc.Images.FromAwsEcr("459781239556.dkr.ecr.us-east-1.amazonaws.com/ecr-private-registry-test-7522615:python", secret)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	image, err := img.Build(ctx, app)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(image.ImageId).Should(gomega.HavePrefix("im-"))
 }
@@ -100,7 +102,9 @@ func TestImageFromGcpArtifactRegistry(t *testing.T) {
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	image, err := tc.Images.FromGcpArtifactRegistry("us-east1-docker.pkg.dev/modal-prod-367916/private-repo-test/my-image", secret).Build(ctx, app)
+	img, err := tc.Images.FromGcpArtifactRegistry("us-east1-docker.pkg.dev/modal-prod-367916/private-repo-test/my-image", secret)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	image, err := img.Build(ctx, app)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(image.ImageId).Should(gomega.HavePrefix("im-"))
 }
@@ -161,7 +165,8 @@ func TestImageFromAwsEcrTopLevel(t *testing.T) {
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	image := tc.Images.FromAwsEcr("459781239556.dkr.ecr.us-east-1.amazonaws.com/ecr-private-registry-test-7522615:python", secret)
+	image, err := tc.Images.FromAwsEcr("459781239556.dkr.ecr.us-east-1.amazonaws.com/ecr-private-registry-test-7522615:python", secret)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(image.ImageId).Should(gomega.Equal(""))
 
 	sb, err := tc.Sandboxes.Create(ctx, app, image, nil)
@@ -184,7 +189,8 @@ func TestImageFromGcpEcrTopLevel(t *testing.T) {
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	image := tc.Images.FromGcpArtifactRegistry("us-east1-docker.pkg.dev/modal-prod-367916/private-repo-test/my-image", secret)
+	image, err := tc.Images.FromGcpArtifactRegistry("us-east1-docker.pkg.dev/modal-prod-367916/private-repo-test/my-image", secret)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(image.ImageId).Should(gomega.Equal(""))
 
 	sb, err := tc.Sandboxes.Create(ctx, app, image, nil)

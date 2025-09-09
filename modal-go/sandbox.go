@@ -46,6 +46,12 @@ type SandboxCreateOptions struct {
 
 // Create creates a new Sandbox in the App with the specified Image and options.
 func (s *SandboxService) Create(ctx context.Context, app *App, image *Image, options *SandboxCreateOptions) (*Sandbox, error) {
+	if app == nil {
+		return nil, InvalidError{Exception: "app cannot be nil"}
+	}
+	if image == nil {
+		return nil, InvalidError{Exception: "image cannot be nil"}
+	}
 	if options == nil {
 		options = &SandboxCreateOptions{}
 	}
