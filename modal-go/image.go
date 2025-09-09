@@ -50,7 +50,10 @@ func (s *ImageService) FromRegistry(tag string, options *ImageFromRegistryOption
 }
 
 // FromAwsEcr creates an Image from an AWS ECR tag
-func (s *ImageService) FromAwsEcr(tag string, secret *Secret) *Image {
+func (s *ImageService) FromAwsEcr(tag string, secret *Secret) (*Image, error) {
+	if secret == nil {
+		return nil, InvalidError{Exception: "secret cannot be nil"}
+	}
 	imageRegistryConfig := pb.ImageRegistryConfig_builder{
 		RegistryAuthType: pb.RegistryAuthType_REGISTRY_AUTH_TYPE_AWS,
 		SecretId:         secret.SecretId,
@@ -61,11 +64,14 @@ func (s *ImageService) FromAwsEcr(tag string, secret *Secret) *Image {
 		imageRegistryConfig: imageRegistryConfig,
 		tag:                 tag,
 		client:              s.client,
-	}
+	}, nil
 }
 
 // FromGcpArtifactRegistry creates an Image from a GCP Artifact Registry tag.
-func (s *ImageService) FromGcpArtifactRegistry(tag string, secret *Secret) *Image {
+func (s *ImageService) FromGcpArtifactRegistry(tag string, secret *Secret) (*Image, error) {
+	if secret == nil {
+		return nil, InvalidError{Exception: "secret cannot be nil"}
+	}
 	imageRegistryConfig := pb.ImageRegistryConfig_builder{
 		RegistryAuthType: pb.RegistryAuthType_REGISTRY_AUTH_TYPE_GCP,
 		SecretId:         secret.SecretId,
@@ -75,7 +81,7 @@ func (s *ImageService) FromGcpArtifactRegistry(tag string, secret *Secret) *Imag
 		imageRegistryConfig: imageRegistryConfig,
 		tag:                 tag,
 		client:              s.client,
-	}
+	}, nil
 }
 
 // FromId looks up an Image from an ID
@@ -101,6 +107,10 @@ func (image *Image) Build(ctx context.Context, app *App) (*Image, error) {
 	// Image is already hyrdated
 	if image.ImageId != "" {
 		return image, nil
+	}
+
+	if app == nil {
+		return nil, InvalidError{Exception: "app cannot be nil"}
 	}
 
 	resp, err := image.client.cpClient.ImageGetOrCreate(

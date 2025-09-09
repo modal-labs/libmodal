@@ -47,6 +47,9 @@ type SecretFromMapOptions struct {
 
 // FromMap creates a Secret from a map of key-value pairs.
 func (s *SecretService) FromMap(ctx context.Context, keyValuePairs map[string]string, options *SecretFromMapOptions) (*Secret, error) {
+	if keyValuePairs == nil {
+		return nil, InvalidError{Exception: "keyValuePairs cannot be nil"}
+	}
 	if options == nil {
 		options = &SecretFromMapOptions{}
 	}
