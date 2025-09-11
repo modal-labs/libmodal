@@ -42,7 +42,11 @@ export {
   type QueueLenOptions,
   type QueuePutOptions,
 } from "./queue";
-export { Image, type ImageDeleteOptions } from "./image";
+export {
+  Image,
+  type ImageDeleteOptions,
+  type ImageDockerfileCommandsOptions,
+} from "./image";
 export { Retries } from "./retries";
 export type {
   ExecOptions,

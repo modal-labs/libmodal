@@ -45,6 +45,7 @@ Examples:
 - [Mount a Volume to a Sandbox](./modal-js/examples/sandbox-volume.ts), and same but with an [ephemeral Volume](./modal-js/examples/sandbox-volume-ephemeral.ts)
 - [Mount a cloud bucket to a Sandbox](./modal-js/examples/sandbox-cloud-bucket.ts)
 - [Eagarly build an Image for a Sandbox](./modal-js/examples/sandbox-prewarm.ts)
+- [Building custom Images](./modal-js/examples/image-building.ts)
 
 ### Go (`modal-go/`)
 
@@ -79,6 +80,7 @@ Examples:
 - [Mount a Volume to a Sandbox](./modal-go/examples/sandbox-volume/main.go), and same but with an [ephemeral Volume](./modal-go/examples/sandbox-volume-ephemeral/main.go)
 - [Mount a cloud bucket to a Sandbox](./modal-go/examples/sandbox-cloud-bucket/main.go)
 - [Eagarly build an Image for a Sandbox](./modal-go/examples/sandbox-prewarm/main.go)
+- [Building custom Images](./modal-go/examples/image-building/main.go)
 
 ### Python
 
