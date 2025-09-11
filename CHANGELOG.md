@@ -4,6 +4,10 @@ Both client libraries are pre-1.0, and they have separate versioning.
 
 ## Unreleased
 
+No unreleased changes.
+
+## modal-js/v0.3.22, modal-go/v0.0.22
+
 - Added `Image.dockerfileCommands()` (JS) and `ImageDockerfileCommands()` (Go).
 
 ## modal-js/v0.3.21, modal-go/v0.0.21
