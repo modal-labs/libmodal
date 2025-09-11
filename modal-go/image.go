@@ -172,7 +172,7 @@ func (image *Image) Build(app *App) (*Image, error) {
 		}
 	}
 
-	var baseImageId string
+	var currentImageId string
 
 	for i, currentLayer := range image.layers {
 		var secretIds []string
@@ -199,7 +199,7 @@ func (image *Image) Build(app *App) (*Image, error) {
 			dockerfileCommands = append([]string{"FROM base"}, currentLayer.commands...)
 			baseImages = []*pb.BaseImage{pb.BaseImage_builder{
 				DockerTag: "base",
-				ImageId:   baseImageId,
+				ImageId:   currentImageId,
 			}.Build()}
 		}
 
@@ -271,10 +271,10 @@ func (image *Image) Build(app *App) (*Image, error) {
 		}
 
 		// The new image becomes the base for the next layer
-		baseImageId = resp.GetImageId()
+		currentImageId = resp.GetImageId()
 	}
 
-	image.ImageId = baseImageId
+	image.ImageId = currentImageId
 	image.ctx = app.ctx
 	return image, nil
 }
