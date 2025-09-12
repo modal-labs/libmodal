@@ -282,4 +282,6 @@ export function initializeClient(options: ClientOptions) {
   };
   clientProfile = mergedProfile;
   client = createClient(mergedProfile);
+
+  return client;
 }
