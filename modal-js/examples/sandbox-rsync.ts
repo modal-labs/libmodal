@@ -145,7 +145,7 @@ gid = root
       rmSync(tempDir, { recursive: true, force: true });
     } catch (cleanupError) {
       console.error(
-        "Failed to clean up temporary files from ${tempDir}:",
+        `Failed to clean up temporary files from ${tempDir}:`,
         cleanupError,
       );
     }
