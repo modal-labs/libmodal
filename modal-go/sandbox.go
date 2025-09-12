@@ -38,6 +38,8 @@ type ExecOptions struct {
 	Timeout time.Duration
 	// Secrets with environment variables for the command.
 	Secrets []*Secret
+	// PTY defines whether to enable a PTY for the command.
+	PTY bool
 }
 
 // Tunnel represents a port forwarded from within a running Modal Sandbox.
@@ -80,6 +82,18 @@ type Sandbox struct {
 	ctx     context.Context
 	taskId  string
 	tunnels map[int]*Tunnel
+}
+
+func defaultSandboxPTYInfo() *pb.PTYInfo {
+	return pb.PTYInfo_builder{
+		Enabled:                true,
+		WinszRows:              24,
+		WinszCols:              80,
+		EnvTerm:                "xterm-256color",
+		EnvColorterm:           "truecolor",
+		PtyType:                pb.PTYInfo_PTY_TYPE_SHELL,
+		NoTerminateOnIdleStdin: true,
+	}.Build()
 }
 
 // newSandbox creates a new Sandbox object from ID.
@@ -135,11 +149,8 @@ func SandboxFromName(ctx context.Context, appName, name string, options *Sandbox
 	return newSandbox(ctx, resp.GetSandboxId()), nil
 }
 
-// Exec runs a command in the Sandbox and returns text streams.
-func (sb *Sandbox) Exec(command []string, opts ExecOptions) (*ContainerProcess, error) {
-	if err := sb.ensureTaskId(); err != nil {
-		return nil, err
-	}
+// containerExecRequestProto builds a ContainerExecRequest proto from command and options.
+func containerExecRequestProto(taskId string, command []string, opts ExecOptions) *pb.ContainerExecRequest {
 	var workdir *string
 	if opts.Workdir != "" {
 		workdir = &opts.Workdir
@@ -151,13 +162,29 @@ func (sb *Sandbox) Exec(command []string, opts ExecOptions) (*ContainerProcess, 
 		}
 	}
 
-	resp, err := client.ContainerExec(sb.ctx, pb.ContainerExecRequest_builder{
-		TaskId:      sb.taskId,
+	var ptyInfo *pb.PTYInfo
+	if opts.PTY {
+		ptyInfo = defaultSandboxPTYInfo()
+	}
+
+	return pb.ContainerExecRequest_builder{
+		TaskId:      taskId,
 		Command:     command,
 		Workdir:     workdir,
 		TimeoutSecs: uint32(opts.Timeout.Seconds()),
 		SecretIds:   secretIds,
-	}.Build())
+		PtyInfo:     ptyInfo,
+	}.Build()
+}
+
+// Exec runs a command in the Sandbox and returns text streams.
+func (sb *Sandbox) Exec(command []string, opts ExecOptions) (*ContainerProcess, error) {
+	if err := sb.ensureTaskId(); err != nil {
+		return nil, err
+	}
+
+	req := containerExecRequestProto(sb.taskId, command, opts)
+	resp, err := client.ContainerExec(sb.ctx, req)
 	if err != nil {
 		return nil, err
 	}

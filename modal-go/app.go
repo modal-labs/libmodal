@@ -47,6 +47,7 @@ type SandboxOptions struct {
 	Secrets           []*Secret                    // Secrets to inject into the Sandbox.
 	Volumes           map[string]*Volume           // Mount points for Volumes.
 	CloudBucketMounts map[string]*CloudBucketMount // Mount points for cloud buckets.
+	PTY               bool                         // Enable a PTY for the Sandbox.
 	EncryptedPorts    []int                        // List of encrypted ports to tunnel into the Sandbox, with TLS encryption.
 	H2Ports           []int                        // List of encrypted ports to tunnel into the Sandbox, using HTTP/2.
 	UnencryptedPorts  []int                        // List of ports to tunnel into the Sandbox without encryption.
@@ -119,15 +120,10 @@ func AppLookup(ctx context.Context, name string, options *LookupOptions) (*App, 
 	return &App{AppId: resp.GetAppId(), Name: name, ctx: ctx}, nil
 }
 
-// CreateSandbox creates a new Sandbox in the App with the specified Image and options.
-func (app *App) CreateSandbox(image *Image, options *SandboxOptions) (*Sandbox, error) {
+// sandboxCreateRequestProto builds a SandboxCreateRequest proto from options.
+func sandboxCreateRequestProto(appId, imageId string, options *SandboxOptions) (*pb.SandboxCreateRequest, error) {
 	if options == nil {
 		options = &SandboxOptions{}
-	}
-
-	image, err := image.Build(app)
-	if err != nil {
-		return nil, err
 	}
 
 	gpuConfig, err := parseGPUConfig(options.GPU)
@@ -162,6 +158,11 @@ func (app *App) CreateSandbox(image *Image, options *SandboxOptions) (*Sandbox, 
 			}
 			cloudBucketMounts = append(cloudBucketMounts, proto)
 		}
+	}
+
+	var ptyInfo *pb.PTYInfo
+	if options.PTY {
+		ptyInfo = defaultSandboxPTYInfo()
 	}
 
 	var openPorts []*pb.PortSpec
@@ -238,11 +239,11 @@ func (app *App) CreateSandbox(image *Image, options *SandboxOptions) (*Sandbox, 
 		idleTimeoutSecs = &v
 	}
 
-	createResp, err := client.SandboxCreate(app.ctx, pb.SandboxCreateRequest_builder{
-		AppId: app.AppId,
+	return pb.SandboxCreateRequest_builder{
+		AppId: appId,
 		Definition: pb.Sandbox_builder{
 			EntrypointArgs:  options.Command,
-			ImageId:         image.ImageId,
+			ImageId:         imageId,
 			SecretIds:       secretIds,
 			TimeoutSecs:     uint32(options.Timeout.Seconds()),
 			IdleTimeoutSecs: idleTimeoutSecs,
@@ -255,6 +256,7 @@ func (app *App) CreateSandbox(image *Image, options *SandboxOptions) (*Sandbox, 
 			}.Build(),
 			VolumeMounts:       volumeMounts,
 			CloudBucketMounts:  cloudBucketMounts,
+			PtyInfo:            ptyInfo,
 			OpenPorts:          portSpecs,
 			CloudProviderStr:   options.Cloud,
 			SchedulerPlacement: schedulerPlacement,
@@ -262,8 +264,22 @@ func (app *App) CreateSandbox(image *Image, options *SandboxOptions) (*Sandbox, 
 			ProxyId:            proxyId,
 			Name:               &options.Name,
 		}.Build(),
-	}.Build())
+	}.Build(), nil
+}
 
+// CreateSandbox creates a new Sandbox in the App with the specified Image and options.
+func (app *App) CreateSandbox(image *Image, options *SandboxOptions) (*Sandbox, error) {
+	image, err := image.Build(app)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := sandboxCreateRequestProto(app.AppId, image.ImageId, options)
+	if err != nil {
+		return nil, err
+	}
+
+	createResp, err := client.SandboxCreate(app.ctx, req)
 	if err != nil {
 		if status, ok := status.FromError(err); ok && status.Code() == codes.AlreadyExists {
 			return nil, AlreadyExistsError{Exception: status.Message()}

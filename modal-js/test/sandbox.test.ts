@@ -1,6 +1,8 @@
 import { App, Volume, Sandbox, Secret, Image } from "modal";
 import { parseGpuConfig } from "../src/app";
 import { expect, test, onTestFinished } from "vitest";
+import { containerExecRequestProto } from "../src/sandbox";
+import { PTYInfo_PTYType } from "../proto/modal_proto/api";
 
 test("CreateOneSandbox", async () => {
   const app = await App.lookup("libmodal-test", { createIfMissing: true });
@@ -491,4 +493,25 @@ test("NamedSandboxNotFound", async () => {
   await expect(
     Sandbox.fromName("libmodal-test", "non-existent-sandbox"),
   ).rejects.toThrow("not found");
+});
+
+test("containerExecProto without PTY", () => {
+  const req = containerExecRequestProto("task-123", ["bash"]);
+
+  expect(req.ptyInfo).toBeUndefined();
+});
+
+test("containerExecProto with PTY", () => {
+  const req = containerExecRequestProto("task-123", ["bash"], {
+    pty: true,
+  });
+
+  const ptyInfo = req.ptyInfo!;
+  expect(ptyInfo).toBeDefined();
+  expect(ptyInfo.enabled).toBe(true);
+  expect(ptyInfo.winszRows).toBe(24);
+  expect(ptyInfo.winszCols).toBe(80);
+  expect(ptyInfo.envTerm).toBe("xterm-256color");
+  expect(ptyInfo.envColorterm).toBe("truecolor");
+  expect(ptyInfo.ptyType).toBe(PTYInfo_PTYType.PTY_TYPE_SHELL);
 });
