@@ -29,4 +29,5 @@ func TestContainerExecProto_WithPTY(t *testing.T) {
 	g.Expect(ptyInfo.GetEnvTerm()).To(gomega.Equal("xterm-256color"))
 	g.Expect(ptyInfo.GetEnvColorterm()).To(gomega.Equal("truecolor"))
 	g.Expect(ptyInfo.GetPtyType()).To(gomega.Equal(pb.PTYInfo_PTY_TYPE_SHELL))
+	g.Expect(ptyInfo.GetNoTerminateOnIdleStdin()).To(gomega.BeTrue())
 }

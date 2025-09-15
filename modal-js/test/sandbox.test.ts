@@ -514,4 +514,5 @@ test("containerExecProto with PTY", () => {
   expect(ptyInfo.envTerm).toBe("xterm-256color");
   expect(ptyInfo.envColorterm).toBe("truecolor");
   expect(ptyInfo.ptyType).toBe(PTYInfo_PTYType.PTY_TYPE_SHELL);
+  expect(ptyInfo.noTerminateOnIdleStdin).toBe(true);
 });
