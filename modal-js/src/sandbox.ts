@@ -3,6 +3,9 @@ import {
   FileDescriptor,
   GenericResult,
   GenericResult_GenericStatus,
+  PTYInfo,
+  PTYInfo_PTYType,
+  ContainerExecRequest,
 } from "../proto/modal_proto/api";
 import { client, isRetryableGrpc } from "./client";
 import { environmentName } from "./config";
@@ -61,6 +64,8 @@ export type ExecOptions = {
   timeout?: number;
   /** Secrets with environment variables for the command. */
   secrets?: Secret[];
+  /** Enable a PTY for the command. */
+  pty?: boolean;
 };
 
 /** A port forwarded from within a running Modal Sandbox. */
@@ -96,6 +101,43 @@ export class Tunnel {
     }
     return [this.unencryptedHost, this.unencryptedPort];
   }
+}
+
+export function defaultSandboxPTYInfo(): PTYInfo {
+  return PTYInfo.create({
+    enabled: true,
+    winszRows: 24,
+    winszCols: 80,
+    envTerm: "xterm-256color",
+    envColorterm: "truecolor",
+    envTermProgram: "",
+    ptyType: PTYInfo_PTYType.PTY_TYPE_SHELL,
+    noTerminateOnIdleStdin: true,
+  });
+}
+
+export function containerExecRequestProto(
+  taskId: string,
+  command: string[],
+  options?: ExecOptions,
+): ContainerExecRequest {
+  const secretIds = options?.secrets
+    ? options.secrets.map((secret) => secret.secretId)
+    : [];
+
+  let ptyInfo: PTYInfo | undefined;
+  if (options?.pty) {
+    ptyInfo = defaultSandboxPTYInfo();
+  }
+
+  return ContainerExecRequest.create({
+    taskId,
+    command,
+    workdir: options?.workdir,
+    timeoutSecs: options?.timeout ? options.timeout / 1000 : 0,
+    secretIds,
+    ptyInfo,
+  });
 }
 
 /** Sandboxes are secure, isolated containers in Modal that boot in seconds. */
@@ -234,21 +276,13 @@ export class Sandbox {
       workdir?: string;
       timeout?: number;
       secrets?: Secret[];
+      pty?: boolean;
     },
   ): Promise<ContainerProcess> {
     const taskId = await this.#getTaskId();
 
-    const secretIds = options?.secrets
-      ? options.secrets.map((secret) => secret.secretId)
-      : [];
-
-    const resp = await client.containerExec({
-      taskId,
-      command,
-      workdir: options?.workdir,
-      timeoutSecs: options?.timeout ? options.timeout / 1000 : 0,
-      secretIds,
-    });
+    const req = containerExecRequestProto(taskId, command, options);
+    const resp = await client.containerExec(req);
 
     return new ContainerProcess(resp.execId, options);
   }
