@@ -13,7 +13,10 @@ import (
 
 // ImageDockerfileCommandsOptions are options for Image.DockerfileCommands().
 type ImageDockerfileCommandsOptions struct {
-	// Secrets that will be made available to this layer's build environment.
+	// Environment variables to set in the build environment.
+	Env map[string]string
+
+	// Secrets that will be made available as environment variables to this layer's build environment.
 	Secrets []*Secret
 
 	// GPU reservation for this layer's build environment (e.g. "A100", "T4:2", "A100-80GB:4").
@@ -26,6 +29,7 @@ type ImageDockerfileCommandsOptions struct {
 // layer represents a single image layer with its build configuration.
 type layer struct {
 	commands   []string
+	env        map[string]string
 	secrets    []*Secret
 	gpu        string
 	forceBuild bool
@@ -129,6 +133,7 @@ func (image *Image) DockerfileCommands(commands []string, options *ImageDockerfi
 
 	newLayer := layer{
 		commands:   append([]string{}, commands...),
+		env:        options.Env,
 		secrets:    options.Secrets,
 		gpu:        options.GPU,
 		forceBuild: options.ForceBuild,
@@ -178,6 +183,13 @@ func (image *Image) Build(app *App) (*Image, error) {
 		var secretIds []string
 		for _, secret := range currentLayer.secrets {
 			secretIds = append(secretIds, secret.SecretId)
+		}
+		if len(currentLayer.env) > 0 {
+			envSecret, err := SecretFromMap(app.ctx, currentLayer.env, nil)
+			if err != nil {
+				return nil, err
+			}
+			secretIds = append(secretIds, envSecret.SecretId)
 		}
 
 		var gpuConfig *pb.GPUConfig

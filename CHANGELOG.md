@@ -4,7 +4,7 @@ Both client libraries are pre-1.0, and they have separate versioning.
 
 ## Unreleased
 
-No unreleased changes.
+- Added `env` parameters to several methods, as a convenience for passing environment variables into Sandboxes, etc.
 
 ## modal-js/v0.3.23, modal-go/v0.0.23
 
