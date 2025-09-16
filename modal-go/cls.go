@@ -461,23 +461,23 @@ func buildFunctionOptionsProto(opts *serviceOptions, envSecret *Secret) (*pb.Fun
 		builder.Resources = resBuilder.Build()
 	}
 
+	secretIds := []string{}
 	if opts.secrets != nil {
-		secretIds := []string{}
 		for _, secret := range *opts.secrets {
 			if secret != nil {
 				secretIds = append(secretIds, secret.SecretId)
 			}
 		}
-		if opts.env != nil && len(*opts.env) > 0 && envSecret != nil {
-			secretIds = append(secretIds, envSecret.SecretId)
-		} else if (opts.env != nil && len(*opts.env) > 0) || envSecret != nil {
-			return nil, fmt.Errorf("internal error: env and envSecret must both be provided or neither be provided")
-		}
+	}
+	if opts.env != nil && len(*opts.env) > 0 && envSecret != nil {
+		secretIds = append(secretIds, envSecret.SecretId)
+	} else if (opts.env != nil && len(*opts.env) > 0) || envSecret != nil {
+		return nil, fmt.Errorf("internal error: env and envSecret must both be provided or neither be provided")
+	}
 
-		builder.SecretIds = secretIds
-		if len(secretIds) > 0 {
-			builder.ReplaceSecretIds = true
-		}
+	builder.SecretIds = secretIds
+	if len(secretIds) > 0 {
+		builder.ReplaceSecretIds = true
 	}
 
 	if opts.volumes != nil {

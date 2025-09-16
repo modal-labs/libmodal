@@ -30,7 +30,8 @@ func TestBuildFunctionOptionsProto_MergesEnvAndSecrets(t *testing.T) {
 	g.Expect(err).Should(gomega.HaveOccurred())
 	g.Expect(err.Error()).Should(gomega.ContainSubstring("internal error: env and envSecret must both be provided or neither be provided"))
 
-	_, err = buildFunctionOptionsProto(&serviceOptions{}, envSecret)
+	mem := 1 // need to pass a non-empty serviceOptions to pass the !hasOptions(opts) check
+	_, err = buildFunctionOptionsProto(&serviceOptions{memory: &mem}, envSecret)
 	g.Expect(err).Should(gomega.HaveOccurred())
 	g.Expect(err.Error()).Should(gomega.ContainSubstring("internal error: env and envSecret must both be provided or neither be provided"))
 
