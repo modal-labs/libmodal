@@ -537,6 +537,14 @@ test("buildSandboxCreateRequestProto with only env parameter", async () => {
   expect(req.definition!.secretIds).toHaveLength(1);
 });
 
+test("buildSandboxCreateRequestProto with empty env object does not create secret", async () => {
+  const req = await buildSandboxCreateRequestProto("ap", "im", {
+    env: {},
+  });
+
+  expect(req.definition!.secretIds).toHaveLength(0);
+});
+
 test("buildContainerExecRequestProto merges env and secrets", async () => {
   const secret = await Secret.fromObject({ A: "1" });
 
@@ -555,4 +563,12 @@ test("buildContainerExecRequestProto with only env parameter", async () => {
   });
 
   expect(req.secretIds).toHaveLength(1);
+});
+
+test("buildContainerExecRequestProto with empty env object does not create secret", async () => {
+  const req = await buildContainerExecRequestProto("ta", ["echo", "hello"], {
+    env: {},
+  });
+
+  expect(req.secretIds).toHaveLength(0);
 });

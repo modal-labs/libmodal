@@ -234,7 +234,7 @@ func (c *Cls) bindParameters(params map[string]any) (string, error) {
 	}
 
 	var envSecret *Secret
-	if c.options != nil && c.options.env != nil {
+	if c.options != nil && c.options.env != nil && len(*c.options.env) > 0 {
 		envSecret, err = SecretFromMap(c.ctx, *c.options.env, nil)
 		if err != nil {
 			return "", err

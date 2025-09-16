@@ -63,3 +63,29 @@ func TestBuildFunctionOptionsProto_WithOnlyEnvParameter(t *testing.T) {
 	g.Expect(functionOptions.GetSecretIds()).To(gomega.ContainElement(envSecret.SecretId))
 	g.Expect(functionOptions.GetReplaceSecretIds()).To(gomega.BeTrue())
 }
+
+func TestBuildFunctionOptionsProto_EmptyEnv_WithSecrets(t *testing.T) {
+	g := gomega.NewWithT(t)
+
+	secret, err := SecretFromMap(context.Background(), map[string]string{"A": "1"}, nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	opts := &serviceOptions{env: &map[string]string{}, secrets: &[]*Secret{secret}}
+
+	functionOptions, err := buildFunctionOptionsProto(opts, nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	g.Expect(functionOptions.GetSecretIds()).To(gomega.HaveLen(1))
+	g.Expect(functionOptions.GetSecretIds()).To(gomega.ContainElement(secret.SecretId))
+	g.Expect(functionOptions.GetReplaceSecretIds()).To(gomega.BeTrue())
+}
+
+func TestBuildFunctionOptionsProto_EmptyEnv_NoSecrets(t *testing.T) {
+	g := gomega.NewWithT(t)
+
+	functionOptions, err := buildFunctionOptionsProto(&serviceOptions{env: &map[string]string{}}, nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	g.Expect(functionOptions.GetSecretIds()).To(gomega.HaveLen(0))
+	g.Expect(functionOptions.GetReplaceSecretIds()).To(gomega.BeFalse())
+}
