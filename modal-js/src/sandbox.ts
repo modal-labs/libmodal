@@ -21,7 +21,7 @@ import {
   toModalReadStream,
   toModalWriteStream,
 } from "./streams";
-import { type Secret } from "./secret";
+import { type Secret, mergeEnvAndSecrets } from "./secret";
 import { InvalidError, NotFoundError, SandboxTimeoutError } from "./errors";
 import { Image } from "./image";
 
@@ -62,7 +62,9 @@ export type ExecOptions = {
   workdir?: string;
   /** Timeout for the process in milliseconds. Defaults to 0 (no timeout). */
   timeout?: number;
-  /** Secrets with environment variables for the command. */
+  /** Environment variables to set for the command. */
+  env?: Record<string, string>;
+  /** Secrets to inject as environment variables for the commmand.*/
   secrets?: Secret[];
   /** Enable a PTY for the command. */
   pty?: boolean;
@@ -116,14 +118,16 @@ export function defaultSandboxPTYInfo(): PTYInfo {
   });
 }
 
-export function containerExecRequestProto(
+export async function buildContainerExecRequestProto(
   taskId: string,
   command: string[],
   options?: ExecOptions,
-): ContainerExecRequest {
-  const secretIds = options?.secrets
-    ? options.secrets.map((secret) => secret.secretId)
-    : [];
+): Promise<ContainerExecRequest> {
+  const mergedSecrets = await mergeEnvAndSecrets(
+    options?.env,
+    options?.secrets,
+  );
+  const secretIds = mergedSecrets.map((secret) => secret.secretId);
 
   let ptyInfo: PTYInfo | undefined;
   if (options?.pty) {
@@ -275,13 +279,14 @@ export class Sandbox {
       stderr?: StdioBehavior;
       workdir?: string;
       timeout?: number;
+      env?: Record<string, string>;
       secrets?: Secret[];
       pty?: boolean;
     },
   ): Promise<ContainerProcess> {
     const taskId = await this.#getTaskId();
 
-    const req = containerExecRequestProto(taskId, command, options);
+    const req = await buildContainerExecRequestProto(taskId, command, options);
     const resp = await client.containerExec(req);
 
     return new ContainerProcess(resp.execId, options);

@@ -17,7 +17,7 @@ import { environmentName } from "./config";
 import { Image } from "./image";
 import { Sandbox, defaultSandboxPTYInfo } from "./sandbox";
 import { NotFoundError, AlreadyExistsError } from "./errors";
-import { Secret } from "./secret";
+import { Secret, mergeEnvAndSecrets } from "./secret";
 import { Volume } from "./volume";
 import { Proxy } from "./proxy";
 import {
@@ -67,7 +67,10 @@ export type SandboxCreateOptions = {
    */
   command?: string[]; // default is ["sleep", "48h"]
 
-  /** Secrets to inject into the Sandbox. */
+  /** Environment variables to set in the Sandbox. */
+  env?: Record<string, string>;
+
+  /** Secrets to inject into the Sandbox as environment variables. */
   secrets?: Secret[];
 
   /** Mount points for Modal Volumes. */
@@ -141,11 +144,11 @@ export function parseGpuConfig(gpu: string | undefined): GPUConfig | undefined {
   };
 }
 
-export function sandboxCreateRequestProto(
+export async function buildSandboxCreateRequestProto(
   appId: string,
   imageId: string,
   options: SandboxCreateOptions = {},
-): SandboxCreateRequest {
+): Promise<SandboxCreateRequest> {
   const gpuConfig = parseGpuConfig(options.gpu);
 
   // The gRPC API only accepts a whole number of seconds.
@@ -208,9 +211,8 @@ export function sandboxCreateRequestProto(
     );
   }
 
-  const secretIds = options.secrets
-    ? options.secrets.map((secret) => secret.secretId)
-    : [];
+  const mergedSecrets = await mergeEnvAndSecrets(options.env, options.secrets);
+  const secretIds = mergedSecrets.map((secret) => secret.secretId);
 
   let networkAccess: NetworkAccess;
   if (options.blockNetwork) {
@@ -312,7 +314,7 @@ export class App {
   ): Promise<Sandbox> {
     await image.build(this);
 
-    const createReq = sandboxCreateRequestProto(
+    const createReq = await buildSandboxCreateRequestProto(
       this.appId,
       image.imageId,
       options,

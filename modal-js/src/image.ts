@@ -8,7 +8,7 @@ import {
 } from "../proto/modal_proto/api";
 import { client } from "./client";
 import { App, parseGpuConfig } from "./app";
-import { Secret } from "./secret";
+import { Secret, mergeEnvAndSecrets } from "./secret";
 import { imageBuilderVersion } from "./config";
 import { ClientError } from "nice-grpc";
 import { Status } from "nice-grpc";
@@ -19,7 +19,10 @@ export type ImageDeleteOptions = Record<never, never>;
 
 /** Options for Image.dockerfileCommands(). */
 export type ImageDockerfileCommandsOptions = {
-  /** Secrets that will be made available to this layer's build environment. */
+  /** Environment variables to set in the build environment. */
+  env?: Record<string, string>;
+
+  /** Secrets that will be made available as environment variables to this layer's build environment. */
   secrets?: Secret[];
 
   /** GPU reservation for this layer's build environment (e.g. "A100", "T4:2", "A100-80GB:4"). */
@@ -32,6 +35,7 @@ export type ImageDockerfileCommandsOptions = {
 /** Represents a single image layer with its build configuration. */
 type Layer = {
   commands: string[];
+  env?: Record<string, string>;
   secrets?: Secret[];
   gpuConfig?: GPUConfig;
   forceBuild?: boolean;
@@ -57,6 +61,7 @@ export class Image {
     this.#layers = layers || [
       {
         commands: [],
+        env: undefined,
         secrets: undefined,
         gpuConfig: undefined,
         forceBuild: false,
@@ -188,6 +193,7 @@ export class Image {
 
     const newLayer: Layer = {
       commands: [...commands],
+      env: options?.env,
       secrets: options?.secrets,
       gpuConfig: options?.gpu ? parseGpuConfig(options.gpu) : undefined,
       forceBuild: options?.forceBuild,
@@ -215,7 +221,8 @@ export class Image {
     for (let i = 0; i < this.#layers.length; i++) {
       const layer = this.#layers[i];
 
-      const secretIds = layer.secrets?.map((secret) => secret.secretId) || [];
+      const mergedSecrets = await mergeEnvAndSecrets(layer.env, layer.secrets);
+      const secretIds = mergedSecrets.map((secret) => secret.secretId);
       const gpuConfig = layer.gpuConfig;
 
       let dockerfileCommands: string[];

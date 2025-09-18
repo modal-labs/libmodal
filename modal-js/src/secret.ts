@@ -78,3 +78,14 @@ export class Secret {
     }
   }
 }
+
+export async function mergeEnvAndSecrets(
+  env?: Record<string, string>,
+  secrets?: Secret[],
+): Promise<Secret[]> {
+  const result = [...(secrets || [])];
+  if (env && Object.keys(env).length > 0) {
+    result.push(await Secret.fromObject(env));
+  }
+  return result;
+}

@@ -1,16 +1,16 @@
 import { expect, test } from "vitest";
-import { sandboxCreateRequestProto } from "../src/app";
+import { buildSandboxCreateRequestProto } from "../src/app";
 import { PTYInfo_PTYType } from "../proto/modal_proto/api";
 
-test("sandboxCreateRequestProto without PTY", () => {
-  const req = sandboxCreateRequestProto("app-123", "img-456");
+test("buildSandboxCreateRequestProto without PTY", async () => {
+  const req = await buildSandboxCreateRequestProto("app-123", "img-456");
 
   const definition = req.definition!;
   expect(definition.ptyInfo).toBeUndefined();
 });
 
-test("sandboxCreateRequestProto with PTY", () => {
-  const req = sandboxCreateRequestProto("app-123", "img-456", {
+test("buildSandboxCreateRequestProto with PTY", async () => {
+  const req = await buildSandboxCreateRequestProto("app-123", "img-456", {
     pty: true,
   });
 

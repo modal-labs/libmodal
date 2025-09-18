@@ -16,6 +16,7 @@ import { environmentName } from "./config";
 import { Function_ } from "./function";
 import { parseGpuConfig } from "./app";
 import type { Secret } from "./secret";
+import { mergeEnvAndSecrets } from "./secret";
 import { Retries, parseRetries } from "./retries";
 import type { Volume } from "./volume";
 
@@ -23,6 +24,7 @@ export type ClsOptions = {
   cpu?: number;
   memory?: number;
   gpu?: string;
+  env?: Record<string, string>;
   secrets?: Secret[];
   volumes?: Record<string, Volume>;
   retries?: number | Retries;
@@ -182,7 +184,7 @@ export class Cls {
   /** Bind parameters to the Cls function. */
   async #bindParameters(params: Record<string, any>): Promise<string> {
     const serializedParams = encodeParameterSet(this.#schema, params);
-    const functionOptions = buildFunctionOptionsProto(this.#options);
+    const functionOptions = await buildFunctionOptionsProto(this.#options);
     const bindResp = await client.functionBindParams({
       functionId: this.#serviceFunctionId,
       serializedParams,
@@ -217,9 +219,9 @@ function mergeServiceOptions(
   return Object.keys(merged).length === 0 ? undefined : merged;
 }
 
-function buildFunctionOptionsProto(
+async function buildFunctionOptionsProto(
   options?: ServiceOptions,
-): FunctionOptions | undefined {
+): Promise<FunctionOptions | undefined> {
   if (!options) return undefined;
   const o = options ?? {};
 
@@ -233,7 +235,8 @@ function buildFunctionOptionsProto(
         }
       : undefined;
 
-  const secretIds = o.secrets ? o.secrets.map((s) => s.secretId) : [];
+  const mergedSecrets = await mergeEnvAndSecrets(o.env, o.secrets);
+  const secretIds = mergedSecrets.map((s) => s.secretId);
 
   const volumeMounts: VolumeMount[] = o.volumes
     ? Object.entries(o.volumes).map(([mountPath, volume]) => ({

@@ -44,7 +44,8 @@ type SandboxOptions struct {
 	IdleTimeout       time.Duration                // The amount of time that a Sandbox can be idle before being terminated.
 	Workdir           string                       // Working directory of the Sandbox.
 	Command           []string                     // Command to run in the Sandbox on startup.
-	Secrets           []*Secret                    // Secrets to inject into the Sandbox.
+	Env               map[string]string            // Environment variables to set in the Sandbox.
+	Secrets           []*Secret                    // Secrets to inject into the Sandbox as environment variables.
 	Volumes           map[string]*Volume           // Mount points for Volumes.
 	CloudBucketMounts map[string]*CloudBucketMount // Mount points for cloud buckets.
 	PTY               bool                         // Enable a PTY for the Sandbox.
@@ -120,12 +121,8 @@ func AppLookup(ctx context.Context, name string, options *LookupOptions) (*App, 
 	return &App{AppId: resp.GetAppId(), Name: name, ctx: ctx}, nil
 }
 
-// sandboxCreateRequestProto builds a SandboxCreateRequest proto from options.
-func sandboxCreateRequestProto(appId, imageId string, options *SandboxOptions) (*pb.SandboxCreateRequest, error) {
-	if options == nil {
-		options = &SandboxOptions{}
-	}
-
+// buildSandboxCreateRequestProto builds a SandboxCreateRequest proto from options.
+func buildSandboxCreateRequestProto(appId, imageId string, options SandboxOptions, envSecret *Secret) (*pb.SandboxCreateRequest, error) {
 	gpuConfig, err := parseGPUConfig(options.GPU)
 	if err != nil {
 		return nil, err
@@ -199,6 +196,12 @@ func sandboxCreateRequestProto(appId, imageId string, options *SandboxOptions) (
 			secretIds = append(secretIds, secret.SecretId)
 		}
 	}
+	if (len(options.Env) > 0) != (envSecret != nil) {
+		return nil, fmt.Errorf("internal error: Env and envSecret must both be provided or neither be provided")
+	}
+	if envSecret != nil {
+		secretIds = append(secretIds, envSecret.SecretId)
+	}
 
 	var networkAccess *pb.NetworkAccess
 	if options.BlockNetwork {
@@ -269,12 +272,24 @@ func sandboxCreateRequestProto(appId, imageId string, options *SandboxOptions) (
 
 // CreateSandbox creates a new Sandbox in the App with the specified Image and options.
 func (app *App) CreateSandbox(image *Image, options *SandboxOptions) (*Sandbox, error) {
+	if options == nil {
+		options = &SandboxOptions{}
+	}
+
 	image, err := image.Build(app)
 	if err != nil {
 		return nil, err
 	}
 
-	req, err := sandboxCreateRequestProto(app.AppId, image.ImageId, options)
+	var envSecret *Secret
+	if len(options.Env) > 0 {
+		envSecret, err = SecretFromMap(app.ctx, options.Env, nil)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	req, err := buildSandboxCreateRequestProto(app.AppId, image.ImageId, *options, envSecret)
 	if err != nil {
 		return nil, err
 	}

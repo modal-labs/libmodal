@@ -268,7 +268,10 @@ func TestDockerfileCommandsChaining(t *testing.T) {
 		DockerfileCommands([]string{"RUN echo ${SECRET:-unset} > /root/layer2.txt"}, &modal.ImageDockerfileCommandsOptions{
 			Secrets: []*modal.Secret{secret},
 		}).
-		DockerfileCommands([]string{"RUN echo ${SECRET:-unset} > /root/layer3.txt"}, nil)
+		DockerfileCommands([]string{"RUN echo ${SECRET:-unset} > /root/layer3.txt"}, nil).
+		DockerfileCommands([]string{"RUN echo ${SECRET:-unset} > /root/layer4.txt"}, &modal.ImageDockerfileCommandsOptions{
+			Env: map[string]string{"SECRET": "hello again"},
+		})
 
 	sb, err := app.CreateSandbox(image, &modal.SandboxOptions{
 		Command: []string{
@@ -276,13 +279,14 @@ func TestDockerfileCommandsChaining(t *testing.T) {
 			"/root/layer1.txt",
 			"/root/layer2.txt",
 			"/root/layer3.txt",
+			"/root/layer4.txt",
 		},
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	stdout, err := io.ReadAll(sb.Stdout)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(string(stdout)).Should(gomega.Equal("unset\nhello\nunset\n"))
+	g.Expect(string(stdout)).Should(gomega.Equal("unset\nhello\nunset\nhello again\n"))
 
 	err = sb.Terminate()
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())

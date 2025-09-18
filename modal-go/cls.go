@@ -19,6 +19,7 @@ type ClsOptions struct {
 	CPU              *float64
 	Memory           *int
 	GPU              *string
+	Env              map[string]string
 	Secrets          []*Secret
 	Volumes          map[string]*Volume
 	Retries          *Retries
@@ -44,6 +45,7 @@ type serviceOptions struct {
 	cpu                    *float64
 	memory                 *int
 	gpu                    *string
+	env                    *map[string]string
 	secrets                *[]*Secret
 	volumes                *map[string]*Volume
 	retries                *Retries
@@ -160,11 +162,17 @@ func (c *Cls) WithOptions(opts ClsOptions) *Cls {
 		v := opts.Volumes
 		volumesPtr = &v
 	}
+	var envPtr *map[string]string
+	if opts.Env != nil {
+		e := opts.Env
+		envPtr = &e
+	}
 
 	merged := mergeServiceOptions(c.options, &serviceOptions{
 		cpu:              opts.CPU,
 		memory:           opts.Memory,
 		gpu:              opts.GPU,
+		env:              envPtr,
 		secrets:          secretsPtr,
 		volumes:          volumesPtr,
 		retries:          opts.Retries,
@@ -225,7 +233,15 @@ func (c *Cls) bindParameters(params map[string]any) (string, error) {
 		return "", fmt.Errorf("failed to serialize parameters: %w", err)
 	}
 
-	functionOptions, err := buildFunctionOptionsProto(c.options)
+	var envSecret *Secret
+	if c.options != nil && c.options.env != nil && len(*c.options.env) > 0 {
+		envSecret, err = SecretFromMap(c.ctx, *c.options.env, nil)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	functionOptions, err := buildFunctionOptionsProto(c.options, envSecret)
 	if err != nil {
 		return "", fmt.Errorf("failed to build function options: %w", err)
 	}
@@ -357,6 +373,7 @@ func mergeServiceOptions(base, new *serviceOptions) *serviceOptions {
 		cpu:                    base.cpu,
 		memory:                 base.memory,
 		gpu:                    base.gpu,
+		env:                    base.env,
 		secrets:                base.secrets,
 		volumes:                base.volumes,
 		retries:                base.retries,
@@ -378,6 +395,9 @@ func mergeServiceOptions(base, new *serviceOptions) *serviceOptions {
 	}
 	if new.gpu != nil {
 		merged.gpu = new.gpu
+	}
+	if new.env != nil {
+		merged.env = new.env
 	}
 	if new.secrets != nil {
 		merged.secrets = new.secrets
@@ -416,7 +436,7 @@ func mergeServiceOptions(base, new *serviceOptions) *serviceOptions {
 	return merged
 }
 
-func buildFunctionOptionsProto(opts *serviceOptions) (*pb.FunctionOptions, error) {
+func buildFunctionOptionsProto(opts *serviceOptions, envSecret *Secret) (*pb.FunctionOptions, error) {
 	if !hasOptions(opts) {
 		return nil, nil
 	}
@@ -441,17 +461,24 @@ func buildFunctionOptionsProto(opts *serviceOptions) (*pb.FunctionOptions, error
 		builder.Resources = resBuilder.Build()
 	}
 
+	secretIds := []string{}
 	if opts.secrets != nil {
-		secretIds := []string{}
 		for _, secret := range *opts.secrets {
 			if secret != nil {
 				secretIds = append(secretIds, secret.SecretId)
 			}
 		}
-		builder.SecretIds = secretIds
-		if len(secretIds) > 0 {
-			builder.ReplaceSecretIds = true
-		}
+	}
+	if (opts.env != nil && len(*opts.env) > 0) != (envSecret != nil) {
+		return nil, fmt.Errorf("internal error: env and envSecret must both be provided or neither be provided")
+	}
+	if envSecret != nil {
+		secretIds = append(secretIds, envSecret.SecretId)
+	}
+
+	builder.SecretIds = secretIds
+	if len(secretIds) > 0 {
+		builder.ReplaceSecretIds = true
 	}
 
 	if opts.volumes != nil {

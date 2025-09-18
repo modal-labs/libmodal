@@ -36,7 +36,9 @@ type ExecOptions struct {
 	Workdir string
 	// Timeout is the timeout for command execution. Defaults to 0 (no timeout).
 	Timeout time.Duration
-	// Secrets with environment variables for the command.
+	// Environment variables to set for the command.
+	Env map[string]string
+	// Secrets to inject as environment variables for the command.
 	Secrets []*Secret
 	// PTY defines whether to enable a PTY for the command.
 	PTY bool
@@ -149,8 +151,8 @@ func SandboxFromName(ctx context.Context, appName, name string, options *Sandbox
 	return newSandbox(ctx, resp.GetSandboxId()), nil
 }
 
-// containerExecRequestProto builds a ContainerExecRequest proto from command and options.
-func containerExecRequestProto(taskId string, command []string, opts ExecOptions) *pb.ContainerExecRequest {
+// buildContainerExecRequestProto builds a ContainerExecRequest proto from command and options.
+func buildContainerExecRequestProto(taskId string, command []string, opts ExecOptions, envSecret *Secret) (*pb.ContainerExecRequest, error) {
 	var workdir *string
 	if opts.Workdir != "" {
 		workdir = &opts.Workdir
@@ -160,6 +162,12 @@ func containerExecRequestProto(taskId string, command []string, opts ExecOptions
 		if secret != nil {
 			secretIds = append(secretIds, secret.SecretId)
 		}
+	}
+	if (len(opts.Env) > 0) != (envSecret != nil) {
+		return nil, fmt.Errorf("internal error: Env and envSecret must both be provided or neither be provided")
+	}
+	if envSecret != nil {
+		secretIds = append(secretIds, envSecret.SecretId)
 	}
 
 	var ptyInfo *pb.PTYInfo
@@ -174,7 +182,7 @@ func containerExecRequestProto(taskId string, command []string, opts ExecOptions
 		TimeoutSecs: uint32(opts.Timeout.Seconds()),
 		SecretIds:   secretIds,
 		PtyInfo:     ptyInfo,
-	}.Build()
+	}.Build(), nil
 }
 
 // Exec runs a command in the Sandbox and returns text streams.
@@ -183,7 +191,19 @@ func (sb *Sandbox) Exec(command []string, opts ExecOptions) (*ContainerProcess, 
 		return nil, err
 	}
 
-	req := containerExecRequestProto(sb.taskId, command, opts)
+	var envSecret *Secret
+	if len(opts.Env) > 0 {
+		var err error
+		envSecret, err = SecretFromMap(sb.ctx, opts.Env, nil)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	req, err := buildContainerExecRequestProto(sb.taskId, command, opts, envSecret)
+	if err != nil {
+		return nil, err
+	}
 	resp, err := client.ContainerExec(sb.ctx, req)
 	if err != nil {
 		return nil, err
