@@ -191,6 +191,24 @@ export class Sandbox {
     }
   }
 
+  /** Get tags (key-value pairs) currently attached to this Sandbox from the server. */
+  async getTags(): Promise<Record<string, string>> {
+    try {
+      const resp = await client.sandboxTagsGet({ sandboxId: this.sandboxId });
+
+      const tags: Record<string, string> = {};
+      for (const tag of resp.tags) {
+        tags[tag.tagName] = tag.tagValue;
+      }
+      return tags;
+    } catch (err) {
+      if (err instanceof ClientError && err.code === Status.INVALID_ARGUMENT) {
+        throw new InvalidError(err.details || err.message);
+      }
+      throw err;
+    }
+  }
+
   /** Returns a running Sandbox object from an ID.
    *
    * @returns Sandbox with ID
