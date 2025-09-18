@@ -469,10 +469,11 @@ func buildFunctionOptionsProto(opts *serviceOptions, envSecret *Secret) (*pb.Fun
 			}
 		}
 	}
-	if opts.env != nil && len(*opts.env) > 0 && envSecret != nil {
-		secretIds = append(secretIds, envSecret.SecretId)
-	} else if (opts.env != nil && len(*opts.env) > 0) || envSecret != nil {
+	if (opts.env != nil && len(*opts.env) > 0) != (envSecret != nil) {
 		return nil, fmt.Errorf("internal error: env and envSecret must both be provided or neither be provided")
+	}
+	if envSecret != nil {
+		secretIds = append(secretIds, envSecret.SecretId)
 	}
 
 	builder.SecretIds = secretIds

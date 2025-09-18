@@ -163,10 +163,11 @@ func buildContainerExecRequestProto(taskId string, command []string, opts ExecOp
 			secretIds = append(secretIds, secret.SecretId)
 		}
 	}
-	if len(opts.Env) > 0 && envSecret != nil {
-		secretIds = append(secretIds, envSecret.SecretId)
-	} else if len(opts.Env) > 0 || envSecret != nil {
+	if (len(opts.Env) > 0) != (envSecret != nil) {
 		return nil, fmt.Errorf("internal error: Env and envSecret must both be provided or neither be provided")
+	}
+	if envSecret != nil {
+		secretIds = append(secretIds, envSecret.SecretId)
 	}
 
 	var ptyInfo *pb.PTYInfo
