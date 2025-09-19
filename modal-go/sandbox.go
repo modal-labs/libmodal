@@ -372,6 +372,25 @@ func (sb *Sandbox) SetTags(tags map[string]string) error {
 	return err
 }
 
+// GetTags fetches any tags (key-value pairs) currently attached to this Sandbox from the server.
+func (sb *Sandbox) GetTags() (map[string]string, error) {
+	resp, err := client.SandboxTagsGet(sb.ctx, pb.SandboxTagsGetRequest_builder{
+		SandboxId: sb.SandboxId,
+	}.Build())
+	if err != nil {
+		if status, ok := status.FromError(err); ok && status.Code() == codes.InvalidArgument {
+			return nil, InvalidError{Exception: status.Message()}
+		}
+		return nil, err
+	}
+
+	tags := make(map[string]string, len(resp.GetTags()))
+	for _, tag := range resp.GetTags() {
+		tags[tag.GetTagName()] = tag.GetTagValue()
+	}
+	return tags, nil
+}
+
 // SandboxListOptions are options for listing Sandboxes.
 type SandboxListOptions struct {
 	AppId       string            // Filter by App ID

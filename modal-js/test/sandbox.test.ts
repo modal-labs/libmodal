@@ -418,7 +418,15 @@ test("SandboxSetMultipleTagsAndList", async () => {
   const tagB = `B-${Math.random()}`;
   const tagC = `C-${Math.random()}`;
 
+  expect(await sb.getTags()).toEqual({});
+
   await sb.setTags({ "key-a": tagA, "key-b": tagB, "key-c": tagC });
+
+  expect(await sb.getTags()).toEqual({
+    "key-a": tagA,
+    "key-b": tagB,
+    "key-c": tagC,
+  });
 
   let ids: string[] = [];
   for await (const s of Sandbox.list({ tags: { "key-a": tagA } })) {
