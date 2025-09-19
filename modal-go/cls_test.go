@@ -1,7 +1,6 @@
 package modal
 
 import (
-	"context"
 	"testing"
 
 	"github.com/onsi/gomega"
@@ -18,15 +17,12 @@ func TestBuildFunctionOptionsProto_NilOptions(t *testing.T) {
 func TestBuildFunctionOptionsProto_MergesEnvAndSecrets(t *testing.T) {
 	g := gomega.NewWithT(t)
 
-	secretEnvVars := map[string]string{"A": "1"}
-	secret, err := SecretFromMap(context.Background(), secretEnvVars, nil)
-	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	secret := &Secret{SecretId: "test-secret-1"}
 
 	envVars := map[string]string{"B": "2"}
-	envSecret, err := SecretFromMap(context.Background(), envVars, nil)
-	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	envSecret := &Secret{SecretId: "test-env-secret"}
 
-	_, err = buildFunctionOptionsProto(&serviceOptions{env: &envVars}, nil)
+	_, err := buildFunctionOptionsProto(&serviceOptions{env: &envVars}, nil)
 	g.Expect(err).Should(gomega.HaveOccurred())
 	g.Expect(err.Error()).Should(gomega.ContainSubstring("internal error: env and envSecret must both be provided or neither be provided"))
 
@@ -51,8 +47,7 @@ func TestBuildFunctionOptionsProto_WithOnlyEnvParameter(t *testing.T) {
 	g := gomega.NewWithT(t)
 
 	envVars := map[string]string{"B": "2"}
-	envSecret, err := SecretFromMap(context.Background(), envVars, nil)
-	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	envSecret := &Secret{SecretId: "test-env-secret"}
 
 	functionOptions, err := buildFunctionOptionsProto(&serviceOptions{
 		env: &envVars,
@@ -67,8 +62,7 @@ func TestBuildFunctionOptionsProto_WithOnlyEnvParameter(t *testing.T) {
 func TestBuildFunctionOptionsProto_EmptyEnv_WithSecrets(t *testing.T) {
 	g := gomega.NewWithT(t)
 
-	secret, err := SecretFromMap(context.Background(), map[string]string{"A": "1"}, nil)
-	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	secret := &Secret{SecretId: "test-secret-1"}
 
 	opts := &serviceOptions{env: &map[string]string{}, secrets: &[]*Secret{secret}}
 

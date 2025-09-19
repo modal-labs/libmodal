@@ -11,24 +11,28 @@ import (
 
 func main() {
 	ctx := context.Background()
+	mc, err := modal.NewClient()
+	if err != nil {
+		log.Fatalf("Failed to create client: %v", err)
+	}
 
-	app, err := modal.AppLookup(ctx, "libmodal-example", &modal.LookupOptions{
+	app, err := mc.Apps.Lookup(ctx, "libmodal-example", &modal.LookupOptions{
 		CreateIfMissing: true,
 	})
 	if err != nil {
 		log.Fatalf("Failed to lookup App: %v", err)
 	}
 
-	image := modal.NewImageFromRegistry("alpine:3.21", nil)
+	image := mc.Images.FromRegistry("alpine:3.21", nil)
 
-	volume, err := modal.VolumeFromName(ctx, "libmodal-example-volume", &modal.VolumeFromNameOptions{
+	volume, err := mc.Volumes.FromName(ctx, "libmodal-example-volume", &modal.VolumeFromNameOptions{
 		CreateIfMissing: true,
 	})
 	if err != nil {
 		log.Fatalf("Failed to create Volume: %v", err)
 	}
 
-	writerSandbox, err := app.CreateSandbox(image, &modal.SandboxOptions{
+	writerSandbox, err := mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateOptions{
 		Command: []string{
 			"sh",
 			"-c",
@@ -43,13 +47,13 @@ func main() {
 	}
 	fmt.Printf("Writer Sandbox: %s\n", writerSandbox.SandboxId)
 
-	exitCode, err := writerSandbox.Wait()
+	exitCode, err := writerSandbox.Wait(ctx)
 	if err != nil {
 		log.Fatalf("Failed to wait for writer Sandbox: %v", err)
 	}
 	fmt.Printf("Writer finished with exit code: %d\n", exitCode)
 
-	readerSandbox, err := app.CreateSandbox(image, &modal.SandboxOptions{
+	readerSandbox, err := mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateOptions{
 		Volumes: map[string]*modal.Volume{
 			"/mnt/volume": volume.ReadOnly(),
 		},
@@ -59,7 +63,7 @@ func main() {
 	}
 	fmt.Printf("Reader Sandbox: %s\n", readerSandbox.SandboxId)
 
-	rp, err := readerSandbox.Exec([]string{"cat", "/mnt/volume/message.txt"}, modal.ExecOptions{
+	rp, err := readerSandbox.Exec(ctx, []string{"cat", "/mnt/volume/message.txt"}, modal.ExecOptions{
 		Stdout: modal.Pipe,
 	})
 	if err != nil {
@@ -71,7 +75,7 @@ func main() {
 	}
 	fmt.Printf("Reader output: %s", string(readOutput))
 
-	wp, err := readerSandbox.Exec([]string{"sh", "-c", "echo 'This should fail' >> /mnt/volume/message.txt"}, modal.ExecOptions{
+	wp, err := readerSandbox.Exec(ctx, []string{"sh", "-c", "echo 'This should fail' >> /mnt/volume/message.txt"}, modal.ExecOptions{
 		Stdout: modal.Pipe,
 		Stderr: modal.Pipe,
 	})
@@ -79,7 +83,7 @@ func main() {
 		log.Fatalf("Failed to exec write command: %v", err)
 	}
 
-	writeExitCode, err := wp.Wait()
+	writeExitCode, err := wp.Wait(ctx)
 	if err != nil {
 		log.Fatalf("Failed to wait for write process: %v", err)
 	}
@@ -91,10 +95,10 @@ func main() {
 	fmt.Printf("Write attempt exit code: %d\n", writeExitCode)
 	fmt.Printf("Write attempt stderr: %s", string(writeStderr))
 
-	if err := writerSandbox.Terminate(); err != nil {
+	if err := writerSandbox.Terminate(ctx); err != nil {
 		log.Printf("Failed to terminate writer Sandbox: %v", err)
 	}
-	if err := readerSandbox.Terminate(); err != nil {
+	if err := readerSandbox.Terminate(ctx); err != nil {
 		log.Printf("Failed to terminate reader Sandbox: %v", err)
 	}
 }

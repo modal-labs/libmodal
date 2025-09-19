@@ -11,6 +11,9 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// ImageService provides Image related operations.
+type ImageService struct{ client *Client }
+
 // ImageDockerfileCommandsOptions are options for Image.DockerfileCommands().
 type ImageDockerfileCommandsOptions struct {
 	// Environment variables to set in the build environment.
@@ -43,12 +46,16 @@ type Image struct {
 	tag                 string
 	layers              []layer
 
-	//lint:ignore U1000 may be used in future
-	ctx context.Context
+	client *Client
 }
 
-// NewImageFromRegistry builds a Modal Image from a public or private image registry without any changes.
-func NewImageFromRegistry(tag string, options *ImageFromRegistryOptions) *Image {
+// ImageFromRegistryOptions are options for creating an Image from a registry.
+type ImageFromRegistryOptions struct {
+	Secret *Secret // Secret for private registry authentication.
+}
+
+// FromRegistry builds a Modal Image from a public or private image registry without any changes.
+func (s *ImageService) FromRegistry(tag string, options *ImageFromRegistryOptions) *Image {
 	if options == nil {
 		options = &ImageFromRegistryOptions{}
 	}
@@ -65,11 +72,12 @@ func NewImageFromRegistry(tag string, options *ImageFromRegistryOptions) *Image 
 		imageRegistryConfig: imageRegistryConfig,
 		tag:                 tag,
 		layers:              []layer{{}},
+		client:              s.client,
 	}
 }
 
-// NewImageFromAwsEcr creates an Image from an AWS ECR tag.
-func NewImageFromAwsEcr(tag string, secret *Secret) *Image {
+// FromAwsEcr creates an Image from an AWS ECR tag
+func (s *ImageService) FromAwsEcr(tag string, secret *Secret) *Image {
 	imageRegistryConfig := pb.ImageRegistryConfig_builder{
 		RegistryAuthType: pb.RegistryAuthType_REGISTRY_AUTH_TYPE_AWS,
 		SecretId:         secret.SecretId,
@@ -80,11 +88,12 @@ func NewImageFromAwsEcr(tag string, secret *Secret) *Image {
 		imageRegistryConfig: imageRegistryConfig,
 		tag:                 tag,
 		layers:              []layer{{}},
+		client:              s.client,
 	}
 }
 
-// NewImageFromGcpArtifactRegistry creates an Image from a GCP Artifact Registry tag.
-func NewImageFromGcpArtifactRegistry(tag string, secret *Secret) *Image {
+// FromGcpArtifactRegistry creates an Image from a GCP Artifact Registry tag.
+func (s *ImageService) FromGcpArtifactRegistry(tag string, secret *Secret) *Image {
 	imageRegistryConfig := pb.ImageRegistryConfig_builder{
 		RegistryAuthType: pb.RegistryAuthType_REGISTRY_AUTH_TYPE_GCP,
 		SecretId:         secret.SecretId,
@@ -94,12 +103,13 @@ func NewImageFromGcpArtifactRegistry(tag string, secret *Secret) *Image {
 		imageRegistryConfig: imageRegistryConfig,
 		tag:                 tag,
 		layers:              []layer{{}},
+		client:              s.client,
 	}
 }
 
-// NewImageFromId looks up an Image from an ID
-func NewImageFromId(ctx context.Context, imageId string) (*Image, error) {
-	resp, err := client.ImageFromId(
+// FromId looks up an Image from an ID
+func (s *ImageService) FromId(ctx context.Context, imageId string) (*Image, error) {
+	resp, err := s.client.cpClient.ImageFromId(
 		ctx,
 		pb.ImageFromIdRequest_builder{
 			ImageId: imageId,
@@ -115,6 +125,7 @@ func NewImageFromId(ctx context.Context, imageId string) (*Image, error) {
 	return &Image{
 		ImageId: resp.GetImageId(),
 		layers:  []layer{{}},
+		client:  s.client,
 	}, nil
 }
 
@@ -147,6 +158,7 @@ func (image *Image) DockerfileCommands(commands []string, options *ImageDockerfi
 		tag:                 image.tag,
 		imageRegistryConfig: image.imageRegistryConfig,
 		layers:              newLayers,
+		client:              image.client,
 	}
 }
 
@@ -161,11 +173,7 @@ func validateDockerfileCommands(commands []string) error {
 }
 
 // Build eagerly builds an Image on Modal.
-func (image *Image) Build(app *App) (*Image, error) {
-	if image == nil {
-		return nil, InvalidError{"image must be non-nil"}
-	}
-
+func (image *Image) Build(ctx context.Context, app *App) (*Image, error) {
 	// Image is already hyrdated
 	if image.ImageId != "" {
 		return image, nil
@@ -185,7 +193,7 @@ func (image *Image) Build(app *App) (*Image, error) {
 			secretIds = append(secretIds, secret.SecretId)
 		}
 		if len(currentLayer.env) > 0 {
-			envSecret, err := SecretFromMap(app.ctx, currentLayer.env, nil)
+			envSecret, err := image.client.Secrets.FromMap(ctx, currentLayer.env, nil)
 			if err != nil {
 				return nil, err
 			}
@@ -215,8 +223,8 @@ func (image *Image) Build(app *App) (*Image, error) {
 			}.Build()}
 		}
 
-		resp, err := client.ImageGetOrCreate(
-			app.ctx,
+		resp, err := image.client.cpClient.ImageGetOrCreate(
+			ctx,
 			pb.ImageGetOrCreateRequest_builder{
 				AppId: app.AppId,
 				Image: pb.Image_builder{
@@ -227,7 +235,7 @@ func (image *Image) Build(app *App) (*Image, error) {
 					ContextFiles:        []*pb.ImageContextFile{},
 					BaseImages:          baseImages,
 				}.Build(),
-				BuilderVersion: imageBuilderVersion(""),
+				BuilderVersion: imageBuilderVersion("", image.client.profile),
 				ForceBuild:     currentLayer.forceBuild,
 			}.Build(),
 		)
@@ -241,7 +249,7 @@ func (image *Image) Build(app *App) (*Image, error) {
 			// Not built or in the process of building - wait for build
 			lastEntryId := ""
 			for result == nil {
-				stream, err := client.ImageJoinStreaming(app.ctx, pb.ImageJoinStreamingRequest_builder{
+				stream, err := image.client.cpClient.ImageJoinStreaming(ctx, pb.ImageJoinStreamingRequest_builder{
 					ImageId:     resp.GetImageId(),
 					Timeout:     55,
 					LastEntryId: lastEntryId,
@@ -287,7 +295,6 @@ func (image *Image) Build(app *App) (*Image, error) {
 	}
 
 	image.ImageId = currentImageId
-	image.ctx = app.ctx
 	return image, nil
 }
 
@@ -295,14 +302,13 @@ func (image *Image) Build(app *App) (*Image, error) {
 type ImageDeleteOptions struct {
 }
 
-// ImageDelete deletes an Image by ID. Warning: This removes an *entire Image*, and cannot be undone.
-func ImageDelete(ctx context.Context, imageId string, options *ImageDeleteOptions) error {
-
-	image, err := NewImageFromId(ctx, imageId)
+// Delete deletes an Image by ID. Warning: This removes an *entire Image*, and cannot be undone.
+func (s *ImageService) Delete(ctx context.Context, imageId string, options *ImageDeleteOptions) error {
+	image, err := s.FromId(ctx, imageId)
 	if err != nil {
 		return err
 	}
 
-	_, err = client.ImageDelete(ctx, pb.ImageDeleteRequest_builder{ImageId: image.ImageId}.Build())
+	_, err = s.client.cpClient.ImageDelete(ctx, pb.ImageDeleteRequest_builder{ImageId: image.ImageId}.Build())
 	return err
 }

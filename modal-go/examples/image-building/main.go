@@ -11,26 +11,30 @@ import (
 
 func main() {
 	ctx := context.Background()
+	mc, err := modal.NewClient()
+	if err != nil {
+		log.Fatalf("Failed to create client: %v", err)
+	}
 
-	app, err := modal.AppLookup(ctx, "libmodal-example", &modal.LookupOptions{CreateIfMissing: true})
+	app, err := mc.Apps.Lookup(ctx, "libmodal-example", &modal.LookupOptions{CreateIfMissing: true})
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	secret, err := modal.SecretFromMap(ctx, map[string]string{
+	secret, err := mc.Secrets.FromMap(ctx, map[string]string{
 		"CURL_VERSION": "8.12.1-r1",
 	}, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	image := modal.NewImageFromRegistry("alpine:3.21", nil).
+	image := mc.Images.FromRegistry("alpine:3.21", nil).
 		DockerfileCommands([]string{"RUN apk add --no-cache curl=$CURL_VERSION"}, &modal.ImageDockerfileCommandsOptions{
 			Secrets: []*modal.Secret{secret},
 		}).
 		DockerfileCommands([]string{"ENV SERVER=ipconfig.me"}, nil)
 
-	sb, err := app.CreateSandbox(image, &modal.SandboxOptions{
+	sb, err := mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateOptions{
 		Command: []string{"sh", "-c", "curl -Ls $SERVER"},
 	})
 	if err != nil {
@@ -44,7 +48,7 @@ func main() {
 	}
 	fmt.Println("Sandbox output:", string(output))
 
-	err = sb.Terminate()
+	err = sb.Terminate(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}

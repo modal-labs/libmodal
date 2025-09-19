@@ -10,21 +10,25 @@ import (
 
 func main() {
 	ctx := context.Background()
+	mc, err := modal.NewClient()
+	if err != nil {
+		log.Fatalf("Failed to create client: %v", err)
+	}
 
-	app, err := modal.AppLookup(ctx, "libmodal-example", &modal.LookupOptions{CreateIfMissing: true})
+	app, err := mc.Apps.Lookup(ctx, "libmodal-example", &modal.LookupOptions{CreateIfMissing: true})
 	if err != nil {
 		log.Fatalf("Failed to lookup or create App: %v", err)
 	}
 
-	image := modal.NewImageFromRegistry("alpine:3.21", nil)
+	image := mc.Images.FromRegistry("alpine:3.21", nil)
 
-	secret, err := modal.SecretFromName(ctx, "libmodal-aws-bucket-secret", nil)
+	secret, err := mc.Secrets.FromName(ctx, "libmodal-aws-bucket-secret", nil)
 	if err != nil {
 		log.Fatalf("Failed to lookup Secret: %v", err)
 	}
 
 	keyPrefix := "data/"
-	cloudBucketMount, err := modal.NewCloudBucketMount("my-s3-bucket", &modal.CloudBucketMountOptions{
+	cloudBucketMount, err := mc.CloudBucketMounts.New("my-s3-bucket", &modal.CloudBucketMountOptions{
 		Secret:    secret,
 		KeyPrefix: &keyPrefix,
 		ReadOnly:  true,
@@ -33,7 +37,7 @@ func main() {
 		log.Fatalf("Failed to create Cloud Bucket Mount: %v", err)
 	}
 
-	sb, err := app.CreateSandbox(image, &modal.SandboxOptions{
+	sb, err := mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateOptions{
 		Command: []string{"sh", "-c", "ls -la /mnt/s3-bucket"},
 		CloudBucketMounts: map[string]*modal.CloudBucketMount{
 			"/mnt/s3-bucket": cloudBucketMount,
@@ -52,7 +56,7 @@ func main() {
 
 	log.Printf("Sandbox directory listing of /mnt/s3-bucket:\n%s", string(output))
 
-	if err := sb.Terminate(); err != nil {
+	if err := sb.Terminate(ctx); err != nil {
 		log.Printf("Failed to terminate Sandbox: %v", err)
 	}
 }

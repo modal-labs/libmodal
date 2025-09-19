@@ -16,35 +16,39 @@ import (
 // unaryHandler handles a single unary RPC request and returns a response.
 type unaryHandler func(proto.Message) (proto.Message, error)
 
-type Mock struct {
+// MockClient wraps modal.Client with mock capabilities
+type MockClient struct {
+	*modal.Client
 	// mu guards access to internal state.
 	mu sync.Mutex
 	// methodHandlerQueues maps short RPC names to FIFO queues of handlers.
 	methodHandlerQueues map[string][]unaryHandler
-	// conn is the fake ClientConn used by the SDK client.
-	conn *mockClientConn
 }
 
-// Install swaps the SDK client factory to use a mock gRPC connection.
-// Register the returned cleanup function with t.Cleanup.
-func Install() (*Mock, func()) {
-	m := &Mock{methodHandlerQueues: map[string][]unaryHandler{}}
-	m.conn = &mockClientConn{mock: m}
-
-	restore := modal.SetClientFactoryForTesting(func(profile modal.Profile) (grpc.ClientConnInterface, pb.ModalClientClient, error) {
-		return m.conn, pb.NewModalClientClient(m.conn), nil
-	})
-	cleanup := func() {
-		if err := m.AssertExhausted(); err != nil {
-			panic(err)
-		}
-		restore()
+// NewMockClient creates a Modal client with mock backends for testing.
+func NewMockClient() *MockClient {
+	mc := &MockClient{
+		methodHandlerQueues: make(map[string][]unaryHandler),
 	}
-	return m, cleanup
+
+	conn := &mockClientConn{mock: mc}
+
+	modalClient, err := modal.NewClientWithOptions(modal.ClientOptions{
+		TokenId:            "test-token-id",
+		TokenSecret:        "test-token-secret",
+		Environment:        "test",
+		ControlPlaneClient: pb.NewModalClientClient(conn),
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to create mock client: %v", err))
+	}
+
+	mc.Client = modalClient
+	return mc
 }
 
 // HandleUnary registers a typed handler for a unary RPC, e.g. "/FunctionGetCurrentStats".
-func HandleUnary[Req proto.Message, Resp proto.Message](m *Mock, rpc string, handler func(Req) (Resp, error)) {
+func HandleUnary[Req proto.Message, Resp proto.Message](m *MockClient, rpc string, handler func(Req) (Resp, error)) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	name := shortName(rpc)
@@ -65,7 +69,7 @@ func HandleUnary[Req proto.Message, Resp proto.Message](m *Mock, rpc string, han
 }
 
 // AssertExhausted errors unless all registered mock expectations have been consumed.
-func (m *Mock) AssertExhausted() error {
+func (m *MockClient) AssertExhausted() error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	var outstanding []string
@@ -81,7 +85,7 @@ func (m *Mock) AssertExhausted() error {
 }
 
 // mockClientConn implements grpc.ClientConnInterface for unary calls.
-type mockClientConn struct{ mock *Mock }
+type mockClientConn struct{ mock *MockClient }
 
 // Invoke implements grpc.ClientConnInterface.Invoke for unary RPCs.
 func (c *mockClientConn) Invoke(ctx context.Context, method string, in, out any, opts ...grpc.CallOption) error {

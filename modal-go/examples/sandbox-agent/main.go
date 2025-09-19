@@ -11,35 +11,39 @@ import (
 
 func main() {
 	ctx := context.Background()
+	mc, err := modal.NewClient()
+	if err != nil {
+		log.Fatalf("Failed to create client: %v", err)
+	}
 
-	app, err := modal.AppLookup(ctx, "libmodal-example", &modal.LookupOptions{CreateIfMissing: true})
+	app, err := mc.Apps.Lookup(ctx, "libmodal-example", &modal.LookupOptions{CreateIfMissing: true})
 	if err != nil {
 		log.Fatalf("Failed to lookup or create App: %v", err)
 	}
-	image := modal.NewImageFromRegistry("alpine:3.21", nil).DockerfileCommands([]string{
+	image := mc.Images.FromRegistry("alpine:3.21", nil).DockerfileCommands([]string{
 		"RUN apk add --no-cache bash curl git libgcc libstdc++ ripgrep",
 		"RUN curl -fsSL https://claude.ai/install.sh | bash",
 		"ENV PATH=/root/.local/bin:$PATH USE_BUILTIN_RIPGREP=0",
 	}, nil)
 
-	sb, err := app.CreateSandbox(image, nil)
+	sb, err := mc.Sandboxes.Create(ctx, app, image, nil)
 	if err != nil {
 		log.Fatalf("Failed to create Sandbox: %v", err)
 	}
 	fmt.Println("Started Sandbox:", sb.SandboxId)
 
 	defer func() {
-		if err := sb.Terminate(); err != nil {
+		if err := sb.Terminate(ctx); err != nil {
 			log.Printf("Failed to terminate Sandbox: %v", err)
 		}
 	}()
 
 	repoUrl := "https://github.com/modal-labs/libmodal"
-	git, err := sb.Exec([]string{"git", "clone", repoUrl, "/repo"}, modal.ExecOptions{})
+	git, err := sb.Exec(ctx, []string{"git", "clone", repoUrl, "/repo"}, modal.ExecOptions{})
 	if err != nil {
 		log.Fatalf("Failed to execute git clone: %v", err)
 	}
-	_, err = git.Wait()
+	_, err = git.Wait(ctx)
 	if err != nil {
 		log.Fatalf("Git clone failed: %v", err)
 	}
@@ -52,14 +56,14 @@ func main() {
 	}
 	fmt.Println("\nRunning command:", claudeCmd)
 
-	secret, err := modal.SecretFromName(ctx, "libmodal-anthropic-secret", &modal.SecretFromNameOptions{
+	secret, err := mc.Secrets.FromName(ctx, "libmodal-anthropic-secret", &modal.SecretFromNameOptions{
 		RequiredKeys: []string{"ANTHROPIC_API_KEY"},
 	})
 	if err != nil {
 		log.Fatalf("Failed to get secret: %v", err)
 	}
 
-	claude, err := sb.Exec(claudeCmd, modal.ExecOptions{
+	claude, err := sb.Exec(ctx, claudeCmd, modal.ExecOptions{
 		PTY:     true, // Adding a PTY is important, since Claude requires it!
 		Secrets: []*modal.Secret{secret},
 		Workdir: "/repo",
@@ -69,7 +73,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to execute claude command: %v", err)
 	}
-	_, err = claude.Wait()
+	_, err = claude.Wait(ctx)
 	if err != nil {
 		log.Fatalf("Claude command failed: %v", err)
 	}

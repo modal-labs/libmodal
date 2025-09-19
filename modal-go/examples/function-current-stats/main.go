@@ -11,12 +11,18 @@ import (
 )
 
 func main() {
-	function, err := modal.FunctionLookup(context.Background(), "libmodal-test-support", "echo_string", nil)
+	ctx := context.Background()
+	mc, err := modal.NewClient()
+	if err != nil {
+		log.Fatalf("Failed to create client: %v", err)
+	}
+
+	function, err := mc.Functions.Lookup(ctx, "libmodal-test-support", "echo_string", nil)
 	if err != nil {
 		log.Fatalf("Failed to lookup Function: %v", err)
 	}
 
-	stats, err := function.GetCurrentStats()
+	stats, err := function.GetCurrentStats(ctx)
 	if err != nil {
 		log.Fatalf("Failed to get Function stats: %v", err)
 	}

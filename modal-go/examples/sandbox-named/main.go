@@ -11,17 +11,21 @@ import (
 
 func main() {
 	ctx := context.Background()
+	mc, err := modal.NewClient()
+	if err != nil {
+		log.Fatalf("Failed to create client: %v", err)
+	}
 
-	app, err := modal.AppLookup(ctx, "libmodal-example", &modal.LookupOptions{CreateIfMissing: true})
+	app, err := mc.Apps.Lookup(ctx, "libmodal-example", &modal.LookupOptions{CreateIfMissing: true})
 	if err != nil {
 		log.Fatalf("Failed to lookup or create App: %v", err)
 	}
 
-	image := modal.NewImageFromRegistry("alpine:3.21", nil)
+	image := mc.Images.FromRegistry("alpine:3.21", nil)
 
 	sandboxName := "libmodal-example-named-sandbox"
 
-	sb, err := app.CreateSandbox(image, &modal.SandboxOptions{
+	sb, err := mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateOptions{
 		Name:    sandboxName,
 		Command: []string{"cat"},
 	})
@@ -32,7 +36,7 @@ func main() {
 	fmt.Printf("Created Sandbox with name: %s\n", sandboxName)
 	fmt.Printf("Sandbox ID: %s\n", sb.SandboxId)
 
-	_, err = app.CreateSandbox(image, &modal.SandboxOptions{
+	_, err = mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateOptions{
 		Name:    sandboxName,
 		Command: []string{"cat"},
 	})
@@ -44,7 +48,7 @@ func main() {
 		}
 	}
 
-	sbFromName, err := modal.SandboxFromName(ctx, "libmodal-example", sandboxName, nil)
+	sbFromName, err := mc.Sandboxes.FromName(ctx, "libmodal-example", sandboxName, nil)
 	if err != nil {
 		log.Fatalf("Failed to get Sandbox by name: %v", err)
 	}
@@ -66,7 +70,7 @@ func main() {
 	}
 	fmt.Printf("%s\n", output)
 
-	err = sb.Terminate()
+	err = sb.Terminate(ctx)
 	if err != nil {
 		log.Fatalf("Failed to terminate Sandbox: %v", err)
 	}

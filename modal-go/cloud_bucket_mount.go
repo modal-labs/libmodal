@@ -8,6 +8,9 @@ import (
 	pb "github.com/modal-labs/libmodal/modal-go/proto/modal_proto"
 )
 
+// CloudBucketMountService provides CloudBucketMount related operations.
+type CloudBucketMountService struct{ client *Client }
+
 // CloudBucketMount provides access to cloud storage buckets within Modal Functions.
 type CloudBucketMount struct {
 	BucketName        string
@@ -29,8 +32,8 @@ type CloudBucketMountOptions struct {
 	OidcAuthRoleArn   *string
 }
 
-// NewCloudBucketMount creates a new CloudBucketMount.
-func NewCloudBucketMount(bucketName string, options *CloudBucketMountOptions) (*CloudBucketMount, error) {
+// New creates a new CloudBucketMount.
+func (s *CloudBucketMountService) New(bucketName string, options *CloudBucketMountOptions) (*CloudBucketMount, error) {
 	if options == nil {
 		options = &CloudBucketMountOptions{}
 	}

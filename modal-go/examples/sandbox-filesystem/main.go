@@ -11,28 +11,32 @@ import (
 
 func main() {
 	ctx := context.Background()
+	mc, err := modal.NewClient()
+	if err != nil {
+		log.Fatalf("Failed to create client: %v", err)
+	}
 
-	app, err := modal.AppLookup(ctx, "libmodal-example", &modal.LookupOptions{CreateIfMissing: true})
+	app, err := mc.Apps.Lookup(ctx, "libmodal-example", &modal.LookupOptions{CreateIfMissing: true})
 	if err != nil {
 		log.Fatalf("Failed to lookup or create App: %v", err)
 	}
 
-	image := modal.NewImageFromRegistry("alpine:3.21", nil)
+	image := mc.Images.FromRegistry("alpine:3.21", nil)
 
-	sb, err := app.CreateSandbox(image, &modal.SandboxOptions{})
+	sb, err := mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateOptions{})
 	if err != nil {
 		log.Fatalf("Failed to create Sandbox: %v", err)
 	}
 	log.Printf("Started Sandbox: %s", sb.SandboxId)
 
 	defer func() {
-		if err := sb.Terminate(); err != nil {
+		if err := sb.Terminate(ctx); err != nil {
 			log.Printf("Failed to terminate Sandbox: %v", err)
 		}
 	}()
 
 	// Write a file
-	writeFile, err := sb.Open("/tmp/example.txt", "w")
+	writeFile, err := sb.Open(ctx, "/tmp/example.txt", "w")
 	if err != nil {
 		log.Fatalf("Failed to open file for writing: %v", err)
 	}
@@ -47,7 +51,7 @@ func main() {
 	}
 
 	// Read the file
-	reader, err := sb.Open("/tmp/example.txt", "r")
+	reader, err := sb.Open(ctx, "/tmp/example.txt", "r")
 	if err != nil {
 		log.Fatalf("Failed to open file for reading: %v", err)
 	}

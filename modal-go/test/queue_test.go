@@ -17,7 +17,7 @@ func TestQueueInvalidName(t *testing.T) {
 	g := gomega.NewWithT(t)
 
 	for _, name := range []string{"has space", "has/slash", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"} {
-		_, err := modal.QueueLookup(context.Background(), name, nil)
+		_, err := tc.Queues.Lookup(context.Background(), name, nil)
 		g.Expect(err).Should(gomega.HaveOccurred(), "Queue lookup should fail for invalid name: %s", name)
 	}
 }
@@ -25,20 +25,21 @@ func TestQueueInvalidName(t *testing.T) {
 func TestQueueEphemeral(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
+	ctx := context.Background()
 
-	queue, err := modal.QueueEphemeral(context.Background(), nil)
+	queue, err := tc.Queues.Ephemeral(ctx, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	defer queue.CloseEphemeral()
 	g.Expect(queue.Name).To(gomega.BeEmpty())
 
-	err = queue.Put(123, nil)
+	err = queue.Put(ctx, 123, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	len, err := queue.Len(nil)
+	len, err := queue.Len(ctx, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(len).To(gomega.Equal(1))
 
-	result, err := queue.Get(nil)
+	result, err := queue.Get(ctx, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(result).To(gomega.Equal(int64(123)))
 }
@@ -48,47 +49,47 @@ func TestQueueSuite1(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	queue, err := modal.QueueEphemeral(ctx, nil)
+	queue, err := tc.Queues.Ephemeral(ctx, nil)
 	g.Expect(err).ToNot(gomega.HaveOccurred())
 	defer queue.CloseEphemeral()
 
 	// queue.len() == 0
-	n, err := queue.Len(nil)
+	n, err := queue.Len(ctx, nil)
 	g.Expect(err).ToNot(gomega.HaveOccurred())
 	g.Expect(n).To(gomega.Equal(0))
 
 	// put / len / get
-	g.Expect(queue.Put(123, nil)).ToNot(gomega.HaveOccurred())
+	g.Expect(queue.Put(ctx, 123, nil)).ToNot(gomega.HaveOccurred())
 
-	n, err = queue.Len(nil)
+	n, err = queue.Len(ctx, nil)
 	g.Expect(err).ToNot(gomega.HaveOccurred())
 	g.Expect(n).To(gomega.Equal(1))
 
-	item, err := queue.Get(nil)
+	item, err := queue.Get(ctx, nil)
 	g.Expect(err).ToNot(gomega.HaveOccurred())
 	g.Expect(item).To(gomega.Equal(int64(123)))
 
 	// put, then non-blocking get
-	g.Expect(queue.Put(432, nil)).ToNot(gomega.HaveOccurred())
+	g.Expect(queue.Put(ctx, 432, nil)).ToNot(gomega.HaveOccurred())
 
 	var timeout time.Duration
-	item, err = queue.Get(&modal.QueueGetOptions{Timeout: &timeout})
+	item, err = queue.Get(ctx, &modal.QueueGetOptions{Timeout: &timeout})
 	g.Expect(err).ToNot(gomega.HaveOccurred())
 	g.Expect(item).To(gomega.Equal(int64(432)))
 
 	// queue is now empty – non-blocking get should error
-	_, err = queue.Get(&modal.QueueGetOptions{Timeout: &timeout})
+	_, err = queue.Get(ctx, &modal.QueueGetOptions{Timeout: &timeout})
 	g.Expect(errors.As(err, &modal.QueueEmptyError{})).To(gomega.BeTrue())
 
-	n, err = queue.Len(nil)
+	n, err = queue.Len(ctx, nil)
 	g.Expect(err).ToNot(gomega.HaveOccurred())
 	g.Expect(n).To(gomega.Equal(0))
 
 	// putMany + iterator
-	g.Expect(queue.PutMany([]any{1, 2, 3}, nil)).ToNot(gomega.HaveOccurred())
+	g.Expect(queue.PutMany(ctx, []any{1, 2, 3}, nil)).ToNot(gomega.HaveOccurred())
 
 	results := make([]int64, 0, 3)
-	for v, err := range queue.Iterate(nil) {
+	for v, err := range queue.Iterate(ctx, nil) {
 		g.Expect(err).ToNot(gomega.HaveOccurred())
 		results = append(results, v.(int64))
 	}
@@ -100,7 +101,7 @@ func TestQueueSuite2(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	queue, err := modal.QueueEphemeral(ctx, nil)
+	queue, err := tc.Queues.Ephemeral(ctx, nil)
 	g.Expect(err).ToNot(gomega.HaveOccurred())
 	defer queue.CloseEphemeral()
 
@@ -112,7 +113,7 @@ func TestQueueSuite2(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		for i := range 10 {
-			_ = queue.Put(i, nil) // ignore error for brevity
+			_ = queue.Put(ctx, i, nil) // ignore error for brevity
 		}
 	}()
 
@@ -120,7 +121,7 @@ func TestQueueSuite2(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		for v, err := range queue.Iterate(&modal.QueueIterateOptions{ItemPollTimeout: time.Second}) {
+		for v, err := range queue.Iterate(ctx, &modal.QueueIterateOptions{ItemPollTimeout: time.Second}) {
 			g.Expect(err).ToNot(gomega.HaveOccurred())
 			results = append(results, v.(int64))
 		}
@@ -135,17 +136,17 @@ func TestQueuePutAndGetMany(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	queue, err := modal.QueueEphemeral(ctx, nil)
+	queue, err := tc.Queues.Ephemeral(ctx, nil)
 	g.Expect(err).ToNot(gomega.HaveOccurred())
 	defer queue.CloseEphemeral()
 
-	g.Expect(queue.PutMany([]any{1, 2, 3}, nil)).ToNot(gomega.HaveOccurred())
+	g.Expect(queue.PutMany(ctx, []any{1, 2, 3}, nil)).ToNot(gomega.HaveOccurred())
 
-	n, err := queue.Len(nil)
+	n, err := queue.Len(ctx, nil)
 	g.Expect(err).ToNot(gomega.HaveOccurred())
 	g.Expect(n).To(gomega.Equal(3))
 
-	items, err := queue.GetMany(3, nil)
+	items, err := queue.GetMany(ctx, 3, nil)
 	g.Expect(err).ToNot(gomega.HaveOccurred())
 	g.Expect(items).To(gomega.Equal([]any{int64(1), int64(2), int64(3)}))
 }
@@ -155,19 +156,19 @@ func TestQueueNonBlocking(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	queue, err := modal.QueueEphemeral(ctx, nil)
+	queue, err := tc.Queues.Ephemeral(ctx, nil)
 	g.Expect(err).ToNot(gomega.HaveOccurred())
 	defer queue.CloseEphemeral()
 
 	var timeout time.Duration
-	err = queue.Put(123, &modal.QueuePutOptions{Timeout: &timeout})
+	err = queue.Put(ctx, 123, &modal.QueuePutOptions{Timeout: &timeout})
 	g.Expect(err).ToNot(gomega.HaveOccurred())
 
-	n, err := queue.Len(nil)
+	n, err := queue.Len(ctx, nil)
 	g.Expect(err).ToNot(gomega.HaveOccurred())
 	g.Expect(n).To(gomega.Equal(1))
 
-	item, err := queue.Get(&modal.QueueGetOptions{Timeout: &timeout})
+	item, err := queue.Get(ctx, &modal.QueueGetOptions{Timeout: &timeout})
 	g.Expect(err).ToNot(gomega.HaveOccurred())
 	g.Expect(item).To(gomega.Equal(int64(123)))
 }
@@ -178,46 +179,25 @@ func TestQueueNonEphemeral(t *testing.T) {
 	ctx := context.Background()
 
 	queueName := "test-queue-" + strconv.FormatInt(time.Now().UnixNano(), 10)
-	queue1, err := modal.QueueLookup(ctx, queueName, &modal.LookupOptions{CreateIfMissing: true})
+	queue1, err := tc.Queues.Lookup(ctx, queueName, &modal.LookupOptions{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(queue1.Name).To(gomega.Equal(queueName))
 
 	defer func() {
-		err := modal.QueueDelete(ctx, queueName, nil)
+		err := tc.Queues.Delete(ctx, queueName, nil)
 		g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-		_, err = modal.QueueLookup(ctx, queueName, nil)
+		_, err = tc.Queues.Lookup(ctx, queueName, nil)
 		g.Expect(err).Should(gomega.HaveOccurred())
 	}()
 
-	err = queue1.Put("data", nil)
+	err = queue1.Put(ctx, "data", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	queue2, err := modal.QueueLookup(ctx, queueName, nil)
+	queue2, err := tc.Queues.Lookup(ctx, queueName, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	value, err := queue2.Get(nil)
+	value, err := queue2.Get(ctx, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(value).To(gomega.Equal("data"))
-}
-
-func TestQueueCloseEphemeral(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	ctx := context.Background()
-	queue, err := modal.QueueEphemeral(ctx, nil)
-	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-
-	err = queue.Put("test-data", nil)
-	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-
-	queue.CloseEphemeral()
-
-	err = queue.Put("should-fail", nil)
-	g.Expect(err).Should(gomega.HaveOccurred())
-	g.Expect(err.Error()).Should(gomega.ContainSubstring("context canceled"))
-
-	// The external context should not have been cancelled by CloseEphemeral
-	g.Expect(ctx.Err()).Should(gomega.BeNil())
 }

@@ -10,26 +10,30 @@ import (
 
 func main() {
 	ctx := context.Background()
+	mc, err := modal.NewClient()
+	if err != nil {
+		log.Fatalf("Failed to create client: %v", err)
+	}
 
-	app, err := modal.AppLookup(ctx, "libmodal-example", &modal.LookupOptions{CreateIfMissing: true})
+	app, err := mc.Apps.Lookup(ctx, "libmodal-example", &modal.LookupOptions{CreateIfMissing: true})
 	if err != nil {
 		log.Fatalf("Failed to lookup or create App: %v", err)
 	}
-	image := modal.NewImageFromRegistry("alpine:3.21", nil)
+	image := mc.Images.FromRegistry("alpine:3.21", nil)
 
-	secret, err := modal.SecretFromName(context.Background(), "libmodal-test-secret", &modal.SecretFromNameOptions{RequiredKeys: []string{"c"}})
+	secret, err := mc.Secrets.FromName(ctx, "libmodal-test-secret", &modal.SecretFromNameOptions{RequiredKeys: []string{"c"}})
 	if err != nil {
 		log.Fatalf("Failed finding a Secret: %v", err)
 	}
 
-	ephemeralSecret, err := modal.SecretFromMap(ctx, map[string]string{
+	ephemeralSecret, err := mc.Secrets.FromMap(ctx, map[string]string{
 		"d": "123",
 	}, nil)
 	if err != nil {
 		log.Fatalf("Failed creating ephemeral Secret: %v", err)
 	}
 
-	sb, err := app.CreateSandbox(image, &modal.SandboxOptions{
+	sb, err := mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateOptions{
 		Command: []string{"sh", "-lc", "printenv | grep -E '^c|d='"}, Secrets: []*modal.Secret{secret, ephemeralSecret},
 	})
 	if err != nil {

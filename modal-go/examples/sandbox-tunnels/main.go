@@ -13,16 +13,20 @@ import (
 
 func main() {
 	ctx := context.Background()
+	mc, err := modal.NewClient()
+	if err != nil {
+		log.Fatalf("Failed to create client: %v", err)
+	}
 
-	app, err := modal.AppLookup(ctx, "libmodal-example", &modal.LookupOptions{CreateIfMissing: true})
+	app, err := mc.Apps.Lookup(ctx, "libmodal-example", &modal.LookupOptions{CreateIfMissing: true})
 	if err != nil {
 		log.Fatalf("Failed to lookup or create App: %v", err)
 	}
 
 	// Create a Sandbox with Python's built-in HTTP server
-	image := modal.NewImageFromRegistry("python:3.12-alpine", nil)
+	image := mc.Images.FromRegistry("python:3.12-alpine", nil)
 
-	sandbox, err := app.CreateSandbox(image, &modal.SandboxOptions{
+	sandbox, err := mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateOptions{
 		Command:        []string{"python3", "-m", "http.server", "8000"},
 		EncryptedPorts: []int{8000},
 		Timeout:        1 * time.Minute,
@@ -38,7 +42,7 @@ func main() {
 	time.Sleep(3 * time.Second)
 
 	log.Printf("Getting tunnel information...")
-	tunnels, err := sandbox.Tunnels(30 * time.Second)
+	tunnels, err := sandbox.Tunnels(ctx, 30*time.Second)
 	if err != nil {
 		log.Fatalf("Failed to get tunnels: %v", err)
 	}
@@ -80,7 +84,7 @@ func main() {
 
 	log.Printf("\n✅ Successfully connected to the tunneled server!")
 
-	err = sandbox.Terminate()
+	err = sandbox.Terminate(ctx)
 	if err != nil {
 		log.Fatalf("Failed to terminate Sandbox: %v", err)
 	}
