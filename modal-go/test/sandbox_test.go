@@ -44,11 +44,9 @@ func TestPassCatToStdin(t *testing.T) {
 	image, err := app.ImageFromRegistry("alpine:3.21", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	// Spawn a sandbox running the "cat" command.
 	sb, err := app.CreateSandbox(image, &modal.SandboxOptions{Command: []string{"cat"}})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	// Write to the sandbox's stdin and read from its stdout.
 	_, err = sb.Stdin.Write([]byte("this is input that should be mirrored by cat"))
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	err = sb.Stdin.Close()
@@ -58,7 +56,6 @@ func TestPassCatToStdin(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(string(output)).To(gomega.Equal("this is input that should be mirrored by cat"))
 
-	// Terminate the sandbox.
 	err = sb.Terminate()
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 }
@@ -246,7 +243,6 @@ func TestSandboxWithTunnels(t *testing.T) {
 	image, err := app.ImageFromRegistry("alpine:3.21", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	// Create a sandbox with port forwarding
 	sandbox, err := app.CreateSandbox(image, &modal.SandboxOptions{
 		Command:          []string{"cat"},
 		EncryptedPorts:   []int{8443},
@@ -420,12 +416,15 @@ func TestSandboxExecSecret(t *testing.T) {
 	secret, err := modal.SecretFromName(context.Background(), "libmodal-test-secret", &modal.SecretFromNameOptions{RequiredKeys: []string{"c"}})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	p, err := sb.Exec([]string{"printenv", "c"}, modal.ExecOptions{Stdout: modal.Pipe, Secrets: []*modal.Secret{secret}})
+	secret2, err := modal.SecretFromMap(context.Background(), map[string]string{"d": "3"}, nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	p, err := sb.Exec([]string{"printenv", "c", "d"}, modal.ExecOptions{Stdout: modal.Pipe, Secrets: []*modal.Secret{secret, secret2}})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	buf, err := io.ReadAll(p.Stdout)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(string(buf)).Should(gomega.Equal("hello world\n"))
+	g.Expect(string(buf)).Should(gomega.Equal("hello world\n3\n"))
 }
 
 func TestSandboxFromId(t *testing.T) {
@@ -596,4 +595,52 @@ func TestSandboxListByAppId(t *testing.T) {
 		}
 	}
 	g.Expect(count).ToNot(gomega.Equal(0))
+}
+
+func TestNamedSandbox(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+
+	app, err := modal.AppLookup(ctx, "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	image, err := app.ImageFromRegistry("alpine:3.21", nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	sandboxName := fmt.Sprintf("test-sandbox-%d", rand.Int())
+
+	sb, err := app.CreateSandbox(image, &modal.SandboxOptions{
+		Name:    sandboxName,
+		Command: []string{"sleep", "60"},
+	})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(sb.SandboxId).ShouldNot(gomega.BeEmpty())
+
+	defer sb.Terminate()
+
+	sb1FromName, err := modal.SandboxFromName(ctx, "libmodal-test", sandboxName, nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(sb1FromName.SandboxId).To(gomega.Equal(sb.SandboxId))
+
+	sb2FromName, err := modal.SandboxFromName(ctx, "libmodal-test", sandboxName, nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(sb2FromName.SandboxId).To(gomega.Equal(sb1FromName.SandboxId))
+
+	_, err = app.CreateSandbox(image, &modal.SandboxOptions{
+		Name:    sandboxName,
+		Command: []string{"sleep", "60"},
+	})
+	g.Expect(err).Should(gomega.HaveOccurred())
+	g.Expect(err.Error()).To(gomega.ContainSubstring("already exists"))
+}
+
+func TestNamedSandboxNotFound(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+
+	_, err := modal.SandboxFromName(ctx, "libmodal-test", "non-existent-sandbox", nil)
+	g.Expect(err).Should(gomega.HaveOccurred())
+	g.Expect(err.Error()).To(gomega.ContainSubstring("not found"))
 }

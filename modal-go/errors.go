@@ -2,7 +2,7 @@ package modal
 
 // errors.go defines common error types for the public API.
 
-// FunctionTimeoutError is returned when a function execution exceeds the allowed time limit.
+// FunctionTimeoutError is returned when a Function execution exceeds the allowed time limit.
 type FunctionTimeoutError struct {
 	Exception string
 }
@@ -47,6 +47,15 @@ func (e NotFoundError) Error() string {
 	return "NotFoundError: " + e.Exception
 }
 
+// AlreadyExistsError is returned when a resource already exists.
+type AlreadyExistsError struct {
+	Exception string
+}
+
+func (e AlreadyExistsError) Error() string {
+	return "AlreadyExistsError: " + e.Exception
+}
+
 // InvalidError represents an invalid request or operation.
 type InvalidError struct {
 	Exception string
@@ -56,7 +65,7 @@ func (e InvalidError) Error() string {
 	return "InvalidError: " + e.Exception
 }
 
-// QueueEmptyError is returned when an operation is attempted on an empty queue.
+// QueueEmptyError is returned when an operation is attempted on an empty Queue.
 type QueueEmptyError struct {
 	Exception string
 }
@@ -65,7 +74,7 @@ func (e QueueEmptyError) Error() string {
 	return "QueueEmptyError: " + e.Exception
 }
 
-// QueueFullError is returned when an operation is attempted on a full queue.
+// QueueFullError is returned when an operation is attempted on a full Queue.
 type QueueFullError struct {
 	Exception string
 }
@@ -74,7 +83,7 @@ func (e QueueFullError) Error() string {
 	return "QueueFullError: " + e.Exception
 }
 
-// SandboxFilesystemError is returned when an operation is attempted on a full queue.
+// SandboxFilesystemError is returned when an operation is attempted on a full Queue.
 type SandboxFilesystemError struct {
 	Exception string
 }
@@ -83,7 +92,7 @@ func (e SandboxFilesystemError) Error() string {
 	return "SandboxFilesystemError: " + e.Exception
 }
 
-// SandboxTimeoutError is returned when sandbox operations exceed the allowed time limit.
+// SandboxTimeoutError is returned when Sandbox operations exceed the allowed time limit.
 type SandboxTimeoutError struct {
 	Exception string
 }

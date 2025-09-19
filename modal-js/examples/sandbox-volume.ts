@@ -11,11 +11,11 @@ const writerSandbox = await app.createSandbox(image, {
   command: [
     "sh",
     "-c",
-    "echo 'Hello from writer sandbox!' > /mnt/volume/message.txt",
+    "echo 'Hello from writer Sandbox!' > /mnt/volume/message.txt",
   ],
   volumes: { "/mnt/volume": volume },
 });
-console.log("Writer sandbox:", writerSandbox.sandboxId);
+console.log("Writer Sandbox:", writerSandbox.sandboxId);
 
 await writerSandbox.wait();
 console.log("Writer finished");
@@ -23,7 +23,7 @@ console.log("Writer finished");
 const readerSandbox = await app.createSandbox(image, {
   volumes: { "/mnt/volume": volume.readOnly() },
 });
-console.log("Reader sandbox:", readerSandbox.sandboxId);
+console.log("Reader Sandbox:", readerSandbox.sandboxId);
 
 const rp = await readerSandbox.exec(["cat", "/mnt/volume/message.txt"]);
 console.log("Reader output:", await rp.stdout.readText());

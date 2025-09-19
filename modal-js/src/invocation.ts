@@ -56,10 +56,10 @@ export class ControlPlaneInvocation implements Invocation {
     input: FunctionInput,
     invocationType: FunctionCallInvocationType,
   ) {
-    const functionPutInputsItem = {
+    const functionPutInputsItem = FunctionPutInputsItem.create({
       idx: 0,
       input,
-    };
+    });
 
     const functionMapResponse = await client.functionMap({
       functionId,
@@ -104,7 +104,7 @@ export class ControlPlaneInvocation implements Invocation {
   async retry(retryCount: number): Promise<void> {
     // we do not expect this to happen
     if (!this.input) {
-      throw new Error("Cannot retry function invocation - input missing");
+      throw new Error("Cannot retry Function invocation - input missing");
     }
 
     const retryItem: FunctionRetryInputsItem = {
@@ -147,7 +147,7 @@ export class InputPlaneInvocation implements Invocation {
     functionId: string,
     input: FunctionInput,
   ) {
-    const functionPutInputsItem = {
+    const functionPutInputsItem = FunctionPutInputsItem.create({
       idx: 0,
       input,
       r2Failed: false,

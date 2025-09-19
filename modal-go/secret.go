@@ -6,7 +6,7 @@ import (
 	pb "github.com/modal-labs/libmodal/modal-go/proto/modal_proto"
 )
 
-// Secret represents a Modal secret.
+// Secret represents a Modal Secret.
 type Secret struct {
 	SecretId string
 	Name     string
@@ -15,7 +15,7 @@ type Secret struct {
 	ctx context.Context
 }
 
-// SecretFromNameOptions are options for finding Modal secrets.
+// SecretFromNameOptions are options for finding Modal Secrets.
 type SecretFromNameOptions struct {
 	Environment  string
 	RequiredKeys []string
@@ -23,12 +23,6 @@ type SecretFromNameOptions struct {
 
 // SecretFromName references a modal.Secret by its name.
 func SecretFromName(ctx context.Context, name string, options *SecretFromNameOptions) (*Secret, error) {
-	var err error
-	ctx, err = clientContext(ctx)
-	if err != nil {
-		return nil, err
-	}
-
 	if options == nil {
 		options = &SecretFromNameOptions{}
 	}
@@ -53,12 +47,6 @@ type SecretFromMapOptions struct {
 
 // SecretFromMap creates a Secret from a map of key-value pairs.
 func SecretFromMap(ctx context.Context, keyValuePairs map[string]string, options *SecretFromMapOptions) (*Secret, error) {
-	var err error
-	ctx, err = clientContext(ctx)
-	if err != nil {
-		return nil, err
-	}
-
 	if options == nil {
 		options = &SecretFromMapOptions{}
 	}

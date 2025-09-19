@@ -30,7 +30,7 @@ func main() {
 
 	echo, err := modal.FunctionLookup(ctx, "libmodal-test-support", "echo_string", nil)
 	if err != nil {
-		log.Fatalf("Failed to lookup function: %v", err)
+		log.Fatalf("Failed to lookup Function: %v", err)
 	}
 	fmt.Printf("%#v\n", echo)
 }

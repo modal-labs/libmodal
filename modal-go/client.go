@@ -76,7 +76,7 @@ var clientProfile Profile
 // client is the default Modal client that talks to the control plane.
 var client pb.ModalClientClient
 
-// clients is a map of server URL to input-plane client.
+// inputPlaneClients is a map of server URL to input-plane client.
 var inputPlaneClients = map[string]pb.ModalClientClient{}
 
 // authToken is the auth token received from the control plane on the first request, and sent with all
@@ -161,9 +161,13 @@ func newClient(profile Profile) (*grpc.ClientConn, pb.ModalClientClient, error) 
 			grpc.MaxCallSendMsgSize(maxMessageSize),
 		),
 		grpc.WithChainUnaryInterceptor(
+			headerInjectorUnaryInterceptor(),
 			authTokenInterceptor(),
 			retryInterceptor(),
 			timeoutInterceptor(),
+		),
+		grpc.WithChainStreamInterceptor(
+			headerInjectorStreamInterceptor(),
 		),
 	)
 	if err != nil {
@@ -172,8 +176,8 @@ func newClient(profile Profile) (*grpc.ClientConn, pb.ModalClientClient, error) 
 	return conn, pb.NewModalClientClient(conn), nil
 }
 
-// clientContext returns a context with the default profile's auth headers.
-func clientContext(ctx context.Context) (context.Context, error) {
+// injectRequiredHeaders adds required headers to the context.
+func injectRequiredHeaders(ctx context.Context) (context.Context, error) {
 	if clientProfile.TokenId == "" || clientProfile.TokenSecret == "" {
 		return nil, fmt.Errorf("missing token_id or token_secret, please set in .modal.toml, environment variables, or via InitializeClient()")
 	}
@@ -186,6 +190,44 @@ func clientContext(ctx context.Context) (context.Context, error) {
 		"x-modal-token-id", clientProfile.TokenId,
 		"x-modal-token-secret", clientProfile.TokenSecret,
 	), nil
+}
+
+// headerInjectorUnaryInterceptor adds required headers to outgoing unary RPCs.
+func headerInjectorUnaryInterceptor() grpc.UnaryClientInterceptor {
+	return func(
+		ctx context.Context,
+		method string,
+		req, reply any,
+		cc *grpc.ClientConn,
+		invoker grpc.UnaryInvoker,
+		opts ...grpc.CallOption,
+	) error {
+		var err error
+		ctx, err = injectRequiredHeaders(ctx)
+		if err != nil {
+			return err
+		}
+		return invoker(ctx, method, req, reply, cc, opts...)
+	}
+}
+
+// headerInjectorStreamInterceptor adds required headers to outgoing streaming RPCs.
+func headerInjectorStreamInterceptor() grpc.StreamClientInterceptor {
+	return func(
+		ctx context.Context,
+		desc *grpc.StreamDesc,
+		cc *grpc.ClientConn,
+		method string,
+		streamer grpc.Streamer,
+		opts ...grpc.CallOption,
+	) (grpc.ClientStream, error) {
+		var err error
+		ctx, err = injectRequiredHeaders(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return streamer(ctx, desc, cc, method, opts...)
+	}
 }
 
 // authTokenInterceptor handles sending and receiving the "x-modal-auth-token" header.

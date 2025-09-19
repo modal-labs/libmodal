@@ -10,9 +10,7 @@ import { environmentName } from "./config";
 import { InvalidError, QueueEmptyError, QueueFullError } from "./errors";
 import { dumps as pickleEncode, loads as pickleDecode } from "./pickle";
 import { ClientError, Status } from "nice-grpc";
-
-// From: modal/_object.py
-const ephemeralObjectHeartbeatSleep = 300_000; // 300 seconds
+import { EphemeralHeartbeatManager } from "./ephemeral";
 
 const queueInitialPutBackoff = 100; // 100 milliseconds
 const queueDefaultPartitionTtl = 24 * 3600 * 1000; // 24 hours
@@ -22,13 +20,13 @@ export type QueueClearOptions = {
   /** Partition to clear, uses default partition if not set. */
   partition?: string;
 
-  /** Set to clear all queue partitions. */
+  /** Set to clear all Queue partitions. */
   all?: boolean;
 };
 
 /** Options to configure a `Queue.get()` or `Queue.getMany()` operation. */
 export type QueueGetOptions = {
-  /** How long to wait if the queue is empty (default: indefinite). */
+  /** How long to wait if the Queue is empty (default: indefinite). */
   timeout?: number;
 
   /** Partition to fetch values from, uses default partition if not set. */
@@ -37,7 +35,7 @@ export type QueueGetOptions = {
 
 /** Options to configure a `Queue.put()` or `Queue.putMany()` operation. */
 export type QueuePutOptions = {
-  /** How long to wait if the queue is full (default: indefinite). */
+  /** How long to wait if the Queue is full (default: indefinite). */
   timeout?: number;
 
   /** Partition to add items to, uses default partition if not set. */
@@ -66,20 +64,22 @@ export type QueueIterateOptions = {
 };
 
 /**
- * Distributed, FIFO queue for data flow in Modal apps.
+ * Distributed, FIFO queue for data flow in Modal Apps.
  */
 export class Queue {
   readonly queueId: string;
   readonly name?: string;
-  readonly #ephemeral: boolean;
-  readonly #abortController?: AbortController;
+  readonly #ephemeralHbManager?: EphemeralHeartbeatManager;
 
   /** @ignore */
-  constructor(queueId: string, name?: string, ephemeral: boolean = false) {
+  constructor(
+    queueId: string,
+    name?: string,
+    ephemeralHbManager?: EphemeralHeartbeatManager,
+  ) {
     this.queueId = queueId;
     this.name = name;
-    this.#ephemeral = ephemeral;
-    this.#abortController = ephemeral ? new AbortController() : undefined;
+    this.#ephemeralHbManager = ephemeralHbManager;
   }
 
   static #validatePartitionKey(partition: string | undefined): Uint8Array {
@@ -96,8 +96,8 @@ export class Queue {
   }
 
   /**
-   * Create a nameless, temporary queue.
-   * You will need to call `closeEphemeral()` to delete the queue.
+   * Create a nameless, temporary Queue.
+   * You will need to call `closeEphemeral()` to delete the Queue.
    */
   static async ephemeral(options: EphemeralOptions = {}): Promise<Queue> {
     const resp = await client.queueGetOrCreate({
@@ -105,37 +105,24 @@ export class Queue {
       environmentName: environmentName(options.environment),
     });
 
-    const queue = new Queue(resp.queueId, undefined, true);
-    const signal = queue.#abortController!.signal;
-    (async () => {
-      // Launch a background task to heartbeat the ephemeral queue.
-      while (true) {
-        await client.queueHeartbeat({ queueId: resp.queueId });
-        await Promise.race([
-          new Promise((resolve) =>
-            setTimeout(resolve, ephemeralObjectHeartbeatSleep),
-          ),
-          new Promise((resolve) => {
-            signal.addEventListener("abort", resolve, { once: true });
-          }),
-        ]);
-      }
-    })();
+    const ephemeralHbManager = new EphemeralHeartbeatManager(() =>
+      client.queueHeartbeat({ queueId: resp.queueId }),
+    );
 
-    return queue;
+    return new Queue(resp.queueId, undefined, ephemeralHbManager);
   }
 
-  /** Delete the ephemeral queue. Only usable with `Queue.ephemeral()`. */
+  /** Delete the ephemeral Queue. Only usable with `Queue.ephemeral()`. */
   closeEphemeral(): void {
-    if (this.#ephemeral) {
-      this.#abortController!.abort();
+    if (this.#ephemeralHbManager) {
+      this.#ephemeralHbManager.stop();
     } else {
       throw new InvalidError("Queue is not ephemeral.");
     }
   }
 
   /**
-   * Lookup a queue by name.
+   * Lookup a Queue by name.
    */
   static async lookup(
     name: string,
@@ -151,7 +138,7 @@ export class Queue {
     return new Queue(resp.queueId, name);
   }
 
-  /** Delete a queue by name. */
+  /** Delete a Queue by name. */
   static async delete(
     name: string,
     options: DeleteOptions = {},
@@ -161,7 +148,7 @@ export class Queue {
   }
 
   /**
-   * Remove all objects from a queue partition.
+   * Remove all objects from a Queue partition.
    */
   async clear(options: QueueClearOptions = {}): Promise<void> {
     if (options.partition && options.all) {
@@ -207,9 +194,9 @@ export class Queue {
   }
 
   /**
-   * Remove and return the next object from the queue.
+   * Remove and return the next object from the Queue.
    *
-   * By default, this will wait until at least one item is present in the queue.
+   * By default, this will wait until at least one item is present in the Queue.
    * If `timeout` is set, raises `QueueEmptyError` if no items are available
    * within that timeout in milliseconds.
    */
@@ -219,9 +206,9 @@ export class Queue {
   }
 
   /**
-   * Remove and return up to `n` objects from the queue.
+   * Remove and return up to `n` objects from the Queue.
    *
-   * By default, this will wait until at least one item is present in the queue.
+   * By default, this will wait until at least one item is present in the Queue.
    * If `timeout` is set, raises `QueueEmptyError` if no items are available
    * within that timeout in milliseconds.
    */
@@ -269,11 +256,11 @@ export class Queue {
   }
 
   /**
-   * Add an item to the end of the queue.
+   * Add an item to the end of the Queue.
    *
-   * If the queue is full, this will retry with exponential backoff until the
+   * If the Queue is full, this will retry with exponential backoff until the
    * provided `timeout` is reached, or indefinitely if `timeout` is not set.
-   * Raises `QueueFullError` if the queue is still full after the timeout.
+   * Raises `QueueFullError` if the Queue is still full after the timeout.
    */
   async put(v: any, options: QueuePutOptions = {}): Promise<void> {
     await this.#put(
@@ -285,11 +272,11 @@ export class Queue {
   }
 
   /**
-   * Add several items to the end of the queue.
+   * Add several items to the end of the Queue.
    *
-   * If the queue is full, this will retry with exponential backoff until the
+   * If the Queue is full, this will retry with exponential backoff until the
    * provided `timeout` is reached, or indefinitely if `timeout` is not set.
-   * Raises `QueueFullError` if the queue is still full after the timeout.
+   * Raises `QueueFullError` if the Queue is still full after the timeout.
    */
   async putMany(values: any[], options: QueuePutOptions = {}): Promise<void> {
     await this.#put(
@@ -300,7 +287,7 @@ export class Queue {
     );
   }
 
-  /** Return the number of objects in the queue. */
+  /** Return the number of objects in the Queue. */
   async len(options: QueueLenOptions = {}): Promise<number> {
     if (options.partition && options.total) {
       throw new InvalidError(
@@ -315,7 +302,7 @@ export class Queue {
     return resp.len;
   }
 
-  /** Iterate through items in a queue without mutation. */
+  /** Iterate through items in a Queue without mutation. */
   async *iterate(
     options: QueueIterateOptions = {},
   ): AsyncGenerator<any, void, unknown> {

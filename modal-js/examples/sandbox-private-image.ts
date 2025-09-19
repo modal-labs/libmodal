@@ -8,18 +8,16 @@ const image = await Image.fromAwsEcr(
   }),
 );
 
-// Spawn a sandbox running a simple Python version of the "cat" command.
+// Spawn a Sandbox running a simple Python version of the "cat" command.
 const sb = await app.createSandbox(image, {
   command: ["python", "-c", `import sys; sys.stdout.write(sys.stdin.read())`],
 });
-console.log("sandbox:", sb.sandboxId);
+console.log("Sandbox:", sb.sandboxId);
 
-// Write to the sandbox's stdin and read from its stdout.
 await sb.stdin.writeText(
   "this is input that should be mirrored by the Python one-liner",
 );
 await sb.stdin.close();
 console.log("output:", await sb.stdout.readText());
 
-// Terminate the sandbox.
 await sb.terminate();

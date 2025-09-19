@@ -4,7 +4,7 @@ const app = await App.lookup("libmodal-example", { createIfMissing: true });
 const image = await Image.fromRegistry("python:3.13-slim");
 
 const sb = await app.createSandbox(image);
-console.log("Started sandbox:", sb.sandboxId);
+console.log("Started Sandbox:", sb.sandboxId);
 
 try {
   const p = await sb.exec(

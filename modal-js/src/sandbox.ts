@@ -3,6 +3,9 @@ import {
   FileDescriptor,
   GenericResult,
   GenericResult_GenericStatus,
+  PTYInfo,
+  PTYInfo_PTYType,
+  ContainerExecRequest,
 } from "../proto/modal_proto/api";
 import { client, isRetryableGrpc } from "./client";
 import { environmentName } from "./config";
@@ -18,7 +21,7 @@ import {
   toModalReadStream,
   toModalWriteStream,
 } from "./streams";
-import { type Secret } from "./secret";
+import { type Secret, mergeEnvAndSecrets } from "./secret";
 import { InvalidError, NotFoundError, SandboxTimeoutError } from "./errors";
 import { Image } from "./image";
 
@@ -31,7 +34,7 @@ import { Image } from "./image";
 export type StdioBehavior = "pipe" | "ignore";
 
 /**
- * Specifies the type of data that will be read from the sandbox or container
+ * Specifies the type of data that will be read from the Sandbox or container
  * process. "text" means the data will be read as UTF-8 text, while "binary"
  * means the data will be read as raw bytes (Uint8Array).
  */
@@ -39,9 +42,9 @@ export type StreamMode = "text" | "binary";
 
 /** Options for `Sandbox.list()`. */
 export type SandboxListOptions = {
-  /** Filter sandboxes for a specific app. */
+  /** Filter Sandboxes for a specific App. */
   appId?: string;
-  /** Only return sandboxes that include all specified tags. */
+  /** Only return Sandboxes that include all specified tags. */
   tags?: Record<string, string>;
   /** Override environment for the request; defaults to current profile. */
   environment?: string;
@@ -59,11 +62,15 @@ export type ExecOptions = {
   workdir?: string;
   /** Timeout for the process in milliseconds. Defaults to 0 (no timeout). */
   timeout?: number;
-  /** Secrets with environment variables for the command. */
-  secrets?: [Secret];
+  /** Environment variables to set for the command. */
+  env?: Record<string, string>;
+  /** Secrets to inject as environment variables for the commmand.*/
+  secrets?: Secret[];
+  /** Enable a PTY for the command. */
+  pty?: boolean;
 };
 
-/** A port forwarded from within a running Modal sandbox. */
+/** A port forwarded from within a running Modal Sandbox. */
 export class Tunnel {
   /** @ignore */
   constructor(
@@ -96,6 +103,45 @@ export class Tunnel {
     }
     return [this.unencryptedHost, this.unencryptedPort];
   }
+}
+
+export function defaultSandboxPTYInfo(): PTYInfo {
+  return PTYInfo.create({
+    enabled: true,
+    winszRows: 24,
+    winszCols: 80,
+    envTerm: "xterm-256color",
+    envColorterm: "truecolor",
+    envTermProgram: "",
+    ptyType: PTYInfo_PTYType.PTY_TYPE_SHELL,
+    noTerminateOnIdleStdin: true,
+  });
+}
+
+export async function buildContainerExecRequestProto(
+  taskId: string,
+  command: string[],
+  options?: ExecOptions,
+): Promise<ContainerExecRequest> {
+  const mergedSecrets = await mergeEnvAndSecrets(
+    options?.env,
+    options?.secrets,
+  );
+  const secretIds = mergedSecrets.map((secret) => secret.secretId);
+
+  let ptyInfo: PTYInfo | undefined;
+  if (options?.pty) {
+    ptyInfo = defaultSandboxPTYInfo();
+  }
+
+  return ContainerExecRequest.create({
+    taskId,
+    command,
+    workdir: options?.workdir,
+    timeoutSecs: options?.timeout ? options.timeout / 1000 : 0,
+    secretIds,
+    ptyInfo,
+  });
 }
 
 /** Sandboxes are secure, isolated containers in Modal that boot in seconds. */
@@ -164,8 +210,39 @@ export class Sandbox {
     return new Sandbox(sandboxId);
   }
 
+  /** Get a running Sandbox by name from a deployed App.
+   *
+   * Raises a NotFoundError if no running Sandbox is found with the given name.
+   * A Sandbox's name is the `name` argument passed to `App.createSandbox`.
+   *
+   * @param appName - Name of the deployed App
+   * @param name - Name of the Sandbox
+   * @param environment - Optional override for the environment
+   * @returns Promise that resolves to a Sandbox
+   */
+  static async fromName(
+    appName: string,
+    name: string,
+    environment?: string,
+  ): Promise<Sandbox> {
+    try {
+      const resp = await client.sandboxGetFromName({
+        sandboxName: name,
+        appName,
+        environmentName: environmentName(environment),
+      });
+      return new Sandbox(resp.sandboxId);
+    } catch (err) {
+      if (err instanceof ClientError && err.code === Status.NOT_FOUND)
+        throw new NotFoundError(
+          `Sandbox with name '${name}' not found in App '${appName}'`,
+        );
+      throw err;
+    }
+  }
+
   /**
-   * Open a file in the sandbox filesystem.
+   * Open a file in the Sandbox filesystem.
    * @param path - Path to the file to open
    * @param mode - File open mode (r, w, a, r+, w+, a+)
    * @returns Promise that resolves to a SandboxFile
@@ -202,22 +279,15 @@ export class Sandbox {
       stderr?: StdioBehavior;
       workdir?: string;
       timeout?: number;
-      secrets?: [Secret];
+      env?: Record<string, string>;
+      secrets?: Secret[];
+      pty?: boolean;
     },
   ): Promise<ContainerProcess> {
     const taskId = await this.#getTaskId();
 
-    const secretIds = options?.secrets
-      ? options.secrets.map((secret) => secret.secretId)
-      : [];
-
-    const resp = await client.containerExec({
-      taskId,
-      command,
-      workdir: options?.workdir,
-      timeoutSecs: options?.timeout ? options.timeout / 1000 : 0,
-      secretIds,
-    });
+    const req = await buildContainerExecRequestProto(taskId, command, options);
+    const resp = await client.containerExec(req);
 
     return new ContainerProcess(resp.execId, options);
   }
@@ -259,7 +329,7 @@ export class Sandbox {
     }
   }
 
-  /** Get Tunnel metadata for the sandbox.
+  /** Get Tunnel metadata for the Sandbox.
    *
    * Raises `SandboxTimeoutError` if the tunnels are not available after the timeout.
    *
@@ -317,7 +387,7 @@ export class Sandbox {
     }
 
     if (!resp.imageId) {
-      throw new Error("Sandbox snapshot response missing image ID");
+      throw new Error("Sandbox snapshot response missing `imageId`");
     }
 
     return new Image(resp.imageId, "");

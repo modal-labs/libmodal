@@ -30,6 +30,14 @@ export class NotFoundError extends Error {
   }
 }
 
+/** A resource already exists. */
+export class AlreadyExistsError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "AlreadyExistsError";
+  }
+}
+
 /** A request or other operation was invalid. */
 export class InvalidError extends Error {
   constructor(message: string) {
@@ -38,7 +46,7 @@ export class InvalidError extends Error {
   }
 }
 
-/** The queue is empty. */
+/** The Queue is empty. */
 export class QueueEmptyError extends Error {
   constructor(message: string) {
     super(message);
@@ -46,7 +54,7 @@ export class QueueEmptyError extends Error {
   }
 }
 
-/** The queue is full. */
+/** The Queue is full. */
 export class QueueFullError extends Error {
   constructor(message: string) {
     super(message);

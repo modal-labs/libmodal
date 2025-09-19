@@ -13,7 +13,7 @@ func main() {
 
 	app, err := modal.AppLookup(ctx, "libmodal-example", &modal.LookupOptions{CreateIfMissing: true})
 	if err != nil {
-		log.Fatalf("Failed to lookup or create app: %v", err)
+		log.Fatalf("Failed to lookup or create App: %v", err)
 	}
 
 	image := modal.NewImageFromRegistry("nvidia/cuda:12.4.0-devel-ubuntu22.04", nil)
@@ -22,16 +22,16 @@ func main() {
 		GPU: "A10G",
 	})
 	if err != nil {
-		log.Fatalf("Failed to create sandbox: %v", err)
+		log.Fatalf("Failed to create Sandbox: %v", err)
 	}
-	log.Printf("Started sandbox with A10G GPU: %s", sb.SandboxId)
+	log.Printf("Started Sandbox with A10G GPU: %s", sb.SandboxId)
 	defer sb.Terminate()
 
-	log.Println("Running `nvidia-smi` in sandbox:")
+	log.Println("Running `nvidia-smi` in Sandbox:")
 
 	p, err := sb.Exec([]string{"nvidia-smi"}, modal.ExecOptions{})
 	if err != nil {
-		log.Fatalf("Failed to execute nvidia-smi in sandbox: %v", err)
+		log.Fatalf("Failed to execute nvidia-smi in Sandbox: %v", err)
 	}
 
 	output, err := io.ReadAll(p.Stdout)

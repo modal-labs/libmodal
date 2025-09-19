@@ -7,7 +7,7 @@ import (
 	pb "github.com/modal-labs/libmodal/modal-go/proto/modal_proto"
 )
 
-// SandboxFile represents an open file in the sandbox filesystem.
+// SandboxFile represents an open file in the Sandbox filesystem.
 // It implements io.Reader, io.Writer, io.Seeker, and io.Closer interfaces.
 type SandboxFile struct {
 	fileDescriptor string

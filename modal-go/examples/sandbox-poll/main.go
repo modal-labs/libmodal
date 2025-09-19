@@ -13,7 +13,7 @@ func main() {
 
 	app, err := modal.AppLookup(ctx, "libmodal-example", &modal.LookupOptions{CreateIfMissing: true})
 	if err != nil {
-		log.Fatalf("Failed to lookup or create app: %v", err)
+		log.Fatalf("Failed to lookup or create App: %v", err)
 	}
 
 	image := modal.NewImageFromRegistry("alpine:3.21", nil)
@@ -23,14 +23,14 @@ func main() {
 		Command: []string{"sh", "-c", "read line; exit 42"},
 	})
 	if err != nil {
-		log.Fatalf("Failed to create sandbox: %v", err)
+		log.Fatalf("Failed to create Sandbox: %v", err)
 	}
 
-	fmt.Printf("Started sandbox: %s\n", sandbox.SandboxId)
+	fmt.Printf("Started Sandbox: %s\n", sandbox.SandboxId)
 
 	initialPoll, err := sandbox.Poll()
 	if err != nil {
-		log.Fatalf("Failed to poll sandbox: %v", err)
+		log.Fatalf("Failed to poll Sandbox: %v", err)
 	}
 	fmt.Printf("Poll result while running: %v\n", initialPoll)
 
@@ -46,13 +46,13 @@ func main() {
 
 	exitCode, err := sandbox.Wait()
 	if err != nil {
-		log.Fatalf("Failed to wait for sandbox: %v", err)
+		log.Fatalf("Failed to wait for Sandbox: %v", err)
 	}
 	fmt.Printf("\nSandbox completed with exit code: %d\n", exitCode)
 
 	finalPoll, err := sandbox.Poll()
 	if err != nil {
-		log.Fatalf("Failed to poll sandbox after completion: %v", err)
+		log.Fatalf("Failed to poll Sandbox after completion: %v", err)
 	}
 	fmt.Printf("Poll result after completion: %d\n", *finalPoll)
 }

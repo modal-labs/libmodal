@@ -13,12 +13,12 @@ import (
 func main() {
 	function, err := modal.FunctionLookup(context.Background(), "libmodal-test-support", "echo_string", nil)
 	if err != nil {
-		log.Fatalf("Failed to lookup function: %v", err)
+		log.Fatalf("Failed to lookup Function: %v", err)
 	}
 
 	stats, err := function.GetCurrentStats()
 	if err != nil {
-		log.Fatalf("Failed to get function stats: %v", err)
+		log.Fatalf("Failed to get Function stats: %v", err)
 	}
 
 	fmt.Println("Function Statistics:")

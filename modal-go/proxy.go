@@ -9,7 +9,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// Proxy represents a Modal proxy.
+// Proxy represents a Modal Proxy.
 type Proxy struct {
 	ProxyId string
 
@@ -24,12 +24,6 @@ type ProxyFromNameOptions struct {
 
 // ProxyFromName references a modal.Proxy by its name.
 func ProxyFromName(ctx context.Context, name string, options *ProxyFromNameOptions) (*Proxy, error) {
-	var err error
-	ctx, err = clientContext(ctx)
-	if err != nil {
-		return nil, err
-	}
-
 	if options == nil {
 		options = &ProxyFromNameOptions{}
 	}

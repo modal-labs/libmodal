@@ -123,7 +123,7 @@ export class Function_ {
     );
   }
 
-  // Spawn a single input into a remote function.
+  // Spawn a single input into a remote Function.
   async spawn(
     args: any[] = [],
     kwargs: Record<string, any> = {},
@@ -165,7 +165,7 @@ export class Function_ {
 
   /**
    * URL of a Function running as a web endpoint.
-   * @returns The web URL if this function is a web endpoint, otherwise undefined
+   * @returns The web URL if this Function is a web endpoint, otherwise undefined
    */
   async getWebUrl(): Promise<string | undefined> {
     return this.#webUrl || undefined;

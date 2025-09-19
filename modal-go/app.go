@@ -39,22 +39,26 @@ type EphemeralOptions struct {
 type SandboxOptions struct {
 	CPU               float64                      // CPU request in physical cores.
 	Memory            int                          // Memory request in MiB.
-	GPU               string                       // GPU reservation for the sandbox (e.g. "A100", "T4:2", "A100-80GB:4").
-	Timeout           time.Duration                // Maximum duration for the Sandbox.
-	Workdir           string                       // Working directory of the sandbox.
+	GPU               string                       // GPU reservation for the Sandbox (e.g. "A100", "T4:2", "A100-80GB:4").
+	Timeout           time.Duration                // Maximum lifetime for the Sandbox.
+	IdleTimeout       time.Duration                // The amount of time that a Sandbox can be idle before being terminated.
+	Workdir           string                       // Working directory of the Sandbox.
 	Command           []string                     // Command to run in the Sandbox on startup.
-	Secrets           []*Secret                    // Secrets to inject into the Sandbox.
+	Env               map[string]string            // Environment variables to set in the Sandbox.
+	Secrets           []*Secret                    // Secrets to inject into the Sandbox as environment variables.
 	Volumes           map[string]*Volume           // Mount points for Volumes.
 	CloudBucketMounts map[string]*CloudBucketMount // Mount points for cloud buckets.
-	EncryptedPorts    []int                        // List of encrypted ports to tunnel into the sandbox, with TLS encryption.
-	H2Ports           []int                        // List of encrypted ports to tunnel into the sandbox, using HTTP/2.
-	UnencryptedPorts  []int                        // List of ports to tunnel into the sandbox without encryption.
-	BlockNetwork      bool                         // Whether to block all network access from the sandbox.
-	CIDRAllowlist     []string                     // List of CIDRs the sandbox is allowed to access. Cannot be used with BlockNetwork.
-	Cloud             string                       // Cloud provider to run the sandbox on.
-	Regions           []string                     // Region(s) to run the sandbox on.
+	PTY               bool                         // Enable a PTY for the Sandbox.
+	EncryptedPorts    []int                        // List of encrypted ports to tunnel into the Sandbox, with TLS encryption.
+	H2Ports           []int                        // List of encrypted ports to tunnel into the Sandbox, using HTTP/2.
+	UnencryptedPorts  []int                        // List of ports to tunnel into the Sandbox without encryption.
+	BlockNetwork      bool                         // Whether to block all network access from the Sandbox.
+	CIDRAllowlist     []string                     // List of CIDRs the Sandbox is allowed to access. Cannot be used with BlockNetwork.
+	Cloud             string                       // Cloud provider to run the Sandbox on.
+	Regions           []string                     // Region(s) to run the Sandbox on.
 	Verbose           bool                         // Enable verbose logging.
 	Proxy             *Proxy                       // Reference to a Modal Proxy to use in front of this Sandbox.
+	Name              string                       // Optional name for the Sandbox. Unique within an App.
 }
 
 // ImageFromRegistryOptions are options for creating an Image from a registry.
@@ -95,11 +99,6 @@ func AppLookup(ctx context.Context, name string, options *LookupOptions) (*App, 
 	if options == nil {
 		options = &LookupOptions{}
 	}
-	var err error
-	ctx, err = clientContext(ctx)
-	if err != nil {
-		return nil, err
-	}
 
 	creationType := pb.ObjectCreationType_OBJECT_CREATION_TYPE_UNSPECIFIED
 	if options.CreateIfMissing {
@@ -113,7 +112,7 @@ func AppLookup(ctx context.Context, name string, options *LookupOptions) (*App, 
 	}.Build())
 
 	if status, ok := status.FromError(err); ok && status.Code() == codes.NotFound {
-		return nil, NotFoundError{fmt.Sprintf("app '%s' not found", name)}
+		return nil, NotFoundError{fmt.Sprintf("App '%s' not found", name)}
 	}
 	if err != nil {
 		return nil, err
@@ -122,17 +121,8 @@ func AppLookup(ctx context.Context, name string, options *LookupOptions) (*App, 
 	return &App{AppId: resp.GetAppId(), Name: name, ctx: ctx}, nil
 }
 
-// CreateSandbox creates a new Sandbox in the App with the specified image and options.
-func (app *App) CreateSandbox(image *Image, options *SandboxOptions) (*Sandbox, error) {
-	if options == nil {
-		options = &SandboxOptions{}
-	}
-
-	image, err := image.build(app)
-	if err != nil {
-		return nil, err
-	}
-
+// buildSandboxCreateRequestProto builds a SandboxCreateRequest proto from options.
+func buildSandboxCreateRequestProto(appId, imageId string, options SandboxOptions, envSecret *Secret) (*pb.SandboxCreateRequest, error) {
 	gpuConfig, err := parseGPUConfig(options.GPU)
 	if err != nil {
 		return nil, err
@@ -165,6 +155,11 @@ func (app *App) CreateSandbox(image *Image, options *SandboxOptions) (*Sandbox, 
 			}
 			cloudBucketMounts = append(cloudBucketMounts, proto)
 		}
+	}
+
+	var ptyInfo *pb.PTYInfo
+	if options.PTY {
+		ptyInfo = defaultSandboxPTYInfo()
 	}
 
 	var openPorts []*pb.PortSpec
@@ -201,6 +196,12 @@ func (app *App) CreateSandbox(image *Image, options *SandboxOptions) (*Sandbox, 
 			secretIds = append(secretIds, secret.SecretId)
 		}
 	}
+	if (len(options.Env) > 0) != (envSecret != nil) {
+		return nil, fmt.Errorf("internal error: Env and envSecret must both be provided or neither be provided")
+	}
+	if envSecret != nil {
+		secretIds = append(secretIds, envSecret.SecretId)
+	}
 
 	var networkAccess *pb.NetworkAccess
 	if options.BlockNetwork {
@@ -235,15 +236,22 @@ func (app *App) CreateSandbox(image *Image, options *SandboxOptions) (*Sandbox, 
 		workdir = &options.Workdir
 	}
 
-	createResp, err := client.SandboxCreate(app.ctx, pb.SandboxCreateRequest_builder{
-		AppId: app.AppId,
+	var idleTimeoutSecs *uint32
+	if options.IdleTimeout != 0 {
+		v := uint32(options.IdleTimeout.Seconds())
+		idleTimeoutSecs = &v
+	}
+
+	return pb.SandboxCreateRequest_builder{
+		AppId: appId,
 		Definition: pb.Sandbox_builder{
-			EntrypointArgs: options.Command,
-			ImageId:        image.ImageId,
-			SecretIds:      secretIds,
-			TimeoutSecs:    uint32(options.Timeout.Seconds()),
-			Workdir:        workdir,
-			NetworkAccess:  networkAccess,
+			EntrypointArgs:  options.Command,
+			ImageId:         imageId,
+			SecretIds:       secretIds,
+			TimeoutSecs:     uint32(options.Timeout.Seconds()),
+			IdleTimeoutSecs: idleTimeoutSecs,
+			Workdir:         workdir,
+			NetworkAccess:   networkAccess,
 			Resources: pb.Resources_builder{
 				MilliCpu:  uint32(1000 * options.CPU),
 				MemoryMb:  uint32(options.Memory),
@@ -251,15 +259,46 @@ func (app *App) CreateSandbox(image *Image, options *SandboxOptions) (*Sandbox, 
 			}.Build(),
 			VolumeMounts:       volumeMounts,
 			CloudBucketMounts:  cloudBucketMounts,
+			PtyInfo:            ptyInfo,
 			OpenPorts:          portSpecs,
 			CloudProviderStr:   options.Cloud,
 			SchedulerPlacement: schedulerPlacement,
 			Verbose:            options.Verbose,
 			ProxyId:            proxyId,
+			Name:               &options.Name,
 		}.Build(),
-	}.Build())
+	}.Build(), nil
+}
 
+// CreateSandbox creates a new Sandbox in the App with the specified Image and options.
+func (app *App) CreateSandbox(image *Image, options *SandboxOptions) (*Sandbox, error) {
+	if options == nil {
+		options = &SandboxOptions{}
+	}
+
+	image, err := image.Build(app)
 	if err != nil {
+		return nil, err
+	}
+
+	var envSecret *Secret
+	if len(options.Env) > 0 {
+		envSecret, err = SecretFromMap(app.ctx, options.Env, nil)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	req, err := buildSandboxCreateRequestProto(app.AppId, image.ImageId, *options, envSecret)
+	if err != nil {
+		return nil, err
+	}
+
+	createResp, err := client.SandboxCreate(app.ctx, req)
+	if err != nil {
+		if status, ok := status.FromError(err); ok && status.Code() == codes.AlreadyExists {
+			return nil, AlreadyExistsError{Exception: status.Message()}
+		}
 		return nil, err
 	}
 
@@ -270,19 +309,19 @@ func (app *App) CreateSandbox(image *Image, options *SandboxOptions) (*Sandbox, 
 //
 // Deprecated: ImageFromRegistry is deprecated, use modal.NewImageFromRegistry instead
 func (app *App) ImageFromRegistry(tag string, options *ImageFromRegistryOptions) (*Image, error) {
-	return NewImageFromRegistry(tag, options).build(app)
+	return NewImageFromRegistry(tag, options).Build(app)
 }
 
 // ImageFromAwsEcr creates an Image from an AWS ECR tag.
 //
 // Deprecated: ImageFromAwsEcr is deprecated, use modal.NewImageFromAwsEcr instead
 func (app *App) ImageFromAwsEcr(tag string, secret *Secret) (*Image, error) {
-	return NewImageFromAwsEcr(tag, secret).build(app)
+	return NewImageFromAwsEcr(tag, secret).Build(app)
 }
 
 // ImageFromGcpArtifactRegistry creates an Image from a GCP Artifact Registry tag.
 //
 // Deprecated: ImageFromGcpArtifactRegistry is deprecated, use modal.NewImageFromGcpArtifactRegistry instead
 func (app *App) ImageFromGcpArtifactRegistry(tag string, secret *Secret) (*Image, error) {
-	return NewImageFromGcpArtifactRegistry(tag, secret).build(app)
+	return NewImageFromGcpArtifactRegistry(tag, secret).Build(app)
 }

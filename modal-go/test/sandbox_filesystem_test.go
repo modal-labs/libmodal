@@ -125,7 +125,6 @@ func TestSandboxMultipleFileOperations(t *testing.T) {
 	sb := createSandbox(g)
 	defer terminateSandbox(g, sb)
 
-	// Create multiple files
 	content1 := []byte("File 1 content")
 	writer, err := sb.Open("/tmp/file1.txt", "w")
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -144,7 +143,6 @@ func TestSandboxMultipleFileOperations(t *testing.T) {
 	err = writer.Close()
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	// Read both files
 	reader1, err := sb.Open("/tmp/file1.txt", "r")
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	readContent1, err := io.ReadAll(reader1)
@@ -199,7 +197,6 @@ func TestSandboxFileOpenModes(t *testing.T) {
 	err = appender.Close()
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	// Verify append worked
 	reader2, err := sb.Open("/tmp/modes.txt", "r")
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	readContent2, err := io.ReadAll(reader2)

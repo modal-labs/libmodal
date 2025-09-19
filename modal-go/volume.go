@@ -9,17 +9,16 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// Volume represents a Modal volume that provides persistent storage.
+// Volume represents a Modal Volume that provides persistent storage.
 type Volume struct {
 	VolumeId string
 	Name     string
 	readOnly bool
-
-	//lint:ignore U1000 may be used in future
-	ctx context.Context
+	cancel   context.CancelFunc
+	ctx      context.Context
 }
 
-// VolumeFromNameOptions are options for finding Modal volumes.
+// VolumeFromNameOptions are options for finding Modal Volumes.
 type VolumeFromNameOptions struct {
 	Environment     string
 	CreateIfMissing bool
@@ -27,12 +26,6 @@ type VolumeFromNameOptions struct {
 
 // VolumeFromName references a modal.Volume by its name.
 func VolumeFromName(ctx context.Context, name string, options *VolumeFromNameOptions) (*Volume, error) {
-	var err error
-	ctx, err = clientContext(ctx)
-	if err != nil {
-		return nil, err
-	}
-
 	if options == nil {
 		options = &VolumeFromNameOptions{}
 	}
@@ -55,7 +48,7 @@ func VolumeFromName(ctx context.Context, name string, options *VolumeFromNameOpt
 		return nil, err
 	}
 
-	return &Volume{VolumeId: resp.GetVolumeId(), Name: name, readOnly: false, ctx: ctx}, nil
+	return &Volume{VolumeId: resp.GetVolumeId(), Name: name, readOnly: false, cancel: nil, ctx: ctx}, nil
 }
 
 // ReadOnly configures Volume to mount as read-only.
@@ -64,11 +57,53 @@ func (v *Volume) ReadOnly() *Volume {
 		VolumeId: v.VolumeId,
 		Name:     v.Name,
 		readOnly: true,
+		cancel:   v.cancel,
 		ctx:      v.ctx,
 	}
 }
 
-// IsReadOnly returns true if the volume is configured to mount as read-only.
+// IsReadOnly returns true if the Volume is configured to mount as read-only.
 func (v *Volume) IsReadOnly() bool {
 	return v.readOnly
+}
+
+// VolumeEphemeral creates a nameless, temporary Volume, that persists until CloseEphemeral is called, or the process exits.
+func VolumeEphemeral(ctx context.Context, options *EphemeralOptions) (*Volume, error) {
+	if options == nil {
+		options = &EphemeralOptions{}
+	}
+
+	resp, err := client.VolumeGetOrCreate(ctx, pb.VolumeGetOrCreateRequest_builder{
+		ObjectCreationType: pb.ObjectCreationType_OBJECT_CREATION_TYPE_EPHEMERAL,
+		EnvironmentName:    environmentName(options.Environment),
+	}.Build())
+	if err != nil {
+		return nil, err
+	}
+
+	ephemeralCtx, cancel := context.WithCancel(ctx)
+	startEphemeralHeartbeat(ephemeralCtx, func() error {
+		_, err := client.VolumeHeartbeat(ephemeralCtx, pb.VolumeHeartbeatRequest_builder{
+			VolumeId: resp.GetVolumeId(),
+		}.Build())
+		return err
+	})
+
+	return &Volume{
+		VolumeId: resp.GetVolumeId(),
+		readOnly: false,
+		cancel:   cancel,
+		ctx:      ephemeralCtx,
+	}, nil
+}
+
+// CloseEphemeral deletes an ephemeral Volume, only used with VolumeEphemeral.
+func (v *Volume) CloseEphemeral() {
+	if v.cancel != nil {
+		v.cancel()
+	} else {
+		// We panic in this case because of invalid usage. In general, methods
+		// used with `defer` like CloseEphemeral should not return errors.
+		panic(fmt.Sprintf("Volume %s is not ephemeral", v.VolumeId))
+	}
 }

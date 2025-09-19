@@ -6,13 +6,20 @@ export {
   type SandboxCreateOptions,
 } from "./app";
 export { type ClientOptions, initializeClient } from "./client";
-export { Cls, ClsInstance } from "./cls";
+export {
+  Cls,
+  ClsInstance,
+  type ClsOptions,
+  type ClsConcurrencyOptions,
+  type ClsBatchingOptions,
+} from "./cls";
 export {
   FunctionTimeoutError,
   RemoteError,
   InternalFailure,
   NotFoundError,
   InvalidError,
+  AlreadyExistsError,
   QueueEmptyError,
   QueueFullError,
   SandboxTimeoutError,
@@ -35,7 +42,12 @@ export {
   type QueueLenOptions,
   type QueuePutOptions,
 } from "./queue";
-export { Image } from "./image";
+export {
+  Image,
+  type ImageDeleteOptions,
+  type ImageDockerfileCommandsOptions,
+} from "./image";
+export { Retries } from "./retries";
 export type {
   ExecOptions,
   StdioBehavior,

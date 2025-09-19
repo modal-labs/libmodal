@@ -20,16 +20,13 @@ func TestFunctionSpawn(t *testing.T) {
 	)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	// Call function using spawn.
 	functionCall, err := function.Spawn(nil, map[string]any{"s": "hello"})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	// Get outputs.
 	result, err := functionCall.Get(nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(result).Should(gomega.Equal("output: hello"))
 
-	// Create FunctionCall instance and get output again.
 	functionCall, err = modal.FunctionCallFromId(context.Background(), functionCall.FunctionCallId)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
@@ -37,7 +34,6 @@ func TestFunctionSpawn(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(result).Should(gomega.Equal("output: hello"))
 
-	// Looking function that takes a long time to complete.
 	sleep, err := modal.FunctionLookup(
 		context.Background(),
 		"libmodal-test-support", "sleep", nil,
@@ -47,12 +43,9 @@ func TestFunctionSpawn(t *testing.T) {
 	functionCall, err = sleep.Spawn(nil, map[string]any{"t": 5})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	// Cancel function call.
 	err = functionCall.Cancel(nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	// Attempting to get outputs for a cancelled function call
-	// is expected to return an error.
 	_, err = functionCall.Get(nil)
 	g.Expect(err).Should(gomega.HaveOccurred())
 

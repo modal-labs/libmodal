@@ -1,6 +1,8 @@
 import { App, Volume, Sandbox, Secret, Image } from "modal";
-import { parseGpuConfig } from "../src/app";
+import { parseGpuConfig, buildSandboxCreateRequestProto } from "../src/app";
 import { expect, test, onTestFinished } from "vitest";
+import { buildContainerExecRequestProto } from "../src/sandbox";
+import { PTYInfo_PTYType } from "../proto/modal_proto/api";
 
 test("CreateOneSandbox", async () => {
   const app = await App.lookup("libmodal-test", { createIfMissing: true });
@@ -329,12 +331,13 @@ test("SandboxExecSecret", async () => {
   const secret = await Secret.fromName("libmodal-test-secret", {
     requiredKeys: ["c"],
   });
-  const printSecret = await sb.exec(["printenv", "c"], {
+  const secret2 = await Secret.fromObject({ d: "3" });
+  const printSecret = await sb.exec(["printenv", "c", "d"], {
     stdout: "pipe",
-    secrets: [secret],
+    secrets: [secret, secret2],
   });
   const secretText = await printSecret.stdout.readText();
-  expect(secretText).toBe("hello world\n");
+  expect(secretText).toBe("hello world\n3\n");
 });
 
 test("SandboxFromId", async () => {
@@ -456,4 +459,116 @@ test("SandboxListByAppId", async () => {
     if (count > 0) break;
   }
   expect(count).toBeGreaterThan(0);
+});
+
+test("NamedSandbox", async () => {
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
+  const image = await app.imageFromRegistry("alpine:3.21");
+
+  const sandboxName = `test-sandbox-${Math.random().toString().substring(2, 10)}`;
+
+  const sb = await app.createSandbox(image, {
+    name: sandboxName,
+    command: ["sleep", "60"],
+  });
+
+  onTestFinished(async () => {
+    await sb.terminate();
+  });
+
+  const sb1FromName = await Sandbox.fromName("libmodal-test", sandboxName);
+  expect(sb1FromName.sandboxId).toBe(sb.sandboxId);
+  const sb2FromName = await Sandbox.fromName("libmodal-test", sandboxName);
+  expect(sb2FromName.sandboxId).toBe(sb1FromName.sandboxId);
+
+  await expect(
+    app.createSandbox(image, {
+      name: sandboxName,
+      command: ["sleep", "60"],
+    }),
+  ).rejects.toThrow("already exists");
+});
+
+test("NamedSandboxNotFound", async () => {
+  await expect(
+    Sandbox.fromName("libmodal-test", "non-existent-sandbox"),
+  ).rejects.toThrow("not found");
+});
+
+test("buildContainerExecRequestProto without PTY", async () => {
+  const req = await buildContainerExecRequestProto("task-123", ["bash"]);
+
+  expect(req.ptyInfo).toBeUndefined();
+});
+
+test("buildContainerExecRequestProto with PTY", async () => {
+  const req = await buildContainerExecRequestProto("task-123", ["bash"], {
+    pty: true,
+  });
+
+  const ptyInfo = req.ptyInfo!;
+  expect(ptyInfo).toBeDefined();
+  expect(ptyInfo.enabled).toBe(true);
+  expect(ptyInfo.winszRows).toBe(24);
+  expect(ptyInfo.winszCols).toBe(80);
+  expect(ptyInfo.envTerm).toBe("xterm-256color");
+  expect(ptyInfo.envColorterm).toBe("truecolor");
+  expect(ptyInfo.ptyType).toBe(PTYInfo_PTYType.PTY_TYPE_SHELL);
+  expect(ptyInfo.noTerminateOnIdleStdin).toBe(true);
+});
+
+test("buildSandboxCreateRequestProto merges env and secrets", async () => {
+  const secret = await Secret.fromObject({ A: "1" });
+
+  const req = await buildSandboxCreateRequestProto("ap", "im", {
+    env: { B: "2" },
+    secrets: [secret],
+  });
+
+  expect(req.definition!.secretIds).toHaveLength(2);
+  expect(req.definition!.secretIds).toContain(secret.secretId);
+});
+
+test("buildSandboxCreateRequestProto with only env parameter", async () => {
+  const req = await buildSandboxCreateRequestProto("ap", "im", {
+    env: { B: "2", C: "3" },
+  });
+
+  expect(req.definition!.secretIds).toHaveLength(1);
+});
+
+test("buildSandboxCreateRequestProto with empty env object does not create secret", async () => {
+  const req = await buildSandboxCreateRequestProto("ap", "im", {
+    env: {},
+  });
+
+  expect(req.definition!.secretIds).toHaveLength(0);
+});
+
+test("buildContainerExecRequestProto merges env and secrets", async () => {
+  const secret = await Secret.fromObject({ A: "1" });
+
+  const req = await buildContainerExecRequestProto("ta", ["echo", "hello"], {
+    env: { B: "2" },
+    secrets: [secret],
+  });
+
+  expect(req.secretIds).toHaveLength(2);
+  expect(req.secretIds).toContain(secret.secretId);
+});
+
+test("buildContainerExecRequestProto with only env parameter", async () => {
+  const req = await buildContainerExecRequestProto("ta", ["echo", "hello"], {
+    env: { B: "2" },
+  });
+
+  expect(req.secretIds).toHaveLength(1);
+});
+
+test("buildContainerExecRequestProto with empty env object does not create secret", async () => {
+  const req = await buildContainerExecRequestProto("ta", ["echo", "hello"], {
+    env: {},
+  });
+
+  expect(req.secretIds).toHaveLength(0);
 });

@@ -30,3 +30,12 @@ test("Volume.readOnly", async () => {
 
   expect(volume.isReadOnly).toBe(false);
 });
+
+test("VolumeEphemeral", async () => {
+  const volume = await Volume.ephemeral();
+  expect(volume.name).toBeUndefined();
+  expect(volume.volumeId).toMatch(/^vo-/);
+  expect(volume.isReadOnly).toBe(false);
+  expect(volume.readOnly().isReadOnly).toBe(true);
+  volume.closeEphemeral();
+});

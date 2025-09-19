@@ -3,12 +3,12 @@ import { App, Image } from "modal";
 const app = await App.lookup("libmodal-example", { createIfMissing: true });
 const image = await Image.fromRegistry("alpine:3.21");
 
-// Create a sandbox that waits for input, then exits with code 42
+// Create a Sandbox that waits for input, then exits with code 42
 const sandbox = await app.createSandbox(image, {
   command: ["sh", "-c", "read line; exit 42"],
 });
 
-console.log("Started sandbox:", sandbox.sandboxId);
+console.log("Started Sandbox:", sandbox.sandboxId);
 
 console.log("Poll result while running:", await sandbox.poll());
 
