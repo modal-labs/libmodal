@@ -7,7 +7,6 @@ import (
 	"github.com/onsi/gomega"
 )
 
-
 func TestSandboxCreateRequestProto_WithoutPTY(t *testing.T) {
 	g := gomega.NewWithT(t)
 
