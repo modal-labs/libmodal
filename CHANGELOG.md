@@ -6,6 +6,19 @@ Both client libraries are pre-1.0, and they have separate versioning.
 
 No unreleased changes.
 
+## modal-js/v0.3.24, modal-go/v0.0.24
+
+- Added `env` parameters to several methods, as a convenience for passing environment variables into Sandboxes, etc.
+- Added `Sandbox.getTags()` (JS) and `Sandbox.GetTags()` (Go).
+
+## modal-js/v0.3.23, modal-go/v0.0.23
+
+- Added support for PTYs in Sandboxes.
+
+## modal-js/v0.3.22, modal-go/v0.0.22
+
+- Added `Image.dockerfileCommands()` (JS) and `ImageDockerfileCommands()` (Go).
+
 ## modal-js/v0.3.21, modal-go/v0.0.21
 
 - Added support for setting idle timeout when creating Sandboxes.

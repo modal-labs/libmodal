@@ -1,36 +1,72 @@
 import {
   GenericResult,
   GenericResult_GenericStatus,
-  ImageMetadata,
   RegistryAuthType,
   ImageRegistryConfig,
+  Image as ImageProto,
+  GPUConfig,
 } from "../proto/modal_proto/api";
 import { client } from "./client";
-import { App } from "./app";
-import { Secret } from "./secret";
+import { App, parseGpuConfig } from "./app";
+import { Secret, mergeEnvAndSecrets } from "./secret";
 import { imageBuilderVersion } from "./config";
 import { ClientError } from "nice-grpc";
 import { Status } from "nice-grpc";
-import { NotFoundError } from "./errors";
+import { NotFoundError, InvalidError } from "./errors";
 
 /** Options for deleting an Image. */
 export type ImageDeleteOptions = Record<never, never>;
+
+/** Options for Image.dockerfileCommands(). */
+export type ImageDockerfileCommandsOptions = {
+  /** Environment variables to set in the build environment. */
+  env?: Record<string, string>;
+
+  /** Secrets that will be made available as environment variables to this layer's build environment. */
+  secrets?: Secret[];
+
+  /** GPU reservation for this layer's build environment (e.g. "A100", "T4:2", "A100-80GB:4"). */
+  gpu?: string;
+
+  /** Ignore cached builds for this layer, similar to 'docker build --no-cache'. */
+  forceBuild?: boolean;
+};
+
+/** Represents a single image layer with its build configuration. */
+type Layer = {
+  commands: string[];
+  env?: Record<string, string>;
+  secrets?: Secret[];
+  gpuConfig?: GPUConfig;
+  forceBuild?: boolean;
+};
 
 /** A container image, used for starting Sandboxes. */
 export class Image {
   #imageId: string;
   #tag: string;
   #imageRegistryConfig?: ImageRegistryConfig;
+  #layers: Layer[];
 
   /** @ignore */
   constructor(
     imageId: string,
     tag: string,
     imageRegistryConfig?: ImageRegistryConfig,
+    layers?: Layer[],
   ) {
     this.#imageId = imageId;
     this.#tag = tag;
     this.#imageRegistryConfig = imageRegistryConfig;
+    this.#layers = layers || [
+      {
+        commands: [],
+        env: undefined,
+        secrets: undefined,
+        gpuConfig: undefined,
+        forceBuild: false,
+      },
+    ];
   }
   get imageId(): string {
     return this.#imageId;
@@ -124,6 +160,51 @@ export class Image {
     return new Image("", tag, imageRegistryConfig);
   }
 
+  private static validateDockerfileCommands(commands: string[]): void {
+    for (const command of commands) {
+      const trimmed = command.trim().toUpperCase();
+      if (trimmed.startsWith("COPY ") && !trimmed.startsWith("COPY --FROM=")) {
+        throw new InvalidError(
+          "COPY commands that copy from local context are not yet supported.",
+        );
+      }
+    }
+  }
+
+  /**
+   * Extend an image with arbitrary Dockerfile-like commands.
+   *
+   * Each call creates a new Image layer that will be built sequentially.
+   * The provided options apply only to this layer.
+   *
+   * @param commands - Array of Dockerfile commands as strings
+   * @param options - Optional configuration for this layer's build
+   * @returns A new Image instance
+   */
+  dockerfileCommands(
+    commands: string[],
+    options?: ImageDockerfileCommandsOptions,
+  ): Image {
+    if (commands.length === 0) {
+      return this;
+    }
+
+    Image.validateDockerfileCommands(commands);
+
+    const newLayer: Layer = {
+      commands: [...commands],
+      env: options?.env,
+      secrets: options?.secrets,
+      gpuConfig: options?.gpu ? parseGpuConfig(options.gpu) : undefined,
+      forceBuild: options?.forceBuild,
+    };
+
+    return new Image("", this.#tag, this.#imageRegistryConfig, [
+      ...this.#layers,
+      newLayer,
+    ]);
+  }
+
   /**
    * Eagerly builds an Image on Modal.
    *
@@ -135,70 +216,96 @@ export class Image {
       return this;
     }
 
-    const resp = await client.imageGetOrCreate({
-      appId: app.appId,
-      image: {
-        dockerfileCommands: [`FROM ${this.#tag}`],
-        imageRegistryConfig: this.#imageRegistryConfig,
-      },
-      builderVersion: imageBuilderVersion(),
-    });
+    let baseImageId: string | undefined;
 
-    let result: GenericResult;
-    let metadata: ImageMetadata | undefined = undefined;
+    for (let i = 0; i < this.#layers.length; i++) {
+      const layer = this.#layers[i];
 
-    if (resp.result?.status) {
-      // Image has already been built
-      result = resp.result;
-      metadata = resp.metadata;
-    } else {
-      // Not built or in the process of building - wait for build
-      let lastEntryId = "";
-      let resultJoined: GenericResult | undefined = undefined;
-      while (!resultJoined) {
-        for await (const item of client.imageJoinStreaming({
-          imageId: resp.imageId,
-          timeout: 55,
-          lastEntryId,
-        })) {
-          if (item.entryId) lastEntryId = item.entryId;
-          if (item.result?.status) {
-            resultJoined = item.result;
-            metadata = item.metadata;
-            break;
-          }
-          // Ignore all log lines and progress updates.
-        }
+      const mergedSecrets = await mergeEnvAndSecrets(layer.env, layer.secrets);
+      const secretIds = mergedSecrets.map((secret) => secret.secretId);
+      const gpuConfig = layer.gpuConfig;
+
+      let dockerfileCommands: string[];
+      let baseImages: Array<{ dockerTag: string; imageId: string }>;
+
+      if (i === 0) {
+        dockerfileCommands = [`FROM ${this.#tag}`, ...layer.commands];
+        baseImages = [];
+      } else {
+        dockerfileCommands = ["FROM base", ...layer.commands];
+        baseImages = [{ dockerTag: "base", imageId: baseImageId! }];
       }
-      result = resultJoined;
-    }
 
-    void metadata; // Note: Currently unused.
+      const resp = await client.imageGetOrCreate({
+        appId: app.appId,
+        image: ImageProto.create({
+          dockerfileCommands,
+          imageRegistryConfig: this.#imageRegistryConfig,
+          secretIds,
+          gpuConfig,
+          contextFiles: [],
+          baseImages,
+        }),
+        builderVersion: imageBuilderVersion(),
+        forceBuild: layer.forceBuild || false,
+      });
 
-    if (result.status === GenericResult_GenericStatus.GENERIC_STATUS_FAILURE) {
-      throw new Error(
-        `Image build for ${resp.imageId} failed with the exception:\n${result.exception}`,
-      );
-    } else if (
-      result.status === GenericResult_GenericStatus.GENERIC_STATUS_TERMINATED
-    ) {
-      throw new Error(
-        `Image build for ${resp.imageId} terminated due to external shut-down. Please try again.`,
-      );
-    } else if (
-      result.status === GenericResult_GenericStatus.GENERIC_STATUS_TIMEOUT
-    ) {
-      throw new Error(
-        `Image build for ${resp.imageId} timed out. Please try again with a larger timeout parameter.`,
-      );
-    } else if (
-      result.status !== GenericResult_GenericStatus.GENERIC_STATUS_SUCCESS
-    ) {
-      throw new Error(
-        `Image build for ${resp.imageId} failed with unknown status: ${result.status}`,
-      );
+      let result: GenericResult;
+
+      if (resp.result?.status) {
+        // Image has already been built
+        result = resp.result;
+      } else {
+        // Not built or in the process of building - wait for build
+        let lastEntryId = "";
+        let resultJoined: GenericResult | undefined = undefined;
+        while (!resultJoined) {
+          for await (const item of client.imageJoinStreaming({
+            imageId: resp.imageId,
+            timeout: 55,
+            lastEntryId,
+          })) {
+            if (item.entryId) lastEntryId = item.entryId;
+            if (item.result?.status) {
+              resultJoined = item.result;
+              break;
+            }
+            // Ignore all log lines and progress updates.
+          }
+        }
+        result = resultJoined;
+      }
+
+      if (
+        result.status === GenericResult_GenericStatus.GENERIC_STATUS_FAILURE
+      ) {
+        throw new Error(
+          `Image build for ${resp.imageId} failed with the exception:\n${result.exception}`,
+        );
+      } else if (
+        result.status === GenericResult_GenericStatus.GENERIC_STATUS_TERMINATED
+      ) {
+        throw new Error(
+          `Image build for ${resp.imageId} terminated due to external shut-down. Please try again.`,
+        );
+      } else if (
+        result.status === GenericResult_GenericStatus.GENERIC_STATUS_TIMEOUT
+      ) {
+        throw new Error(
+          `Image build for ${resp.imageId} timed out. Please try again with a larger timeout parameter.`,
+        );
+      } else if (
+        result.status !== GenericResult_GenericStatus.GENERIC_STATUS_SUCCESS
+      ) {
+        throw new Error(
+          `Image build for ${resp.imageId} failed with unknown status: ${result.status}`,
+        );
+      }
+
+      // the new image is the base for the next layer
+      baseImageId = resp.imageId;
     }
-    this.#imageId = resp.imageId;
+    this.#imageId = baseImageId!;
     return this;
   }
 

@@ -4,14 +4,15 @@ set -euo pipefail
 
 cd "$(dirname "$0")"
 
+echo "Deploying 'libmodal_test_support.py'..."
 modal deploy libmodal_test_support.py
 
-echo "Deploying libmodal-test-secret..."
+echo "Deploying Secret 'libmodal-test-secret'..."
 modal secret create --force libmodal-test-secret \
   a=1 b=2 c="hello world" >/dev/null
 
 # Must be signed into AWS CLI for Modal Labs
-echo "Deploying libmodal-aws-ecr-test..."
+echo "Deploying Secret 'libmodal-aws-ecr-test'..."
 ecr_test_secret=$(aws secretsmanager get-secret-value \
   --secret-id test/libmodal/AwsEcrTest --query 'SecretString' --output text)
 modal secret create --force libmodal-aws-ecr-test \
@@ -20,7 +21,7 @@ modal secret create --force libmodal-aws-ecr-test \
   AWS_REGION=us-east-1 \
   >/dev/null
 
-echo "Deploying libmodal-gcp-artifact-registry-test..."
+echo "Deploying Secret 'libmodal-gcp-artifact-registry-test'..."
 gcp_test_secret=$(aws secretsmanager get-secret-value \
   --secret-id test/libmodal/GcpArtifactRegistryTest --query 'SecretString' --output text)
 modal secret create --force libmodal-gcp-artifact-registry-test \
@@ -29,4 +30,12 @@ modal secret create --force libmodal-gcp-artifact-registry-test \
   REGISTRY_PASSWORD="$(echo "$gcp_test_secret" | jq -r '.SERVICE_ACCOUNT_JSON')" \
   >/dev/null
 
+echo "Deploying Secret 'libmodal-anthropic-secret'..."
+anthropic_api_key_secret=$(aws secretsmanager get-secret-value \
+    --secret-id dev/libmodal/AnthropicApiKey --query 'SecretString' --output text | jq -r '.ANTHROPIC_API_KEY')
+modal secret create --force libmodal-anthropic-secret \
+  ANTHROPIC_API_KEY="$anthropic_api_key_secret" \
+  >/dev/null
+
+echo
 echo "NOTE! The tests also require a Proxy named 'libmodal-test-proxy', which cannot be created programmatically and must be created using the dashboard: https://modal.com/settings/modal-labs/proxy"

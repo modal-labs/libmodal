@@ -29,9 +29,11 @@ type SandboxCreateOptions struct {
 	IdleTimeout       time.Duration                // The amount of time that a Sandbox can be idle before being terminated.
 	Workdir           string                       // Working directory of the Sandbox.
 	Command           []string                     // Command to run in the Sandbox on startup.
-	Secrets           []*Secret                    // Secrets to inject into the Sandbox.
+	Env               map[string]string            // Environment variables to set in the Sandbox.
+	Secrets           []*Secret                    // Secrets to inject into the Sandbox as environment variables.
 	Volumes           map[string]*Volume           // Mount points for Volumes.
 	CloudBucketMounts map[string]*CloudBucketMount // Mount points for cloud buckets.
+	PTY               bool                         // Enable a PTY for the Sandbox.
 	EncryptedPorts    []int                        // List of encrypted ports to tunnel into the Sandbox, with TLS encryption.
 	H2Ports           []int                        // List of encrypted ports to tunnel into the Sandbox, using HTTP/2.
 	UnencryptedPorts  []int                        // List of ports to tunnel into the Sandbox without encryption.
@@ -44,17 +46,8 @@ type SandboxCreateOptions struct {
 	Name              string                       // Optional name for the Sandbox. Unique within an App.
 }
 
-// Create creates a new Sandbox in the App with the specified Image and options.
-func (s *SandboxService) Create(ctx context.Context, app *App, image *Image, options *SandboxCreateOptions) (*Sandbox, error) {
-	if options == nil {
-		options = &SandboxCreateOptions{}
-	}
-
-	image, err := image.Build(ctx, app)
-	if err != nil {
-		return nil, err
-	}
-
+// buildSandboxCreateRequestProto builds a SandboxCreateRequest proto from options.
+func buildSandboxCreateRequestProto(appId, imageId string, options SandboxCreateOptions, envSecret *Secret) (*pb.SandboxCreateRequest, error) {
 	gpuConfig, err := parseGPUConfig(options.GPU)
 	if err != nil {
 		return nil, err
@@ -87,6 +80,11 @@ func (s *SandboxService) Create(ctx context.Context, app *App, image *Image, opt
 			}
 			cloudBucketMounts = append(cloudBucketMounts, proto)
 		}
+	}
+
+	var ptyInfo *pb.PTYInfo
+	if options.PTY {
+		ptyInfo = defaultSandboxPTYInfo()
 	}
 
 	var openPorts []*pb.PortSpec
@@ -122,6 +120,12 @@ func (s *SandboxService) Create(ctx context.Context, app *App, image *Image, opt
 		if secret != nil {
 			secretIds = append(secretIds, secret.SecretId)
 		}
+	}
+	if (len(options.Env) > 0) != (envSecret != nil) {
+		return nil, fmt.Errorf("internal error: Env and envSecret must both be provided or neither be provided")
+	}
+	if envSecret != nil {
+		secretIds = append(secretIds, envSecret.SecretId)
 	}
 
 	var networkAccess *pb.NetworkAccess
@@ -163,11 +167,11 @@ func (s *SandboxService) Create(ctx context.Context, app *App, image *Image, opt
 		idleTimeoutSecs = &v
 	}
 
-	createResp, err := s.client.cpClient.SandboxCreate(ctx, pb.SandboxCreateRequest_builder{
-		AppId: app.AppId,
+	return pb.SandboxCreateRequest_builder{
+		AppId: appId,
 		Definition: pb.Sandbox_builder{
 			EntrypointArgs:  options.Command,
-			ImageId:         image.ImageId,
+			ImageId:         imageId,
 			SecretIds:       secretIds,
 			TimeoutSecs:     uint32(options.Timeout.Seconds()),
 			IdleTimeoutSecs: idleTimeoutSecs,
@@ -180,6 +184,7 @@ func (s *SandboxService) Create(ctx context.Context, app *App, image *Image, opt
 			}.Build(),
 			VolumeMounts:       volumeMounts,
 			CloudBucketMounts:  cloudBucketMounts,
+			PtyInfo:            ptyInfo,
 			OpenPorts:          portSpecs,
 			CloudProviderStr:   options.Cloud,
 			SchedulerPlacement: schedulerPlacement,
@@ -187,8 +192,34 @@ func (s *SandboxService) Create(ctx context.Context, app *App, image *Image, opt
 			ProxyId:            proxyId,
 			Name:               &options.Name,
 		}.Build(),
-	}.Build())
+	}.Build(), nil
+}
 
+// Create creates a new Sandbox in the App with the specified Image and options.
+func (s *SandboxService) Create(ctx context.Context, app *App, image *Image, options *SandboxCreateOptions) (*Sandbox, error) {
+	if options == nil {
+		options = &SandboxCreateOptions{}
+	}
+
+	image, err := image.Build(ctx, app)
+	if err != nil {
+		return nil, err
+	}
+
+	var envSecret *Secret
+	if len(options.Env) > 0 {
+		envSecret, err = s.client.Secrets.FromMap(ctx, options.Env, nil)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	req, err := buildSandboxCreateRequestProto(app.AppId, image.ImageId, *options, envSecret)
+	if err != nil {
+		return nil, err
+	}
+
+	createResp, err := s.client.cpClient.SandboxCreate(ctx, req)
 	if err != nil {
 		if status, ok := status.FromError(err); ok && status.Code() == codes.AlreadyExists {
 			return nil, AlreadyExistsError{Exception: status.Message()}
@@ -219,8 +250,12 @@ type ExecOptions struct {
 	Workdir string
 	// Timeout is the timeout for command execution. Defaults to 0 (no timeout).
 	Timeout time.Duration
-	// Secrets with environment variables for the command.
+	// Environment variables to set for the command.
+	Env map[string]string
+	// Secrets to inject as environment variables for the command.
 	Secrets []*Secret
+	// PTY defines whether to enable a PTY for the command.
+	PTY bool
 }
 
 // Tunnel represents a port forwarded from within a running Modal Sandbox.
@@ -264,6 +299,18 @@ type Sandbox struct {
 	tunnels map[int]*Tunnel
 
 	client *Client
+}
+
+func defaultSandboxPTYInfo() *pb.PTYInfo {
+	return pb.PTYInfo_builder{
+		Enabled:                true,
+		WinszRows:              24,
+		WinszCols:              80,
+		EnvTerm:                "xterm-256color",
+		EnvColorterm:           "truecolor",
+		PtyType:                pb.PTYInfo_PTY_TYPE_SHELL,
+		NoTerminateOnIdleStdin: true,
+	}.Build()
 }
 
 // newSandbox creates a new Sandbox object from ID.
@@ -319,11 +366,8 @@ func (s *SandboxService) FromName(ctx context.Context, appName, name string, opt
 	return newSandbox(s.client, resp.GetSandboxId()), nil
 }
 
-// Exec runs a command in the Sandbox and returns text streams.
-func (sb *Sandbox) Exec(ctx context.Context, command []string, opts ExecOptions) (*ContainerProcess, error) {
-	if err := sb.ensureTaskId(ctx); err != nil {
-		return nil, err
-	}
+// buildContainerExecRequestProto builds a ContainerExecRequest proto from command and options.
+func buildContainerExecRequestProto(taskId string, command []string, opts ExecOptions, envSecret *Secret) (*pb.ContainerExecRequest, error) {
 	var workdir *string
 	if opts.Workdir != "" {
 		workdir = &opts.Workdir
@@ -334,14 +378,48 @@ func (sb *Sandbox) Exec(ctx context.Context, command []string, opts ExecOptions)
 			secretIds = append(secretIds, secret.SecretId)
 		}
 	}
+	if (len(opts.Env) > 0) != (envSecret != nil) {
+		return nil, fmt.Errorf("internal error: Env and envSecret must both be provided or neither be provided")
+	}
+	if envSecret != nil {
+		secretIds = append(secretIds, envSecret.SecretId)
+	}
 
-	resp, err := sb.client.cpClient.ContainerExec(ctx, pb.ContainerExecRequest_builder{
-		TaskId:      sb.taskId,
+	var ptyInfo *pb.PTYInfo
+	if opts.PTY {
+		ptyInfo = defaultSandboxPTYInfo()
+	}
+
+	return pb.ContainerExecRequest_builder{
+		TaskId:      taskId,
 		Command:     command,
 		Workdir:     workdir,
 		TimeoutSecs: uint32(opts.Timeout.Seconds()),
 		SecretIds:   secretIds,
-	}.Build())
+		PtyInfo:     ptyInfo,
+	}.Build(), nil
+}
+
+// Exec runs a command in the Sandbox and returns text streams.
+func (sb *Sandbox) Exec(ctx context.Context, command []string, opts ExecOptions) (*ContainerProcess, error) {
+	if err := sb.ensureTaskId(ctx); err != nil {
+		return nil, err
+	}
+
+	var envSecret *Secret
+	if len(opts.Env) > 0 {
+		var err error
+		envSecret, err = sb.client.Secrets.FromMap(ctx, opts.Env, nil)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	req, err := buildContainerExecRequestProto(sb.taskId, command, opts, envSecret)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := sb.client.cpClient.ContainerExec(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -507,6 +585,25 @@ func (sb *Sandbox) SetTags(ctx context.Context, tags map[string]string) error {
 		Tags:            tagsList,
 	}.Build())
 	return err
+}
+
+// GetTags fetches any tags (key-value pairs) currently attached to this Sandbox from the server.
+func (sb *Sandbox) GetTags(ctx context.Context) (map[string]string, error) {
+	resp, err := sb.client.cpClient.SandboxTagsGet(ctx, pb.SandboxTagsGetRequest_builder{
+		SandboxId: sb.SandboxId,
+	}.Build())
+	if err != nil {
+		if status, ok := status.FromError(err); ok && status.Code() == codes.InvalidArgument {
+			return nil, InvalidError{Exception: status.Message()}
+		}
+		return nil, err
+	}
+
+	tags := make(map[string]string, len(resp.GetTags()))
+	for _, tag := range resp.GetTags() {
+		tags[tag.GetTagName()] = tag.GetTagValue()
+	}
+	return tags, nil
 }
 
 // SandboxListOptions are options for listing Sandboxes.

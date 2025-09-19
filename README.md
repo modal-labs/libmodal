@@ -38,6 +38,7 @@ Examples:
 - [Create a Sandbox using a private image from AWS ECR](./modal-js/examples/sandbox-private-image.ts)
 - [Take a snapshot of the filesystem of a Sandbox](./modal-js/examples/sandbox-filesystem-snapshot.ts)
 - [Execute Sandbox commands](./modal-js/examples/sandbox-exec.ts)
+- [Running a coding agent in a Sandbox](./modal-js/examples/sandbox-agent.ts)
 - [Check the status and exit code of a Sandbox](./modal-js/examples/sandbox-poll.ts)
 - [Access Sandbox filesystem](./modal-js/examples/sandbox-filesystem.ts)
 - [Expose ports on a Sandbox using Tunnels](./modal-js/examples/sandbox-tunnels.ts)
@@ -45,6 +46,7 @@ Examples:
 - [Mount a Volume to a Sandbox](./modal-js/examples/sandbox-volume.ts), and same but with an [ephemeral Volume](./modal-js/examples/sandbox-volume-ephemeral.ts)
 - [Mount a cloud bucket to a Sandbox](./modal-js/examples/sandbox-cloud-bucket.ts)
 - [Eagarly build an Image for a Sandbox](./modal-js/examples/sandbox-prewarm.ts)
+- [Building custom Images](./modal-js/examples/image-building.ts)
 
 ### Go (`modal-go/`)
 
@@ -72,6 +74,7 @@ Examples:
 - [Create a Sandbox using a private image from AWS ECR](./modal-go/examples/sandbox-private-image/main.go)
 - [Take a snapshot of the filesystem of a Sandbox](./modal-go/examples/sandbox-filesystem-snapshot/main.go)
 - [Execute Sandbox commands](./modal-go/examples/sandbox-exec/main.go)
+- [Running a coding agent in a Sandbox](./modal-go/examples/sandbox-agent/main.go)
 - [Check the status and exit code of a Sandbox](./modal-go/examples/sandbox-poll/main.go)
 - [Access Sandbox filesystem](./modal-go/examples/sandbox-filesystem/main.go)
 - [Expose ports on a Sandbox using Tunnels](./modal-go/examples/sandbox-tunnels/main.go)
@@ -79,6 +82,7 @@ Examples:
 - [Mount a Volume to a Sandbox](./modal-go/examples/sandbox-volume/main.go), and same but with an [ephemeral Volume](./modal-go/examples/sandbox-volume-ephemeral/main.go)
 - [Mount a cloud bucket to a Sandbox](./modal-go/examples/sandbox-cloud-bucket/main.go)
 - [Eagarly build an Image for a Sandbox](./modal-go/examples/sandbox-prewarm/main.go)
+- [Building custom Images](./modal-go/examples/image-building/main.go)
 
 ### Python
 

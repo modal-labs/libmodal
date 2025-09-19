@@ -9,13 +9,15 @@ import {
   SchedulerPlacement,
   VolumeMount,
   CloudBucketMount as CloudBucketMountProto,
+  PTYInfo,
+  SandboxCreateRequest,
 } from "../proto/modal_proto/api";
 import { client } from "./client";
 import { environmentName } from "./config";
 import { Image } from "./image";
-import { Sandbox } from "./sandbox";
+import { Sandbox, defaultSandboxPTYInfo } from "./sandbox";
 import { NotFoundError, AlreadyExistsError } from "./errors";
-import { Secret } from "./secret";
+import { Secret, mergeEnvAndSecrets } from "./secret";
 import { Volume } from "./volume";
 import { Proxy } from "./proxy";
 import {
@@ -65,7 +67,10 @@ export type SandboxCreateOptions = {
    */
   command?: string[]; // default is ["sleep", "48h"]
 
-  /** Secrets to inject into the Sandbox. */
+  /** Environment variables to set in the Sandbox. */
+  env?: Record<string, string>;
+
+  /** Secrets to inject into the Sandbox as environment variables. */
   secrets?: Secret[];
 
   /** Mount points for Modal Volumes. */
@@ -73,6 +78,9 @@ export type SandboxCreateOptions = {
 
   /** Mount points for cloud buckets. */
   cloudBucketMounts?: Record<string, CloudBucketMount>;
+
+  /** Enable a PTY for the Sandbox. */
+  pty?: boolean;
 
   /** List of ports to tunnel into the Sandbox. Encrypted ports are tunneled with TLS. */
   encryptedPorts?: number[];
@@ -136,6 +144,141 @@ export function parseGpuConfig(gpu: string | undefined): GPUConfig | undefined {
   };
 }
 
+export async function buildSandboxCreateRequestProto(
+  appId: string,
+  imageId: string,
+  options: SandboxCreateOptions = {},
+): Promise<SandboxCreateRequest> {
+  const gpuConfig = parseGpuConfig(options.gpu);
+
+  // The gRPC API only accepts a whole number of seconds.
+  if (options.timeout && options.timeout % 1000 !== 0) {
+    throw new Error(
+      `timeout must be a multiple of 1000ms, got ${options.timeout}`,
+    );
+  }
+  if (options.idleTimeout && options.idleTimeout % 1000 !== 0) {
+    throw new Error(
+      `idleTimeout must be a multiple of 1000ms, got ${options.idleTimeout}`,
+    );
+  }
+
+  if (options.workdir && !options.workdir.startsWith("/")) {
+    throw new Error(
+      `workdir must be an absolute path, got: ${options.workdir}`,
+    );
+  }
+
+  const volumeMounts: VolumeMount[] = options.volumes
+    ? Object.entries(options.volumes).map(([mountPath, volume]) => ({
+        volumeId: volume.volumeId,
+        mountPath,
+        allowBackgroundCommits: true,
+        readOnly: volume.isReadOnly,
+      }))
+    : [];
+
+  const cloudBucketMounts: CloudBucketMountProto[] = options.cloudBucketMounts
+    ? Object.entries(options.cloudBucketMounts).map(([mountPath, mount]) =>
+        cloudBucketMountToProto(mount, mountPath),
+      )
+    : [];
+
+  const openPorts: PortSpec[] = [];
+  if (options.encryptedPorts) {
+    openPorts.push(
+      ...options.encryptedPorts.map((port) => ({
+        port,
+        unencrypted: false,
+      })),
+    );
+  }
+  if (options.h2Ports) {
+    openPorts.push(
+      ...options.h2Ports.map((port) => ({
+        port,
+        unencrypted: false,
+        tunnelType: TunnelType.TUNNEL_TYPE_H2,
+      })),
+    );
+  }
+  if (options.unencryptedPorts) {
+    openPorts.push(
+      ...options.unencryptedPorts.map((port) => ({
+        port,
+        unencrypted: true,
+      })),
+    );
+  }
+
+  const mergedSecrets = await mergeEnvAndSecrets(options.env, options.secrets);
+  const secretIds = mergedSecrets.map((secret) => secret.secretId);
+
+  let networkAccess: NetworkAccess;
+  if (options.blockNetwork) {
+    if (options.cidrAllowlist) {
+      throw new Error(
+        "cidrAllowlist cannot be used when blockNetwork is enabled",
+      );
+    }
+    networkAccess = {
+      networkAccessType: NetworkAccess_NetworkAccessType.BLOCKED,
+      allowedCidrs: [],
+    };
+  } else if (options.cidrAllowlist) {
+    networkAccess = {
+      networkAccessType: NetworkAccess_NetworkAccessType.ALLOWLIST,
+      allowedCidrs: options.cidrAllowlist,
+    };
+  } else {
+    networkAccess = {
+      networkAccessType: NetworkAccess_NetworkAccessType.OPEN,
+      allowedCidrs: [],
+    };
+  }
+
+  const schedulerPlacement = SchedulerPlacement.create({
+    regions: options.regions ?? [],
+  });
+
+  let ptyInfo: PTYInfo | undefined;
+  if (options.pty) {
+    ptyInfo = defaultSandboxPTYInfo();
+  }
+
+  return SandboxCreateRequest.create({
+    appId,
+    definition: {
+      // Sleep default is implicit in image builder version <=2024.10
+      entrypointArgs: options.command ?? ["sleep", "48h"],
+      imageId,
+      timeoutSecs: options.timeout != undefined ? options.timeout / 1000 : 600,
+      idleTimeoutSecs:
+        options.idleTimeout != undefined
+          ? options.idleTimeout / 1000
+          : undefined,
+      workdir: options.workdir ?? undefined,
+      networkAccess,
+      resources: {
+        // https://modal.com/docs/guide/resources
+        milliCpu: Math.round(1000 * (options.cpu ?? 0.125)),
+        memoryMb: options.memory ?? 128,
+        gpuConfig,
+      },
+      volumeMounts,
+      cloudBucketMounts,
+      ptyInfo,
+      secretIds,
+      openPorts: openPorts.length > 0 ? { ports: openPorts } : undefined,
+      cloudProviderStr: options.cloud ?? "",
+      schedulerPlacement,
+      verbose: options.verbose ?? false,
+      proxyId: options.proxy?.proxyId,
+      name: options.name,
+    },
+  });
+}
+
 /** Represents a deployed Modal App. */
 export class App {
   readonly appId: string;
@@ -169,133 +312,16 @@ export class App {
     image: Image,
     options: SandboxCreateOptions = {},
   ): Promise<Sandbox> {
-    const gpuConfig = parseGpuConfig(options.gpu);
-
-    // The gRPC API only accepts a whole number of seconds.
-    if (options.timeout && options.timeout % 1000 !== 0) {
-      throw new Error(
-        `timeout must be a multiple of 1000ms, got ${options.timeout}`,
-      );
-    }
-    if (options.idleTimeout && options.idleTimeout % 1000 !== 0) {
-      throw new Error(
-        `idleTimeout must be a multiple of 1000ms, got ${options.idleTimeout}`,
-      );
-    }
     await image.build(this);
 
-    if (options.workdir && !options.workdir.startsWith("/")) {
-      throw new Error(
-        `workdir must be an absolute path, got: ${options.workdir}`,
-      );
-    }
-
-    const volumeMounts: VolumeMount[] = options.volumes
-      ? Object.entries(options.volumes).map(([mountPath, volume]) => ({
-          volumeId: volume.volumeId,
-          mountPath,
-          allowBackgroundCommits: true,
-          readOnly: volume.isReadOnly,
-        }))
-      : [];
-
-    const cloudBucketMounts: CloudBucketMountProto[] = options.cloudBucketMounts
-      ? Object.entries(options.cloudBucketMounts).map(([mountPath, mount]) =>
-          cloudBucketMountToProto(mount, mountPath),
-        )
-      : [];
-
-    const openPorts: PortSpec[] = [];
-    if (options.encryptedPorts) {
-      openPorts.push(
-        ...options.encryptedPorts.map((port) => ({
-          port,
-          unencrypted: false,
-        })),
-      );
-    }
-    if (options.h2Ports) {
-      openPorts.push(
-        ...options.h2Ports.map((port) => ({
-          port,
-          unencrypted: false,
-          tunnelType: TunnelType.TUNNEL_TYPE_H2,
-        })),
-      );
-    }
-    if (options.unencryptedPorts) {
-      openPorts.push(
-        ...options.unencryptedPorts.map((port) => ({
-          port,
-          unencrypted: true,
-        })),
-      );
-    }
-
-    const secretIds = options.secrets
-      ? options.secrets.map((secret) => secret.secretId)
-      : [];
-
-    let networkAccess: NetworkAccess;
-    if (options.blockNetwork) {
-      if (options.cidrAllowlist) {
-        throw new Error(
-          "cidrAllowlist cannot be used when blockNetwork is enabled",
-        );
-      }
-      networkAccess = {
-        networkAccessType: NetworkAccess_NetworkAccessType.BLOCKED,
-        allowedCidrs: [],
-      };
-    } else if (options.cidrAllowlist) {
-      networkAccess = {
-        networkAccessType: NetworkAccess_NetworkAccessType.ALLOWLIST,
-        allowedCidrs: options.cidrAllowlist,
-      };
-    } else {
-      networkAccess = {
-        networkAccessType: NetworkAccess_NetworkAccessType.OPEN,
-        allowedCidrs: [],
-      };
-    }
-
-    const schedulerPlacement = SchedulerPlacement.create({
-      regions: options.regions ?? [],
-    });
-
+    const createReq = await buildSandboxCreateRequestProto(
+      this.appId,
+      image.imageId,
+      options,
+    );
     let createResp;
     try {
-      createResp = await client.sandboxCreate({
-        appId: this.appId,
-        definition: {
-          // Sleep default is implicit in image builder version <=2024.10
-          entrypointArgs: options.command ?? ["sleep", "48h"],
-          imageId: image.imageId,
-          timeoutSecs:
-            options.timeout != undefined ? options.timeout / 1000 : 600,
-          idleTimeoutSecs:
-            options.idleTimeout != undefined
-              ? options.idleTimeout / 1000
-              : undefined,
-          workdir: options.workdir ?? undefined,
-          networkAccess,
-          resources: {
-            // https://modal.com/docs/guide/resources
-            milliCpu: Math.round(1000 * (options.cpu ?? 0.125)),
-            memoryMb: options.memory ?? 128,
-            gpuConfig,
-          },
-          volumeMounts,
-          cloudBucketMounts,
-          secretIds,
-          openPorts: openPorts.length > 0 ? { ports: openPorts } : undefined,
-          cloudProviderStr: options.cloud ?? "",
-          schedulerPlacement,
-          verbose: options.verbose ?? false,
-          proxyId: options.proxy?.proxyId,
-          name: options.name,
-        },
-      });
+      createResp = await client.sandboxCreate(createReq);
     } catch (err) {
       if (err instanceof ClientError && err.code === Status.ALREADY_EXISTS) {
         throw new AlreadyExistsError(err.details || err.message);

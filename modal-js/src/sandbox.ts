@@ -3,6 +3,10 @@ import {
   FileDescriptor,
   GenericResult,
   GenericResult_GenericStatus,
+  PTYInfo,
+  PTYInfo_PTYType,
+  ContainerExecRequest,
+  SandboxTagsGetResponse,
 } from "../proto/modal_proto/api";
 import { client, isRetryableGrpc } from "./client";
 import { environmentName } from "./config";
@@ -18,7 +22,7 @@ import {
   toModalReadStream,
   toModalWriteStream,
 } from "./streams";
-import { type Secret } from "./secret";
+import { type Secret, mergeEnvAndSecrets } from "./secret";
 import { InvalidError, NotFoundError, SandboxTimeoutError } from "./errors";
 import { Image } from "./image";
 
@@ -59,8 +63,12 @@ export type ExecOptions = {
   workdir?: string;
   /** Timeout for the process in milliseconds. Defaults to 0 (no timeout). */
   timeout?: number;
-  /** Secrets with environment variables for the command. */
+  /** Environment variables to set for the command. */
+  env?: Record<string, string>;
+  /** Secrets to inject as environment variables for the commmand.*/
   secrets?: Secret[];
+  /** Enable a PTY for the command. */
+  pty?: boolean;
 };
 
 /** A port forwarded from within a running Modal Sandbox. */
@@ -96,6 +104,45 @@ export class Tunnel {
     }
     return [this.unencryptedHost, this.unencryptedPort];
   }
+}
+
+export function defaultSandboxPTYInfo(): PTYInfo {
+  return PTYInfo.create({
+    enabled: true,
+    winszRows: 24,
+    winszCols: 80,
+    envTerm: "xterm-256color",
+    envColorterm: "truecolor",
+    envTermProgram: "",
+    ptyType: PTYInfo_PTYType.PTY_TYPE_SHELL,
+    noTerminateOnIdleStdin: true,
+  });
+}
+
+export async function buildContainerExecRequestProto(
+  taskId: string,
+  command: string[],
+  options?: ExecOptions,
+): Promise<ContainerExecRequest> {
+  const mergedSecrets = await mergeEnvAndSecrets(
+    options?.env,
+    options?.secrets,
+  );
+  const secretIds = mergedSecrets.map((secret) => secret.secretId);
+
+  let ptyInfo: PTYInfo | undefined;
+  if (options?.pty) {
+    ptyInfo = defaultSandboxPTYInfo();
+  }
+
+  return ContainerExecRequest.create({
+    taskId,
+    command,
+    workdir: options?.workdir,
+    timeoutSecs: options?.timeout ? options.timeout / 1000 : 0,
+    secretIds,
+    ptyInfo,
+  });
 }
 
 /** Sandboxes are secure, isolated containers in Modal that boot in seconds. */
@@ -143,6 +190,25 @@ export class Sandbox {
       }
       throw err;
     }
+  }
+
+  /** Get tags (key-value pairs) currently attached to this Sandbox from the server. */
+  async getTags(): Promise<Record<string, string>> {
+    let resp: SandboxTagsGetResponse;
+    try {
+      resp = await client.sandboxTagsGet({ sandboxId: this.sandboxId });
+    } catch (err) {
+      if (err instanceof ClientError && err.code === Status.INVALID_ARGUMENT) {
+        throw new InvalidError(err.details || err.message);
+      }
+      throw err;
+    }
+
+    const tags: Record<string, string> = {};
+    for (const tag of resp.tags) {
+      tags[tag.tagName] = tag.tagValue;
+    }
+    return tags;
   }
 
   /** Returns a running Sandbox object from an ID.
@@ -233,22 +299,15 @@ export class Sandbox {
       stderr?: StdioBehavior;
       workdir?: string;
       timeout?: number;
+      env?: Record<string, string>;
       secrets?: Secret[];
+      pty?: boolean;
     },
   ): Promise<ContainerProcess> {
     const taskId = await this.#getTaskId();
 
-    const secretIds = options?.secrets
-      ? options.secrets.map((secret) => secret.secretId)
-      : [];
-
-    const resp = await client.containerExec({
-      taskId,
-      command,
-      workdir: options?.workdir,
-      timeoutSecs: options?.timeout ? options.timeout / 1000 : 0,
-      secretIds,
-    });
+    const req = await buildContainerExecRequestProto(taskId, command, options);
+    const resp = await client.containerExec(req);
 
     return new ContainerProcess(resp.execId, options);
   }
