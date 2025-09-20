@@ -5,13 +5,14 @@ import { createHash } from "node:crypto";
 import {
   DataFormat,
   FunctionCallInvocationType,
+  FunctionHandleMetadata,
   FunctionInput,
 } from "../proto/modal_proto/api";
 import type { LookupOptions } from "./app";
 import { client } from "./client";
 import { FunctionCall } from "./function_call";
 import { environmentName } from "./config";
-import { InternalFailure, NotFoundError } from "./errors";
+import { InternalFailure, InvalidError, NotFoundError } from "./errors";
 import { encode as cborEncode } from "cbor-x";
 import { ClientError, Status } from "nice-grpc";
 import {
@@ -44,20 +45,17 @@ export interface UpdateAutoscalerOptions {
 export class Function_ {
   readonly functionId: string;
   readonly methodName?: string;
-  #inputPlaneUrl?: string;
-  #webUrl?: string;
+  #handleMetadata?: FunctionHandleMetadata;
 
   /** @ignore */
   constructor(
     functionId: string,
     methodName?: string,
-    inputPlaneUrl?: string,
-    webUrl?: string,
+    functionHandleMetadata?: FunctionHandleMetadata,
   ) {
     this.functionId = functionId;
     this.methodName = methodName;
-    this.#inputPlaneUrl = inputPlaneUrl;
-    this.#webUrl = webUrl;
+    this.#handleMetadata = functionHandleMetadata;
   }
 
   static async lookup(
@@ -71,12 +69,7 @@ export class Function_ {
         objectTag: name,
         environmentName: environmentName(options.environment),
       });
-      return new Function_(
-        resp.functionId,
-        undefined,
-        resp.handleMetadata?.inputPlaneUrl,
-        resp.handleMetadata?.webUrl,
-      );
+      return new Function_(resp.functionId, undefined, resp.handleMetadata);
     } catch (err) {
       if (err instanceof ClientError && err.code === Status.NOT_FOUND)
         throw new NotFoundError(`Function '${appName}/${name}' not found`);
@@ -108,9 +101,9 @@ export class Function_ {
   }
 
   async #createRemoteInvocation(input: FunctionInput): Promise<Invocation> {
-    if (this.#inputPlaneUrl) {
+    if (this.#handleMetadata?.inputPlaneUrl) {
       return await InputPlaneInvocation.create(
-        this.#inputPlaneUrl,
+        this.#handleMetadata.inputPlaneUrl,
         this.functionId,
         input,
       );
@@ -168,13 +161,22 @@ export class Function_ {
    * @returns The web URL if this Function is a web endpoint, otherwise undefined
    */
   async getWebUrl(): Promise<string | undefined> {
-    return this.#webUrl || undefined;
+    return this.#handleMetadata?.webUrl || undefined;
   }
 
   async #createInput(
     args: any[] = [],
     kwargs: Record<string, any> = {},
   ): Promise<FunctionInput> {
+    const supported_input_formats = this.#handleMetadata
+      ?.supportedInputFormats || [DataFormat.DATA_FORMAT_PICKLE];
+    if (!supported_input_formats.includes(DataFormat.DATA_FORMAT_CBOR)) {
+      // the remote function isn't cbor compatible for inputs
+      // we can error early
+      throw new InvalidError(
+        "The remote Function needs to be deployed using modal>=1.2 to be called from libmodal",
+      );
+    }
     const payload = cborEncode([args, kwargs]);
 
     let argsBlobId: string | undefined = undefined;
