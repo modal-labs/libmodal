@@ -4,6 +4,7 @@ import {
   ClassParameterSet,
   ClassParameterSpec,
   ClassParameterValue,
+  FunctionHandleMetadata,
   FunctionOptions,
   FunctionRetryPolicy,
   ParameterType,
@@ -54,24 +55,26 @@ type ServiceOptions = ClsOptions & {
 /** Represents a deployed Modal Cls. */
 export class Cls {
   #serviceFunctionId: string;
-  #schema: ClassParameterSpec[];
-  #methodNames: string[];
-  #inputPlaneUrl?: string;
+  #handleMetadata: FunctionHandleMetadata;
   #options?: ServiceOptions;
 
   /** @ignore */
   constructor(
     serviceFunctionId: string,
-    schema: ClassParameterSpec[],
-    methodNames: string[],
-    inputPlaneUrl?: string,
+    handleMetadata: FunctionHandleMetadata,
     options?: ServiceOptions,
   ) {
     this.#serviceFunctionId = serviceFunctionId;
-    this.#schema = schema;
-    this.#methodNames = methodNames;
-    this.#inputPlaneUrl = inputPlaneUrl;
+    this.#handleMetadata = handleMetadata;
     this.#options = options;
+  }
+
+  get #schema(): ClassParameterSpec[] {
+    return this.#handleMetadata.classParameterInfo?.schema ?? [];
+  }
+
+  get #methodNames(): string[] {
+    return Object.keys(this.#handleMetadata.methodHandleMetadata ?? {});
   }
 
   static async lookup(
@@ -99,12 +102,7 @@ export class Cls {
         );
       }
 
-      let methodNames: string[];
-      if (serviceFunction.handleMetadata?.methodHandleMetadata) {
-        methodNames = Object.keys(
-          serviceFunction.handleMetadata.methodHandleMetadata,
-        );
-      } else {
+      if (!serviceFunction.handleMetadata?.methodHandleMetadata) {
         // Legacy approach not supported
         throw new Error(
           "Cls requires Modal deployments using client v0.67 or later.",
@@ -112,9 +110,7 @@ export class Cls {
       }
       return new Cls(
         serviceFunction.functionId,
-        schema,
-        methodNames,
-        serviceFunction.handleMetadata?.inputPlaneUrl,
+        serviceFunction.handleMetadata!,
         undefined,
       );
     } catch (err) {
@@ -134,7 +130,8 @@ export class Cls {
     }
     const methods = new Map<string, Function_>();
     for (const name of this.#methodNames) {
-      methods.set(name, new Function_(functionId, name, this.#inputPlaneUrl));
+      const methodMetadata = this.#handleMetadata.methodHandleMetadata?.[name];
+      methods.set(name, new Function_(functionId, name, methodMetadata));
     }
     return new ClsInstance(methods);
   }
@@ -142,13 +139,7 @@ export class Cls {
   /** Override the static Function configuration at runtime. */
   withOptions(options: ClsOptions): Cls {
     const merged = mergeServiceOptions(this.#options, options);
-    return new Cls(
-      this.#serviceFunctionId,
-      this.#schema,
-      this.#methodNames,
-      this.#inputPlaneUrl,
-      merged,
-    );
+    return new Cls(this.#serviceFunctionId, this.#handleMetadata, merged);
   }
 
   /** Create an instance of the Cls with input concurrency enabled or overridden with new values. */
@@ -157,13 +148,7 @@ export class Cls {
       maxConcurrentInputs: options.maxInputs,
       targetConcurrentInputs: options.targetInputs,
     });
-    return new Cls(
-      this.#serviceFunctionId,
-      this.#schema,
-      this.#methodNames,
-      this.#inputPlaneUrl,
-      merged,
-    );
+    return new Cls(this.#serviceFunctionId, this.#handleMetadata, merged);
   }
 
   /** Create an instance of the Cls with dynamic batching enabled or overridden with new values. */
@@ -172,13 +157,7 @@ export class Cls {
       batchMaxSize: options.maxBatchSize,
       batchWaitMs: options.waitMs,
     });
-    return new Cls(
-      this.#serviceFunctionId,
-      this.#schema,
-      this.#methodNames,
-      this.#inputPlaneUrl,
-      merged,
-    );
+    return new Cls(this.#serviceFunctionId, this.#handleMetadata, merged);
   }
 
   /** Bind parameters to the Cls function. */
