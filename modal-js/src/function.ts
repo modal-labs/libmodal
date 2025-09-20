@@ -168,11 +168,13 @@ export class Function_ {
     args: any[] = [],
     kwargs: Record<string, any> = {},
   ): Promise<FunctionInput> {
-    const supported_input_formats = this.#handleMetadata
-      ?.supportedInputFormats || [DataFormat.DATA_FORMAT_PICKLE];
+    const supported_input_formats = this.#handleMetadata?.supportedInputFormats
+      ?.length
+      ? this.#handleMetadata.supportedInputFormats
+      : [DataFormat.DATA_FORMAT_PICKLE];
     if (!supported_input_formats.includes(DataFormat.DATA_FORMAT_CBOR)) {
       // the remote function isn't cbor compatible for inputs
-      // we can error early
+      // so we can error early
       throw new InvalidError(
         "The remote Function needs to be deployed using modal>=1.2 to be called from libmodal",
       );
