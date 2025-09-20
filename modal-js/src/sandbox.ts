@@ -6,6 +6,7 @@ import {
   PTYInfo,
   PTYInfo_PTYType,
   ContainerExecRequest,
+  SandboxTagsGetResponse,
 } from "../proto/modal_proto/api";
 import { client, isRetryableGrpc } from "./client";
 import { environmentName } from "./config";
@@ -189,6 +190,25 @@ export class Sandbox {
       }
       throw err;
     }
+  }
+
+  /** Get tags (key-value pairs) currently attached to this Sandbox from the server. */
+  async getTags(): Promise<Record<string, string>> {
+    let resp: SandboxTagsGetResponse;
+    try {
+      resp = await client.sandboxTagsGet({ sandboxId: this.sandboxId });
+    } catch (err) {
+      if (err instanceof ClientError && err.code === Status.INVALID_ARGUMENT) {
+        throw new InvalidError(err.details || err.message);
+      }
+      throw err;
+    }
+
+    const tags: Record<string, string> = {};
+    for (const tag of resp.tags) {
+      tags[tag.tagName] = tag.tagValue;
+    }
+    return tags;
   }
 
   /** Returns a running Sandbox object from an ID.

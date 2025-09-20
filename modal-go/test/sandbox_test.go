@@ -520,7 +520,7 @@ func TestSandboxSetTagsAndList(t *testing.T) {
 	g.Expect(after).To(gomega.Equal([]string{sb.SandboxId}))
 }
 
-func TestSandboxSetMultipleTagsAndList(t *testing.T) {
+func TestSandboxTags(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
@@ -534,12 +534,20 @@ func TestSandboxSetMultipleTagsAndList(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	defer sb.Terminate()
 
+	retrievedTagsBefore, err := sb.GetTags()
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(retrievedTagsBefore).To(gomega.Equal(map[string]string{}))
+
 	tagA := fmt.Sprintf("%d", rand.Int())
 	tagB := fmt.Sprintf("%d", rand.Int())
 	tagC := fmt.Sprintf("%d", rand.Int())
 
 	err = sb.SetTags(map[string]string{"key-a": tagA, "key-b": tagB, "key-c": tagC})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	retrievedTags, err := sb.GetTags()
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(retrievedTags).To(gomega.Equal(map[string]string{"key-a": tagA, "key-b": tagB, "key-c": tagC}))
 
 	var ids []string
 	it, err := modal.SandboxList(ctx, &modal.SandboxListOptions{Tags: map[string]string{"key-a": tagA}})
