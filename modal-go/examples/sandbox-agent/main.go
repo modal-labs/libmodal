@@ -26,7 +26,7 @@ func main() {
 		"ENV PATH=/root/.local/bin:$PATH USE_BUILTIN_RIPGREP=0",
 	}, nil)
 
-	sb, err := mc.Sandboxes.Create(ctx, app, image, nil)
+	sb, err := mc.Sandboxes.Create(ctx, *app, *image, nil)
 	if err != nil {
 		log.Fatalf("Failed to create Sandbox: %v", err)
 	}

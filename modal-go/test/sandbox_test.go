@@ -23,7 +23,7 @@ func TestCreateOneSandbox(t *testing.T) {
 
 	image := tc.Images.FromRegistry("alpine:3.21", nil)
 
-	sb, err := tc.Sandboxes.Create(ctx, app, image, nil)
+	sb, err := tc.Sandboxes.Create(ctx, *app, *image, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(sb.SandboxID).ShouldNot(gomega.BeEmpty())
 	defer terminateSandbox(g, sb)
@@ -46,7 +46,7 @@ func TestPassCatToStdin(t *testing.T) {
 
 	image := tc.Images.FromRegistry("alpine:3.21", nil)
 
-	sb, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{Command: []string{"cat"}})
+	sb, err := tc.Sandboxes.Create(ctx, *app, *image, &modal.SandboxCreateParams{Command: []string{"cat"}})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	defer terminateSandbox(g, sb)
 
@@ -70,7 +70,7 @@ func TestIgnoreLargeStdout(t *testing.T) {
 
 	image := tc.Images.FromRegistry("python:3.13-alpine", nil)
 
-	sb, err := tc.Sandboxes.Create(ctx, app, image, nil)
+	sb, err := tc.Sandboxes.Create(ctx, *app, *image, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	defer terminateSandbox(g, sb)
 
@@ -99,7 +99,7 @@ func TestSandboxCreateOptions(t *testing.T) {
 
 	image := tc.Images.FromRegistry("alpine:3.21", nil)
 
-	sb, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
+	sb, err := tc.Sandboxes.Create(ctx, *app, *image, &modal.SandboxCreateParams{
 		Command: []string{"echo", "hello, params"},
 		Cloud:   "aws",
 		Regions: []string{"us-east-1", "us-west-2"},
@@ -115,13 +115,13 @@ func TestSandboxCreateOptions(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(exitCode).Should(gomega.Equal(0))
 
-	_, err = tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
+	_, err = tc.Sandboxes.Create(ctx, *app, *image, &modal.SandboxCreateParams{
 		Cloud: "invalid-cloud",
 	})
 	g.Expect(err).Should(gomega.HaveOccurred())
 	g.Expect(err.Error()).Should(gomega.ContainSubstring("InvalidArgument"))
 
-	_, err = tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
+	_, err = tc.Sandboxes.Create(ctx, *app, *image, &modal.SandboxCreateParams{
 		Regions: []string{"invalid-region"},
 	})
 	g.Expect(err).Should(gomega.HaveOccurred())
@@ -138,7 +138,7 @@ func TestSandboxExecOptions(t *testing.T) {
 
 	image := tc.Images.FromRegistry("alpine:3.21", nil)
 
-	sb, err := tc.Sandboxes.Create(ctx, app, image, nil)
+	sb, err := tc.Sandboxes.Create(ctx, *app, *image, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	defer terminateSandbox(g, sb)
 
@@ -175,7 +175,7 @@ func TestSandboxWithVolume(t *testing.T) {
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	sandbox, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
+	sandbox, err := tc.Sandboxes.Create(ctx, *app, *image, &modal.SandboxCreateParams{
 		Command: []string{"echo", "volume test"},
 		Volumes: map[string]*modal.Volume{
 			"/mnt/test": volume,
@@ -210,7 +210,7 @@ func TestSandboxWithReadOnlyVolume(t *testing.T) {
 	readOnlyVolume := volume.ReadOnly()
 	g.Expect(readOnlyVolume.IsReadOnly()).To(gomega.BeTrue())
 
-	sb, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
+	sb, err := tc.Sandboxes.Create(ctx, *app, *image, &modal.SandboxCreateParams{
 		Command: []string{"sh", "-c", "echo 'test' > /mnt/test/test.txt"},
 		Volumes: map[string]*modal.Volume{
 			"/mnt/test": readOnlyVolume,
@@ -240,7 +240,7 @@ func TestSandboxWithTunnels(t *testing.T) {
 
 	image := tc.Images.FromRegistry("alpine:3.21", nil)
 
-	sandbox, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
+	sandbox, err := tc.Sandboxes.Create(ctx, *app, *image, &modal.SandboxCreateParams{
 		Command:          []string{"cat"},
 		EncryptedPorts:   []int{8443},
 		UnencryptedPorts: []int{8080},
@@ -289,7 +289,7 @@ func TestCreateSandboxWithSecrets(t *testing.T) {
 
 	image := tc.Images.FromRegistry("alpine:3.21", nil)
 
-	sb, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{Secrets: []*modal.Secret{secret}, Command: []string{"printenv", "c"}})
+	sb, err := tc.Sandboxes.Create(ctx, *app, *image, &modal.SandboxCreateParams{Secrets: []*modal.Secret{secret}, Command: []string{"printenv", "c"}})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	output, err := io.ReadAll(sb.Stdout)
@@ -306,7 +306,7 @@ func TestSandboxPollAndReturnCode(t *testing.T) {
 
 	image := tc.Images.FromRegistry("alpine:3.21", nil)
 
-	sandbox, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{Command: []string{"cat"}})
+	sandbox, err := tc.Sandboxes.Create(ctx, *app, *image, &modal.SandboxCreateParams{Command: []string{"cat"}})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	pollResult, err := sandbox.Poll(ctx)
@@ -339,7 +339,7 @@ func TestSandboxPollAfterFailure(t *testing.T) {
 
 	image := tc.Images.FromRegistry("alpine:3.21", nil)
 
-	sandbox, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
+	sandbox, err := tc.Sandboxes.Create(ctx, *app, *image, &modal.SandboxCreateParams{
 		Command: []string{"sh", "-c", "exit 42"},
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -366,7 +366,7 @@ func TestCreateSandboxWithNetworkAccessParams(t *testing.T) {
 
 	image := tc.Images.FromRegistry("alpine:3.21", nil)
 
-	sb, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
+	sb, err := tc.Sandboxes.Create(ctx, *app, *image, &modal.SandboxCreateParams{
 		Command:       []string{"echo", "hello, network access"},
 		BlockNetwork:  false,
 		CIDRAllowlist: []string{"10.0.0.0/8", "192.168.0.0/16"},
@@ -381,14 +381,14 @@ func TestCreateSandboxWithNetworkAccessParams(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(exitCode).Should(gomega.Equal(0))
 
-	_, err = tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
+	_, err = tc.Sandboxes.Create(ctx, *app, *image, &modal.SandboxCreateParams{
 		BlockNetwork:  false,
 		CIDRAllowlist: []string{"not-an-ip/8"},
 	})
 	g.Expect(err).Should(gomega.HaveOccurred())
 	g.Expect(err.Error()).Should(gomega.ContainSubstring("Invalid CIDR: not-an-ip/8"))
 
-	_, err = tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
+	_, err = tc.Sandboxes.Create(ctx, *app, *image, &modal.SandboxCreateParams{
 		BlockNetwork:  true,
 		CIDRAllowlist: []string{"10.0.0.0/8"},
 	})
@@ -406,7 +406,7 @@ func TestSandboxExecSecret(t *testing.T) {
 
 	image := tc.Images.FromRegistry("alpine:3.21", nil)
 
-	sb, err := tc.Sandboxes.Create(ctx, app, image, nil)
+	sb, err := tc.Sandboxes.Create(ctx, *app, *image, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	defer terminateSandbox(g, sb)
 
@@ -434,7 +434,7 @@ func TestSandboxFromId(t *testing.T) {
 
 	image := tc.Images.FromRegistry("alpine:3.21", nil)
 
-	sb, err := tc.Sandboxes.Create(ctx, app, image, nil)
+	sb, err := tc.Sandboxes.Create(ctx, *app, *image, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	defer terminateSandbox(g, sb)
 
@@ -455,7 +455,7 @@ func TestSandboxWithWorkdir(t *testing.T) {
 
 	image := tc.Images.FromRegistry("alpine:3.21", nil)
 
-	sb, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
+	sb, err := tc.Sandboxes.Create(ctx, *app, *image, &modal.SandboxCreateParams{
 		Command: []string{"pwd"},
 		Workdir: "/tmp",
 	})
@@ -470,7 +470,7 @@ func TestSandboxWithWorkdir(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(exitCode).To(gomega.Equal(0))
 
-	_, err = tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
+	_, err = tc.Sandboxes.Create(ctx, *app, *image, &modal.SandboxCreateParams{
 		Workdir: "relative/path",
 	})
 	g.Expect(err).Should(gomega.HaveOccurred())
@@ -487,7 +487,7 @@ func TestSandboxSetTagsAndList(t *testing.T) {
 
 	image := tc.Images.FromRegistry("alpine:3.21", nil)
 
-	sb, err := tc.Sandboxes.Create(ctx, app, image, nil)
+	sb, err := tc.Sandboxes.Create(ctx, *app, *image, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	defer terminateSandbox(g, sb)
 
@@ -525,7 +525,7 @@ func TestSandboxTags(t *testing.T) {
 
 	image := tc.Images.FromRegistry("alpine:3.21", nil)
 
-	sb, err := tc.Sandboxes.Create(ctx, app, image, nil)
+	sb, err := tc.Sandboxes.Create(ctx, *app, *image, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	defer terminateSandbox(g, sb)
 
@@ -582,7 +582,7 @@ func TestSandboxListByAppId(t *testing.T) {
 
 	image := tc.Images.FromRegistry("alpine:3.21", nil)
 
-	sb, err := tc.Sandboxes.Create(ctx, app, image, nil)
+	sb, err := tc.Sandboxes.Create(ctx, *app, *image, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	defer terminateSandbox(g, sb)
 
@@ -612,7 +612,7 @@ func TestNamedSandbox(t *testing.T) {
 
 	sandboxName := fmt.Sprintf("test-sandbox-%d", rand.Int())
 
-	sb, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
+	sb, err := tc.Sandboxes.Create(ctx, *app, *image, &modal.SandboxCreateParams{
 		Name:    sandboxName,
 		Command: []string{"sleep", "60"},
 	})
@@ -629,7 +629,7 @@ func TestNamedSandbox(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(sb2FromName.SandboxID).To(gomega.Equal(sb1FromName.SandboxID))
 
-	_, err = tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
+	_, err = tc.Sandboxes.Create(ctx, *app, *image, &modal.SandboxCreateParams{
 		Name:    sandboxName,
 		Command: []string{"sleep", "60"},
 	})

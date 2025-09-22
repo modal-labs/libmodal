@@ -18,7 +18,7 @@ func createSandbox(g *gomega.WithT) *modal.Sandbox {
 
 	image := tc.Images.FromRegistry("alpine:3.21", nil)
 
-	sb, err := tc.Sandboxes.Create(ctx, app, image, nil)
+	sb, err := tc.Sandboxes.Create(ctx, *app, *image, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(sb.SandboxID).ShouldNot(gomega.BeEmpty())
 	return sb

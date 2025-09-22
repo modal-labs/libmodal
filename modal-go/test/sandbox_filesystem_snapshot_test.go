@@ -20,7 +20,7 @@ func TestSnapshotFilesystem(t *testing.T) {
 
 	image := tc.Images.FromRegistry("alpine:3.21", nil)
 
-	sb, err := tc.Sandboxes.Create(ctx, app, image, nil)
+	sb, err := tc.Sandboxes.Create(ctx, *app, *image, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	defer terminateSandbox(g, sb)
 
@@ -39,7 +39,7 @@ func TestSnapshotFilesystem(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	// Create new Sandbox from snapshot
-	sb2, err := tc.Sandboxes.Create(ctx, app, snapshotImage, nil)
+	sb2, err := tc.Sandboxes.Create(ctx, *app, *snapshotImage, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	defer terminateSandbox(g, sb2)
 

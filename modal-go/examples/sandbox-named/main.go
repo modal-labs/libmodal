@@ -25,7 +25,7 @@ func main() {
 
 	sandboxName := "libmodal-example-named-sandbox"
 
-	sb, err := mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
+	sb, err := mc.Sandboxes.Create(ctx, *app, *image, &modal.SandboxCreateParams{
 		Name:    sandboxName,
 		Command: []string{"cat"},
 	})
@@ -41,7 +41,7 @@ func main() {
 	fmt.Printf("Created Sandbox with name: %s\n", sandboxName)
 	fmt.Printf("Sandbox ID: %s\n", sb.SandboxID)
 
-	_, err = mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
+	_, err = mc.Sandboxes.Create(ctx, *app, *image, &modal.SandboxCreateParams{
 		Name:    sandboxName,
 		Command: []string{"cat"},
 	})

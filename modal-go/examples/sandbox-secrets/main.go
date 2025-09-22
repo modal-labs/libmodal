@@ -33,7 +33,7 @@ func main() {
 		log.Fatalf("Failed creating ephemeral Secret: %v", err)
 	}
 
-	sb, err := mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
+	sb, err := mc.Sandboxes.Create(ctx, *app, *image, &modal.SandboxCreateParams{
 		Command: []string{"sh", "-lc", "printenv | grep -E '^c|d='"}, Secrets: []*modal.Secret{secret, ephemeralSecret},
 	})
 	if err != nil {

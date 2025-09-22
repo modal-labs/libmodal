@@ -22,7 +22,7 @@ func main() {
 
 	image := mc.Images.FromRegistry("alpine:3.21", nil)
 
-	sb, err := mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
+	sb, err := mc.Sandboxes.Create(ctx, *app, *image, &modal.SandboxCreateParams{
 		Command: []string{"cat"},
 	})
 	if err != nil {

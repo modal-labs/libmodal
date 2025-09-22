@@ -29,7 +29,7 @@ func main() {
 	}
 	defer volume.CloseEphemeral()
 
-	writerSandbox, err := mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
+	writerSandbox, err := mc.Sandboxes.Create(ctx, *app, *image, &modal.SandboxCreateParams{
 		Command: []string{
 			"sh",
 			"-c",
@@ -59,7 +59,7 @@ func main() {
 		log.Fatalf("Failed to terminate Sandbox %s: %v", writerSandbox.SandboxID, err)
 	}
 
-	readerSandbox, err := mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
+	readerSandbox, err := mc.Sandboxes.Create(ctx, *app, *image, &modal.SandboxCreateParams{
 		Command: []string{"cat", "/mnt/volume/message.txt"},
 		Volumes: map[string]*modal.Volume{
 			"/mnt/volume": volume.ReadOnly(),

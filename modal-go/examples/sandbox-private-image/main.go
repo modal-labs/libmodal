@@ -29,7 +29,7 @@ func main() {
 
 	image := mc.Images.FromAwsEcr("459781239556.dkr.ecr.us-east-1.amazonaws.com/ecr-private-registry-test-7522615:python", secret)
 
-	sb, err := mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
+	sb, err := mc.Sandboxes.Create(ctx, *app, *image, &modal.SandboxCreateParams{
 		Command: []string{"python", "-c", `import sys; sys.stdout.write(sys.stdin.read())`},
 	})
 	if err != nil {

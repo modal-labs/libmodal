@@ -37,7 +37,7 @@ func main() {
 		log.Fatalf("Failed to create Cloud Bucket Mount: %v", err)
 	}
 
-	sb, err := mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
+	sb, err := mc.Sandboxes.Create(ctx, *app, *image, &modal.SandboxCreateParams{
 		Command: []string{"sh", "-c", "ls -la /mnt/s3-bucket"},
 		CloudBucketMounts: map[string]*modal.CloudBucketMount{
 			"/mnt/s3-bucket": cloudBucketMount,

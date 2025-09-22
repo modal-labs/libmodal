@@ -23,7 +23,7 @@ func main() {
 	image := mc.Images.FromRegistry("alpine:3.21", nil)
 
 	// Create a sandbox that waits for input, then exits with code 42
-	sandbox, err := mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
+	sandbox, err := mc.Sandboxes.Create(ctx, *app, *image, &modal.SandboxCreateParams{
 		Command: []string{"sh", "-c", "read line; exit 42"},
 	})
 	if err != nil {

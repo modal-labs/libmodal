@@ -22,7 +22,7 @@ func main() {
 
 	image := mc.Images.FromRegistry("nvidia/cuda:12.4.0-devel-ubuntu22.04", nil)
 
-	sb, err := mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
+	sb, err := mc.Sandboxes.Create(ctx, *app, *image, &modal.SandboxCreateParams{
 		GPU: "A10G",
 	})
 	if err != nil {
