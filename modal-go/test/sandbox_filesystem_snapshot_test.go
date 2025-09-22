@@ -41,7 +41,7 @@ func TestSnapshotFilesystem(t *testing.T) {
 	// Create new Sandbox from snapshot
 	sb2, err := tc.Sandboxes.Create(ctx, app, snapshotImage, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	defer terminateSandbox(g, sb)
+	defer terminateSandbox(g, sb2)
 
 	// Verify file exists in snapshot
 	proc, err := sb2.Exec(ctx, []string{"cat", "/tmp/test.txt"}, modal.ExecOptions{})
