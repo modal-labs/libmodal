@@ -29,8 +29,12 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create Sandbox: %v", err)
 	}
-
 	fmt.Printf("Started Sandbox: %s\n", sandbox.SandboxId)
+	defer func() {
+		if err := sandbox.Terminate(context.Background()); err != nil {
+			log.Fatalf("Failed to terminate Sandbox %s: %v", sandbox.SandboxId, err)
+		}
+	}()
 
 	initialPoll, err := sandbox.Poll(ctx)
 	if err != nil {

@@ -42,7 +42,7 @@ func main() {
 	}
 	defer func() {
 		if err := sb.Terminate(context.Background()); err != nil {
-			log.Fatal("Failed to terminate Sandbox: ", err)
+			log.Fatalf("Failed to terminate Sandbox %s: %v", sb.SandboxId, err)
 		}
 	}()
 
