@@ -1,4 +1,3 @@
-import json
 import os
 import subprocess
 from datetime import date, datetime, timezone
@@ -61,7 +60,7 @@ process.stdin.on('end', () => {
 
 
 def python_to_js_code(data: Any) -> str:
-    """Convert Python data to JavaScript code snippet"""
+    """Convert Python data to JavaScript code snippet (legacy function - use explicit JS syntax in new tests)"""
     if data is None:
         return "null"
     elif isinstance(data, bool):
@@ -148,16 +147,130 @@ process.stdout.write(cbor);
     return cbor_bytes
 
 
-def decode_js_data_with_cbor_x(cbor_data: bytes) -> Any:
+def decode_and_verify_js_roundtrip(cbor_data: bytes, original_js_code: str) -> bool:
     """
-    Calls out to node and the cbor-x package to decode CBOR data back to JavaScript types,
-    then converts to JSON for Python consumption.
+    Calls out to node and the cbor-x package to decode CBOR data back to JavaScript types.
+    Compares the decoded result with the original JavaScript value.
+    Returns True if they match, False otherwise.
+    """
+    node_modules = os.path.join(os.path.dirname(__file__), "modal-js", "node_modules")
+
+    js_code = f"""
+const {{ decode }} = require('cbor-x');
+
+let chunks = [];
+process.stdin.on('data', chunk => chunks.push(chunk));
+process.stdin.on('end', () => {{
+    const buf = Buffer.concat(chunks);
+
+    try {{
+        const decoded = decode(buf);
+        const original = {original_js_code};
+
+        // Log the native JavaScript type for debugging
+        process.stderr.write(`JS decoded: ${{JSON.stringify(decoded, null, 2)}} (type: ${{typeof decoded}}, constructor: ${{decoded?.constructor?.name}})\\n`);
+        process.stderr.write(`JS original: ${{JSON.stringify(original, null, 2)}} (type: ${{typeof original}}, constructor: ${{original?.constructor?.name}})\\n`);
+
+        // Compare the values using a deep equality check
+        function deepEqual(a, b) {{
+            if (a === b) return true;
+
+            // Handle special number cases
+            if (typeof a === 'number' && typeof b === 'number') {{
+                if (Number.isNaN(a) && Number.isNaN(b)) return true;
+                return a === b;
+            }}
+
+            // Handle Date objects
+            if (a instanceof Date && b instanceof Date) {{
+                return a.getTime() === b.getTime();
+            }}
+
+            // Handle Sets
+            if (a instanceof Set && b instanceof Set) {{
+                if (a.size !== b.size) return false;
+                for (let item of a) {{
+                    if (!b.has(item)) return false;
+                }}
+                return true;
+            }}
+
+            // Handle Maps
+            if (a instanceof Map && b instanceof Map) {{
+                if (a.size !== b.size) return false;
+                for (let [key, value] of a) {{
+                    if (!b.has(key) || !deepEqual(b.get(key), value)) return false;
+                }}
+                return true;
+            }}
+
+            // Handle Arrays
+            if (Array.isArray(a) && Array.isArray(b)) {{
+                if (a.length !== b.length) return false;
+                for (let i = 0; i < a.length; i++) {{
+                    if (!deepEqual(a[i], b[i])) return false;
+                }}
+                return true;
+            }}
+
+            // Handle Objects
+            if (typeof a === 'object' && typeof b === 'object' && a !== null && b !== null) {{
+                const keysA = Object.keys(a);
+                const keysB = Object.keys(b);
+                if (keysA.length !== keysB.length) return false;
+                for (let key of keysA) {{
+                    if (!keysB.includes(key) || !deepEqual(a[key], b[key])) return false;
+                }}
+                return true;
+            }}
+
+            return false;
+        }}
+
+        const matches = deepEqual(decoded, original);
+        process.stderr.write(`Values match: ${{matches}}\\n`);
+        process.stdout.write(matches ? 'values_match' : 'values_differ');
+    }} catch (error) {{
+        process.stderr.write(`Decode error: ${{error.message}}`);
+        process.exit(1);
+    }}
+}});
+"""
+
+    proc = subprocess.Popen(
+        ["node", "-e", js_code],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        cwd=os.path.dirname(__file__),
+        env={**os.environ, "NODE_PATH": node_modules},
+    )
+    result, err = proc.communicate(input=cbor_data)
+    if proc.returncode != 0:
+        raise RuntimeError(f"Node cbor-x decode failed: {err.decode()}")
+
+    # Print JavaScript debug output if available
+    if err:
+        print(f"JS debug: {err.decode().strip()}")
+
+    result_str = result.decode().strip()
+    if result_str == "values_match":
+        return True
+    elif result_str == "values_differ":
+        return False
+    else:
+        raise RuntimeError(f"Unexpected result from JavaScript comparison: {result_str}")
+
+
+def decode_and_log_js_data_with_cbor_x(cbor_data: bytes) -> None:
+    """
+    Legacy function - kept for compatibility.
+    Use decode_and_verify_js_roundtrip for new tests.
     """
     node_modules = os.path.join(os.path.dirname(__file__), "modal-js", "node_modules")
 
     js_code = """
 const { decode } = require('cbor-x');
-const fs = require('fs');
 
 let chunks = [];
 process.stdin.on('data', chunk => chunks.push(chunk));
@@ -168,59 +281,10 @@ process.stdin.on('end', () => {
         const decoded = decode(buf);
 
         // Log the native JavaScript type for debugging
-        process.stderr.write(`JS decoded: ${JSON.stringify(decoded, null, 2)} (type: ${typeof decoded}, constructor: ${decoded?.constructor?.name})\n`);
+        process.stderr.write(`JS decoded: ${JSON.stringify(decoded, null, 2)} (type: ${typeof decoded}, constructor: ${decoded?.constructor?.name})\\n`);
 
-        // Convert JavaScript types to JSON-serializable format
-        function convertToJson(obj) {
-            if (obj === null || obj === undefined) {
-                return obj;
-            }
-
-            if (obj instanceof Uint8Array || obj instanceof ArrayBuffer) {
-                return {
-                    __type: 'bytes',
-                    data: Array.from(new Uint8Array(obj))
-                };
-            }
-
-            if (obj instanceof Set) {
-                return {
-                    __type: 'set',
-                    data: Array.from(obj).map(convertToJson)
-                };
-            }
-
-            if (obj instanceof Map) {
-                return {
-                    __type: 'map',
-                    data: Array.from(obj.entries()).map(([k, v]) => [convertToJson(k), convertToJson(v)])
-                };
-            }
-
-            if (obj instanceof Date) {
-                return {
-                    __type: 'date',
-                    data: obj.toISOString()
-                };
-            }
-
-            if (Array.isArray(obj)) {
-                return obj.map(convertToJson);
-            }
-
-            if (typeof obj === 'object') {
-                const result = {};
-                for (const [key, value] of Object.entries(obj)) {
-                    result[key] = convertToJson(value);
-                }
-                return result;
-            }
-
-            return obj;
-        }
-
-        const jsonData = convertToJson(decoded);
-        process.stdout.write(JSON.stringify(jsonData));
+        // Just output success - we don't need to transport data back
+        process.stdout.write('decode_success');
     } catch (error) {
         process.stderr.write(`Decode error: ${error.message}`);
         process.exit(1);
@@ -236,7 +300,7 @@ process.stdin.on('end', () => {
         cwd=os.path.dirname(__file__),
         env={**os.environ, "NODE_PATH": node_modules},
     )
-    json_result, err = proc.communicate(input=cbor_data)
+    result, err = proc.communicate(input=cbor_data)
     if proc.returncode != 0:
         raise RuntimeError(f"Node cbor-x decode failed: {err.decode()}")
 
@@ -244,30 +308,11 @@ process.stdin.on('end', () => {
     if err:
         print(f"JS debug: {err.decode().strip()}")
 
-    # Parse JSON and convert back to Python types
-    json_data = json.loads(json_result.decode())
-    return js_to_python_type(json_data)
+    if result.decode().strip() != "decode_success":
+        raise RuntimeError("JavaScript decode did not complete successfully")
 
 
-def js_to_python_type(obj: Any) -> Any:
-    """Convert JavaScript-decoded JSON data back to Python types"""
-    if isinstance(obj, dict) and "__type" in obj:
-        if obj["__type"] == "bytes":
-            return bytes(obj["data"])
-        elif obj["__type"] == "set":
-            return set(js_to_python_type(item) for item in obj["data"])
-        elif obj["__type"] == "date":
-            return datetime.fromisoformat(obj["data"].replace("Z", "+00:00"))
-        elif obj["__type"] == "map":
-            return dict((js_to_python_type(k), js_to_python_type(v)) for k, v in obj["data"])
-
-    if isinstance(obj, list):
-        return [js_to_python_type(item) for item in obj]
-
-    if isinstance(obj, dict):
-        return {k: js_to_python_type(v) for k, v in obj.items()}
-
-    return obj
+# Removed js_to_python_type function - no longer needed since we don't transport JS data back to Python
 
 
 def encode_with_node_cbor_x(data: bytes) -> bytes:
@@ -409,22 +454,15 @@ def test_roundtrip_js(test_name: str, js_input: str, python_intermediate: Any, c
         python_encoded = cbor2.dumps(python_decoded)
         print(f"Python encoded length: {len(python_encoded)} bytes")
 
-        # Step 4: Decode back using JavaScript cbor-x
-        final_result = decode_js_data_with_cbor_x(python_encoded)
-        print(f"Final result: {final_result} (type: {type(final_result)})")
+        # Step 4: Decode back using JavaScript cbor-x and verify it matches original
+        js_matches_original = decode_and_verify_js_roundtrip(python_encoded, js_input)
 
-        # Compare results
-        if compare_fn:
-            success = compare_fn(python_intermediate, final_result)
-        else:
-            success = python_intermediate == final_result
-
-        if success:
-            print(f"✅ {test_name} roundtrip successful!")
-            return True
-        else:
-            print(f"❌ {test_name} roundtrip failed: {python_intermediate} != {final_result}")
+        if not js_matches_original:
+            print(f"❌ {test_name} roundtrip failed: JavaScript decoded value doesn't match original")
             return False
+
+        print(f"✅ {test_name} roundtrip successful!")
+        return True
 
     except Exception as e:
         print(f"❌ {test_name} roundtrip failed with exception: {e}")
@@ -470,11 +508,11 @@ process.stdout.write(cbor);
     return cbor_bytes
 
 
-# Keep the old function for backward compatibility
+# Legacy test function for backward compatibility
 def test_roundtrip(test_name: str, original_data: Any, compare_fn=None) -> bool:
     """
     Legacy test function - converts Python data to JS and tests roundtrip.
-    Use test_roundtrip_js for new tests with explicit JS syntax.
+    DEPRECATED: Use test_roundtrip_js for new tests with explicit JS syntax.
     """
     js_code = python_to_js_code(original_data)
     return test_roundtrip_js(test_name, js_code, original_data, compare_fn)
@@ -561,7 +599,12 @@ def test_collection_types_js():
         # Sets
         ("empty set", "new Set([])", set(), compare_sets),
         ("simple set", "new Set([1, 2, 3])", {1, 2, 3}, compare_sets),
-        ("mixed set", 'new Set([1, "hello", true])', {1, "hello", True}, compare_sets),
+        (
+            "mixed set",
+            'new Set([2, "hello", true])',
+            {2, "hello", True},
+            compare_sets,
+        ),  # Use 2 instead of 1 to avoid True==1 issue
         ("string set", 'new Set(["apple", "banana", "cherry"])', {"apple", "banana", "cherry"}, compare_sets),
         # Objects (regular dictionaries)
         ("empty object", "{}", {}),
@@ -630,12 +673,9 @@ def test_date_types_js():
             datetime(2023, 1, 1, 12, 0, 0, 123000, tzinfo=timezone.utc),
             compare_dates,
         ),
-        (
-            "current date",
-            "new Date()",
-            datetime.now(timezone.utc),
-            lambda orig, result: abs((datetime.now(timezone.utc) - result).total_seconds()) < 5,
-        ),
+        # Skip current date test in JS syntax tests since new Date() creates different values each time
+        # ("current date", "new Date()", datetime.now(timezone.utc),
+        #  lambda orig, result: abs((datetime.now(timezone.utc) - result).total_seconds()) < 5),
     ]
 
     results = []
@@ -673,44 +713,76 @@ def test_cbor_tag_verification():
     print()
 
 
-def test_edge_cases():
-    """Test edge cases and special values"""
-    print("\n=== Testing Edge Cases ===")
+def test_edge_cases_js():
+    """Test edge cases and special values using explicit JavaScript syntax"""
+    print("\n=== Testing Edge Cases (JS Syntax) ===")
 
     test_cases = [
-        ("float", 3.14159),
-        ("negative float", -2.71828),
-        ("very small float", 1e-10),
-        ("very large float", 1e10),
+        ("float", "3.14159", 3.14159),
+        ("negative float", "-2.71828", -2.71828),
+        ("very small float", "1e-10", 1e-10),
+        ("very large float", "1e10", 1e10),
+        ("scientific notation positive", "1.23e5", 123000.0),
+        ("scientific notation negative", "1.23e-5", 0.0000123),
+        ("infinity", "Infinity", float("inf")),
+        ("negative infinity", "-Infinity", float("-inf")),
+        # Note: NaN comparison always fails, so we'll use a custom compare function
+        ("NaN", "NaN", float("nan"), lambda orig, result: str(result) == "nan"),
         (
             "empty nested structure",
+            '{"list": [], "dict": {}, "set": new Set()}',
             {"list": [], "dict": {}, "set": set()},
             lambda orig, result: (
                 orig["list"] == result["list"] and orig["dict"] == result["dict"] and orig["set"] == result["set"]
             ),
         ),
         (
-            "complex nested",
+            "complex nested with explicit dates",
+            '{"data": [{"id": 1, "tags": new Set(["urgent", "important"]), "meta": {"created": new Date("2025-09-22T11:15:03.963Z")}}, {"id": 2, "tags": new Set(["normal"]), "meta": {"created": new Date("2025-09-22T00:00:00.000Z")}}]}',
             {
                 "data": [
-                    {"id": 1, "tags": {"urgent", "important"}, "meta": {"created": datetime.now()}},
-                    {"id": 2, "tags": {"normal"}, "meta": {"created": date.today()}},
+                    {
+                        "id": 1,
+                        "tags": {"urgent", "important"},
+                        "meta": {"created": datetime(2025, 9, 22, 11, 15, 3, 963000, tzinfo=timezone.utc)},
+                    },
+                    {
+                        "id": 2,
+                        "tags": {"normal"},
+                        "meta": {"created": datetime(2025, 9, 22, 0, 0, 0, tzinfo=timezone.utc)},
+                    },
                 ]
             },
         ),
+        # Test various number edge cases
+        ("zero", "0", 0),
+        ("negative zero", "-0", -0),
+        ("max safe integer", "Number.MAX_SAFE_INTEGER", 9007199254740991),
+        ("min safe integer", "Number.MIN_SAFE_INTEGER", -9007199254740991),
+        ("smallest positive number", "Number.MIN_VALUE", 5e-324),
+        # Test string edge cases
+        ("empty string", '""', ""),
+        ("string with unicode", '"Hello 🌍 世界 🚀"', "Hello 🌍 世界 🚀"),
+        ("string with escapes", '"Line 1\\nLine 2\\tTabbed"', "Line 1\nLine 2\tTabbed"),
+        ("string with quotes", '"He said \\"Hello\\""', 'He said "Hello"'),
     ]
 
     results = []
     for item in test_cases:
-        if len(item) == 3:
-            name, data, compare_fn = item
-            success = test_roundtrip(name, data, compare_fn)
+        if len(item) == 4:
+            name, js_input, python_expected, compare_fn = item
+            success = test_roundtrip_js(name, js_input, python_expected, compare_fn)
         else:
-            name, data = item
-            success = test_roundtrip(name, data)
+            name, js_input, python_expected = item
+            success = test_roundtrip_js(name, js_input, python_expected)
         results.append((name, success))
 
     return results
+
+
+def test_edge_cases():
+    """Legacy test function - kept for compatibility"""
+    return test_edge_cases_js()
 
 
 def run_all_roundtrip_tests():
