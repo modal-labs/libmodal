@@ -32,6 +32,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create Sandbox: %v", err)
 	}
+	defer func() {
+		if err := sb.Terminate(context.Background()); err != nil {
+			log.Fatalf("Failed to terminate Sandbox %s: %v", sb.SandboxId, err)
+		}
+	}()
 
 	fmt.Printf("Created Sandbox with name: %s\n", sandboxName)
 	fmt.Printf("Sandbox ID: %s\n", sb.SandboxId)
@@ -69,10 +74,4 @@ func main() {
 		log.Fatalf("Failed to read output from Sandbox stdout: %v", err)
 	}
 	fmt.Printf("%s\n", output)
-
-	err = sb.Terminate(ctx)
-	if err != nil {
-		log.Fatalf("Failed to terminate Sandbox: %v", err)
-	}
-	fmt.Println("Sandbox terminated")
 }

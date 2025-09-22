@@ -40,6 +40,11 @@ func main() {
 		log.Fatalf("Failed to create Sandbox: %v", err)
 	}
 	log.Printf("Sandbox created: %s\n", sb.SandboxId)
+	defer func() {
+		if err := sb.Terminate(context.Background()); err != nil {
+			log.Fatalf("Failed to terminate Sandbox %s: %v", sb.SandboxId, err)
+		}
+	}()
 
 	output, err := io.ReadAll(sb.Stdout)
 	if err != nil {

@@ -117,7 +117,7 @@ func TestCreateSandboxWithImage(t *testing.T) {
 
 	sb, err := tc.Sandboxes.Create(ctx, app, image, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	defer sb.Terminate(ctx)
+	defer terminateSandbox(g, sb)
 
 	g.Expect(image.ImageId).Should(gomega.HavePrefix("im-"))
 }
@@ -169,13 +169,11 @@ func TestDockerfileCommands(t *testing.T) {
 		Command: []string{"cat", "/root/hello.txt"},
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	defer terminateSandbox(g, sb)
 
 	stdout, err := io.ReadAll(sb.Stdout)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(string(stdout)).Should(gomega.Equal("hey\n"))
-
-	err = sb.Terminate(ctx)
-	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 }
 
 func TestDockerfileCommandsEmptyArrayNoOp(t *testing.T) {
@@ -218,13 +216,11 @@ func TestDockerfileCommandsChaining(t *testing.T) {
 		},
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	defer terminateSandbox(g, sb)
 
 	stdout, err := io.ReadAll(sb.Stdout)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(string(stdout)).Should(gomega.Equal("unset\nhello\nunset\nhello again\n"))
-
-	err = sb.Terminate(ctx)
-	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 }
 
 func TestDockerfileCommandsCopyCommandValidation(t *testing.T) {

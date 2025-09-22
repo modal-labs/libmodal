@@ -26,6 +26,7 @@ func TestCreateOneSandbox(t *testing.T) {
 	sb, err := tc.Sandboxes.Create(ctx, app, image, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(sb.SandboxId).ShouldNot(gomega.BeEmpty())
+	defer terminateSandbox(g, sb)
 
 	err = sb.Terminate(ctx)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -47,6 +48,7 @@ func TestPassCatToStdin(t *testing.T) {
 
 	sb, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateOptions{Command: []string{"cat"}})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	defer terminateSandbox(g, sb)
 
 	_, err = sb.Stdin.Write([]byte("this is input that should be mirrored by cat"))
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -56,9 +58,6 @@ func TestPassCatToStdin(t *testing.T) {
 	output, err := io.ReadAll(sb.Stdout)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(string(output)).To(gomega.Equal("this is input that should be mirrored by cat"))
-
-	err = sb.Terminate(ctx)
-	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 }
 
 func TestIgnoreLargeStdout(t *testing.T) {
@@ -73,7 +72,7 @@ func TestIgnoreLargeStdout(t *testing.T) {
 
 	sb, err := tc.Sandboxes.Create(ctx, app, image, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	defer sb.Terminate(ctx)
+	defer terminateSandbox(g, sb)
 
 	p, err := sb.Exec(ctx, []string{"python", "-c", `print("a" * 1_000_000)`}, modal.ExecOptions{Stdout: modal.Ignore})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -110,7 +109,7 @@ func TestSandboxCreateOptions(t *testing.T) {
 	g.Expect(sb).ShouldNot(gomega.BeNil())
 	g.Expect(sb.SandboxId).Should(gomega.HavePrefix("sb-"))
 
-	defer sb.Terminate(ctx)
+	defer terminateSandbox(g, sb)
 
 	exitCode, err := sb.Wait(ctx)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -141,7 +140,7 @@ func TestSandboxExecOptions(t *testing.T) {
 
 	sb, err := tc.Sandboxes.Create(ctx, app, image, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	defer sb.Terminate(ctx)
+	defer terminateSandbox(g, sb)
 
 	// Test with a custom working directory and timeout.
 	p, err := sb.Exec(ctx, []string{"pwd"}, modal.ExecOptions{
@@ -218,6 +217,7 @@ func TestSandboxWithReadOnlyVolume(t *testing.T) {
 		},
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	defer terminateSandbox(g, sb)
 
 	exitCode, err := sb.Wait(ctx)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -226,9 +226,6 @@ func TestSandboxWithReadOnlyVolume(t *testing.T) {
 	stderr, err := io.ReadAll(sb.Stderr)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(string(stderr)).Should(gomega.ContainSubstring("Read-only file system"))
-
-	err = sb.Terminate(ctx)
-	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 }
 
 func TestSandboxWithTunnels(t *testing.T) {
@@ -249,10 +246,9 @@ func TestSandboxWithTunnels(t *testing.T) {
 		UnencryptedPorts: []int{8080},
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(sandbox).ShouldNot(gomega.BeNil())
-	g.Expect(sandbox.SandboxId).Should(gomega.HavePrefix("sb-"))
+	defer terminateSandbox(g, sandbox)
 
-	defer sandbox.Terminate(ctx)
+	g.Expect(sandbox.SandboxId).Should(gomega.HavePrefix("sb-"))
 
 	tunnels, err := sandbox.Tunnels(ctx, 30*time.Second)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -376,10 +372,10 @@ func TestCreateSandboxWithNetworkAccessParams(t *testing.T) {
 		CIDRAllowlist: []string{"10.0.0.0/8", "192.168.0.0/16"},
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	defer terminateSandbox(g, sb)
+
 	g.Expect(sb).ShouldNot(gomega.BeNil())
 	g.Expect(sb.SandboxId).Should(gomega.HavePrefix("sb-"))
-
-	defer sb.Terminate(ctx)
 
 	exitCode, err := sb.Wait(ctx)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -412,8 +408,7 @@ func TestSandboxExecSecret(t *testing.T) {
 
 	sb, err := tc.Sandboxes.Create(ctx, app, image, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(sb.SandboxId).ShouldNot(gomega.BeEmpty())
-	defer sb.Terminate(ctx)
+	defer terminateSandbox(g, sb)
 
 	secret, err := tc.Secrets.FromName(ctx, "libmodal-test-secret", &modal.SecretFromNameOptions{RequiredKeys: []string{"c"}})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -441,8 +436,9 @@ func TestSandboxFromId(t *testing.T) {
 
 	sb, err := tc.Sandboxes.Create(ctx, app, image, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	defer terminateSandbox(g, sb)
+
 	g.Expect(sb.SandboxId).ShouldNot(gomega.BeEmpty())
-	defer sb.Terminate(ctx)
 
 	sbFromId, err := tc.Sandboxes.FromId(ctx, sb.SandboxId)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -464,7 +460,7 @@ func TestSandboxWithWorkdir(t *testing.T) {
 		Workdir: "/tmp",
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	defer sb.Terminate(ctx)
+	defer terminateSandbox(g, sb)
 
 	output, err := io.ReadAll(sb.Stdout)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -493,7 +489,7 @@ func TestSandboxSetTagsAndList(t *testing.T) {
 
 	sb, err := tc.Sandboxes.Create(ctx, app, image, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	defer sb.Terminate(ctx)
+	defer terminateSandbox(g, sb)
 
 	unique := fmt.Sprintf("%d", rand.Int())
 
@@ -531,7 +527,7 @@ func TestSandboxTags(t *testing.T) {
 
 	sb, err := tc.Sandboxes.Create(ctx, app, image, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	defer sb.Terminate(ctx)
+	defer terminateSandbox(g, sb)
 
 	retrievedTagsBefore, err := sb.GetTags(ctx)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -588,7 +584,7 @@ func TestSandboxListByAppId(t *testing.T) {
 
 	sb, err := tc.Sandboxes.Create(ctx, app, image, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	defer sb.Terminate(ctx)
+	defer terminateSandbox(g, sb)
 
 	count := 0
 	it, err := tc.Sandboxes.List(ctx, &modal.SandboxListOptions{AppId: app.AppId})
@@ -623,7 +619,7 @@ func TestNamedSandbox(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(sb.SandboxId).ShouldNot(gomega.BeEmpty())
 
-	defer sb.Terminate(ctx)
+	defer terminateSandbox(g, sb)
 
 	sb1FromName, err := tc.Sandboxes.FromName(ctx, "libmodal-test", sandboxName, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())

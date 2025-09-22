@@ -35,6 +35,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create Sandbox: %v", err)
 	}
+	defer func() {
+		if err := sandbox.Terminate(context.Background()); err != nil {
+			log.Fatalf("Failed to terminate Sandbox %s: %v", sandbox.SandboxId, err)
+		}
+	}()
 
 	log.Printf("Sandbox created: %s", sandbox.SandboxId)
 
@@ -83,9 +88,4 @@ func main() {
 	fmt.Printf("\nDirectory listing from server (first 500 chars):\n%s\n", bodyStr)
 
 	log.Printf("\n✅ Successfully connected to the tunneled server!")
-
-	err = sandbox.Terminate(ctx)
-	if err != nil {
-		log.Fatalf("Failed to terminate Sandbox: %v", err)
-	}
 }

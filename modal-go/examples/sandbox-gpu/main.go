@@ -29,7 +29,11 @@ func main() {
 		log.Fatalf("Failed to create Sandbox: %v", err)
 	}
 	log.Printf("Started Sandbox with A10G GPU: %s", sb.SandboxId)
-	defer sb.Terminate(ctx)
+	defer func() {
+		if err := sb.Terminate(context.Background()); err != nil {
+			log.Fatalf("Failed to terminate Sandbox %s: %v", sb.SandboxId, err)
+		}
+	}()
 
 	log.Println("Running `nvidia-smi` in Sandbox:")
 

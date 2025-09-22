@@ -40,9 +40,13 @@ func main() {
 	sb, err := mc.Sandboxes.Create(ctx, app, image2, &modal.SandboxCreateOptions{
 		Command: []string{"cat"},
 	})
-	defer sb.Terminate(ctx)
 	if err != nil {
 		log.Fatalf("Failed to create Sandbox: %v", err)
 	}
+	defer func() {
+		if err := sb.Terminate(context.Background()); err != nil {
+			log.Fatalf("Failed to terminate Sandbox %s: %v", sb.SandboxId, err)
+		}
+	}()
 	log.Printf("Sandbox: %s\n", sb.SandboxId)
 }
