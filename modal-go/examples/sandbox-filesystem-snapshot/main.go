@@ -65,8 +65,8 @@ func main() {
 	log.Printf("Started new Sandbox from snapshot: %s", sb2.SandboxId)
 
 	defer func() {
-		if err := sb.Terminate(context.Background()); err != nil {
-			log.Fatalf("Failed to terminate Sandbox %s: %v", sb.SandboxId, err)
+		if err := sb2.Terminate(context.Background()); err != nil {
+			log.Fatalf("Failed to terminate Sandbox %s: %v", sb2.SandboxId, err)
 		}
 	}()
 
