@@ -22,7 +22,7 @@ func TestSnapshotFilesystem(t *testing.T) {
 
 	sb, err := tc.Sandboxes.Create(ctx, app, image, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	defer sb.Terminate(ctx)
+	defer terminateSandbox(g, sb)
 
 	_, err = sb.Exec(ctx, []string{"sh", "-c", "echo -n 'test content' > /tmp/test.txt"}, modal.ExecOptions{})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -41,7 +41,7 @@ func TestSnapshotFilesystem(t *testing.T) {
 	// Create new Sandbox from snapshot
 	sb2, err := tc.Sandboxes.Create(ctx, app, snapshotImage, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	defer sb2.Terminate(ctx)
+	defer terminateSandbox(g, sb)
 
 	// Verify file exists in snapshot
 	proc, err := sb2.Exec(ctx, []string{"cat", "/tmp/test.txt"}, modal.ExecOptions{})

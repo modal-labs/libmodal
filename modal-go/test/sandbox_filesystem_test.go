@@ -24,11 +24,6 @@ func createSandbox(g *gomega.WithT) *modal.Sandbox {
 	return sb
 }
 
-func terminateSandbox(g *gomega.WithT, sb *modal.Sandbox) {
-	err := sb.Terminate(context.Background())
-	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-}
-
 func TestSandboxWriteAndReadBinaryFile(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)

@@ -46,6 +46,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create Sandbox: %v", err)
 	}
+	defer func() {
+		if err := sb.Terminate(context.Background()); err != nil {
+			log.Fatal("Failed to terminate Sandbox: ", err)
+		}
+	}()
 
 	log.Printf("S3 Sandbox: %s", sb.SandboxId)
 
@@ -55,8 +60,4 @@ func main() {
 	}
 
 	log.Printf("Sandbox directory listing of /mnt/s3-bucket:\n%s", string(output))
-
-	if err := sb.Terminate(ctx); err != nil {
-		log.Printf("Failed to terminate Sandbox: %v", err)
-	}
 }

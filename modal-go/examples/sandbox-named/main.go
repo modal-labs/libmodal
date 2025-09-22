@@ -47,6 +47,11 @@ func main() {
 			log.Fatalf("Unexpected error: %v", err)
 		}
 	}
+	defer func() {
+		if err := sb.Terminate(context.Background()); err != nil {
+			log.Fatalf("Failed to terminate Sandbox %s: %v", sb.SandboxId, err)
+		}
+	}()
 
 	sbFromName, err := mc.Sandboxes.FromName(ctx, "libmodal-example", sandboxName, nil)
 	if err != nil {
@@ -69,10 +74,4 @@ func main() {
 		log.Fatalf("Failed to read output from Sandbox stdout: %v", err)
 	}
 	fmt.Printf("%s\n", output)
-
-	err = sb.Terminate(ctx)
-	if err != nil {
-		log.Fatalf("Failed to terminate Sandbox: %v", err)
-	}
-	fmt.Println("Sandbox terminated")
 }

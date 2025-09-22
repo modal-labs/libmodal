@@ -35,6 +35,11 @@ func main() {
 		log.Fatalf("Failed to create sandbox: %v", err)
 	}
 	log.Printf("Created sandbox with proxy: %s", sb.SandboxId)
+	defer func() {
+		if err := sb.Terminate(context.Background()); err != nil {
+			log.Fatalf("Failed to terminate Sandbox %s: %v", sb.SandboxId, err)
+		}
+	}()
 
 	p, err := sb.Exec(ctx, []string{"curl", "-s", "ifconfig.me"}, modal.ExecOptions{})
 	if err != nil {
@@ -47,9 +52,4 @@ func main() {
 	}
 
 	log.Printf("External IP: %s", string(ip))
-
-	err = sb.Terminate(ctx)
-	if err != nil {
-		log.Fatalf("Failed to terminate Sandbox: %v", err)
-	}
 }
