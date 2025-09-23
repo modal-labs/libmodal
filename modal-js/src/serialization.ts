@@ -5,7 +5,12 @@
  * that ensures compatibility with the Python CBOR implementation.
  */
 
-import { Encoder, Decoder } from "cbor-x";
+import { Encoder, Decoder, Options } from "cbor-x";
+
+// Extend the Options interface to include undocumented options
+interface ExtendedOptions extends Options {
+  useTag259ForMaps?: boolean;
+}
 
 /**
  * Custom CBOR encoder configured for Modal's specific requirements.
@@ -15,20 +20,26 @@ import { Encoder, Decoder } from "cbor-x";
  * - useRecords: false - Disable record structures
  * - tagUint8Array: false - Don't tag Uint8Arrays (avoid tag 64)
  */
-const encoder = new Encoder({
+const encoderOptions: ExtendedOptions = {
   mapsAsObjects: true,
   useRecords: false,
   tagUint8Array: false,
-});
+  useTag259ForMaps: false,
+};
+
+const decoderOptions: ExtendedOptions = {
+  mapsAsObjects: true,
+  useRecords: false,
+  tagUint8Array: false,
+  useTag259ForMaps: false,
+};
+
+const encoder = new Encoder(encoderOptions);
 
 /**
  * Custom CBOR decoder configured for Modal's specific requirements.
  */
-const decoder = new Decoder({
-  mapsAsObjects: true,
-  useRecords: false,
-  tagUint8Array: false,
-});
+const decoder = new Decoder(decoderOptions);
 
 /**
  * Encode a JavaScript value to CBOR bytes.
@@ -48,24 +59,4 @@ export function cborEncode(value: any): Buffer {
  */
 export function cborDecode(data: Buffer | Uint8Array): any {
   return decoder.decode(data);
-}
-
-/**
- * Get the configured encoder instance.
- * Useful for advanced use cases that need direct access to the encoder.
- *
- * @returns The configured CBOR encoder
- */
-export function getEncoder(): Encoder {
-  return encoder;
-}
-
-/**
- * Get the configured decoder instance.
- * Useful for advanced use cases that need direct access to the decoder.
- *
- * @returns The configured CBOR decoder
- */
-export function getDecoder(): Decoder {
-  return decoder;
 }

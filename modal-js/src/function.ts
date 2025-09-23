@@ -13,7 +13,7 @@ import { client } from "./client";
 import { FunctionCall } from "./function_call";
 import { environmentName } from "./config";
 import { InternalFailure, InvalidError, NotFoundError } from "./errors";
-import { encode as cborEncode } from "cbor-x";
+import { cborEncode } from "./serialization";
 import { ClientError, Status } from "nice-grpc";
 import {
   ControlPlaneInvocation,

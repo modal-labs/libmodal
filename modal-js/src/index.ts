@@ -62,3 +62,4 @@ export { SandboxFile, type SandboxFileMode } from "./sandbox_filesystem";
 export { Volume, type VolumeFromNameOptions } from "./volume";
 export { Proxy, type ProxyFromNameOptions } from "./proxy";
 export { CloudBucketMount } from "./cloud_bucket_mount";
+export { cborEncode, cborDecode } from "./serialization";
