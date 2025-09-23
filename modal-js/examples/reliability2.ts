@@ -1,13 +1,17 @@
 // Quick script for making sure Sandboxes can be created and wait() without stalling.
 
 import PQueue from "p-queue";
-import { App } from "modal";
+import { ModalClient } from "modal";
 
-const app = await App.lookup("libmodal-example", { createIfMissing: true });
-const image = await app.imageFromRegistry("python:3.13-slim");
+const mc = new ModalClient();
+
+const app = await mc.apps.lookup("libmodal-example", {
+  createIfMissing: true,
+});
+const image = mc.images.fromRegistry("python:3.13-slim");
 
 async function createAndWaitOne() {
-  const sb = await app.createSandbox(image);
+  const sb = await mc.sandboxes.create(app, image);
   if (!sb.sandboxId) throw new Error("Sandbox ID is missing");
   await sb.terminate();
   const exitCode = await Promise.race([

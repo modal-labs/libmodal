@@ -1,8 +1,9 @@
-import { client } from "./client";
+import { getDefaultClient } from "./client";
 import { environmentName as configEnvironmentName } from "./config";
 import { ClientError, Status } from "nice-grpc";
 import { InvalidError, NotFoundError } from "./errors";
 import { ObjectCreationType } from "../proto/modal_proto/api";
+import { APIService } from "./api-service";
 
 /** Options for `Secret.fromName()`. */
 export type SecretFromNameOptions = {
@@ -10,24 +11,17 @@ export type SecretFromNameOptions = {
   requiredKeys?: string[];
 };
 
-/** Secrets provide a dictionary of environment variables for Images. */
-export class Secret {
-  readonly secretId: string;
-  readonly name?: string;
-
-  /** @ignore */
-  constructor(secretId: string, name?: string) {
-    this.secretId = secretId;
-    this.name = name;
-  }
-
+/**
+ * Service for managing Secrets.
+ */
+export class SecretService extends APIService {
   /** Reference a Secret by its name. */
-  static async fromName(
+  async fromName(
     name: string,
     options?: SecretFromNameOptions,
   ): Promise<Secret> {
     try {
-      const resp = await client.secretGetOrCreate({
+      const resp = await this.client.cpClient.secretGetOrCreate({
         deploymentName: name,
         environmentName: configEnvironmentName(options?.environment),
         requiredKeys: options?.requiredKeys ?? [],
@@ -47,7 +41,7 @@ export class Secret {
   }
 
   /** Create a Secret from a plain object of key-value pairs. */
-  static async fromObject(
+  async fromObject(
     entries: Record<string, string>,
     options?: { environment?: string },
   ): Promise<Secret> {
@@ -61,7 +55,7 @@ export class Secret {
     }
 
     try {
-      const resp = await client.secretGetOrCreate({
+      const resp = await this.client.cpClient.secretGetOrCreate({
         objectCreationType: ObjectCreationType.OBJECT_CREATION_TYPE_EPHEMERAL,
         envDict: entries as Record<string, string>,
         environmentName: configEnvironmentName(options?.environment),
@@ -79,13 +73,45 @@ export class Secret {
   }
 }
 
+/** Secrets provide a dictionary of environment variables for Images. */
+export class Secret {
+  readonly secretId: string;
+  readonly name?: string;
+
+  /** @ignore */
+  constructor(secretId: string, name?: string) {
+    this.secretId = secretId;
+    this.name = name;
+  }
+
+  /**
+   * @deprecated Use `client.secrets.fromName()` instead.
+   */
+  static async fromName(
+    name: string,
+    options?: SecretFromNameOptions,
+  ): Promise<Secret> {
+    return getDefaultClient().secrets.fromName(name, options);
+  }
+
+  /**
+   * @deprecated Use `client.secrets.fromMap()` instead.
+   */
+  static async fromObject(
+    entries: Record<string, string>,
+    options?: { environment?: string },
+  ): Promise<Secret> {
+    return getDefaultClient().secrets.fromObject(entries, options);
+  }
+}
+
 export async function mergeEnvAndSecrets(
   env?: Record<string, string>,
   secrets?: Secret[],
 ): Promise<Secret[]> {
   const result = [...(secrets || [])];
   if (env && Object.keys(env).length > 0) {
-    result.push(await Secret.fromObject(env));
+    result.push(await getDefaultClient().secrets.fromObject(env));
   }
   return result;
 }

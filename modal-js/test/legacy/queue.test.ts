@@ -1,7 +1,7 @@
 import { Queue, QueueEmptyError } from "modal";
 import { expect, onTestFinished, test, vi } from "vitest";
-import { ephemeralObjectHeartbeatSleep } from "../src/ephemeral";
-import { createMockModalClients } from "../test-support/grpc_mock";
+import { ephemeralObjectHeartbeatSleep } from "../../src/ephemeral";
+import { createMockModalClients } from "../../test-support/grpc_mock";
 
 test("QueueInvalidName", async () => {
   for (const name of ["has space", "has/slash", "a".repeat(65)]) {

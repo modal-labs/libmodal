@@ -1,26 +1,26 @@
-import { tc } from "../test-support/test-client";
+import { App, Image, Secret } from "modal";
 import { expect, test } from "vitest";
 
 test("SecretFromName", async () => {
-  const secret = await tc.secrets.fromName("libmodal-test-secret");
+  const secret = await Secret.fromName("libmodal-test-secret");
   expect(secret).toBeDefined();
   expect(secret.secretId).toBeDefined();
   expect(secret.secretId).toMatch(/^st-/);
   expect(secret.name).toBe("libmodal-test-secret");
 
-  const promise = tc.secrets.fromName("missing-secret");
+  const promise = Secret.fromName("missing-secret");
   await expect(promise).rejects.toThrowError(
     /Secret 'missing-secret' not found/,
   );
 });
 
 test("SecretFromNameWithRequiredKeys", async () => {
-  const secret = await tc.secrets.fromName("libmodal-test-secret", {
+  const secret = await Secret.fromName("libmodal-test-secret", {
     requiredKeys: ["a", "b", "c"],
   });
   expect(secret).toBeDefined();
 
-  const promise = tc.secrets.fromName("libmodal-test-secret", {
+  const promise = Secret.fromName("libmodal-test-secret", {
     requiredKeys: ["a", "b", "c", "missing-key"],
   });
   await expect(promise).rejects.toThrowError(
@@ -29,13 +29,13 @@ test("SecretFromNameWithRequiredKeys", async () => {
 });
 
 test("SecretFromObject", async () => {
-  const secret = await tc.secrets.fromObject({ key: "value" });
+  const secret = await Secret.fromObject({ key: "value" });
   expect(secret).toBeDefined();
 
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
-  const image = tc.images.fromRegistry("alpine:3.21");
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
+  const image = await Image.fromRegistry("alpine:3.21");
 
-  const sandbox = await tc.sandboxes.create(app, image, {
+  const sandbox = await app.createSandbox(image, {
     command: ["printenv", "key"],
     secrets: [secret],
   });
@@ -46,7 +46,7 @@ test("SecretFromObject", async () => {
 
 test("SecretFromObjectInvalid", async () => {
   // @ts-expect-error testing runtime validation
-  await expect(tc.secrets.fromObject({ key: 123 })).rejects.toThrowError(
+  await expect(Secret.fromObject({ key: 123 })).rejects.toThrowError(
     /entries must be an object mapping string keys to string values/,
   );
 });

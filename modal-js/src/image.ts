@@ -6,13 +6,114 @@ import {
   Image as ImageProto,
   GPUConfig,
 } from "../proto/modal_proto/api";
-import { client } from "./client";
+import { getDefaultClient, type ModalClient } from "./client";
 import { App, parseGpuConfig } from "./app";
 import { Secret, mergeEnvAndSecrets } from "./secret";
-import { imageBuilderVersion } from "./config";
 import { ClientError } from "nice-grpc";
 import { Status } from "nice-grpc";
 import { NotFoundError, InvalidError } from "./errors";
+import { APIService } from "./api-service";
+
+/**
+ * Service for managing Images.
+ */
+export class ImageService extends APIService {
+  /**
+   * Creates an Image from an Image ID
+   *
+   * @param imageId - Image ID.
+   */
+  async fromId(imageId: string): Promise<Image> {
+    try {
+      const resp = await this.client.cpClient.imageFromId({ imageId });
+      return new Image(this.client, resp.imageId, "");
+    } catch (err) {
+      if (err instanceof ClientError && err.code === Status.NOT_FOUND)
+        throw new NotFoundError(err.details);
+      if (
+        err instanceof ClientError &&
+        err.code === Status.FAILED_PRECONDITION &&
+        err.details.includes("Could not find image with ID")
+      )
+        throw new NotFoundError(err.details);
+      throw err;
+    }
+  }
+
+  /**
+   * Creates an Image from a raw registry tag, optionally using a Secret for authentication.
+   *
+   * @param tag - The registry tag for the Image.
+   * @param secret - Optional. A Secret containing credentials for registry authentication.
+   */
+  fromRegistry(tag: string, secret?: Secret): Image {
+    let imageRegistryConfig;
+    if (secret) {
+      if (!(secret instanceof Secret)) {
+        throw new TypeError(
+          "secret must be a reference to an existing Secret, e.g. `await Secret.fromName('my_secret')`",
+        );
+      }
+      imageRegistryConfig = {
+        registryAuthType: RegistryAuthType.REGISTRY_AUTH_TYPE_STATIC_CREDS,
+        secretId: secret.secretId,
+      };
+    }
+    return new Image(this.client, "", tag, imageRegistryConfig);
+  }
+
+  /**
+   * Creates an Image from a raw registry tag, optionally using a Secret for authentication.
+   *
+   * @param tag - The registry tag for the Image.
+   * @param secret - A Secret containing credentials for registry authentication.
+   */
+  fromAwsEcr(tag: string, secret: Secret): Image {
+    let imageRegistryConfig;
+    if (secret) {
+      if (!(secret instanceof Secret)) {
+        throw new TypeError(
+          "secret must be a reference to an existing Secret, e.g. `await Secret.fromName('my_secret')`",
+        );
+      }
+      imageRegistryConfig = {
+        registryAuthType: RegistryAuthType.REGISTRY_AUTH_TYPE_AWS,
+        secretId: secret.secretId,
+      };
+    }
+    return new Image(this.client, "", tag, imageRegistryConfig);
+  }
+
+  /**
+   * Creates an Image from a raw registry tag, optionally using a Secret for authentication.
+   *
+   * @param tag - The registry tag for the Image.
+   * @param secret - A Secret containing credentials for registry authentication.
+   */
+  fromGcpArtifactRegistry(tag: string, secret: Secret): Image {
+    let imageRegistryConfig;
+    if (secret) {
+      if (!(secret instanceof Secret)) {
+        throw new TypeError(
+          "secret must be a reference to an existing Secret, e.g. `await Secret.fromName('my_secret')`",
+        );
+      }
+      imageRegistryConfig = {
+        registryAuthType: RegistryAuthType.REGISTRY_AUTH_TYPE_GCP,
+        secretId: secret.secretId,
+      };
+    }
+    return new Image(this.client, "", tag, imageRegistryConfig);
+  }
+
+  /**
+   * Delete an Image by ID. Warning: This removes an *entire Image*, and cannot be undone.
+   */
+  async delete(imageId: string, _: ImageDeleteOptions = {}): Promise<void> {
+    const image = await this.fromId(imageId);
+    await this.client.cpClient.imageDelete({ imageId: image.imageId });
+  }
+}
 
 /** Options for deleting an Image. */
 export type ImageDeleteOptions = Record<never, never>;
@@ -43,6 +144,7 @@ type Layer = {
 
 /** A container image, used for starting Sandboxes. */
 export class Image {
+  #client: ModalClient;
   #imageId: string;
   #tag: string;
   #imageRegistryConfig?: ImageRegistryConfig;
@@ -50,11 +152,13 @@ export class Image {
 
   /** @ignore */
   constructor(
+    client: ModalClient,
     imageId: string,
     tag: string,
     imageRegistryConfig?: ImageRegistryConfig,
     layers?: Layer[],
   ) {
+    this.#client = client;
     this.#imageId = imageId;
     this.#tag = tag;
     this.#imageRegistryConfig = imageRegistryConfig;
@@ -73,91 +177,31 @@ export class Image {
   }
 
   /**
-   * Creates an Image from an Image ID
-   *
-   * @param imageId - Image ID.
+   * @deprecated Use `client.images.fromId()` instead.
    */
   static async fromId(imageId: string): Promise<Image> {
-    try {
-      const resp = await client.imageFromId({ imageId });
-      return new Image(resp.imageId, "");
-    } catch (err) {
-      if (err instanceof ClientError && err.code === Status.NOT_FOUND)
-        throw new NotFoundError(err.details);
-      if (
-        err instanceof ClientError &&
-        err.code === Status.FAILED_PRECONDITION &&
-        err.details.includes("Could not find image with ID")
-      )
-        throw new NotFoundError(err.details);
-      throw err;
-    }
+    return getDefaultClient().images.fromId(imageId);
   }
 
   /**
-   * Creates an Image from a raw registry tag, optionally using a Secret for authentication.
-   *
-   * @param tag - The registry tag for the Image.
-   * @param secret - Optional. A Secret containing credentials for registry authentication.
+   * @deprecated Use `client.images.fromRegistry()` instead.
    */
   static fromRegistry(tag: string, secret?: Secret): Image {
-    let imageRegistryConfig;
-    if (secret) {
-      if (!(secret instanceof Secret)) {
-        throw new TypeError(
-          "secret must be a reference to an existing Secret, e.g. `await Secret.fromName('my_secret')`",
-        );
-      }
-      imageRegistryConfig = {
-        registryAuthType: RegistryAuthType.REGISTRY_AUTH_TYPE_STATIC_CREDS,
-        secretId: secret.secretId,
-      };
-    }
-    return new Image("", tag, imageRegistryConfig);
+    return getDefaultClient().images.fromRegistry(tag, secret);
   }
 
   /**
-   * Creates an Image from a raw registry tag, optionally using a Secret for authentication.
-   *
-   * @param tag - The registry tag for the Image.
-   * @param secret - A Secret containing credentials for registry authentication.
+   * @deprecated Use `client.images.fromAwsEcr()` instead.
    */
   static fromAwsEcr(tag: string, secret: Secret): Image {
-    let imageRegistryConfig;
-    if (secret) {
-      if (!(secret instanceof Secret)) {
-        throw new TypeError(
-          "secret must be a reference to an existing Secret, e.g. `await Secret.fromName('my_secret')`",
-        );
-      }
-      imageRegistryConfig = {
-        registryAuthType: RegistryAuthType.REGISTRY_AUTH_TYPE_AWS,
-        secretId: secret.secretId,
-      };
-    }
-    return new Image("", tag, imageRegistryConfig);
+    return getDefaultClient().images.fromAwsEcr(tag, secret);
   }
 
   /**
-   * Creates an Image from a raw registry tag, optionally using a Secret for authentication.
-   *
-   * @param tag - The registry tag for the Image.
-   * @param secret - A Secret containing credentials for registry authentication.
+   * @deprecated Use `client.images.fromGcpArtifactRegistry()` instead.
    */
   static fromGcpArtifactRegistry(tag: string, secret: Secret): Image {
-    let imageRegistryConfig;
-    if (secret) {
-      if (!(secret instanceof Secret)) {
-        throw new TypeError(
-          "secret must be a reference to an existing Secret, e.g. `await Secret.fromName('my_secret')`",
-        );
-      }
-      imageRegistryConfig = {
-        registryAuthType: RegistryAuthType.REGISTRY_AUTH_TYPE_GCP,
-        secretId: secret.secretId,
-      };
-    }
-    return new Image("", tag, imageRegistryConfig);
+    return getDefaultClient().images.fromGcpArtifactRegistry(tag, secret);
   }
 
   private static validateDockerfileCommands(commands: string[]): void {
@@ -199,7 +243,7 @@ export class Image {
       forceBuild: options?.forceBuild,
     };
 
-    return new Image("", this.#tag, this.#imageRegistryConfig, [
+    return new Image(this.#client, "", this.#tag, this.#imageRegistryConfig, [
       ...this.#layers,
       newLayer,
     ]);
@@ -236,7 +280,7 @@ export class Image {
         baseImages = [{ dockerTag: "base", imageId: baseImageId! }];
       }
 
-      const resp = await client.imageGetOrCreate({
+      const resp = await this.#client.cpClient.imageGetOrCreate({
         appId: app.appId,
         image: ImageProto.create({
           dockerfileCommands,
@@ -246,7 +290,7 @@ export class Image {
           contextFiles: [],
           baseImages,
         }),
-        builderVersion: imageBuilderVersion(),
+        builderVersion: this.#client.imageBuilderVersion(),
         forceBuild: layer.forceBuild || false,
       });
 
@@ -260,7 +304,7 @@ export class Image {
         let lastEntryId = "";
         let resultJoined: GenericResult | undefined = undefined;
         while (!resultJoined) {
-          for await (const item of client.imageJoinStreaming({
+          for await (const item of this.#client.cpClient.imageJoinStreaming({
             imageId: resp.imageId,
             timeout: 55,
             lastEntryId,
@@ -309,12 +353,13 @@ export class Image {
     return this;
   }
 
-  /** Delete an Image by ID. Warning: This removes an *entire Image*, and cannot be undone. */
+  /**
+   * @deprecated Use `client.images.delete()` instead.
+   */
   static async delete(
     imageId: string,
     _: ImageDeleteOptions = {},
   ): Promise<void> {
-    const image = await Image.fromId(imageId);
-    await client.imageDelete({ imageId: image.imageId });
+    return getDefaultClient().images.delete(imageId);
   }
 }

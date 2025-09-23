@@ -1,13 +1,19 @@
-import { App, Image, Secret } from "modal";
+import { ModalClient } from "modal";
 
-const app = await App.lookup("libmodal-example", { createIfMissing: true });
-const image = await Image.fromRegistry("alpine:3.21").dockerfileCommands([
-  "RUN apk add --no-cache bash curl git libgcc libstdc++ ripgrep",
-  "RUN curl -fsSL https://claude.ai/install.sh | bash",
-  "ENV PATH=/root/.local/bin:$PATH USE_BUILTIN_RIPGREP=0",
-]);
+const mc = new ModalClient();
 
-const sb = await app.createSandbox(image);
+const app = await mc.apps.lookup("libmodal-example", {
+  createIfMissing: true,
+});
+const image = mc.images
+  .fromRegistry("alpine:3.21")
+  .dockerfileCommands([
+    "RUN apk add --no-cache bash curl git libgcc libstdc++ ripgrep",
+    "RUN curl -fsSL https://claude.ai/install.sh | bash",
+    "ENV PATH=/root/.local/bin:$PATH USE_BUILTIN_RIPGREP=0",
+  ]);
+
+const sb = await mc.sandboxes.create(app, image);
 console.log("Started Sandbox:", sb.sandboxId);
 
 try {
@@ -27,7 +33,7 @@ try {
     // Adding a PTY is important, since Claude requires it!
     pty: true,
     secrets: [
-      await Secret.fromName("libmodal-anthropic-secret", {
+      await mc.secrets.fromName("libmodal-anthropic-secret", {
         requiredKeys: ["ANTHROPIC_API_KEY"],
       }),
     ],

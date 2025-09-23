@@ -1,11 +1,15 @@
-import { App, Image, Volume } from "modal";
+import { ModalClient } from "modal";
 
-const app = await App.lookup("libmodal-example", { createIfMissing: true });
-const image = await Image.fromRegistry("alpine:3.21");
+const mc = new ModalClient();
 
-const volume = await Volume.ephemeral();
+const app = await mc.apps.lookup("libmodal-example", {
+  createIfMissing: true,
+});
+const image = mc.images.fromRegistry("alpine:3.21");
 
-const writerSandbox = await app.createSandbox(image, {
+const volume = await mc.volumes.ephemeral();
+
+const writerSandbox = await mc.sandboxes.create(app, image, {
   command: [
     "sh",
     "-c",
@@ -19,7 +23,7 @@ await writerSandbox.wait();
 console.log("Writer finished");
 await writerSandbox.terminate();
 
-const readerSandbox = await app.createSandbox(image, {
+const readerSandbox = await mc.sandboxes.create(app, image, {
   command: ["cat", "/mnt/volume/message.txt"],
   volumes: { "/mnt/volume": volume.readOnly() },
 });

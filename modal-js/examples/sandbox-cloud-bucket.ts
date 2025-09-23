@@ -1,11 +1,15 @@
-import { App, Secret, CloudBucketMount, Image } from "modal";
+import { ModalClient, CloudBucketMount } from "modal";
 
-const app = await App.lookup("libmodal-example", { createIfMissing: true });
-const image = await Image.fromRegistry("alpine:3.21");
+const mc = new ModalClient();
 
-const secret = await Secret.fromName("libmodal-aws-bucket-secret");
+const app = await mc.apps.lookup("libmodal-example", {
+  createIfMissing: true,
+});
+const image = mc.images.fromRegistry("alpine:3.21");
 
-const sb = await app.createSandbox(image, {
+const secret = await mc.secrets.fromName("libmodal-aws-bucket-secret");
+
+const sb = await mc.sandboxes.create(app, image, {
   command: ["sh", "-c", "ls -la /mnt/s3-bucket"],
   cloudBucketMounts: {
     "/mnt/s3-bucket": new CloudBucketMount("my-s3-bucket", {

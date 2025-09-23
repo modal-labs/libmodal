@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import {
   CallOptions,
+  Client,
   ClientError,
   ClientMiddleware,
   ClientMiddlewareCall,
@@ -9,60 +10,168 @@ import {
   Metadata,
   Status,
 } from "nice-grpc";
+import { AppService } from "./app";
+import { ClsService } from "./cls";
+import { FunctionService } from "./function";
+import { FunctionCallService } from "./function_call";
+import { ImageService } from "./image";
+import { ProxyService } from "./proxy";
+import { QueueService } from "./queue";
+import { SandboxService } from "./sandbox";
+import { SecretService } from "./secret";
+import { VolumeService } from "./volume";
 
 import { ClientType, ModalClientDefinition } from "../proto/modal_proto/api";
 import { getProfile, type Profile } from "./config";
 
-const defaultProfile = getProfile(process.env["MODAL_PROFILE"]);
+export interface ModalParams {
+  tokenId?: string;
+  tokenSecret?: string;
+  environment?: string;
+  endpoint?: string;
+  timeout?: number;
+  maxRetries?: number;
+  /** @internal */
+  cpClient?: ModalGrpcClient;
+}
 
-let modalAuthToken: string | undefined;
+/** @internal */
+export type ModalGrpcClient = Client<
+  typeof ModalClientDefinition,
+  TimeoutOptions & RetryOptions
+>;
 
-/** gRPC client middleware to add auth token to request. */
-function authMiddleware(profile: Profile): ClientMiddleware {
-  return async function* authMiddleware<Request, Response>(
-    call: ClientMiddlewareCall<Request, Response>,
-    options: CallOptions,
-  ) {
-    if (!profile.tokenId || !profile.tokenSecret) {
-      throw new Error(
-        `Profile is missing token_id or token_secret. Please set them in .modal.toml, or as environment variables, or initializeClient().`,
+export class ModalClient {
+  readonly apps: AppService;
+  readonly cls: ClsService;
+  readonly functions: FunctionService;
+  readonly functionCalls: FunctionCallService;
+  readonly images: ImageService;
+  readonly proxies: ProxyService;
+  readonly queues: QueueService;
+  readonly sandboxes: SandboxService;
+  readonly secrets: SecretService;
+  readonly volumes: VolumeService;
+
+  /** @internal */
+  readonly cpClient: ModalGrpcClient;
+  readonly profile: Profile;
+
+  private ipClients: Map<string, ModalGrpcClient>;
+  private authToken?: string;
+
+  constructor(params?: ModalParams) {
+    const baseProfile = getProfile(process.env["MODAL_PROFILE"]);
+    this.profile = {
+      ...baseProfile,
+      ...(params?.tokenId && { tokenId: params.tokenId }),
+      ...(params?.tokenSecret && { tokenSecret: params.tokenSecret }),
+      ...(params?.environment && { environment: params.environment }),
+    };
+
+    this.ipClients = new Map();
+    this.cpClient = params?.cpClient ?? this.createClient(this.profile);
+
+    this.apps = new AppService(this);
+    this.cls = new ClsService(this);
+    this.functions = new FunctionService(this);
+    this.functionCalls = new FunctionCallService(this);
+    this.images = new ImageService(this);
+    this.proxies = new ProxyService(this);
+    this.queues = new QueueService(this);
+    this.sandboxes = new SandboxService(this);
+    this.secrets = new SecretService(this);
+    this.volumes = new VolumeService(this);
+  }
+
+  environmentName(environment?: string): string {
+    return environment || this.profile.environment || "";
+  }
+
+  imageBuilderVersion(version?: string): string {
+    return version || this.profile.imageBuilderVersion || "2024.10";
+  }
+
+  ipClient(serverUrl: string): ModalGrpcClient {
+    const existing = this.ipClients.get(serverUrl);
+    if (existing) {
+      return existing;
+    }
+
+    const profile = { ...this.profile, serverUrl };
+    const newClient = this.createClient(profile);
+    this.ipClients.set(serverUrl, newClient);
+    return newClient;
+  }
+
+  private createClient(profile: Profile): ModalGrpcClient {
+    // Channels don't do anything until you send a request on them.
+    // Ref: https://github.com/modal-labs/modal-client/blob/main/modal/_utils/grpc_utils.py
+    const channel = createChannel(profile.serverUrl, undefined, {
+      "grpc.max_receive_message_length": 100 * 1024 * 1024,
+      "grpc.max_send_message_length": 100 * 1024 * 1024,
+      "grpc-node.flow_control_window": 64 * 1024 * 1024,
+    });
+    return createClientFactory()
+      .use(this.authMiddleware(profile))
+      .use(retryMiddleware)
+      .use(timeoutMiddleware)
+      .create(ModalClientDefinition, channel);
+  }
+
+  private authMiddleware(profile: Profile): ClientMiddleware {
+    // workaround for TypeScript failing to infer the type of this with .bind(this)
+    const getAuthToken = () => this.authToken;
+    const setAuthToken = (token: string) => {
+      this.authToken = token;
+    };
+
+    return async function* authMiddleware<Request, Response>(
+      call: ClientMiddlewareCall<Request, Response>,
+      options: CallOptions,
+    ) {
+      if (!profile.tokenId || !profile.tokenSecret) {
+        throw new Error(
+          `Profile is missing token_id or token_secret. Please set them in .modal.toml, or as environment variables, or via ModalClient constructor.`,
+        );
+      }
+      const { tokenId, tokenSecret } = profile;
+
+      options.metadata ??= new Metadata();
+      options.metadata.set(
+        "x-modal-client-type",
+        String(ClientType.CLIENT_TYPE_LIBMODAL_JS),
       );
-    }
-    const { tokenId, tokenSecret } = profile;
-
-    options.metadata ??= new Metadata();
-    options.metadata.set(
-      "x-modal-client-type",
-      String(ClientType.CLIENT_TYPE_LIBMODAL_JS),
-    );
-    options.metadata.set("x-modal-client-version", "1.0.0"); // CLIENT VERSION: Behaves like this Python SDK version
-    options.metadata.set("x-modal-token-id", tokenId);
-    options.metadata.set("x-modal-token-secret", tokenSecret);
-    if (modalAuthToken) {
-      options.metadata.set("x-modal-auth-token", modalAuthToken);
-    }
-
-    // We receive an auth token from the control plane on our first request. We then include that auth token in every
-    // subsequent request to both the control plane and the input plane. The python server returns it in the trailers,
-    // the worker returns it in the headers.
-    const prevOnHeader = options.onHeader;
-    options.onHeader = (header) => {
-      const token = header.get("x-modal-auth-token");
-      if (token) {
-        modalAuthToken = token;
+      options.metadata.set("x-modal-client-version", "1.0.0"); // CLIENT VERSION: Behaves like this Python SDK version
+      options.metadata.set("x-modal-token-id", tokenId);
+      options.metadata.set("x-modal-token-secret", tokenSecret);
+      const authToken = getAuthToken();
+      if (authToken) {
+        options.metadata.set("x-modal-auth-token", authToken);
       }
-      prevOnHeader?.(header);
+
+      // We receive an auth token from the control plane on our first request. We then include that auth token in every
+      // subsequent request to both the control plane and the input plane. The python server returns it in the trailers,
+      // the worker returns it in the headers.
+      const prevOnHeader = options.onHeader;
+      options.onHeader = (header) => {
+        const token = header.get("x-modal-auth-token");
+        if (token) {
+          setAuthToken(token);
+        }
+        prevOnHeader?.(header);
+      };
+      const prevOnTrailer = options.onTrailer;
+      options.onTrailer = (trailer) => {
+        const token = trailer.get("x-modal-auth-token");
+        if (token) {
+          setAuthToken(token);
+        }
+        prevOnTrailer?.(trailer);
+      };
+      return yield* call.next(call.request, options);
     };
-    const prevOnTrailer = options.onTrailer;
-    options.onTrailer = (trailer) => {
-      const token = trailer.get("x-modal-auth-token");
-      if (token) {
-        modalAuthToken = token;
-      }
-      prevOnTrailer?.(trailer);
-    };
-    return yield* call.next(call.request, options);
-  };
+  }
 }
 
 type TimeoutOptions = {
@@ -224,41 +333,25 @@ const retryMiddleware: ClientMiddleware<RetryOptions> =
     }
   };
 
-/** Map of server URL to input-plane client. */
-const inputPlaneClients: Record<string, ReturnType<typeof createClient>> = {};
+// Legacy default client - lazily initialized
+let defaultClient: ModalClient | undefined;
 
-/** Returns a client for the given server URL, creating it if it doesn't exist. */
-export const getOrCreateInputPlaneClient = (
-  serverUrl: string,
-): ReturnType<typeof createClient> => {
-  const client = inputPlaneClients[serverUrl];
-  if (client) {
-    return client;
+// Initialization options for the default client (from initializeClient)
+let defaultClientOptions: ModalParams | undefined;
+
+export function getDefaultClient(): ModalClient {
+  if (!defaultClient) {
+    defaultClient = new ModalClient(defaultClientOptions);
   }
-  const profile = { ...clientProfile, serverUrl };
-  const newClient = createClient(profile);
-  inputPlaneClients[serverUrl] = newClient;
-  return newClient;
-};
-
-function createClient(profile: Profile) {
-  // Channels don't do anything until you send a request on them.
-  // Ref: https://github.com/modal-labs/modal-client/blob/main/modal/_utils/grpc_utils.py
-  const channel = createChannel(profile.serverUrl, undefined, {
-    "grpc.max_receive_message_length": 100 * 1024 * 1024,
-    "grpc.max_send_message_length": 100 * 1024 * 1024,
-    "grpc-node.flow_control_window": 64 * 1024 * 1024,
-  });
-  return createClientFactory()
-    .use(authMiddleware(profile))
-    .use(retryMiddleware)
-    .use(timeoutMiddleware)
-    .create(ModalClientDefinition, channel);
+  return defaultClient;
 }
 
-export let clientProfile = defaultProfile;
-
-export let client = createClient(clientProfile);
+// Legacy client export for backward compatibility - proxies to control plane client
+export const client = new Proxy({} as ModalGrpcClient, {
+  get(_target, prop) {
+    return getDefaultClient().cpClient[prop as keyof ModalGrpcClient];
+  },
+});
 
 /** Options for initializing a client at runtime. */
 export type ClientOptions = {
@@ -268,18 +361,13 @@ export type ClientOptions = {
 };
 
 /**
- * Initialize the Modal client, passing in token authentication credentials.
- *
- * You should call this function at the start of your application if not
- * configuring Modal with a `.modal.toml` file or environment variables.
+ * @deprecated Use `new ModalClient()` instead.
  */
 export function initializeClient(options: ClientOptions) {
-  const mergedProfile = {
-    ...defaultProfile,
+  defaultClientOptions = {
     tokenId: options.tokenId,
     tokenSecret: options.tokenSecret,
-    environment: options.environment || defaultProfile.environment,
+    environment: options.environment,
   };
-  clientProfile = mergedProfile;
-  client = createClient(mergedProfile);
+  defaultClient = new ModalClient(defaultClientOptions);
 }

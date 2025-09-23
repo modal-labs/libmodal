@@ -1,15 +1,19 @@
-import { App, Secret, Image } from "modal";
+import { ModalClient } from "modal";
 
-const app = await App.lookup("libmodal-example", { createIfMissing: true });
-const image = await Image.fromAwsEcr(
+const mc = new ModalClient();
+
+const app = await mc.apps.lookup("libmodal-example", {
+  createIfMissing: true,
+});
+const image = mc.images.fromAwsEcr(
   "459781239556.dkr.ecr.us-east-1.amazonaws.com/ecr-private-registry-test-7522615:python",
-  await Secret.fromName("libmodal-aws-ecr-test", {
+  await mc.secrets.fromName("libmodal-aws-ecr-test", {
     requiredKeys: ["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"],
   }),
 );
 
 // Spawn a Sandbox running a simple Python version of the "cat" command.
-const sb = await app.createSandbox(image, {
+const sb = await mc.sandboxes.create(app, image, {
   command: ["python", "-c", `import sys; sys.stdout.write(sys.stdin.read())`],
 });
 console.log("Sandbox:", sb.sandboxId);
