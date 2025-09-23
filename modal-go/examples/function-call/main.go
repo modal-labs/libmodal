@@ -16,9 +16,9 @@ func main() {
 		log.Fatalf("Failed to create client: %v", err)
 	}
 
-	echo, err := mc.Functions.Lookup(ctx, "libmodal-test-support", "echo_string", nil)
+	echo, err := mc.Functions.FromName(ctx, "libmodal-test-support", "echo_string", nil)
 	if err != nil {
-		log.Fatalf("Failed to lookup Function: %v", err)
+		log.Fatalf("Failed to get Function: %v", err)
 	}
 
 	ret, err := echo.Remote(ctx, []any{"Hello world!"}, nil)

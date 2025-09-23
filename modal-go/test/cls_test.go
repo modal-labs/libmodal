@@ -13,7 +13,7 @@ func TestClsCall(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	cls, err := tc.Cls.Lookup(ctx, "libmodal-test-support", "EchoCls", nil)
+	cls, err := tc.Cls.FromName(ctx, "libmodal-test-support", "EchoCls", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	instance, err := cls.Instance(ctx, nil)
@@ -30,7 +30,7 @@ func TestClsCall(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(result).Should(gomega.Equal("output: hello"))
 
-	cls, err = tc.Cls.Lookup(ctx, "libmodal-test-support", "EchoClsParametrized", nil)
+	cls, err = tc.Cls.FromName(ctx, "libmodal-test-support", "EchoClsParametrized", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	instance, err = cls.Instance(ctx, map[string]any{"name": "hello-init"})
@@ -47,7 +47,7 @@ func TestClsNotFound(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
-	_, err := tc.Cls.Lookup(context.Background(), "libmodal-test-support", "NotRealClassName", nil)
+	_, err := tc.Cls.FromName(context.Background(), "libmodal-test-support", "NotRealClassName", nil)
 	g.Expect(err).Should(gomega.BeAssignableToTypeOf(modal.NotFoundError{}))
 }
 
@@ -56,7 +56,7 @@ func TestClsCallInputPlane(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	cls, err := tc.Cls.Lookup(ctx, "libmodal-test-support", "EchoClsInputPlane", nil)
+	cls, err := tc.Cls.FromName(ctx, "libmodal-test-support", "EchoClsInputPlane", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	instance, err := cls.Instance(ctx, nil)

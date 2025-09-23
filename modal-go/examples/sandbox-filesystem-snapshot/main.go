@@ -18,7 +18,7 @@ func main() {
 
 	app, err := mc.Apps.Lookup(ctx, "libmodal-example", &modal.LookupOptions{CreateIfMissing: true})
 	if err != nil {
-		log.Fatalf("Failed to lookup App: %v", err)
+		log.Fatalf("Failed to get or create App: %v", err)
 	}
 
 	baseImage := mc.Images.FromRegistry("alpine:3.21", nil)

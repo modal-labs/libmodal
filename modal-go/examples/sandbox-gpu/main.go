@@ -17,7 +17,7 @@ func main() {
 
 	app, err := mc.Apps.Lookup(ctx, "libmodal-example", &modal.LookupOptions{CreateIfMissing: true})
 	if err != nil {
-		log.Fatalf("Failed to lookup or create App: %v", err)
+		log.Fatalf("Failed to get or create App: %v", err)
 	}
 
 	image := mc.Images.FromRegistry("nvidia/cuda:12.4.0-devel-ubuntu22.04", nil)

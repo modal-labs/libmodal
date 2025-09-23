@@ -15,7 +15,7 @@ func TestFunctionSpawn(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	function, err := tc.Functions.Lookup(
+	function, err := tc.Functions.FromName(
 		ctx,
 		"libmodal-test-support", "echo_string", nil,
 	)
@@ -35,7 +35,7 @@ func TestFunctionSpawn(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(result).Should(gomega.Equal("output: hello"))
 
-	sleep, err := tc.Functions.Lookup(
+	sleep, err := tc.Functions.FromName(
 		ctx,
 		"libmodal-test-support", "sleep", nil,
 	)
@@ -65,7 +65,7 @@ func TestFunctionCallGet0(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	sleep, _ := tc.Functions.Lookup(
+	sleep, _ := tc.Functions.FromName(
 		ctx,
 		"libmodal-test-support", "sleep", nil,
 	)

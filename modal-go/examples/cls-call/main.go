@@ -16,10 +16,9 @@ func main() {
 		log.Fatalf("Failed to create client: %v", err)
 	}
 
-	// Lookup a deployed Cls.
-	cls, err := mc.Cls.Lookup(ctx, "libmodal-test-support", "EchoCls", nil)
+	cls, err := mc.Cls.FromName(ctx, "libmodal-test-support", "EchoCls", nil)
 	if err != nil {
-		log.Fatalf("Failed to lookup Cls: %v", err)
+		log.Fatalf("Failed to get Cls: %v", err)
 	}
 
 	instance, err := cls.Instance(ctx, nil)

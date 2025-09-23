@@ -18,7 +18,7 @@ func main() {
 
 	app, err := mc.Apps.Lookup(ctx, "libmodal-example", &modal.LookupOptions{CreateIfMissing: true})
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Failed to get or create App: %v", err)
 	}
 
 	secret, err := mc.Secrets.FromMap(ctx, map[string]string{
