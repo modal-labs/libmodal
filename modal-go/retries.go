@@ -5,8 +5,8 @@ import (
 	"time"
 )
 
-// RetriesOptions are options for creating a Retries policy.
-type RetriesOptions struct {
+// RetriesParams are options for creating a Retries policy.
+type RetriesParams struct {
 	BackoffCoefficient *float32       // Multiplier for exponential backoff. Defaults to 2.0.
 	InitialDelay       *time.Duration // Defaults to 1s.
 	MaxDelay           *time.Duration // Defaults to 60s.
@@ -21,20 +21,20 @@ type Retries struct {
 }
 
 // NewRetries creates a new Retries configuration.
-func NewRetries(maxRetries int, options *RetriesOptions) (*Retries, error) {
+func NewRetries(maxRetries int, params *RetriesParams) (*Retries, error) {
 	backoffCoefficient := float32(2.0)
 	initialDelay := 1 * time.Second
 	maxDelay := 60 * time.Second
 
-	if options != nil {
-		if options.BackoffCoefficient != nil {
-			backoffCoefficient = *options.BackoffCoefficient
+	if params != nil {
+		if params.BackoffCoefficient != nil {
+			backoffCoefficient = *params.BackoffCoefficient
 		}
-		if options.InitialDelay != nil {
-			initialDelay = *options.InitialDelay
+		if params.InitialDelay != nil {
+			initialDelay = *params.InitialDelay
 		}
-		if options.MaxDelay != nil {
-			maxDelay = *options.MaxDelay
+		if params.MaxDelay != nil {
+			maxDelay = *params.MaxDelay
 		}
 	}
 

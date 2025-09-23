@@ -16,7 +16,7 @@ func TestImageFromId(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameOptions{CreateIfMissing: true})
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	image, err := tc.Images.FromRegistry("alpine:3.21", nil).Build(ctx, app)
@@ -35,7 +35,7 @@ func TestImageFromRegistry(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameOptions{CreateIfMissing: true})
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	image, err := tc.Images.FromRegistry("alpine:3.21", nil).Build(ctx, app)
@@ -53,15 +53,15 @@ func TestImageFromRegistryWithSecret(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameOptions{CreateIfMissing: true})
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	secret, err := tc.Secrets.FromName(ctx, "libmodal-gcp-artifact-registry-test", &modal.SecretFromNameOptions{
+	secret, err := tc.Secrets.FromName(ctx, "libmodal-gcp-artifact-registry-test", &modal.SecretFromNameParams{
 		RequiredKeys: []string{"REGISTRY_USERNAME", "REGISTRY_PASSWORD"},
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	image, err := tc.Images.FromRegistry("us-east1-docker.pkg.dev/modal-prod-367916/private-repo-test/my-image", &modal.ImageFromRegistryOptions{
+	image, err := tc.Images.FromRegistry("us-east1-docker.pkg.dev/modal-prod-367916/private-repo-test/my-image", &modal.ImageFromRegistryParams{
 		Secret: secret,
 	}).Build(ctx, app)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -73,10 +73,10 @@ func TestImageFromAwsEcr(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameOptions{CreateIfMissing: true})
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	secret, err := tc.Secrets.FromName(ctx, "libmodal-aws-ecr-test", &modal.SecretFromNameOptions{
+	secret, err := tc.Secrets.FromName(ctx, "libmodal-aws-ecr-test", &modal.SecretFromNameParams{
 		RequiredKeys: []string{"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"},
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -91,10 +91,10 @@ func TestImageFromGcpArtifactRegistry(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameOptions{CreateIfMissing: true})
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	secret, err := tc.Secrets.FromName(ctx, "libmodal-gcp-artifact-registry-test", &modal.SecretFromNameOptions{
+	secret, err := tc.Secrets.FromName(ctx, "libmodal-gcp-artifact-registry-test", &modal.SecretFromNameParams{
 		RequiredKeys: []string{"SERVICE_ACCOUNT_JSON"},
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -109,7 +109,7 @@ func TestCreateSandboxWithImage(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameOptions{CreateIfMissing: true})
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	image := tc.Images.FromRegistry("alpine:3.21", nil)
@@ -127,7 +127,7 @@ func TestImageDelete(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameOptions{CreateIfMissing: true})
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	image, err := tc.Images.FromRegistry("alpine:3.13", nil).Build(ctx, app)
@@ -157,7 +157,7 @@ func TestDockerfileCommands(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameOptions{CreateIfMissing: true})
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	image := tc.Images.FromRegistry("alpine:3.21", nil).DockerfileCommands(
@@ -165,7 +165,7 @@ func TestDockerfileCommands(t *testing.T) {
 		nil,
 	)
 
-	sb, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateOptions{
+	sb, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
 		Command: []string{"cat", "/root/hello.txt"},
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -190,7 +190,7 @@ func TestDockerfileCommandsChaining(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameOptions{CreateIfMissing: true})
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	secret, err := tc.Secrets.FromMap(ctx, map[string]string{"SECRET": "hello"}, nil)
@@ -198,15 +198,15 @@ func TestDockerfileCommandsChaining(t *testing.T) {
 
 	image := tc.Images.FromRegistry("alpine:3.21", nil).
 		DockerfileCommands([]string{"RUN echo ${SECRET:-unset} > /root/layer1.txt"}, nil).
-		DockerfileCommands([]string{"RUN echo ${SECRET:-unset} > /root/layer2.txt"}, &modal.ImageDockerfileCommandsOptions{
+		DockerfileCommands([]string{"RUN echo ${SECRET:-unset} > /root/layer2.txt"}, &modal.ImageDockerfileCommandsParams{
 			Secrets: []*modal.Secret{secret},
 		}).
 		DockerfileCommands([]string{"RUN echo ${SECRET:-unset} > /root/layer3.txt"}, nil).
-		DockerfileCommands([]string{"RUN echo ${SECRET:-unset} > /root/layer4.txt"}, &modal.ImageDockerfileCommandsOptions{
+		DockerfileCommands([]string{"RUN echo ${SECRET:-unset} > /root/layer4.txt"}, &modal.ImageDockerfileCommandsParams{
 			Env: map[string]string{"SECRET": "hello again"},
 		})
 
-	sb, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateOptions{
+	sb, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
 		Command: []string{
 			"cat",
 			"/root/layer1.txt",
@@ -228,7 +228,7 @@ func TestDockerfileCommandsCopyCommandValidation(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameOptions{CreateIfMissing: true})
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	image := tc.Images.FromRegistry("alpine:3.21", nil)
@@ -363,12 +363,12 @@ func TestDockerfileCommandsWithOptions(t *testing.T) {
 
 	builtImage, err := mock.Images.FromRegistry("alpine:3.21", nil).
 		DockerfileCommands([]string{"RUN echo layer1"}, nil).
-		DockerfileCommands([]string{"RUN echo layer2"}, &modal.ImageDockerfileCommandsOptions{
+		DockerfileCommands([]string{"RUN echo layer2"}, &modal.ImageDockerfileCommandsParams{
 			Secrets:    []*modal.Secret{secret},
 			GPU:        "A100",
 			ForceBuild: true,
 		}).
-		DockerfileCommands([]string{"RUN echo layer3"}, &modal.ImageDockerfileCommandsOptions{
+		DockerfileCommands([]string{"RUN echo layer3"}, &modal.ImageDockerfileCommandsParams{
 			ForceBuild: true,
 		}).
 		Build(ctx, app)

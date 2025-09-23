@@ -56,7 +56,7 @@ func TestFunctionSpawn(t *testing.T) {
 
 	// Get is now expected to timeout.
 	timeout := 1 * time.Second
-	_, err = functionCall.Get(ctx, &modal.FunctionCallGetOptions{Timeout: &timeout})
+	_, err = functionCall.Get(ctx, &modal.FunctionCallGetParams{Timeout: &timeout})
 	g.Expect(err).Should(gomega.HaveOccurred())
 }
 
@@ -76,7 +76,7 @@ func TestFunctionCallGet0(t *testing.T) {
 	// Polling for output with timeout 0 should raise an error, since the
 	// function call has not finished yet.
 	timeout := 0 * time.Second
-	_, err = functionCall.Get(ctx, &modal.FunctionCallGetOptions{Timeout: &timeout})
+	_, err = functionCall.Get(ctx, &modal.FunctionCallGetParams{Timeout: &timeout})
 	g.Expect(err).Should(gomega.HaveOccurred())
 
 	// Wait for the function call to finish.
@@ -85,7 +85,7 @@ func TestFunctionCallGet0(t *testing.T) {
 	g.Expect(result).Should(gomega.Equal(pickle.None{}))
 
 	// Now we can get the result.
-	result, err = functionCall.Get(ctx, &modal.FunctionCallGetOptions{Timeout: &timeout})
+	result, err = functionCall.Get(ctx, &modal.FunctionCallGetParams{Timeout: &timeout})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(result).Should(gomega.Equal(pickle.None{}))
 }

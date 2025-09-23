@@ -15,13 +15,13 @@ func main() {
 		log.Fatalf("Failed to create client: %v", err)
 	}
 
-	app, err := mc.Apps.FromName(ctx, "libmodal-example", &modal.AppFromNameOptions{CreateIfMissing: true})
+	app, err := mc.Apps.FromName(ctx, "libmodal-example", &modal.AppFromNameParams{CreateIfMissing: true})
 	if err != nil {
 		log.Fatalf("Failed to get or create App: %v", err)
 	}
 	image := mc.Images.FromRegistry("alpine:3.21", nil)
 
-	secret, err := mc.Secrets.FromName(ctx, "libmodal-test-secret", &modal.SecretFromNameOptions{RequiredKeys: []string{"c"}})
+	secret, err := mc.Secrets.FromName(ctx, "libmodal-test-secret", &modal.SecretFromNameParams{RequiredKeys: []string{"c"}})
 	if err != nil {
 		log.Fatalf("Failed finding a Secret: %v", err)
 	}
@@ -33,7 +33,7 @@ func main() {
 		log.Fatalf("Failed creating ephemeral Secret: %v", err)
 	}
 
-	sb, err := mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateOptions{
+	sb, err := mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
 		Command: []string{"sh", "-lc", "printenv | grep -E '^c|d='"}, Secrets: []*modal.Secret{secret, ephemeralSecret},
 	})
 	if err != nil {

@@ -22,8 +22,8 @@ type CloudBucketMount struct {
 	OidcAuthRoleArn   *string
 }
 
-// CloudBucketMountOptions are options for creating a CloudBucketMount.
-type CloudBucketMountOptions struct {
+// CloudBucketMountParams are options for creating a CloudBucketMount.
+type CloudBucketMountParams struct {
 	Secret            *Secret
 	ReadOnly          bool
 	RequesterPays     bool
@@ -33,19 +33,19 @@ type CloudBucketMountOptions struct {
 }
 
 // New creates a new CloudBucketMount.
-func (s *CloudBucketMountService) New(bucketName string, options *CloudBucketMountOptions) (*CloudBucketMount, error) {
-	if options == nil {
-		options = &CloudBucketMountOptions{}
+func (s *CloudBucketMountService) New(bucketName string, params *CloudBucketMountParams) (*CloudBucketMount, error) {
+	if params == nil {
+		params = &CloudBucketMountParams{}
 	}
 
 	mount := &CloudBucketMount{
 		BucketName:        bucketName,
-		Secret:            options.Secret,
-		ReadOnly:          options.ReadOnly,
-		RequesterPays:     options.RequesterPays,
-		BucketEndpointUrl: options.BucketEndpointUrl,
-		KeyPrefix:         options.KeyPrefix,
-		OidcAuthRoleArn:   options.OidcAuthRoleArn,
+		Secret:            params.Secret,
+		ReadOnly:          params.ReadOnly,
+		RequesterPays:     params.RequesterPays,
+		BucketEndpointUrl: params.BucketEndpointUrl,
+		KeyPrefix:         params.KeyPrefix,
+		OidcAuthRoleArn:   params.OidcAuthRoleArn,
 	}
 
 	if mount.BucketEndpointUrl != nil {

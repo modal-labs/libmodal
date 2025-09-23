@@ -14,8 +14,8 @@ import (
 // ImageService provides Image related operations.
 type ImageService struct{ client *Client }
 
-// ImageDockerfileCommandsOptions are options for Image.DockerfileCommands().
-type ImageDockerfileCommandsOptions struct {
+// ImageDockerfileCommandsParams are options for Image.DockerfileCommands().
+type ImageDockerfileCommandsParams struct {
 	// Environment variables to set in the build environment.
 	Env map[string]string
 
@@ -49,21 +49,21 @@ type Image struct {
 	client *Client
 }
 
-// ImageFromRegistryOptions are options for creating an Image from a registry.
-type ImageFromRegistryOptions struct {
+// ImageFromRegistryParams are options for creating an Image from a registry.
+type ImageFromRegistryParams struct {
 	Secret *Secret // Secret for private registry authentication.
 }
 
 // FromRegistry builds a Modal Image from a public or private image registry without any changes.
-func (s *ImageService) FromRegistry(tag string, options *ImageFromRegistryOptions) *Image {
-	if options == nil {
-		options = &ImageFromRegistryOptions{}
+func (s *ImageService) FromRegistry(tag string, params *ImageFromRegistryParams) *Image {
+	if params == nil {
+		params = &ImageFromRegistryParams{}
 	}
 	var imageRegistryConfig *pb.ImageRegistryConfig
-	if options.Secret != nil {
+	if params.Secret != nil {
 		imageRegistryConfig = pb.ImageRegistryConfig_builder{
 			RegistryAuthType: pb.RegistryAuthType_REGISTRY_AUTH_TYPE_STATIC_CREDS,
-			SecretId:         options.Secret.SecretId,
+			SecretId:         params.Secret.SecretId,
 		}.Build()
 	}
 
@@ -133,21 +133,21 @@ func (s *ImageService) FromId(ctx context.Context, imageId string) (*Image, erro
 //
 // Each call creates a new Image layer that will be built sequentially.
 // The provided options apply only to this layer.
-func (image *Image) DockerfileCommands(commands []string, options *ImageDockerfileCommandsOptions) *Image {
+func (image *Image) DockerfileCommands(commands []string, params *ImageDockerfileCommandsParams) *Image {
 	if len(commands) == 0 {
 		return image
 	}
 
-	if options == nil {
-		options = &ImageDockerfileCommandsOptions{}
+	if params == nil {
+		params = &ImageDockerfileCommandsParams{}
 	}
 
 	newLayer := layer{
 		commands:   append([]string{}, commands...),
-		env:        options.Env,
-		secrets:    options.Secrets,
-		gpu:        options.GPU,
-		forceBuild: options.ForceBuild,
+		env:        params.Env,
+		secrets:    params.Secrets,
+		gpu:        params.GPU,
+		forceBuild: params.ForceBuild,
 	}
 
 	newLayers := append([]layer{}, image.layers...)
@@ -298,12 +298,12 @@ func (image *Image) Build(ctx context.Context, app *App) (*Image, error) {
 	return image, nil
 }
 
-// ImageDeleteOptions are options for deleting an Image.
-type ImageDeleteOptions struct {
+// ImageDeleteParams are options for deleting an Image.
+type ImageDeleteParams struct {
 }
 
 // Delete deletes an Image by ID. Warning: This removes an *entire Image*, and cannot be undone.
-func (s *ImageService) Delete(ctx context.Context, imageId string, options *ImageDeleteOptions) error {
+func (s *ImageService) Delete(ctx context.Context, imageId string, params *ImageDeleteParams) error {
 	image, err := s.FromId(ctx, imageId)
 	if err != nil {
 		return err

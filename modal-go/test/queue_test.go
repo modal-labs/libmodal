@@ -73,12 +73,12 @@ func TestQueueSuite1(t *testing.T) {
 	g.Expect(queue.Put(ctx, 432, nil)).ToNot(gomega.HaveOccurred())
 
 	var timeout time.Duration
-	item, err = queue.Get(ctx, &modal.QueueGetOptions{Timeout: &timeout})
+	item, err = queue.Get(ctx, &modal.QueueGetParams{Timeout: &timeout})
 	g.Expect(err).ToNot(gomega.HaveOccurred())
 	g.Expect(item).To(gomega.Equal(int64(432)))
 
 	// queue is now empty – non-blocking get should error
-	_, err = queue.Get(ctx, &modal.QueueGetOptions{Timeout: &timeout})
+	_, err = queue.Get(ctx, &modal.QueueGetParams{Timeout: &timeout})
 	g.Expect(errors.As(err, &modal.QueueEmptyError{})).To(gomega.BeTrue())
 
 	n, err = queue.Len(ctx, nil)
@@ -121,7 +121,7 @@ func TestQueueSuite2(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		for v, err := range queue.Iterate(ctx, &modal.QueueIterateOptions{ItemPollTimeout: time.Second}) {
+		for v, err := range queue.Iterate(ctx, &modal.QueueIterateParams{ItemPollTimeout: time.Second}) {
 			g.Expect(err).ToNot(gomega.HaveOccurred())
 			results = append(results, v.(int64))
 		}
@@ -161,14 +161,14 @@ func TestQueueNonBlocking(t *testing.T) {
 	defer queue.CloseEphemeral()
 
 	var timeout time.Duration
-	err = queue.Put(ctx, 123, &modal.QueuePutOptions{Timeout: &timeout})
+	err = queue.Put(ctx, 123, &modal.QueuePutParams{Timeout: &timeout})
 	g.Expect(err).ToNot(gomega.HaveOccurred())
 
 	n, err := queue.Len(ctx, nil)
 	g.Expect(err).ToNot(gomega.HaveOccurred())
 	g.Expect(n).To(gomega.Equal(1))
 
-	item, err := queue.Get(ctx, &modal.QueueGetOptions{Timeout: &timeout})
+	item, err := queue.Get(ctx, &modal.QueueGetParams{Timeout: &timeout})
 	g.Expect(err).ToNot(gomega.HaveOccurred())
 	g.Expect(item).To(gomega.Equal(int64(123)))
 }
@@ -179,7 +179,7 @@ func TestQueueNonEphemeral(t *testing.T) {
 	ctx := context.Background()
 
 	queueName := "test-queue-" + strconv.FormatInt(time.Now().UnixNano(), 10)
-	queue1, err := tc.Queues.FromName(ctx, queueName, &modal.QueueFromNameOptions{CreateIfMissing: true})
+	queue1, err := tc.Queues.FromName(ctx, queueName, &modal.QueueFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(queue1.Name).To(gomega.Equal(queueName))
 

@@ -48,11 +48,11 @@ type Client struct {
 
 // NewClient generates a new client with the default profile configuration read from environment variables and ~/.modal.toml.
 func NewClient() (*Client, error) {
-	return NewClientWithOptions(ClientOptions{})
+	return NewClientWithOptions(ClientParams{})
 }
 
-// ClientOptions defines credentials and options for initializing the Modal client.
-type ClientOptions struct {
+// ClientParams defines credentials and options for initializing the Modal client.
+type ClientParams struct {
 	TokenId            string
 	TokenSecret        string
 	Environment        string
@@ -61,10 +61,10 @@ type ClientOptions struct {
 }
 
 // NewClientWithOptions generates a new client and allows overriding options in the default profile configuration.
-func NewClientWithOptions(options ClientOptions) (*Client, error) {
+func NewClientWithOptions(params ClientParams) (*Client, error) {
 	var cfg config
-	if options.Config != nil {
-		cfg = *options.Config
+	if params.Config != nil {
+		cfg = *params.Config
 	} else {
 		var err error
 		cfg, err = readConfigFile()
@@ -75,14 +75,14 @@ func NewClientWithOptions(options ClientOptions) (*Client, error) {
 
 	profile := getProfile(os.Getenv("MODAL_PROFILE"), cfg)
 
-	if options.TokenId != "" {
-		profile.TokenId = options.TokenId
+	if params.TokenId != "" {
+		profile.TokenId = params.TokenId
 	}
-	if options.TokenSecret != "" {
-		profile.TokenSecret = options.TokenSecret
+	if params.TokenSecret != "" {
+		profile.TokenSecret = params.TokenSecret
 	}
-	if options.Environment != "" {
-		profile.Environment = options.Environment
+	if params.Environment != "" {
+		profile.Environment = params.Environment
 	}
 
 	c := &Client{
@@ -92,8 +92,8 @@ func NewClientWithOptions(options ClientOptions) (*Client, error) {
 	}
 
 	var err error
-	if options.ControlPlaneClient != nil {
-		c.cpClient = options.ControlPlaneClient
+	if params.ControlPlaneClient != nil {
+		c.cpClient = params.ControlPlaneClient
 	} else {
 		_, c.cpClient, err = newClient(profile, c)
 	}

@@ -13,7 +13,7 @@ func TestVolumeFromName(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	volume, err := tc.Volumes.FromName(ctx, "libmodal-test-volume", &modal.VolumeFromNameOptions{
+	volume, err := tc.Volumes.FromName(ctx, "libmodal-test-volume", &modal.VolumeFromNameParams{
 		CreateIfMissing: true,
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -30,7 +30,7 @@ func TestVolumeReadOnly(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	volume, err := tc.Volumes.FromName(ctx, "libmodal-test-volume", &modal.VolumeFromNameOptions{
+	volume, err := tc.Volumes.FromName(ctx, "libmodal-test-volume", &modal.VolumeFromNameParams{
 		CreateIfMissing: true,
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())

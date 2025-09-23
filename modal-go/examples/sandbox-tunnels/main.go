@@ -18,7 +18,7 @@ func main() {
 		log.Fatalf("Failed to create client: %v", err)
 	}
 
-	app, err := mc.Apps.FromName(ctx, "libmodal-example", &modal.AppFromNameOptions{CreateIfMissing: true})
+	app, err := mc.Apps.FromName(ctx, "libmodal-example", &modal.AppFromNameParams{CreateIfMissing: true})
 	if err != nil {
 		log.Fatalf("Failed to get or create App: %v", err)
 	}
@@ -26,7 +26,7 @@ func main() {
 	// Create a Sandbox with Python's built-in HTTP server
 	image := mc.Images.FromRegistry("python:3.12-alpine", nil)
 
-	sandbox, err := mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateOptions{
+	sandbox, err := mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
 		Command:        []string{"python3", "-m", "http.server", "8000"},
 		EncryptedPorts: []int{8000},
 		Timeout:        1 * time.Minute,

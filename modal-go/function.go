@@ -41,8 +41,8 @@ type FunctionStats struct {
 	NumTotalRunners int
 }
 
-// FunctionUpdateAutoscalerOptions contains options for overriding a Function's autoscaler behavior.
-type FunctionUpdateAutoscalerOptions struct {
+// FunctionUpdateAutoscalerParams contains options for overriding a Function's autoscaler behavior.
+type FunctionUpdateAutoscalerParams struct {
 	MinContainers    *uint32
 	MaxContainers    *uint32
 	BufferContainers *uint32
@@ -59,22 +59,22 @@ type Function struct {
 	client *Client
 }
 
-// FunctionFromNameOptions are options for client.Functions.FromName.
-type FunctionFromNameOptions struct {
+// FunctionFromNameParams are options for client.Functions.FromName.
+type FunctionFromNameParams struct {
 	Environment     string
 	CreateIfMissing bool
 }
 
 // FromName references a Function from a deployed App by its name.
-func (s *FunctionService) FromName(ctx context.Context, appName string, name string, options *FunctionFromNameOptions) (*Function, error) {
-	if options == nil {
-		options = &FunctionFromNameOptions{}
+func (s *FunctionService) FromName(ctx context.Context, appName string, name string, params *FunctionFromNameParams) (*Function, error) {
+	if params == nil {
+		params = &FunctionFromNameParams{}
 	}
 
 	resp, err := s.client.cpClient.FunctionGet(ctx, pb.FunctionGetRequest_builder{
 		AppName:         appName,
 		ObjectTag:       name,
-		EnvironmentName: environmentName(options.Environment, s.client.profile),
+		EnvironmentName: environmentName(params.Environment, s.client.profile),
 	}.Build())
 
 	if status, ok := status.FromError(err); ok && status.Code() == codes.NotFound {
@@ -222,12 +222,12 @@ func (f *Function) GetCurrentStats(ctx context.Context) (*FunctionStats, error) 
 }
 
 // UpdateAutoscaler overrides the current autoscaler behavior for this Function.
-func (f *Function) UpdateAutoscaler(ctx context.Context, opts FunctionUpdateAutoscalerOptions) error {
+func (f *Function) UpdateAutoscaler(ctx context.Context, params FunctionUpdateAutoscalerParams) error {
 	settings := pb.AutoscalerSettings_builder{
-		MinContainers:    opts.MinContainers,
-		MaxContainers:    opts.MaxContainers,
-		BufferContainers: opts.BufferContainers,
-		ScaledownWindow:  opts.ScaledownWindow,
+		MinContainers:    params.MinContainers,
+		MaxContainers:    params.MaxContainers,
+		BufferContainers: params.BufferContainers,
+		ScaledownWindow:  params.ScaledownWindow,
 	}.Build()
 
 	_, err := f.client.cpClient.FunctionUpdateSchedulingParams(ctx, pb.FunctionUpdateSchedulingParamsRequest_builder{

@@ -16,7 +16,7 @@ func main() {
 		log.Fatalf("Failed to create client: %v", err)
 	}
 
-	app, err := mc.Apps.FromName(ctx, "libmodal-example", &modal.AppFromNameOptions{CreateIfMissing: true})
+	app, err := mc.Apps.FromName(ctx, "libmodal-example", &modal.AppFromNameParams{CreateIfMissing: true})
 	if err != nil {
 		log.Fatalf("Failed to get or create App: %v", err)
 	}
@@ -25,7 +25,7 @@ func main() {
 
 	sandboxName := "libmodal-example-named-sandbox"
 
-	sb, err := mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateOptions{
+	sb, err := mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
 		Name:    sandboxName,
 		Command: []string{"cat"},
 	})
@@ -41,7 +41,7 @@ func main() {
 	fmt.Printf("Created Sandbox with name: %s\n", sandboxName)
 	fmt.Printf("Sandbox ID: %s\n", sb.SandboxId)
 
-	_, err = mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateOptions{
+	_, err = mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
 		Name:    sandboxName,
 		Command: []string{"cat"},
 	})

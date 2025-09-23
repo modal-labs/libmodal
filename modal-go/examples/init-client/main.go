@@ -23,7 +23,7 @@ func main() {
 		log.Fatal("CUSTOM_MODAL_SECRET environment variable not set")
 	}
 
-	mc, err := modal.NewClientWithOptions(modal.ClientOptions{
+	mc, err := modal.NewClientWithOptions(modal.ClientParams{
 		TokenId:     modal_id,
 		TokenSecret: modal_secret,
 	})

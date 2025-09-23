@@ -16,14 +16,14 @@ func main() {
 		log.Fatalf("Failed to create client: %v", err)
 	}
 
-	app, err := mc.Apps.FromName(ctx, "libmodal-example", &modal.AppFromNameOptions{CreateIfMissing: true})
+	app, err := mc.Apps.FromName(ctx, "libmodal-example", &modal.AppFromNameParams{CreateIfMissing: true})
 	if err != nil {
 		log.Fatalf("Failed to get or create App: %v", err)
 	}
 
 	image := mc.Images.FromRegistry("alpine:3.21", nil)
 
-	sb, err := mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateOptions{})
+	sb, err := mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{})
 	if err != nil {
 		log.Fatalf("Failed to create Sandbox: %v", err)
 	}

@@ -14,7 +14,7 @@ func TestCreateSandboxWithProxy(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameOptions{CreateIfMissing: true})
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	image := tc.Images.FromRegistry("alpine:3.21", nil)
@@ -24,7 +24,7 @@ func TestCreateSandboxWithProxy(t *testing.T) {
 	g.Expect(proxy.ProxyId).ShouldNot(gomega.BeEmpty())
 	g.Expect(strings.HasPrefix(proxy.ProxyId, "pr-")).To(gomega.BeTrue())
 
-	sb, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateOptions{
+	sb, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
 		Proxy:   proxy,
 		Command: []string{"echo", "hello, Sandbox with Proxy"},
 	})

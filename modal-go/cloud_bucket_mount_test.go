@@ -7,8 +7,8 @@ import (
 	"github.com/onsi/gomega"
 )
 
-func newTestMount(bucketName string, options *CloudBucketMountOptions) (*CloudBucketMount, error) {
-	return (&CloudBucketMountService{}).New(bucketName, options)
+func newTestMount(bucketName string, params *CloudBucketMountParams) (*CloudBucketMount, error) {
+	return (&CloudBucketMountService{}).New(bucketName, params)
 }
 
 func TestNewCloudBucketMount_MinimalOptions(t *testing.T) {
@@ -39,7 +39,7 @@ func TestNewCloudBucketMount_AllOptions(t *testing.T) {
 	keyPrefix := "prefix/"
 	oidcRole := "arn:aws:iam::123456789:role/MyRole"
 
-	mount, err := newTestMount("my-bucket", &CloudBucketMountOptions{
+	mount, err := newTestMount("my-bucket", &CloudBucketMountParams{
 		Secret:            mockSecret,
 		ReadOnly:          true,
 		RequesterPays:     true,
@@ -98,12 +98,12 @@ func TestGetBucketTypeFromEndpointURL(t *testing.T) {
 			t.Parallel()
 			g := gomega.NewWithT(t)
 
-			options := &CloudBucketMountOptions{}
+			params := &CloudBucketMountParams{}
 			if tc.endpointURL != "" {
-				options.BucketEndpointUrl = &tc.endpointURL
+				params.BucketEndpointUrl = &tc.endpointURL
 			}
 
-			mount, err := newTestMount("my-bucket", options)
+			mount, err := newTestMount("my-bucket", params)
 			g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 			bucketType, err := getBucketTypeFromEndpointURL(mount.BucketEndpointUrl)
@@ -128,7 +128,7 @@ func TestNewCloudBucketMount_ValidationRequesterPaysWithoutSecret(t *testing.T) 
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
-	_, err := newTestMount("my-bucket", &CloudBucketMountOptions{
+	_, err := newTestMount("my-bucket", &CloudBucketMountParams{
 		RequesterPays: true,
 	})
 
@@ -140,7 +140,7 @@ func TestNewCloudBucketMount_ValidationKeyPrefixWithoutTrailingSlash(t *testing.
 	g := gomega.NewWithT(t)
 
 	keyPrefix := "prefix"
-	_, err := newTestMount("my-bucket", &CloudBucketMountOptions{
+	_, err := newTestMount("my-bucket", &CloudBucketMountParams{
 		KeyPrefix: &keyPrefix,
 	})
 
@@ -177,7 +177,7 @@ func TestCloudBucketMount_ToProtoAllOptions(t *testing.T) {
 	keyPrefix := "prefix/"
 	oidcRole := "arn:aws:iam::123456789:role/MyRole"
 
-	mount, err := newTestMount("my-bucket", &CloudBucketMountOptions{
+	mount, err := newTestMount("my-bucket", &CloudBucketMountParams{
 		Secret:            mockSecret,
 		ReadOnly:          true,
 		RequesterPays:     true,

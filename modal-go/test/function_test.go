@@ -137,7 +137,7 @@ func TestFunctionUpdateAutoscaler(t *testing.T) {
 		},
 	)
 
-	err = f.UpdateAutoscaler(ctx, modal.FunctionUpdateAutoscalerOptions{
+	err = f.UpdateAutoscaler(ctx, modal.FunctionUpdateAutoscalerParams{
 		MinContainers:    ptrU32(1),
 		MaxContainers:    ptrU32(10),
 		BufferContainers: ptrU32(2),
@@ -154,7 +154,7 @@ func TestFunctionUpdateAutoscaler(t *testing.T) {
 		},
 	)
 
-	err = f.UpdateAutoscaler(ctx, modal.FunctionUpdateAutoscalerOptions{
+	err = f.UpdateAutoscaler(ctx, modal.FunctionUpdateAutoscalerParams{
 		MinContainers: ptrU32(2),
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())

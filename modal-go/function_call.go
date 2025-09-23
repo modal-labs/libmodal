@@ -29,8 +29,8 @@ func (s *FunctionCallService) FromId(ctx context.Context, functionCallId string)
 	return &functionCall, nil
 }
 
-// FunctionCallGetOptions are options for getting outputs from Function Calls.
-type FunctionCallGetOptions struct {
+// FunctionCallGetParams are options for getting outputs from Function Calls.
+type FunctionCallGetParams struct {
 	// Timeout specifies the maximum duration to wait for the output.
 	// If nil, no timeout is applied. If set to 0, it will check if the function
 	// call is already completed.
@@ -39,27 +39,27 @@ type FunctionCallGetOptions struct {
 
 // Get waits for the output of a FunctionCall.
 // If timeout > 0, the operation will be cancelled after the specified duration.
-func (fc *FunctionCall) Get(ctx context.Context, options *FunctionCallGetOptions) (any, error) {
-	if options == nil {
-		options = &FunctionCallGetOptions{}
+func (fc *FunctionCall) Get(ctx context.Context, params *FunctionCallGetParams) (any, error) {
+	if params == nil {
+		params = &FunctionCallGetParams{}
 	}
 	invocation := controlPlaneInvocationFromFunctionCallId(fc.client.cpClient, fc.FunctionCallId)
-	return invocation.awaitOutput(ctx, options.Timeout)
+	return invocation.awaitOutput(ctx, params.Timeout)
 }
 
-// FunctionCallCancelOptions are options for cancelling Function Calls.
-type FunctionCallCancelOptions struct {
+// FunctionCallCancelParams are options for cancelling Function Calls.
+type FunctionCallCancelParams struct {
 	TerminateContainers bool
 }
 
 // Cancel cancels a FunctionCall.
-func (fc *FunctionCall) Cancel(ctx context.Context, options *FunctionCallCancelOptions) error {
-	if options == nil {
-		options = &FunctionCallCancelOptions{}
+func (fc *FunctionCall) Cancel(ctx context.Context, params *FunctionCallCancelParams) error {
+	if params == nil {
+		params = &FunctionCallCancelParams{}
 	}
 	_, err := fc.client.cpClient.FunctionCallCancel(ctx, pb.FunctionCallCancelRequest_builder{
 		FunctionCallId:      fc.FunctionCallId,
-		TerminateContainers: options.TerminateContainers,
+		TerminateContainers: params.TerminateContainers,
 	}.Build())
 	if err != nil {
 		return fmt.Errorf("FunctionCallCancel failed: %w", err)

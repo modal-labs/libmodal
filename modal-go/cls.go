@@ -15,8 +15,8 @@ import (
 // ClsService provides Cls related operations.
 type ClsService struct{ client *Client }
 
-// ClsWithOptionsOptions represents runtime options for a Modal Cls.
-type ClsWithOptionsOptions struct {
+// ClsWithOptionsParams represents runtime options for a Modal Cls.
+type ClsWithOptionsParams struct {
 	CPU              *float64
 	Memory           *int
 	GPU              *string
@@ -30,19 +30,19 @@ type ClsWithOptionsOptions struct {
 	Timeout          *time.Duration
 }
 
-// ClsWithConcurrencyOptions represents concurrency configuration for a Modal Cls.
-type ClsWithConcurrencyOptions struct {
+// ClsWithConcurrencyParams represents concurrency configuration for a Modal Cls.
+type ClsWithConcurrencyParams struct {
 	MaxInputs    int
 	TargetInputs *int
 }
 
-// ClsWithBatchingOptions represents batching configuration for a Modal Cls.
-type ClsWithBatchingOptions struct {
+// ClsWithBatchingParams represents batching configuration for a Modal Cls.
+type ClsWithBatchingParams struct {
 	MaxBatchSize int
 	Wait         time.Duration
 }
 
-type serviceOptions struct {
+type serviceParams struct {
 	cpu                    *float64
 	memory                 *int
 	gpu                    *string
@@ -67,21 +67,21 @@ type Cls struct {
 	schema            []*pb.ClassParameterSpec
 	methodNames       []string
 	inputPlaneUrl     string // if empty, use control plane
-	options           *serviceOptions
+	params            *serviceParams
 
 	client *Client
 }
 
-// ClsFromNameOptions are options for client.Cls.FromName.
-type ClsFromNameOptions struct {
+// ClsFromNameParams are options for client.Cls.FromName.
+type ClsFromNameParams struct {
 	Environment     string
 	CreateIfMissing bool
 }
 
 // FromName references a Cls from a deployed App by its name.
-func (s *ClsService) FromName(ctx context.Context, appName string, name string, options *ClsFromNameOptions) (*Cls, error) {
-	if options == nil {
-		options = &ClsFromNameOptions{}
+func (s *ClsService) FromName(ctx context.Context, appName string, name string, params *ClsFromNameParams) (*Cls, error) {
+	if params == nil {
+		params = &ClsFromNameParams{}
 	}
 
 	cls := Cls{
@@ -95,7 +95,7 @@ func (s *ClsService) FromName(ctx context.Context, appName string, name string, 
 	serviceFunction, err := s.client.cpClient.FunctionGet(ctx, pb.FunctionGetRequest_builder{
 		AppName:         appName,
 		ObjectTag:       serviceFunctionName,
-		EnvironmentName: environmentName(options.Environment, s.client.profile),
+		EnvironmentName: environmentName(params.Environment, s.client.profile),
 	}.Build())
 
 	if status, ok := status.FromError(err); ok && status.Code() == codes.NotFound {
@@ -136,7 +136,7 @@ func (s *ClsService) FromName(ctx context.Context, appName string, name string, 
 // Instance creates a new instance of the class with the provided parameters.
 func (c *Cls) Instance(ctx context.Context, params map[string]any) (*ClsInstance, error) {
 	var functionId string
-	if len(c.schema) == 0 && !hasOptions(c.options) {
+	if len(c.schema) == 0 && !hasParams(c.params) {
 		functionId = c.serviceFunctionId
 	} else {
 		boundFunctionId, err := c.bindParameters(ctx, params)
@@ -159,35 +159,35 @@ func (c *Cls) Instance(ctx context.Context, params map[string]any) (*ClsInstance
 }
 
 // WithOptions overrides the static Function configuration at runtime.
-func (c *Cls) WithOptions(opts ClsWithOptionsOptions) *Cls {
+func (c *Cls) WithOptions(params ClsWithOptionsParams) *Cls {
 	var secretsPtr *[]*Secret
-	if opts.Secrets != nil {
-		s := opts.Secrets
+	if params.Secrets != nil {
+		s := params.Secrets
 		secretsPtr = &s
 	}
 	var volumesPtr *map[string]*Volume
-	if opts.Volumes != nil {
-		v := opts.Volumes
+	if params.Volumes != nil {
+		v := params.Volumes
 		volumesPtr = &v
 	}
 	var envPtr *map[string]string
-	if opts.Env != nil {
-		e := opts.Env
+	if params.Env != nil {
+		e := params.Env
 		envPtr = &e
 	}
 
-	merged := mergeServiceOptions(c.options, &serviceOptions{
-		cpu:              opts.CPU,
-		memory:           opts.Memory,
-		gpu:              opts.GPU,
+	merged := mergeServiceParams(c.params, &serviceParams{
+		cpu:              params.CPU,
+		memory:           params.Memory,
+		gpu:              params.GPU,
 		env:              envPtr,
 		secrets:          secretsPtr,
 		volumes:          volumesPtr,
-		retries:          opts.Retries,
-		maxContainers:    opts.MaxContainers,
-		bufferContainers: opts.BufferContainers,
-		scaledownWindow:  opts.ScaledownWindow,
-		timeout:          opts.Timeout,
+		retries:          params.Retries,
+		maxContainers:    params.MaxContainers,
+		bufferContainers: params.BufferContainers,
+		scaledownWindow:  params.ScaledownWindow,
+		timeout:          params.Timeout,
 	})
 
 	return &Cls{
@@ -195,16 +195,16 @@ func (c *Cls) WithOptions(opts ClsWithOptionsOptions) *Cls {
 		schema:            c.schema,
 		methodNames:       c.methodNames,
 		inputPlaneUrl:     c.inputPlaneUrl,
-		options:           merged,
+		params:            merged,
 		client:            c.client,
 	}
 }
 
 // WithConcurrency creates an instance of the Cls with input concurrency enabled or overridden with new values.
-func (c *Cls) WithConcurrency(opts ClsWithConcurrencyOptions) *Cls {
-	merged := mergeServiceOptions(c.options, &serviceOptions{
-		maxConcurrentInputs:    &opts.MaxInputs,
-		targetConcurrentInputs: opts.TargetInputs,
+func (c *Cls) WithConcurrency(params ClsWithConcurrencyParams) *Cls {
+	merged := mergeServiceParams(c.params, &serviceParams{
+		maxConcurrentInputs:    &params.MaxInputs,
+		targetConcurrentInputs: params.TargetInputs,
 	})
 
 	return &Cls{
@@ -212,16 +212,16 @@ func (c *Cls) WithConcurrency(opts ClsWithConcurrencyOptions) *Cls {
 		schema:            c.schema,
 		methodNames:       c.methodNames,
 		inputPlaneUrl:     c.inputPlaneUrl,
-		options:           merged,
+		params:            merged,
 		client:            c.client,
 	}
 }
 
 // WithBatching creates an instance of the Cls with dynamic batching enabled or overridden with new values.
-func (c *Cls) WithBatching(opts ClsWithBatchingOptions) *Cls {
-	merged := mergeServiceOptions(c.options, &serviceOptions{
-		batchMaxSize: &opts.MaxBatchSize,
-		batchWait:    &opts.Wait,
+func (c *Cls) WithBatching(params ClsWithBatchingParams) *Cls {
+	merged := mergeServiceParams(c.params, &serviceParams{
+		batchMaxSize: &params.MaxBatchSize,
+		batchWait:    &params.Wait,
 	})
 
 	return &Cls{
@@ -229,7 +229,7 @@ func (c *Cls) WithBatching(opts ClsWithBatchingOptions) *Cls {
 		schema:            c.schema,
 		methodNames:       c.methodNames,
 		inputPlaneUrl:     c.inputPlaneUrl,
-		options:           merged,
+		params:            merged,
 		client:            c.client,
 	}
 }
@@ -242,14 +242,14 @@ func (c *Cls) bindParameters(ctx context.Context, params map[string]any) (string
 	}
 
 	var envSecret *Secret
-	if c.options != nil && c.options.env != nil && len(*c.options.env) > 0 {
-		envSecret, err = c.client.Secrets.FromMap(ctx, *c.options.env, nil)
+	if c.params != nil && c.params.env != nil && len(*c.params.env) > 0 {
+		envSecret, err = c.client.Secrets.FromMap(ctx, *c.params.env, nil)
 		if err != nil {
 			return "", err
 		}
 	}
 
-	functionOptions, err := buildFunctionOptionsProto(c.options, envSecret)
+	functionOptions, err := buildFunctionOptionsProto(c.params, envSecret)
 	if err != nil {
 		return "", fmt.Errorf("failed to build function options: %w", err)
 	}
@@ -365,11 +365,11 @@ func (c *ClsInstance) Method(name string) (*Function, error) {
 	return method, nil
 }
 
-func hasOptions(o *serviceOptions) bool {
-	return o != nil && *o != (serviceOptions{})
+func hasParams(o *serviceParams) bool {
+	return o != nil && *o != (serviceParams{})
 }
 
-func mergeServiceOptions(base, new *serviceOptions) *serviceOptions {
+func mergeServiceParams(base, new *serviceParams) *serviceParams {
 	if base == nil {
 		return new
 	}
@@ -377,7 +377,7 @@ func mergeServiceOptions(base, new *serviceOptions) *serviceOptions {
 		return base
 	}
 
-	merged := &serviceOptions{
+	merged := &serviceParams{
 		cpu:                    base.cpu,
 		memory:                 base.memory,
 		gpu:                    base.gpu,
@@ -444,23 +444,23 @@ func mergeServiceOptions(base, new *serviceOptions) *serviceOptions {
 	return merged
 }
 
-func buildFunctionOptionsProto(opts *serviceOptions, envSecret *Secret) (*pb.FunctionOptions, error) {
-	if !hasOptions(opts) {
+func buildFunctionOptionsProto(params *serviceParams, envSecret *Secret) (*pb.FunctionOptions, error) {
+	if !hasParams(params) {
 		return nil, nil
 	}
 
 	builder := pb.FunctionOptions_builder{}
 
-	if opts.cpu != nil || opts.memory != nil || opts.gpu != nil {
+	if params.cpu != nil || params.memory != nil || params.gpu != nil {
 		resBuilder := pb.Resources_builder{}
-		if opts.cpu != nil {
-			resBuilder.MilliCpu = uint32(*opts.cpu * 1000)
+		if params.cpu != nil {
+			resBuilder.MilliCpu = uint32(*params.cpu * 1000)
 		}
-		if opts.memory != nil {
-			resBuilder.MemoryMb = uint32(*opts.memory)
+		if params.memory != nil {
+			resBuilder.MemoryMb = uint32(*params.memory)
 		}
-		if opts.gpu != nil {
-			gpuConfig, err := parseGPUConfig(*opts.gpu)
+		if params.gpu != nil {
+			gpuConfig, err := parseGPUConfig(*params.gpu)
 			if err != nil {
 				return nil, err
 			}
@@ -470,14 +470,14 @@ func buildFunctionOptionsProto(opts *serviceOptions, envSecret *Secret) (*pb.Fun
 	}
 
 	secretIds := []string{}
-	if opts.secrets != nil {
-		for _, secret := range *opts.secrets {
+	if params.secrets != nil {
+		for _, secret := range *params.secrets {
 			if secret != nil {
 				secretIds = append(secretIds, secret.SecretId)
 			}
 		}
 	}
-	if (opts.env != nil && len(*opts.env) > 0) != (envSecret != nil) {
+	if (params.env != nil && len(*params.env) > 0) != (envSecret != nil) {
 		return nil, fmt.Errorf("internal error: env and envSecret must both be provided or neither be provided")
 	}
 	if envSecret != nil {
@@ -489,9 +489,9 @@ func buildFunctionOptionsProto(opts *serviceOptions, envSecret *Secret) (*pb.Fun
 		builder.ReplaceSecretIds = true
 	}
 
-	if opts.volumes != nil {
+	if params.volumes != nil {
 		volumeMounts := []*pb.VolumeMount{}
-		for mountPath, volume := range *opts.volumes {
+		for mountPath, volume := range *params.volumes {
 			if volume != nil {
 				volumeMounts = append(volumeMounts, pb.VolumeMount_builder{
 					VolumeId:               volume.VolumeId,
@@ -507,60 +507,60 @@ func buildFunctionOptionsProto(opts *serviceOptions, envSecret *Secret) (*pb.Fun
 		}
 	}
 
-	if opts.retries != nil {
+	if params.retries != nil {
 		builder.RetryPolicy = pb.FunctionRetryPolicy_builder{
-			Retries:            uint32(opts.retries.MaxRetries),
-			BackoffCoefficient: opts.retries.BackoffCoefficient,
-			InitialDelayMs:     uint32(opts.retries.InitialDelay / time.Millisecond),
-			MaxDelayMs:         uint32(opts.retries.MaxDelay / time.Millisecond),
+			Retries:            uint32(params.retries.MaxRetries),
+			BackoffCoefficient: params.retries.BackoffCoefficient,
+			InitialDelayMs:     uint32(params.retries.InitialDelay / time.Millisecond),
+			MaxDelayMs:         uint32(params.retries.MaxDelay / time.Millisecond),
 		}.Build()
 	}
 
-	if opts.maxContainers != nil {
-		v := uint32(*opts.maxContainers)
+	if params.maxContainers != nil {
+		v := uint32(*params.maxContainers)
 		builder.ConcurrencyLimit = &v
 	}
-	if opts.bufferContainers != nil {
-		v := uint32(*opts.bufferContainers)
+	if params.bufferContainers != nil {
+		v := uint32(*params.bufferContainers)
 		builder.BufferContainers = &v
 	}
 
-	if opts.scaledownWindow != nil {
-		if *opts.scaledownWindow < time.Second {
-			return nil, fmt.Errorf("scaledownWindow must be at least 1 second, got %v", *opts.scaledownWindow)
+	if params.scaledownWindow != nil {
+		if *params.scaledownWindow < time.Second {
+			return nil, fmt.Errorf("scaledownWindow must be at least 1 second, got %v", *params.scaledownWindow)
 		}
-		if (*opts.scaledownWindow)%time.Second != 0 {
-			return nil, fmt.Errorf("scaledownWindow must be a whole number of seconds, got %v", *opts.scaledownWindow)
+		if (*params.scaledownWindow)%time.Second != 0 {
+			return nil, fmt.Errorf("scaledownWindow must be a whole number of seconds, got %v", *params.scaledownWindow)
 		}
-		v := uint32((*opts.scaledownWindow) / time.Second)
+		v := uint32((*params.scaledownWindow) / time.Second)
 		builder.TaskIdleTimeoutSecs = &v
 	}
-	if opts.timeout != nil {
-		if *opts.timeout < time.Second {
-			return nil, fmt.Errorf("timeout must be at least 1 second, got %v", *opts.timeout)
+	if params.timeout != nil {
+		if *params.timeout < time.Second {
+			return nil, fmt.Errorf("timeout must be at least 1 second, got %v", *params.timeout)
 		}
-		if (*opts.timeout)%time.Second != 0 {
-			return nil, fmt.Errorf("timeout must be a whole number of seconds, got %v", *opts.timeout)
+		if (*params.timeout)%time.Second != 0 {
+			return nil, fmt.Errorf("timeout must be a whole number of seconds, got %v", *params.timeout)
 		}
-		v := uint32((*opts.timeout) / time.Second)
+		v := uint32((*params.timeout) / time.Second)
 		builder.TimeoutSecs = &v
 	}
 
-	if opts.maxConcurrentInputs != nil {
-		v := uint32(*opts.maxConcurrentInputs)
+	if params.maxConcurrentInputs != nil {
+		v := uint32(*params.maxConcurrentInputs)
 		builder.MaxConcurrentInputs = &v
 	}
-	if opts.targetConcurrentInputs != nil {
-		v := uint32(*opts.targetConcurrentInputs)
+	if params.targetConcurrentInputs != nil {
+		v := uint32(*params.targetConcurrentInputs)
 		builder.TargetConcurrentInputs = &v
 	}
 
-	if opts.batchMaxSize != nil {
-		v := uint32(*opts.batchMaxSize)
+	if params.batchMaxSize != nil {
+		v := uint32(*params.batchMaxSize)
 		builder.BatchMaxSize = &v
 	}
-	if opts.batchWait != nil {
-		v := uint64((*opts.batchWait) / time.Millisecond)
+	if params.batchWait != nil {
+		v := uint64((*params.batchWait) / time.Millisecond)
 		builder.BatchLingerMs = &v
 	}
 
