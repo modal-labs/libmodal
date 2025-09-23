@@ -26,7 +26,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to get Proxy: %v", err)
 	}
-	log.Printf("Using Proxy: %s", proxy.ProxyId)
+	log.Printf("Using Proxy: %s", proxy.ProxyID)
 
 	sb, err := mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
 		Proxy: proxy,
@@ -34,10 +34,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create sandbox: %v", err)
 	}
-	log.Printf("Created sandbox with proxy: %s", sb.SandboxId)
+	log.Printf("Created sandbox with proxy: %s", sb.SandboxID)
 	defer func() {
 		if err := sb.Terminate(context.Background()); err != nil {
-			log.Fatalf("Failed to terminate Sandbox %s: %v", sb.SandboxId, err)
+			log.Fatalf("Failed to terminate Sandbox %s: %v", sb.SandboxID, err)
 		}
 	}()
 

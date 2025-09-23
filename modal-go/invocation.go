@@ -18,7 +18,7 @@ type invocation interface {
 
 // controlPlaneInvocation implements the invocation interface.
 type controlPlaneInvocation struct {
-	FunctionCallId  string
+	FunctionCallID  string
 	input           *pb.FunctionInput
 	functionCallJwt string
 	inputJwt        string
@@ -27,14 +27,14 @@ type controlPlaneInvocation struct {
 }
 
 // createControlPlaneInvocation executes a function call and returns a new controlPlaneInvocation.
-func createControlPlaneInvocation(ctx context.Context, cpClient pb.ModalClientClient, functionId string, input *pb.FunctionInput, invocationType pb.FunctionCallInvocationType) (*controlPlaneInvocation, error) {
+func createControlPlaneInvocation(ctx context.Context, cpClient pb.ModalClientClient, functionID string, input *pb.FunctionInput, invocationType pb.FunctionCallInvocationType) (*controlPlaneInvocation, error) {
 	functionPutInputsItem := pb.FunctionPutInputsItem_builder{
 		Idx:   0,
 		Input: input,
 	}.Build()
 
 	functionMapResponse, err := cpClient.FunctionMap(ctx, pb.FunctionMapRequest_builder{
-		FunctionId:                 functionId,
+		FunctionId:                 functionID,
 		FunctionCallType:           pb.FunctionCallType_FUNCTION_CALL_TYPE_UNARY,
 		FunctionCallInvocationType: invocationType,
 		PipelinedInputs:            []*pb.FunctionPutInputsItem{functionPutInputsItem},
@@ -44,7 +44,7 @@ func createControlPlaneInvocation(ctx context.Context, cpClient pb.ModalClientCl
 	}
 
 	return &controlPlaneInvocation{
-		FunctionCallId:  functionMapResponse.GetFunctionCallId(),
+		FunctionCallID:  functionMapResponse.GetFunctionCallId(),
 		input:           input,
 		functionCallJwt: functionMapResponse.GetFunctionCallJwt(),
 		inputJwt:        functionMapResponse.GetPipelinedInputs()[0].GetInputJwt(),
@@ -52,9 +52,9 @@ func createControlPlaneInvocation(ctx context.Context, cpClient pb.ModalClientCl
 	}, nil
 }
 
-// controlPlaneInvocationFromFunctionCallId creates a controlPlaneInvocation from a function call ID.
-func controlPlaneInvocationFromFunctionCallId(cpClient pb.ModalClientClient, functionCallId string) *controlPlaneInvocation {
-	return &controlPlaneInvocation{FunctionCallId: functionCallId, cpClient: cpClient}
+// controlPlaneInvocationFromFunctionCallID creates a controlPlaneInvocation from a function call ID.
+func controlPlaneInvocationFromFunctionCallID(cpClient pb.ModalClientClient, functionCallID string) *controlPlaneInvocation {
+	return &controlPlaneInvocation{FunctionCallID: functionCallID, cpClient: cpClient}
 }
 
 func (c *controlPlaneInvocation) awaitOutput(ctx context.Context, timeout *time.Duration) (any, error) {
@@ -84,7 +84,7 @@ func (c *controlPlaneInvocation) retry(ctx context.Context, retryCount uint32) e
 // getOutput fetches the output for the current function call with a timeout in milliseconds.
 func (c *controlPlaneInvocation) getOutput(ctx context.Context, timeout time.Duration) (*pb.FunctionGetOutputsItem, error) {
 	response, err := c.cpClient.FunctionGetOutputs(ctx, pb.FunctionGetOutputsRequest_builder{
-		FunctionCallId: c.FunctionCallId,
+		FunctionCallId: c.FunctionCallID,
 		MaxValues:      1,
 		Timeout:        float32(timeout.Seconds()),
 		LastEntryId:    "0-0",
@@ -103,7 +103,7 @@ func (c *controlPlaneInvocation) getOutput(ctx context.Context, timeout time.Dur
 
 // inputPlaneInvocation implements the Invocation interface for the input plane.
 type inputPlaneInvocation struct {
-	functionId   string
+	functionID   string
 	input        *pb.FunctionPutInputsItem
 	attemptToken string
 
@@ -111,20 +111,20 @@ type inputPlaneInvocation struct {
 }
 
 // createInputPlaneInvocation creates a new InputPlaneInvocation by starting an attempt.
-func createInputPlaneInvocation(ctx context.Context, ipClient pb.ModalClientClient, functionId string, input *pb.FunctionInput) (*inputPlaneInvocation, error) {
+func createInputPlaneInvocation(ctx context.Context, ipClient pb.ModalClientClient, functionID string, input *pb.FunctionInput) (*inputPlaneInvocation, error) {
 	functionPutInputsItem := pb.FunctionPutInputsItem_builder{
 		Idx:   0,
 		Input: input,
 	}.Build()
 	attemptStartResp, err := ipClient.AttemptStart(ctx, pb.AttemptStartRequest_builder{
-		FunctionId: functionId,
+		FunctionId: functionID,
 		Input:      functionPutInputsItem,
 	}.Build())
 	if err != nil {
 		return nil, err
 	}
 	return &inputPlaneInvocation{
-		functionId:   functionId,
+		functionID:   functionID,
 		input:        functionPutInputsItem,
 		attemptToken: attemptStartResp.GetAttemptToken(),
 		ipClient:     ipClient,
@@ -153,7 +153,7 @@ func (i *inputPlaneInvocation) getOutput(ctx context.Context, timeout time.Durat
 func (i *inputPlaneInvocation) retry(ctx context.Context, retryCount uint32) error {
 	// We ignore retryCount - it is used only by controlPlaneInvocation.
 	resp, err := i.ipClient.AttemptRetry(ctx, pb.AttemptRetryRequest_builder{
-		FunctionId:   i.functionId,
+		FunctionId:   i.functionID,
 		Input:        i.input,
 		AttemptToken: i.attemptToken,
 	}.Build())
@@ -238,9 +238,9 @@ func processResult(ctx context.Context, client pb.ModalClientClient, result *pb.
 }
 
 // blobDownload downloads a blob by its ID.
-func blobDownload(ctx context.Context, client pb.ModalClientClient, blobId string) ([]byte, error) {
+func blobDownload(ctx context.Context, client pb.ModalClientClient, blobID string) ([]byte, error) {
 	resp, err := client.BlobGet(ctx, pb.BlobGetRequest_builder{
-		BlobId: blobId,
+		BlobId: blobID,
 	}.Build())
 	if err != nil {
 		return nil, err

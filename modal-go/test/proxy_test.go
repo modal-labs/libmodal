@@ -21,15 +21,15 @@ func TestCreateSandboxWithProxy(t *testing.T) {
 
 	proxy, err := tc.Proxies.FromName(ctx, "libmodal-test-proxy", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(proxy.ProxyId).ShouldNot(gomega.BeEmpty())
-	g.Expect(strings.HasPrefix(proxy.ProxyId, "pr-")).To(gomega.BeTrue())
+	g.Expect(proxy.ProxyID).ShouldNot(gomega.BeEmpty())
+	g.Expect(strings.HasPrefix(proxy.ProxyID, "pr-")).To(gomega.BeTrue())
 
 	sb, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
 		Proxy:   proxy,
 		Command: []string{"echo", "hello, Sandbox with Proxy"},
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(sb.SandboxId).ShouldNot(gomega.BeEmpty())
+	g.Expect(sb.SandboxID).ShouldNot(gomega.BeEmpty())
 
 	err = sb.Terminate(ctx)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())

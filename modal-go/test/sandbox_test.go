@@ -25,7 +25,7 @@ func TestCreateOneSandbox(t *testing.T) {
 
 	sb, err := tc.Sandboxes.Create(ctx, app, image, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(sb.SandboxId).ShouldNot(gomega.BeEmpty())
+	g.Expect(sb.SandboxID).ShouldNot(gomega.BeEmpty())
 	defer terminateSandbox(g, sb)
 
 	err = sb.Terminate(ctx)
@@ -107,7 +107,7 @@ func TestSandboxCreateOptions(t *testing.T) {
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(sb).ShouldNot(gomega.BeNil())
-	g.Expect(sb.SandboxId).Should(gomega.HavePrefix("sb-"))
+	g.Expect(sb.SandboxID).Should(gomega.HavePrefix("sb-"))
 
 	defer terminateSandbox(g, sb)
 
@@ -183,7 +183,7 @@ func TestSandboxWithVolume(t *testing.T) {
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(sandbox).ShouldNot(gomega.BeNil())
-	g.Expect(sandbox.SandboxId).Should(gomega.HavePrefix("sb-"))
+	g.Expect(sandbox.SandboxID).Should(gomega.HavePrefix("sb-"))
 
 	exitCode, err := sandbox.Wait(ctx)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -248,7 +248,7 @@ func TestSandboxWithTunnels(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	defer terminateSandbox(g, sandbox)
 
-	g.Expect(sandbox.SandboxId).Should(gomega.HavePrefix("sb-"))
+	g.Expect(sandbox.SandboxID).Should(gomega.HavePrefix("sb-"))
 
 	tunnels, err := sandbox.Tunnels(ctx, 30*time.Second)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -375,7 +375,7 @@ func TestCreateSandboxWithNetworkAccessParams(t *testing.T) {
 	defer terminateSandbox(g, sb)
 
 	g.Expect(sb).ShouldNot(gomega.BeNil())
-	g.Expect(sb.SandboxId).Should(gomega.HavePrefix("sb-"))
+	g.Expect(sb.SandboxID).Should(gomega.HavePrefix("sb-"))
 
 	exitCode, err := sb.Wait(ctx)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -438,11 +438,11 @@ func TestSandboxFromId(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	defer terminateSandbox(g, sb)
 
-	g.Expect(sb.SandboxId).ShouldNot(gomega.BeEmpty())
+	g.Expect(sb.SandboxID).ShouldNot(gomega.BeEmpty())
 
-	sbFromId, err := tc.Sandboxes.FromId(ctx, sb.SandboxId)
+	sbFromID, err := tc.Sandboxes.FromID(ctx, sb.SandboxID)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(sbFromId.SandboxId).Should(gomega.Equal(sb.SandboxId))
+	g.Expect(sbFromID.SandboxID).Should(gomega.Equal(sb.SandboxID))
 }
 
 func TestSandboxWithWorkdir(t *testing.T) {
@@ -498,7 +498,7 @@ func TestSandboxSetTagsAndList(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	for s, err := range it {
 		g.Expect(err).ShouldNot(gomega.HaveOccurred())
-		before = append(before, s.SandboxId)
+		before = append(before, s.SandboxID)
 	}
 	g.Expect(before).To(gomega.HaveLen(0))
 
@@ -510,9 +510,9 @@ func TestSandboxSetTagsAndList(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	for s, err := range it {
 		g.Expect(err).ShouldNot(gomega.HaveOccurred())
-		after = append(after, s.SandboxId)
+		after = append(after, s.SandboxID)
 	}
-	g.Expect(after).To(gomega.Equal([]string{sb.SandboxId}))
+	g.Expect(after).To(gomega.Equal([]string{sb.SandboxID}))
 }
 
 func TestSandboxTags(t *testing.T) {
@@ -549,25 +549,25 @@ func TestSandboxTags(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	for s, err := range it {
 		g.Expect(err).ShouldNot(gomega.HaveOccurred())
-		ids = append(ids, s.SandboxId)
+		ids = append(ids, s.SandboxID)
 	}
-	g.Expect(ids).To(gomega.Equal([]string{sb.SandboxId}))
+	g.Expect(ids).To(gomega.Equal([]string{sb.SandboxID}))
 
 	ids = nil
 	it, err = tc.Sandboxes.List(ctx, &modal.SandboxListParams{Tags: map[string]string{"key-a": tagA, "key-b": tagB}})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	for s, err := range it {
 		g.Expect(err).ShouldNot(gomega.HaveOccurred())
-		ids = append(ids, s.SandboxId)
+		ids = append(ids, s.SandboxID)
 	}
-	g.Expect(ids).To(gomega.Equal([]string{sb.SandboxId}))
+	g.Expect(ids).To(gomega.Equal([]string{sb.SandboxID}))
 
 	ids = nil
 	it, err = tc.Sandboxes.List(ctx, &modal.SandboxListParams{Tags: map[string]string{"key-a": tagA, "key-b": tagB, "key-d": "not-set"}})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	for s, err := range it {
 		g.Expect(err).ShouldNot(gomega.HaveOccurred())
-		ids = append(ids, s.SandboxId)
+		ids = append(ids, s.SandboxID)
 	}
 	g.Expect(ids).To(gomega.HaveLen(0))
 }
@@ -587,11 +587,11 @@ func TestSandboxListByAppId(t *testing.T) {
 	defer terminateSandbox(g, sb)
 
 	count := 0
-	it, err := tc.Sandboxes.List(ctx, &modal.SandboxListParams{AppId: app.AppId})
+	it, err := tc.Sandboxes.List(ctx, &modal.SandboxListParams{AppID: app.AppID})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	for s, err := range it {
 		g.Expect(err).ShouldNot(gomega.HaveOccurred())
-		g.Expect(s.SandboxId).Should(gomega.HavePrefix("sb-"))
+		g.Expect(s.SandboxID).Should(gomega.HavePrefix("sb-"))
 		count++
 		if count >= 1 {
 			break
@@ -617,17 +617,17 @@ func TestNamedSandbox(t *testing.T) {
 		Command: []string{"sleep", "60"},
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(sb.SandboxId).ShouldNot(gomega.BeEmpty())
+	g.Expect(sb.SandboxID).ShouldNot(gomega.BeEmpty())
 
 	defer terminateSandbox(g, sb)
 
 	sb1FromName, err := tc.Sandboxes.FromName(ctx, "libmodal-test", sandboxName, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(sb1FromName.SandboxId).To(gomega.Equal(sb.SandboxId))
+	g.Expect(sb1FromName.SandboxID).To(gomega.Equal(sb.SandboxID))
 
 	sb2FromName, err := tc.Sandboxes.FromName(ctx, "libmodal-test", sandboxName, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(sb2FromName.SandboxId).To(gomega.Equal(sb1FromName.SandboxId))
+	g.Expect(sb2FromName.SandboxID).To(gomega.Equal(sb1FromName.SandboxID))
 
 	_, err = tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
 		Name:    sandboxName,

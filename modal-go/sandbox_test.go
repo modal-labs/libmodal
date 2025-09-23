@@ -39,10 +39,10 @@ func TestSandboxCreateRequestProto_WithPTY(t *testing.T) {
 func TestSandboxCreateRequestProto_MergesEnvAndSecrets(t *testing.T) {
 	g := gomega.NewWithT(t)
 
-	secret := &Secret{SecretId: "test-secret-1"}
+	secret := &Secret{SecretID: "test-secret-1"}
 
 	envVars := map[string]string{"B": "2"}
-	envSecret := &Secret{SecretId: "test-env-secret"}
+	envSecret := &Secret{SecretID: "test-env-secret"}
 
 	_, err := buildSandboxCreateRequestProto("ap", "im", SandboxCreateParams{
 		Env: envVars,
@@ -62,15 +62,15 @@ func TestSandboxCreateRequestProto_MergesEnvAndSecrets(t *testing.T) {
 
 	definition := req.GetDefinition()
 	g.Expect(definition.GetSecretIds()).To(gomega.HaveLen(2))
-	g.Expect(definition.GetSecretIds()).To(gomega.ContainElement(secret.SecretId))
-	g.Expect(definition.GetSecretIds()).To(gomega.ContainElement(envSecret.SecretId))
+	g.Expect(definition.GetSecretIds()).To(gomega.ContainElement(secret.SecretID))
+	g.Expect(definition.GetSecretIds()).To(gomega.ContainElement(envSecret.SecretID))
 }
 
 func TestSandboxCreateRequestProto_WithOnlyEnvParameter(t *testing.T) {
 	g := gomega.NewWithT(t)
 
 	envVars := map[string]string{"B": "2", "C": "3"}
-	envSecret := &Secret{SecretId: "test-env-secret"}
+	envSecret := &Secret{SecretID: "test-env-secret"}
 
 	req, err := buildSandboxCreateRequestProto("ap", "im", SandboxCreateParams{
 		Env: envVars,
@@ -79,7 +79,7 @@ func TestSandboxCreateRequestProto_WithOnlyEnvParameter(t *testing.T) {
 
 	definition := req.GetDefinition()
 	g.Expect(definition.GetSecretIds()).To(gomega.HaveLen(1))
-	g.Expect(definition.GetSecretIds()).To(gomega.ContainElement(envSecret.SecretId))
+	g.Expect(definition.GetSecretIds()).To(gomega.ContainElement(envSecret.SecretID))
 }
 
 func TestContainerExecProto_WithoutPTY(t *testing.T) {
@@ -112,10 +112,10 @@ func TestContainerExecProto_WithPTY(t *testing.T) {
 func TestContainerExecRequestProto_MergesEnvAndSecrets(t *testing.T) {
 	g := gomega.NewWithT(t)
 
-	secret := &Secret{SecretId: "test-secret-1"}
+	secret := &Secret{SecretID: "test-secret-1"}
 
 	envVars := map[string]string{"B": "2"}
-	envSecret := &Secret{SecretId: "test-env-secret"}
+	envSecret := &Secret{SecretID: "test-env-secret"}
 
 	_, err := buildContainerExecRequestProto("ta", []string{"echo", "hello"}, SandboxExecParams{
 		Env: envVars,
@@ -134,15 +134,15 @@ func TestContainerExecRequestProto_MergesEnvAndSecrets(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	g.Expect(req.GetSecretIds()).To(gomega.HaveLen(2))
-	g.Expect(req.GetSecretIds()).To(gomega.ContainElement(secret.SecretId))
-	g.Expect(req.GetSecretIds()).To(gomega.ContainElement(envSecret.SecretId))
+	g.Expect(req.GetSecretIds()).To(gomega.ContainElement(secret.SecretID))
+	g.Expect(req.GetSecretIds()).To(gomega.ContainElement(envSecret.SecretID))
 }
 
 func TestContainerExecRequestProto_WithOnlyEnvParameter(t *testing.T) {
 	g := gomega.NewWithT(t)
 
 	envVars := map[string]string{"B": "2"}
-	envSecret := &Secret{SecretId: "test-env-secret"}
+	envSecret := &Secret{SecretID: "test-env-secret"}
 
 	req, err := buildContainerExecRequestProto("ta", []string{"echo", "hello"}, SandboxExecParams{
 		Env: envVars,
@@ -150,5 +150,5 @@ func TestContainerExecRequestProto_WithOnlyEnvParameter(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	g.Expect(req.GetSecretIds()).To(gomega.HaveLen(1))
-	g.Expect(req.GetSecretIds()).To(gomega.ContainElement(envSecret.SecretId))
+	g.Expect(req.GetSecretIds()).To(gomega.ContainElement(envSecret.SecretID))
 }

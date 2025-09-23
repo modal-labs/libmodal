@@ -17,7 +17,7 @@ import (
 type QueueService struct{ client *Client }
 
 const queueInitialPutBackoff = 100 * time.Millisecond
-const queueDefaultPartitionTtl = 24 * time.Hour
+const queueDefaultPartitionTTL = 24 * time.Hour
 
 func validatePartitionKey(partition string) ([]byte, error) {
 	if partition == "" {
@@ -32,7 +32,7 @@ func validatePartitionKey(partition string) ([]byte, error) {
 
 // Queue is a distributed, FIFO queue for data flow in Modal Apps.
 type Queue struct {
-	QueueId         string
+	QueueID         string
 	Name            string
 	cancelEphemeral context.CancelFunc
 
@@ -67,7 +67,7 @@ func (s *QueueService) Ephemeral(ctx context.Context, params *QueueEphemeralPara
 	})
 
 	q := &Queue{
-		QueueId:         resp.GetQueueId(),
+		QueueID:         resp.GetQueueId(),
 		cancelEphemeral: cancel,
 		client:          s.client,
 	}
@@ -82,7 +82,7 @@ func (q *Queue) CloseEphemeral() {
 	} else {
 		// We panic in this case because of invalid usage. In general, methods
 		// used with `defer` like CloseEphemeral should not return errors.
-		panic(fmt.Sprintf("Queue %s is not ephemeral", q.QueueId))
+		panic(fmt.Sprintf("Queue %s is not ephemeral", q.QueueID))
 	}
 }
 
@@ -112,7 +112,7 @@ func (s *QueueService) FromName(ctx context.Context, name string, params *QueueF
 		return nil, err
 	}
 	return &Queue{
-		QueueId:         resp.GetQueueId(),
+		QueueID:         resp.GetQueueId(),
 		Name:            name,
 		cancelEphemeral: nil,
 		client:          s.client,
@@ -134,7 +134,7 @@ func (s *QueueService) Delete(ctx context.Context, name string, params *QueueDel
 	if err != nil {
 		return err
 	}
-	_, err = s.client.cpClient.QueueDelete(ctx, pb.QueueDeleteRequest_builder{QueueId: q.QueueId}.Build())
+	_, err = s.client.cpClient.QueueDelete(ctx, pb.QueueDeleteRequest_builder{QueueId: q.QueueID}.Build())
 	return err
 }
 
@@ -156,7 +156,7 @@ func (q *Queue) Clear(ctx context.Context, params *QueueClearParams) error {
 		return err
 	}
 	_, err = q.client.cpClient.QueueClear(ctx, pb.QueueClearRequest_builder{
-		QueueId:       q.QueueId,
+		QueueId:       q.QueueID,
 		PartitionKey:  key,
 		AllPartitions: params.All,
 	}.Build())
@@ -181,7 +181,7 @@ func (q *Queue) get(ctx context.Context, n int, params *QueueGetParams) ([]any, 
 
 	for {
 		resp, err := q.client.cpClient.QueueGet(ctx, pb.QueueGetRequest_builder{
-			QueueId:      q.QueueId,
+			QueueId:      q.QueueID,
 			PartitionKey: partitionKey,
 			Timeout:      float32(pollTimeout.Seconds()),
 			NValues:      int32(n),
@@ -203,7 +203,7 @@ func (q *Queue) get(ctx context.Context, n int, params *QueueGetParams) ([]any, 
 		if params.Timeout != nil {
 			remaining := *params.Timeout - time.Since(startTime)
 			if remaining <= 0 {
-				message := fmt.Sprintf("Queue %s did not return values within %s", q.QueueId, *params.Timeout)
+				message := fmt.Sprintf("Queue %s did not return values within %s", q.QueueID, *params.Timeout)
 				return nil, QueueEmptyError{message}
 			}
 			pollTimeout = min(pollTimeout, remaining)
@@ -272,14 +272,14 @@ func (q *Queue) put(ctx context.Context, values []any, params *QueuePutParams) e
 	}
 
 	delay := queueInitialPutBackoff
-	ttl := params.PartitionTtl
+	ttl := params.PartitionTTL
 	if ttl == 0 {
-		ttl = queueDefaultPartitionTtl
+		ttl = queueDefaultPartitionTTL
 	}
 
 	for {
 		_, err := q.client.cpClient.QueuePut(ctx, pb.QueuePutRequest_builder{
-			QueueId:             q.QueueId,
+			QueueId:             q.QueueID,
 			Values:              valuesEncoded,
 			PartitionKey:        key,
 			PartitionTtlSeconds: int32(ttl.Seconds()),
@@ -297,7 +297,7 @@ func (q *Queue) put(ctx context.Context, values []any, params *QueuePutParams) e
 		if !deadline.IsZero() {
 			remaining := time.Until(deadline)
 			if remaining <= 0 {
-				return QueueFullError{fmt.Sprintf("Put failed on %s", q.QueueId)}
+				return QueueFullError{fmt.Sprintf("Put failed on %s", q.QueueID)}
 			}
 			delay = min(delay, remaining)
 		}
@@ -313,7 +313,7 @@ func (q *Queue) put(ctx context.Context, values []any, params *QueuePutParams) e
 type QueuePutParams struct {
 	Timeout      *time.Duration // max wait for space (nil = indefinitely)
 	Partition    string
-	PartitionTtl time.Duration // ttl for the *partition* (default 24h)
+	PartitionTTL time.Duration // ttl for the *partition* (default 24h)
 }
 
 // Put adds a single item to the end of the Queue.
@@ -360,7 +360,7 @@ func (q *Queue) Len(ctx context.Context, params *QueueLenParams) (int, error) {
 		return 0, err
 	}
 	resp, err := q.client.cpClient.QueueLen(ctx, pb.QueueLenRequest_builder{
-		QueueId:      q.QueueId,
+		QueueId:      q.QueueID,
 		PartitionKey: key,
 		Total:        params.Total,
 	}.Build())
@@ -396,7 +396,7 @@ func (q *Queue) Iterate(ctx context.Context, params *QueueIterateParams) iter.Se
 		for {
 			pollDuration := max(0, min(maxPoll, time.Until(fetchDeadline)))
 			resp, err := q.client.cpClient.QueueNextItems(ctx, pb.QueueNextItemsRequest_builder{
-				QueueId:         q.QueueId,
+				QueueId:         q.QueueID,
 				PartitionKey:    key,
 				ItemPollTimeout: float32(pollDuration.Seconds()),
 				LastEntryId:     lastEntryID,

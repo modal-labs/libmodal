@@ -11,7 +11,7 @@ import (
 // It implements io.Reader, io.Writer, io.Seeker, and io.Closer interfaces.
 type SandboxFile struct {
 	fileDescriptor string
-	taskId         string
+	taskID         string
 	cpClient       pb.ModalClientClient
 }
 
@@ -24,7 +24,7 @@ func (f *SandboxFile) Read(p []byte) (int, error) {
 			FileDescriptor: f.fileDescriptor,
 			N:              &nBytes,
 		}.Build(),
-		TaskId: f.taskId,
+		TaskId: f.taskID,
 	}.Build(), p)
 	if err != nil {
 		return 0, err
@@ -43,7 +43,7 @@ func (f *SandboxFile) Write(p []byte) (n int, err error) {
 			FileDescriptor: f.fileDescriptor,
 			Data:           p,
 		}.Build(),
-		TaskId: f.taskId,
+		TaskId: f.taskID,
 	}.Build(), nil)
 	if err != nil {
 		return 0, err
@@ -57,7 +57,7 @@ func (f *SandboxFile) Flush() error {
 		FileFlushRequest: pb.ContainerFileFlushRequest_builder{
 			FileDescriptor: f.fileDescriptor,
 		}.Build(),
-		TaskId: f.taskId,
+		TaskId: f.taskID,
 	}.Build(), nil)
 	if err != nil {
 		return err
@@ -71,7 +71,7 @@ func (f *SandboxFile) Close() error {
 		FileCloseRequest: pb.ContainerFileCloseRequest_builder{
 			FileDescriptor: f.fileDescriptor,
 		}.Build(),
-		TaskId: f.taskId,
+		TaskId: f.taskID,
 	}.Build(), nil)
 	if err != nil {
 		return err

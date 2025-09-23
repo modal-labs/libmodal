@@ -30,16 +30,16 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create Sandbox: %v", err)
 	}
-	fmt.Println("Started Sandbox:", sb.SandboxId)
+	fmt.Println("Started Sandbox:", sb.SandboxID)
 
 	defer func() {
 		if err := sb.Terminate(context.Background()); err != nil {
-			log.Fatalf("Failed to terminate Sandbox %s: %v", sb.SandboxId, err)
+			log.Fatalf("Failed to terminate Sandbox %s: %v", sb.SandboxID, err)
 		}
 	}()
 
-	repoUrl := "https://github.com/modal-labs/libmodal"
-	git, err := sb.Exec(ctx, []string{"git", "clone", repoUrl, "/repo"}, nil)
+	repoURL := "https://github.com/modal-labs/libmodal"
+	git, err := sb.Exec(ctx, []string{"git", "clone", repoURL, "/repo"}, nil)
 	if err != nil {
 		log.Fatalf("Failed to execute git clone: %v", err)
 	}
@@ -47,7 +47,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Git clone failed: %v", err)
 	}
-	fmt.Printf("Cloned '%s' into /repo.\n", repoUrl)
+	fmt.Printf("Cloned '%s' into /repo.\n", repoURL)
 
 	claudeCmd := []string{
 		"claude",

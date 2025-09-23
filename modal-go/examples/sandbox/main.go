@@ -28,18 +28,18 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create Sandbox: %v", err)
 	}
-	log.Printf("sandbox: %s\n", sb.SandboxId)
+	log.Printf("sandbox: %s\n", sb.SandboxID)
 	defer func() {
 		if err := sb.Terminate(context.Background()); err != nil {
-			log.Fatalf("Failed to terminate Sandbox %s: %v", sb.SandboxId, err)
+			log.Fatalf("Failed to terminate Sandbox %s: %v", sb.SandboxID, err)
 		}
 	}()
 
-	sbFromId, err := mc.Sandboxes.FromId(ctx, sb.SandboxId)
+	sbFromID, err := mc.Sandboxes.FromID(ctx, sb.SandboxID)
 	if err != nil {
 		log.Fatalf("Failed to get Sandbox with ID: %v", err)
 	}
-	log.Printf("Queried Sandbox with ID: %v", sbFromId.SandboxId)
+	log.Printf("Queried Sandbox with ID: %v", sbFromID.SandboxID)
 
 	_, err = sb.Stdin.Write([]byte("this is input that should be mirrored by cat"))
 	if err != nil {

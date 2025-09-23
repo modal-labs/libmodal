@@ -15,7 +15,7 @@ import (
 // Profile holds a fully-resolved configuration ready for use by the client.
 type Profile struct {
 	ServerURL           string
-	TokenId             string
+	TokenID             string
 	TokenSecret         string
 	Environment         string
 	ImageBuilderVersion string
@@ -24,7 +24,7 @@ type Profile struct {
 // rawProfile mirrors the TOML structure on disk.
 type rawProfile struct {
 	ServerURL           string `toml:"server_url"`
-	TokenId             string `toml:"token_id"`
+	TokenID             string `toml:"token_id"`
 	TokenSecret         string `toml:"token_secret"`
 	Environment         string `toml:"environment"`
 	ImageBuilderVersion string `toml:"image_builder_version"`
@@ -76,14 +76,14 @@ func getProfile(name string, cfg config) Profile {
 
 	// Env-vars override file values.
 	serverURL := firstNonEmpty(os.Getenv("MODAL_SERVER_URL"), raw.ServerURL, "https://api.modal.com:443")
-	tokenId := firstNonEmpty(os.Getenv("MODAL_TOKEN_ID"), raw.TokenId)
+	tokenID := firstNonEmpty(os.Getenv("MODAL_TOKEN_ID"), raw.TokenID)
 	tokenSecret := firstNonEmpty(os.Getenv("MODAL_TOKEN_SECRET"), raw.TokenSecret)
 	environment := firstNonEmpty(os.Getenv("MODAL_ENVIRONMENT"), raw.Environment)
 	imageBuilderVersion := firstNonEmpty(os.Getenv("MODAL_IMAGE_BUILDER_VERSION"), raw.ImageBuilderVersion)
 
 	return Profile{
 		ServerURL:           serverURL,
-		TokenId:             tokenId,
+		TokenID:             tokenID,
 		TokenSecret:         tokenSecret,
 		Environment:         environment,
 		ImageBuilderVersion: imageBuilderVersion,

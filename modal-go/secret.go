@@ -11,7 +11,7 @@ type SecretService struct{ client *Client }
 
 // Secret represents a Modal Secret.
 type Secret struct {
-	SecretId string
+	SecretID string
 	Name     string
 }
 
@@ -37,7 +37,7 @@ func (s *SecretService) FromName(ctx context.Context, name string, params *Secre
 		return nil, err
 	}
 
-	return &Secret{SecretId: resp.GetSecretId(), Name: name}, nil
+	return &Secret{SecretID: resp.GetSecretId(), Name: name}, nil
 }
 
 // SecretFromMapParams are options for creating a Secret from a key/value map.
@@ -59,5 +59,5 @@ func (s *SecretService) FromMap(ctx context.Context, keyValuePairs map[string]st
 	if err != nil {
 		return nil, err
 	}
-	return &Secret{SecretId: resp.GetSecretId()}, nil
+	return &Secret{SecretID: resp.GetSecretId()}, nil
 }

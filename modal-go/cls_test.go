@@ -17,10 +17,10 @@ func TestBuildFunctionOptionsProto_NilOptions(t *testing.T) {
 func TestBuildFunctionOptionsProto_MergesEnvAndSecrets(t *testing.T) {
 	g := gomega.NewWithT(t)
 
-	secret := &Secret{SecretId: "test-secret-1"}
+	secret := &Secret{SecretID: "test-secret-1"}
 
 	envVars := map[string]string{"B": "2"}
-	envSecret := &Secret{SecretId: "test-env-secret"}
+	envSecret := &Secret{SecretID: "test-env-secret"}
 
 	_, err := buildFunctionOptionsProto(&serviceParams{env: &envVars}, nil)
 	g.Expect(err).Should(gomega.HaveOccurred())
@@ -38,8 +38,8 @@ func TestBuildFunctionOptionsProto_MergesEnvAndSecrets(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	g.Expect(functionOptions.GetSecretIds()).To(gomega.HaveLen(2))
-	g.Expect(functionOptions.GetSecretIds()).To(gomega.ContainElement(secret.SecretId))
-	g.Expect(functionOptions.GetSecretIds()).To(gomega.ContainElement(envSecret.SecretId))
+	g.Expect(functionOptions.GetSecretIds()).To(gomega.ContainElement(secret.SecretID))
+	g.Expect(functionOptions.GetSecretIds()).To(gomega.ContainElement(envSecret.SecretID))
 	g.Expect(functionOptions.GetReplaceSecretIds()).To(gomega.BeTrue())
 }
 
@@ -47,7 +47,7 @@ func TestBuildFunctionOptionsProto_WithOnlyEnvParameter(t *testing.T) {
 	g := gomega.NewWithT(t)
 
 	envVars := map[string]string{"B": "2"}
-	envSecret := &Secret{SecretId: "test-env-secret"}
+	envSecret := &Secret{SecretID: "test-env-secret"}
 
 	functionOptions, err := buildFunctionOptionsProto(&serviceParams{
 		env: &envVars,
@@ -55,14 +55,14 @@ func TestBuildFunctionOptionsProto_WithOnlyEnvParameter(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	g.Expect(functionOptions.GetSecretIds()).To(gomega.HaveLen(1))
-	g.Expect(functionOptions.GetSecretIds()).To(gomega.ContainElement(envSecret.SecretId))
+	g.Expect(functionOptions.GetSecretIds()).To(gomega.ContainElement(envSecret.SecretID))
 	g.Expect(functionOptions.GetReplaceSecretIds()).To(gomega.BeTrue())
 }
 
 func TestBuildFunctionOptionsProto_EmptyEnv_WithSecrets(t *testing.T) {
 	g := gomega.NewWithT(t)
 
-	secret := &Secret{SecretId: "test-secret-1"}
+	secret := &Secret{SecretID: "test-secret-1"}
 
 	params := &serviceParams{env: &map[string]string{}, secrets: &[]*Secret{secret}}
 
@@ -70,7 +70,7 @@ func TestBuildFunctionOptionsProto_EmptyEnv_WithSecrets(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	g.Expect(functionOptions.GetSecretIds()).To(gomega.HaveLen(1))
-	g.Expect(functionOptions.GetSecretIds()).To(gomega.ContainElement(secret.SecretId))
+	g.Expect(functionOptions.GetSecretIds()).To(gomega.ContainElement(secret.SecretID))
 	g.Expect(functionOptions.GetReplaceSecretIds()).To(gomega.BeTrue())
 }
 

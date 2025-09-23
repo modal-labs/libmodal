@@ -29,10 +29,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create Sandbox: %v", err)
 	}
-	fmt.Printf("Started Sandbox: %s\n", sandbox.SandboxId)
+	fmt.Printf("Started Sandbox: %s\n", sandbox.SandboxID)
 	defer func() {
 		if err := sandbox.Terminate(context.Background()); err != nil {
-			log.Fatalf("Failed to terminate Sandbox %s: %v", sandbox.SandboxId, err)
+			log.Fatalf("Failed to terminate Sandbox %s: %v", sandbox.SandboxID, err)
 		}
 	}()
 

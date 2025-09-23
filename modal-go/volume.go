@@ -14,7 +14,7 @@ type VolumeService struct{ client *Client }
 
 // Volume represents a Modal Volume that provides persistent storage.
 type Volume struct {
-	VolumeId        string
+	VolumeID        string
 	Name            string
 	readOnly        bool
 	cancelEphemeral context.CancelFunc
@@ -50,13 +50,13 @@ func (s *VolumeService) FromName(ctx context.Context, name string, params *Volum
 		return nil, err
 	}
 
-	return &Volume{VolumeId: resp.GetVolumeId(), Name: name, readOnly: false, cancelEphemeral: nil}, nil
+	return &Volume{VolumeID: resp.GetVolumeId(), Name: name, readOnly: false, cancelEphemeral: nil}, nil
 }
 
 // ReadOnly configures Volume to mount as read-only.
 func (v *Volume) ReadOnly() *Volume {
 	return &Volume{
-		VolumeId:        v.VolumeId,
+		VolumeID:        v.VolumeID,
 		Name:            v.Name,
 		readOnly:        true,
 		cancelEphemeral: v.cancelEphemeral,
@@ -96,7 +96,7 @@ func (s *VolumeService) Ephemeral(ctx context.Context, params *VolumeEphemeralPa
 	})
 
 	return &Volume{
-		VolumeId:        resp.GetVolumeId(),
+		VolumeID:        resp.GetVolumeId(),
 		readOnly:        false,
 		cancelEphemeral: cancel,
 	}, nil
@@ -109,6 +109,6 @@ func (v *Volume) CloseEphemeral() {
 	} else {
 		// We panic in this case because of invalid usage. In general, methods
 		// used with `defer` like CloseEphemeral should not return errors.
-		panic(fmt.Sprintf("Volume %s is not ephemeral", v.VolumeId))
+		panic(fmt.Sprintf("Volume %s is not ephemeral", v.VolumeID))
 	}
 }

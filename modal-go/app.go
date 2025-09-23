@@ -16,7 +16,7 @@ type AppService struct{ client *Client }
 
 // App references a deployed Modal App.
 type App struct {
-	AppId string
+	AppID string
 	Name  string
 }
 
@@ -78,5 +78,5 @@ func (s *AppService) FromName(ctx context.Context, name string, params *AppFromN
 		return nil, err
 	}
 
-	return &App{AppId: resp.GetAppId(), Name: name}, nil
+	return &App{AppID: resp.GetAppId(), Name: name}, nil
 }

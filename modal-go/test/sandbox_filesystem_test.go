@@ -20,7 +20,7 @@ func createSandbox(g *gomega.WithT) *modal.Sandbox {
 
 	sb, err := tc.Sandboxes.Create(ctx, app, image, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(sb.SandboxId).ShouldNot(gomega.BeEmpty())
+	g.Expect(sb.SandboxID).ShouldNot(gomega.BeEmpty())
 	return sb
 }
 
@@ -73,16 +73,16 @@ func TestSandboxAppendToFileBinary(t *testing.T) {
 
 	appender, err := sb.Open(ctx, "/tmp/append.txt", "a")
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	more_text := []byte{7, 8, 9, 10}
-	appender.Write(more_text)
+	moreText := []byte{7, 8, 9, 10}
+	appender.Write(moreText)
 
 	reader, err := sb.Open(ctx, "/tmp/append.txt", "r")
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	expected_text := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 7, 8, 9, 10}
+	expectedText := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 7, 8, 9, 10}
 	out, err := io.ReadAll(reader)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(out).Should(gomega.Equal(expected_text))
+	g.Expect(out).Should(gomega.Equal(expectedText))
 
 	err = reader.Close()
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())

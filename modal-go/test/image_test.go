@@ -22,11 +22,11 @@ func TestImageFromId(t *testing.T) {
 	image, err := tc.Images.FromRegistry("alpine:3.21", nil).Build(ctx, app)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	imageFromId, err := tc.Images.FromId(ctx, image.ImageId)
+	imageFromID, err := tc.Images.FromID(ctx, image.ImageID)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(imageFromId.ImageId).Should(gomega.Equal(image.ImageId))
+	g.Expect(imageFromID.ImageID).Should(gomega.Equal(image.ImageID))
 
-	_, err = tc.Images.FromId(ctx, "im-nonexistent")
+	_, err = tc.Images.FromID(ctx, "im-nonexistent")
 	g.Expect(err).Should(gomega.HaveOccurred())
 }
 
@@ -40,7 +40,7 @@ func TestImageFromRegistry(t *testing.T) {
 
 	image, err := tc.Images.FromRegistry("alpine:3.21", nil).Build(ctx, app)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(image.ImageId).Should(gomega.HavePrefix("im-"))
+	g.Expect(image.ImageID).Should(gomega.HavePrefix("im-"))
 }
 
 func TestImageFromRegistryWithSecret(t *testing.T) {
@@ -65,7 +65,7 @@ func TestImageFromRegistryWithSecret(t *testing.T) {
 		Secret: secret,
 	}).Build(ctx, app)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(image.ImageId).Should(gomega.HavePrefix("im-"))
+	g.Expect(image.ImageID).Should(gomega.HavePrefix("im-"))
 }
 
 func TestImageFromAwsEcr(t *testing.T) {
@@ -83,7 +83,7 @@ func TestImageFromAwsEcr(t *testing.T) {
 
 	image, err := tc.Images.FromAwsEcr("459781239556.dkr.ecr.us-east-1.amazonaws.com/ecr-private-registry-test-7522615:python", secret).Build(ctx, app)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(image.ImageId).Should(gomega.HavePrefix("im-"))
+	g.Expect(image.ImageID).Should(gomega.HavePrefix("im-"))
 }
 
 func TestImageFromGcpArtifactRegistry(t *testing.T) {
@@ -101,7 +101,7 @@ func TestImageFromGcpArtifactRegistry(t *testing.T) {
 
 	image, err := tc.Images.FromGcpArtifactRegistry("us-east1-docker.pkg.dev/modal-prod-367916/private-repo-test/my-image", secret).Build(ctx, app)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(image.ImageId).Should(gomega.HavePrefix("im-"))
+	g.Expect(image.ImageID).Should(gomega.HavePrefix("im-"))
 }
 
 func TestCreateSandboxWithImage(t *testing.T) {
@@ -113,13 +113,13 @@ func TestCreateSandboxWithImage(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	image := tc.Images.FromRegistry("alpine:3.21", nil)
-	g.Expect(image.ImageId).Should(gomega.BeEmpty())
+	g.Expect(image.ImageID).Should(gomega.BeEmpty())
 
 	sb, err := tc.Sandboxes.Create(ctx, app, image, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	defer terminateSandbox(g, sb)
 
-	g.Expect(image.ImageId).Should(gomega.HavePrefix("im-"))
+	g.Expect(image.ImageID).Should(gomega.HavePrefix("im-"))
 }
 
 func TestImageDelete(t *testing.T) {
@@ -132,23 +132,23 @@ func TestImageDelete(t *testing.T) {
 
 	image, err := tc.Images.FromRegistry("alpine:3.13", nil).Build(ctx, app)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(image.ImageId).Should(gomega.HavePrefix("im-"))
+	g.Expect(image.ImageID).Should(gomega.HavePrefix("im-"))
 
-	imageFromId, err := tc.Images.FromId(ctx, image.ImageId)
+	imageFromID, err := tc.Images.FromID(ctx, image.ImageID)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(imageFromId.ImageId).Should(gomega.Equal(image.ImageId))
+	g.Expect(imageFromID.ImageID).Should(gomega.Equal(image.ImageID))
 
-	err = tc.Images.Delete(ctx, image.ImageId, nil)
+	err = tc.Images.Delete(ctx, image.ImageID, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	_, err = tc.Images.FromId(ctx, image.ImageId)
+	_, err = tc.Images.FromID(ctx, image.ImageID)
 	g.Expect(err).Should(gomega.MatchError(gomega.MatchRegexp("Image .+ not found")))
 
 	newImage, err := tc.Images.FromRegistry("alpine:3.13", nil).Build(ctx, app)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(newImage.ImageId).ShouldNot(gomega.Equal(image.ImageId))
+	g.Expect(newImage.ImageID).ShouldNot(gomega.Equal(image.ImageID))
 
-	_, err = tc.Images.FromId(ctx, "im-nonexistent")
+	_, err = tc.Images.FromID(ctx, "im-nonexistent")
 	g.Expect(err).Should(gomega.MatchError(gomega.MatchRegexp("Image .+ not found")))
 }
 
@@ -358,8 +358,8 @@ func TestDockerfileCommandsWithOptions(t *testing.T) {
 		},
 	)
 
-	app := &modal.App{AppId: "ap-test"}
-	secret := &modal.Secret{SecretId: "sc-test"}
+	app := &modal.App{AppID: "ap-test"}
+	secret := &modal.Secret{SecretID: "sc-test"}
 
 	builtImage, err := mock.Images.FromRegistry("alpine:3.21", nil).
 		DockerfileCommands([]string{"RUN echo layer1"}, nil).
@@ -374,5 +374,5 @@ func TestDockerfileCommandsWithOptions(t *testing.T) {
 		Build(ctx, app)
 
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(builtImage.ImageId).To(gomega.Equal("im-layer3"))
+	g.Expect(builtImage.ImageID).To(gomega.Equal("im-layer3"))
 }

@@ -47,7 +47,7 @@ type SandboxCreateParams struct {
 }
 
 // buildSandboxCreateRequestProto builds a SandboxCreateRequest proto from options.
-func buildSandboxCreateRequestProto(appId, imageId string, params SandboxCreateParams, envSecret *Secret) (*pb.SandboxCreateRequest, error) {
+func buildSandboxCreateRequestProto(appID, imageID string, params SandboxCreateParams, envSecret *Secret) (*pb.SandboxCreateRequest, error) {
 	gpuConfig, err := parseGPUConfig(params.GPU)
 	if err != nil {
 		return nil, err
@@ -62,7 +62,7 @@ func buildSandboxCreateRequestProto(appId, imageId string, params SandboxCreateP
 		volumeMounts = make([]*pb.VolumeMount, 0, len(params.Volumes))
 		for mountPath, volume := range params.Volumes {
 			volumeMounts = append(volumeMounts, pb.VolumeMount_builder{
-				VolumeId:               volume.VolumeId,
+				VolumeId:               volume.VolumeID,
 				MountPath:              mountPath,
 				AllowBackgroundCommits: true,
 				ReadOnly:               volume.IsReadOnly(),
@@ -118,14 +118,14 @@ func buildSandboxCreateRequestProto(appId, imageId string, params SandboxCreateP
 	secretIds := []string{}
 	for _, secret := range params.Secrets {
 		if secret != nil {
-			secretIds = append(secretIds, secret.SecretId)
+			secretIds = append(secretIds, secret.SecretID)
 		}
 	}
 	if (len(params.Env) > 0) != (envSecret != nil) {
 		return nil, fmt.Errorf("internal error: Env and envSecret must both be provided or neither be provided")
 	}
 	if envSecret != nil {
-		secretIds = append(secretIds, envSecret.SecretId)
+		secretIds = append(secretIds, envSecret.SecretID)
 	}
 
 	var networkAccess *pb.NetworkAccess
@@ -151,9 +151,9 @@ func buildSandboxCreateRequestProto(appId, imageId string, params SandboxCreateP
 
 	schedulerPlacement := pb.SchedulerPlacement_builder{Regions: params.Regions}.Build()
 
-	var proxyId *string
+	var proxyID *string
 	if params.Proxy != nil {
-		proxyId = &params.Proxy.ProxyId
+		proxyID = &params.Proxy.ProxyID
 	}
 
 	var workdir *string
@@ -168,10 +168,10 @@ func buildSandboxCreateRequestProto(appId, imageId string, params SandboxCreateP
 	}
 
 	return pb.SandboxCreateRequest_builder{
-		AppId: appId,
+		AppId: appID,
 		Definition: pb.Sandbox_builder{
 			EntrypointArgs:  params.Command,
-			ImageId:         imageId,
+			ImageId:         imageID,
 			SecretIds:       secretIds,
 			TimeoutSecs:     uint32(params.Timeout.Seconds()),
 			IdleTimeoutSecs: idleTimeoutSecs,
@@ -189,7 +189,7 @@ func buildSandboxCreateRequestProto(appId, imageId string, params SandboxCreateP
 			CloudProviderStr:   params.Cloud,
 			SchedulerPlacement: schedulerPlacement,
 			Verbose:            params.Verbose,
-			ProxyId:            proxyId,
+			ProxyId:            proxyID,
 			Name:               &params.Name,
 		}.Build(),
 	}.Build(), nil
@@ -214,7 +214,7 @@ func (s *SandboxService) Create(ctx context.Context, app *App, image *Image, par
 		}
 	}
 
-	req, err := buildSandboxCreateRequestProto(app.AppId, image.ImageId, *params, envSecret)
+	req, err := buildSandboxCreateRequestProto(app.AppID, image.ImageID, *params, envSecret)
 	if err != nil {
 		return nil, err
 	}
@@ -272,12 +272,12 @@ func (t *Tunnel) TCPSocket() (string, int, error) {
 // Sandbox represents a Modal Sandbox, which can run commands and manage
 // input/output streams for a remote process.
 type Sandbox struct {
-	SandboxId string
+	SandboxID string
 	Stdin     io.WriteCloser
 	Stdout    io.ReadCloser
 	Stderr    io.ReadCloser
 
-	taskId  string
+	taskID  string
 	tunnels map[int]*Tunnel
 
 	client *Client
@@ -296,27 +296,27 @@ func defaultSandboxPTYInfo() *pb.PTYInfo {
 }
 
 // newSandbox creates a new Sandbox object from ID.
-func newSandbox(client *Client, sandboxId string) *Sandbox {
-	sb := &Sandbox{SandboxId: sandboxId, client: client}
-	sb.Stdin = inputStreamSb(client.cpClient, sandboxId)
-	sb.Stdout = outputStreamSb(client.cpClient, sandboxId, pb.FileDescriptor_FILE_DESCRIPTOR_STDOUT)
-	sb.Stderr = outputStreamSb(client.cpClient, sandboxId, pb.FileDescriptor_FILE_DESCRIPTOR_STDERR)
+func newSandbox(client *Client, sandboxID string) *Sandbox {
+	sb := &Sandbox{SandboxID: sandboxID, client: client}
+	sb.Stdin = inputStreamSb(client.cpClient, sandboxID)
+	sb.Stdout = outputStreamSb(client.cpClient, sandboxID, pb.FileDescriptor_FILE_DESCRIPTOR_STDOUT)
+	sb.Stderr = outputStreamSb(client.cpClient, sandboxID, pb.FileDescriptor_FILE_DESCRIPTOR_STDERR)
 	return sb
 }
 
-// FromId returns a running Sandbox object from an ID.
-func (s *SandboxService) FromId(ctx context.Context, sandboxId string) (*Sandbox, error) {
+// FromID returns a running Sandbox object from an ID.
+func (s *SandboxService) FromID(ctx context.Context, sandboxID string) (*Sandbox, error) {
 	_, err := s.client.cpClient.SandboxWait(ctx, pb.SandboxWaitRequest_builder{
-		SandboxId: sandboxId,
+		SandboxId: sandboxID,
 		Timeout:   0,
 	}.Build())
 	if status, ok := status.FromError(err); ok && status.Code() == codes.NotFound {
-		return nil, NotFoundError{fmt.Sprintf("Sandbox with id: '%s' not found", sandboxId)}
+		return nil, NotFoundError{fmt.Sprintf("Sandbox with id: '%s' not found", sandboxID)}
 	}
 	if err != nil {
 		return nil, err
 	}
-	return newSandbox(s.client, sandboxId), nil
+	return newSandbox(s.client, sandboxID), nil
 }
 
 // SandboxFromNameParams are options for finding deployed Sandbox objects by name.
@@ -367,7 +367,7 @@ type SandboxExecParams struct {
 }
 
 // buildContainerExecRequestProto builds a ContainerExecRequest proto from command and options.
-func buildContainerExecRequestProto(taskId string, command []string, params SandboxExecParams, envSecret *Secret) (*pb.ContainerExecRequest, error) {
+func buildContainerExecRequestProto(taskID string, command []string, params SandboxExecParams, envSecret *Secret) (*pb.ContainerExecRequest, error) {
 	var workdir *string
 	if params.Workdir != "" {
 		workdir = &params.Workdir
@@ -375,14 +375,14 @@ func buildContainerExecRequestProto(taskId string, command []string, params Sand
 	secretIds := []string{}
 	for _, secret := range params.Secrets {
 		if secret != nil {
-			secretIds = append(secretIds, secret.SecretId)
+			secretIds = append(secretIds, secret.SecretID)
 		}
 	}
 	if (len(params.Env) > 0) != (envSecret != nil) {
 		return nil, fmt.Errorf("internal error: Env and envSecret must both be provided or neither be provided")
 	}
 	if envSecret != nil {
-		secretIds = append(secretIds, envSecret.SecretId)
+		secretIds = append(secretIds, envSecret.SecretID)
 	}
 
 	var ptyInfo *pb.PTYInfo
@@ -391,7 +391,7 @@ func buildContainerExecRequestProto(taskId string, command []string, params Sand
 	}
 
 	return pb.ContainerExecRequest_builder{
-		TaskId:      taskId,
+		TaskId:      taskID,
 		Command:     command,
 		Workdir:     workdir,
 		TimeoutSecs: uint32(params.Timeout.Seconds()),
@@ -406,7 +406,7 @@ func (sb *Sandbox) Exec(ctx context.Context, command []string, params *SandboxEx
 		params = &SandboxExecParams{}
 	}
 
-	if err := sb.ensureTaskId(ctx); err != nil {
+	if err := sb.ensureTaskID(ctx); err != nil {
 		return nil, err
 	}
 
@@ -419,7 +419,7 @@ func (sb *Sandbox) Exec(ctx context.Context, command []string, params *SandboxEx
 		}
 	}
 
-	req, err := buildContainerExecRequestProto(sb.taskId, command, *params, envSecret)
+	req, err := buildContainerExecRequestProto(sb.taskID, command, *params, envSecret)
 	if err != nil {
 		return nil, err
 	}
@@ -434,7 +434,7 @@ func (sb *Sandbox) Exec(ctx context.Context, command []string, params *SandboxEx
 // The mode parameter follows the same conventions as os.OpenFile:
 // "r" for read-only, "w" for write-only (truncates), "a" for append, etc.
 func (sb *Sandbox) Open(ctx context.Context, path, mode string) (*SandboxFile, error) {
-	if err := sb.ensureTaskId(ctx); err != nil {
+	if err := sb.ensureTaskID(ctx); err != nil {
 		return nil, err
 	}
 
@@ -443,7 +443,7 @@ func (sb *Sandbox) Open(ctx context.Context, path, mode string) (*SandboxFile, e
 			Path: path,
 			Mode: mode,
 		}.Build(),
-		TaskId: sb.taskId,
+		TaskId: sb.taskID,
 	}.Build(), nil)
 
 	if err != nil {
@@ -452,26 +452,26 @@ func (sb *Sandbox) Open(ctx context.Context, path, mode string) (*SandboxFile, e
 
 	return &SandboxFile{
 		fileDescriptor: resp.GetFileDescriptor(),
-		taskId:         sb.taskId,
+		taskID:         sb.taskID,
 		cpClient:       sb.client.cpClient,
 	}, nil
 }
 
-func (sb *Sandbox) ensureTaskId(ctx context.Context) error {
-	if sb.taskId == "" {
+func (sb *Sandbox) ensureTaskID(ctx context.Context) error {
+	if sb.taskID == "" {
 		resp, err := sb.client.cpClient.SandboxGetTaskId(ctx, pb.SandboxGetTaskIdRequest_builder{
-			SandboxId: sb.SandboxId,
+			SandboxId: sb.SandboxID,
 		}.Build())
 		if err != nil {
 			return err
 		}
 		if resp.GetTaskId() == "" {
-			return fmt.Errorf("Sandbox %s does not have a task ID, it may not be running", sb.SandboxId)
+			return fmt.Errorf("Sandbox %s does not have a task ID, it may not be running", sb.SandboxID)
 		}
 		if resp.GetTaskResult() != nil {
-			return fmt.Errorf("Sandbox %s has already completed with result: %v", sb.SandboxId, resp.GetTaskResult())
+			return fmt.Errorf("Sandbox %s has already completed with result: %v", sb.SandboxID, resp.GetTaskResult())
 		}
-		sb.taskId = resp.GetTaskId()
+		sb.taskID = resp.GetTaskId()
 	}
 	return nil
 }
@@ -479,12 +479,12 @@ func (sb *Sandbox) ensureTaskId(ctx context.Context) error {
 // Terminate stops the Sandbox.
 func (sb *Sandbox) Terminate(ctx context.Context) error {
 	_, err := sb.client.cpClient.SandboxTerminate(ctx, pb.SandboxTerminateRequest_builder{
-		SandboxId: sb.SandboxId,
+		SandboxId: sb.SandboxID,
 	}.Build())
 	if err != nil {
 		return err
 	}
-	sb.taskId = ""
+	sb.taskID = ""
 	return nil
 }
 
@@ -492,7 +492,7 @@ func (sb *Sandbox) Terminate(ctx context.Context) error {
 func (sb *Sandbox) Wait(ctx context.Context) (int, error) {
 	for {
 		resp, err := sb.client.cpClient.SandboxWait(ctx, pb.SandboxWaitRequest_builder{
-			SandboxId: sb.SandboxId,
+			SandboxId: sb.SandboxID,
 			Timeout:   10,
 		}.Build())
 		if err != nil {
@@ -517,7 +517,7 @@ func (sb *Sandbox) Tunnels(ctx context.Context, timeout time.Duration) (map[int]
 	}
 
 	resp, err := sb.client.cpClient.SandboxGetTunnels(ctx, pb.SandboxGetTunnelsRequest_builder{
-		SandboxId: sb.SandboxId,
+		SandboxId: sb.SandboxID,
 		Timeout:   float32(timeout.Seconds()),
 	}.Build())
 	if err != nil {
@@ -545,7 +545,7 @@ func (sb *Sandbox) Tunnels(ctx context.Context, timeout time.Duration) (map[int]
 // Returns an Image object which can be used to spawn a new Sandbox with the same filesystem.
 func (sb *Sandbox) SnapshotFilesystem(ctx context.Context, timeout time.Duration) (*Image, error) {
 	resp, err := sb.client.cpClient.SandboxSnapshotFs(ctx, pb.SandboxSnapshotFsRequest_builder{
-		SandboxId: sb.SandboxId,
+		SandboxId: sb.SandboxID,
 		Timeout:   float32(timeout.Seconds()),
 	}.Build())
 	if err != nil {
@@ -560,14 +560,14 @@ func (sb *Sandbox) SnapshotFilesystem(ctx context.Context, timeout time.Duration
 		return nil, ExecutionError{Exception: "Sandbox snapshot response missing image ID"}
 	}
 
-	return &Image{ImageId: resp.GetImageId()}, nil
+	return &Image{ImageID: resp.GetImageId()}, nil
 }
 
 // Poll checks if the Sandbox has finished running.
 // Returns nil if the Sandbox is still running, else returns the exit code.
 func (sb *Sandbox) Poll(ctx context.Context) (*int, error) {
 	resp, err := sb.client.cpClient.SandboxWait(ctx, pb.SandboxWaitRequest_builder{
-		SandboxId: sb.SandboxId,
+		SandboxId: sb.SandboxID,
 		Timeout:   0,
 	}.Build())
 	if err != nil {
@@ -585,7 +585,7 @@ func (sb *Sandbox) SetTags(ctx context.Context, tags map[string]string) error {
 	}
 	_, err := sb.client.cpClient.SandboxTagsSet(ctx, pb.SandboxTagsSetRequest_builder{
 		EnvironmentName: environmentName("", sb.client.profile),
-		SandboxId:       sb.SandboxId,
+		SandboxId:       sb.SandboxID,
 		Tags:            tagsList,
 	}.Build())
 	return err
@@ -594,7 +594,7 @@ func (sb *Sandbox) SetTags(ctx context.Context, tags map[string]string) error {
 // GetTags fetches any tags (key-value pairs) currently attached to this Sandbox from the server.
 func (sb *Sandbox) GetTags(ctx context.Context) (map[string]string, error) {
 	resp, err := sb.client.cpClient.SandboxTagsGet(ctx, pb.SandboxTagsGetRequest_builder{
-		SandboxId: sb.SandboxId,
+		SandboxId: sb.SandboxID,
 	}.Build())
 	if err != nil {
 		if status, ok := status.FromError(err); ok && status.Code() == codes.InvalidArgument {
@@ -612,7 +612,7 @@ func (sb *Sandbox) GetTags(ctx context.Context) (map[string]string, error) {
 
 // SandboxListParams are options for listing Sandboxes.
 type SandboxListParams struct {
-	AppId       string            // Filter by App ID
+	AppID       string            // Filter by App ID
 	Tags        map[string]string // Only include Sandboxes that have all these tags
 	Environment string            // Override environment for this request
 }
@@ -632,7 +632,7 @@ func (s *SandboxService) List(ctx context.Context, params *SandboxListParams) (i
 		var before float64
 		for {
 			resp, err := s.client.cpClient.SandboxList(ctx, pb.SandboxListRequest_builder{
-				AppId:           params.AppId,
+				AppId:           params.AppID,
 				BeforeTimestamp: before,
 				EnvironmentName: environmentName(params.Environment, s.client.profile),
 				IncludeFinished: false,
@@ -684,11 +684,11 @@ type ContainerProcess struct {
 	Stdout io.ReadCloser
 	Stderr io.ReadCloser
 
-	execId   string
+	execID   string
 	cpClient pb.ModalClientClient
 }
 
-func newContainerProcess(cpClient pb.ModalClientClient, execId string, params SandboxExecParams) *ContainerProcess {
+func newContainerProcess(cpClient pb.ModalClientClient, execID string, params SandboxExecParams) *ContainerProcess {
 	stdoutBehavior := Pipe
 	stderrBehavior := Pipe
 	if params.Stdout != "" {
@@ -698,15 +698,15 @@ func newContainerProcess(cpClient pb.ModalClientClient, execId string, params Sa
 		stderrBehavior = params.Stderr
 	}
 
-	cp := &ContainerProcess{execId: execId, cpClient: cpClient}
-	cp.Stdin = inputStreamCp(cpClient, execId)
+	cp := &ContainerProcess{execID: execID, cpClient: cpClient}
+	cp.Stdin = inputStreamCp(cpClient, execID)
 
-	cp.Stdout = outputStreamCp(cpClient, execId, pb.FileDescriptor_FILE_DESCRIPTOR_STDOUT)
+	cp.Stdout = outputStreamCp(cpClient, execID, pb.FileDescriptor_FILE_DESCRIPTOR_STDOUT)
 	if stdoutBehavior == Ignore {
 		cp.Stdout.Close()
 		cp.Stdout = io.NopCloser(bytes.NewReader(nil))
 	}
-	cp.Stderr = outputStreamCp(cpClient, execId, pb.FileDescriptor_FILE_DESCRIPTOR_STDERR)
+	cp.Stderr = outputStreamCp(cpClient, execID, pb.FileDescriptor_FILE_DESCRIPTOR_STDERR)
 	if stderrBehavior == Ignore {
 		cp.Stderr.Close()
 		cp.Stderr = io.NopCloser(bytes.NewReader(nil))
@@ -719,7 +719,7 @@ func newContainerProcess(cpClient pb.ModalClientClient, execId string, params Sa
 func (cp *ContainerProcess) Wait(ctx context.Context) (int, error) {
 	for {
 		resp, err := cp.cpClient.ContainerExecWait(ctx, pb.ContainerExecWaitRequest_builder{
-			ExecId:  cp.execId,
+			ExecId:  cp.execID,
 			Timeout: 55,
 		}.Build())
 		if err != nil {
@@ -731,12 +731,12 @@ func (cp *ContainerProcess) Wait(ctx context.Context) (int, error) {
 	}
 }
 
-func inputStreamSb(cpClient pb.ModalClientClient, sandboxId string) io.WriteCloser {
-	return &sbStdin{sandboxId: sandboxId, index: 1, cpClient: cpClient}
+func inputStreamSb(cpClient pb.ModalClientClient, sandboxID string) io.WriteCloser {
+	return &sbStdin{sandboxID: sandboxID, index: 1, cpClient: cpClient}
 }
 
 type sbStdin struct {
-	sandboxId string
+	sandboxID string
 	cpClient  pb.ModalClientClient
 
 	mu    sync.Mutex // protects index
@@ -749,7 +749,7 @@ func (sbs *sbStdin) Write(p []byte) (n int, err error) {
 	index := sbs.index
 	sbs.index++
 	_, err = sbs.cpClient.SandboxStdinWrite(context.Background(), pb.SandboxStdinWriteRequest_builder{
-		SandboxId: sbs.sandboxId,
+		SandboxId: sbs.sandboxID,
 		Input:     p,
 		Index:     index,
 	}.Build())
@@ -763,26 +763,26 @@ func (sbs *sbStdin) Close() error {
 	sbs.mu.Lock()
 	defer sbs.mu.Unlock()
 	_, err := sbs.cpClient.SandboxStdinWrite(context.Background(), pb.SandboxStdinWriteRequest_builder{
-		SandboxId: sbs.sandboxId,
+		SandboxId: sbs.sandboxID,
 		Index:     sbs.index,
 		Eof:       true,
 	}.Build())
 	return err
 }
 
-func inputStreamCp(cpClient pb.ModalClientClient, execId string) io.WriteCloser {
-	return &cpStdin{execId: execId, messageIndex: 1, cpClient: cpClient}
+func inputStreamCp(cpClient pb.ModalClientClient, execID string) io.WriteCloser {
+	return &cpStdin{execID: execID, messageIndex: 1, cpClient: cpClient}
 }
 
 type cpStdin struct {
-	execId       string
+	execID       string
 	messageIndex uint64
 	cpClient     pb.ModalClientClient
 }
 
 func (cps *cpStdin) Write(p []byte) (n int, err error) {
 	_, err = cps.cpClient.ContainerExecPutInput(context.Background(), pb.ContainerExecPutInputRequest_builder{
-		ExecId: cps.execId,
+		ExecId: cps.execID,
 		Input: pb.RuntimeInputMessage_builder{
 			Message:      p,
 			MessageIndex: cps.messageIndex,
@@ -797,7 +797,7 @@ func (cps *cpStdin) Write(p []byte) (n int, err error) {
 
 func (cps *cpStdin) Close() error {
 	_, err := cps.cpClient.ContainerExecPutInput(context.Background(), pb.ContainerExecPutInputRequest_builder{
-		ExecId: cps.execId,
+		ExecId: cps.execID,
 		Input: pb.RuntimeInputMessage_builder{
 			MessageIndex: cps.messageIndex,
 			Eof:          true,
@@ -806,7 +806,7 @@ func (cps *cpStdin) Close() error {
 	return err
 }
 
-func outputStreamSb(cpClient pb.ModalClientClient, sandboxId string, fd pb.FileDescriptor) io.ReadCloser {
+func outputStreamSb(cpClient pb.ModalClientClient, sandboxID string, fd pb.FileDescriptor) io.ReadCloser {
 	pr, pw := nio.Pipe(buffer.New(64 * 1024))
 	go func() {
 		defer pw.Close()
@@ -815,7 +815,7 @@ func outputStreamSb(cpClient pb.ModalClientClient, sandboxId string, fd pb.FileD
 		retries := 10
 		for !completed {
 			stream, err := cpClient.SandboxGetLogs(context.Background(), pb.SandboxGetLogsRequest_builder{
-				SandboxId:      sandboxId,
+				SandboxId:      sandboxID,
 				FileDescriptor: fd,
 				Timeout:        55,
 				LastEntryId:    lastIndex,
@@ -856,7 +856,7 @@ func outputStreamSb(cpClient pb.ModalClientClient, sandboxId string, fd pb.FileD
 	return pr
 }
 
-func outputStreamCp(cpClient pb.ModalClientClient, execId string, fd pb.FileDescriptor) io.ReadCloser {
+func outputStreamCp(cpClient pb.ModalClientClient, execID string, fd pb.FileDescriptor) io.ReadCloser {
 	pr, pw := nio.Pipe(buffer.New(64 * 1024))
 	go func() {
 		defer pw.Close()
@@ -865,7 +865,7 @@ func outputStreamCp(cpClient pb.ModalClientClient, execId string, fd pb.FileDesc
 		retries := 10
 		for !completed {
 			stream, err := cpClient.ContainerExecGetOutput(context.Background(), pb.ContainerExecGetOutputRequest_builder{
-				ExecId:         execId,
+				ExecId:         execID,
 				FileDescriptor: fd,
 				Timeout:        55,
 				GetRawBytes:    true,

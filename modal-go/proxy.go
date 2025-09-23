@@ -14,7 +14,7 @@ type ProxyService struct{ client *Client }
 
 // Proxy represents a Modal Proxy.
 type Proxy struct {
-	ProxyId string
+	ProxyID string
 }
 
 // ProxyFromNameParams are options for looking up a Modal Proxy.
@@ -44,5 +44,5 @@ func (s *ProxyService) FromName(ctx context.Context, name string, params *ProxyF
 		return nil, NotFoundError{fmt.Sprintf("Proxy '%s' not found", name)}
 	}
 
-	return &Proxy{ProxyId: resp.GetProxy().GetProxyId()}, nil
+	return &Proxy{ProxyID: resp.GetProxy().GetProxyId()}, nil
 }
