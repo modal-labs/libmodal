@@ -16,21 +16,21 @@ func main() {
 		log.Fatalf("Failed to create client: %v", err)
 	}
 
-	app, err := mc.Apps.FromName(ctx, "libmodal-example", &modal.AppFromNameOptions{CreateIfMissing: true})
+	app, err := mc.Apps.FromName(ctx, "libmodal-example", &modal.AppFromNameParams{CreateIfMissing: true})
 	if err != nil {
 		log.Fatalf("Failed to get or create App: %v", err)
 	}
 
 	image := mc.Images.FromRegistry("alpine:3.21", nil)
 
-	volume, err := mc.Volumes.FromName(ctx, "libmodal-example-volume", &modal.VolumeFromNameOptions{
+	volume, err := mc.Volumes.FromName(ctx, "libmodal-example-volume", &modal.VolumeFromNameParams{
 		CreateIfMissing: true,
 	})
 	if err != nil {
 		log.Fatalf("Failed to create Volume: %v", err)
 	}
 
-	writerSandbox, err := mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateOptions{
+	writerSandbox, err := mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
 		Command: []string{
 			"sh",
 			"-c",
@@ -56,7 +56,7 @@ func main() {
 	}
 	fmt.Printf("Writer finished with exit code: %d\n", exitCode)
 
-	readerSandbox, err := mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateOptions{
+	readerSandbox, err := mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
 		Volumes: map[string]*modal.Volume{
 			"/mnt/volume": volume.ReadOnly(),
 		},

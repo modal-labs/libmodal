@@ -15,7 +15,7 @@ func main() {
 		log.Fatalf("Failed to create client: %v", err)
 	}
 
-	app, err := mc.Apps.FromName(ctx, "libmodal-example", &modal.AppFromNameOptions{CreateIfMissing: true})
+	app, err := mc.Apps.FromName(ctx, "libmodal-example", &modal.AppFromNameParams{CreateIfMissing: true})
 	if err != nil {
 		log.Fatalf("Failed to get or create App: %v", err)
 	}
@@ -28,7 +28,7 @@ func main() {
 	}
 
 	keyPrefix := "data/"
-	cloudBucketMount, err := mc.CloudBucketMounts.New("my-s3-bucket", &modal.CloudBucketMountOptions{
+	cloudBucketMount, err := mc.CloudBucketMounts.New("my-s3-bucket", &modal.CloudBucketMountParams{
 		Secret:    secret,
 		KeyPrefix: &keyPrefix,
 		ReadOnly:  true,
@@ -37,7 +37,7 @@ func main() {
 		log.Fatalf("Failed to create Cloud Bucket Mount: %v", err)
 	}
 
-	sb, err := mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateOptions{
+	sb, err := mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
 		Command: []string{"sh", "-c", "ls -la /mnt/s3-bucket"},
 		CloudBucketMounts: map[string]*modal.CloudBucketMount{
 			"/mnt/s3-bucket": cloudBucketMount,

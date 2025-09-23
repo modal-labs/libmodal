@@ -17,7 +17,7 @@ func TestCreateOneSandbox(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameOptions{CreateIfMissing: true})
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(app.Name).To(gomega.Equal("libmodal-test"))
 
@@ -41,12 +41,12 @@ func TestPassCatToStdin(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameOptions{CreateIfMissing: true})
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	image := tc.Images.FromRegistry("alpine:3.21", nil)
 
-	sb, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateOptions{Command: []string{"cat"}})
+	sb, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{Command: []string{"cat"}})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	defer terminateSandbox(g, sb)
 
@@ -65,7 +65,7 @@ func TestIgnoreLargeStdout(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameOptions{CreateIfMissing: true})
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	image := tc.Images.FromRegistry("python:3.13-alpine", nil)
@@ -74,7 +74,7 @@ func TestIgnoreLargeStdout(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	defer terminateSandbox(g, sb)
 
-	p, err := sb.Exec(ctx, []string{"python", "-c", `print("a" * 1_000_000)`}, &modal.SandboxExecOptions{Stdout: modal.Ignore})
+	p, err := sb.Exec(ctx, []string{"python", "-c", `print("a" * 1_000_000)`}, &modal.SandboxExecParams{Stdout: modal.Ignore})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	buf, err := io.ReadAll(p.Stdout)
@@ -92,14 +92,14 @@ func TestSandboxCreateOptions(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameOptions{
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{
 		CreateIfMissing: true,
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	image := tc.Images.FromRegistry("alpine:3.21", nil)
 
-	sb, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateOptions{
+	sb, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
 		Command: []string{"echo", "hello, params"},
 		Cloud:   "aws",
 		Regions: []string{"us-east-1", "us-west-2"},
@@ -115,13 +115,13 @@ func TestSandboxCreateOptions(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(exitCode).Should(gomega.Equal(0))
 
-	_, err = tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateOptions{
+	_, err = tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
 		Cloud: "invalid-cloud",
 	})
 	g.Expect(err).Should(gomega.HaveOccurred())
 	g.Expect(err.Error()).Should(gomega.ContainSubstring("InvalidArgument"))
 
-	_, err = tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateOptions{
+	_, err = tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
 		Regions: []string{"invalid-region"},
 	})
 	g.Expect(err).Should(gomega.HaveOccurred())
@@ -133,7 +133,7 @@ func TestSandboxExecOptions(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameOptions{CreateIfMissing: true})
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	image := tc.Images.FromRegistry("alpine:3.21", nil)
@@ -143,7 +143,7 @@ func TestSandboxExecOptions(t *testing.T) {
 	defer terminateSandbox(g, sb)
 
 	// Test with a custom working directory and timeout.
-	p, err := sb.Exec(ctx, []string{"pwd"}, &modal.SandboxExecOptions{
+	p, err := sb.Exec(ctx, []string{"pwd"}, &modal.SandboxExecParams{
 		Workdir: "/tmp",
 		Timeout: 5,
 	})
@@ -163,19 +163,19 @@ func TestSandboxWithVolume(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameOptions{
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{
 		CreateIfMissing: true,
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	image := tc.Images.FromRegistry("alpine:3.21", nil)
 
-	volume, err := tc.Volumes.FromName(ctx, "libmodal-test-sandbox-volume", &modal.VolumeFromNameOptions{
+	volume, err := tc.Volumes.FromName(ctx, "libmodal-test-sandbox-volume", &modal.VolumeFromNameParams{
 		CreateIfMissing: true,
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	sandbox, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateOptions{
+	sandbox, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
 		Command: []string{"echo", "volume test"},
 		Volumes: map[string]*modal.Volume{
 			"/mnt/test": volume,
@@ -195,14 +195,14 @@ func TestSandboxWithReadOnlyVolume(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameOptions{
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{
 		CreateIfMissing: true,
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	image := tc.Images.FromRegistry("alpine:3.21", nil)
 
-	volume, err := tc.Volumes.FromName(ctx, "libmodal-test-sandbox-volume", &modal.VolumeFromNameOptions{
+	volume, err := tc.Volumes.FromName(ctx, "libmodal-test-sandbox-volume", &modal.VolumeFromNameParams{
 		CreateIfMissing: true,
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -210,7 +210,7 @@ func TestSandboxWithReadOnlyVolume(t *testing.T) {
 	readOnlyVolume := volume.ReadOnly()
 	g.Expect(readOnlyVolume.IsReadOnly()).To(gomega.BeTrue())
 
-	sb, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateOptions{
+	sb, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
 		Command: []string{"sh", "-c", "echo 'test' > /mnt/test/test.txt"},
 		Volumes: map[string]*modal.Volume{
 			"/mnt/test": readOnlyVolume,
@@ -233,14 +233,14 @@ func TestSandboxWithTunnels(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameOptions{
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{
 		CreateIfMissing: true,
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	image := tc.Images.FromRegistry("alpine:3.21", nil)
 
-	sandbox, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateOptions{
+	sandbox, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
 		Command:          []string{"cat"},
 		EncryptedPorts:   []int{8443},
 		UnencryptedPorts: []int{8080},
@@ -281,15 +281,15 @@ func TestCreateSandboxWithSecrets(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	secret, err := tc.Secrets.FromName(ctx, "libmodal-test-secret", &modal.SecretFromNameOptions{RequiredKeys: []string{"c"}})
+	secret, err := tc.Secrets.FromName(ctx, "libmodal-test-secret", &modal.SecretFromNameParams{RequiredKeys: []string{"c"}})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameOptions{CreateIfMissing: true})
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	image := tc.Images.FromRegistry("alpine:3.21", nil)
 
-	sb, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateOptions{Secrets: []*modal.Secret{secret}, Command: []string{"printenv", "c"}})
+	sb, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{Secrets: []*modal.Secret{secret}, Command: []string{"printenv", "c"}})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	output, err := io.ReadAll(sb.Stdout)
@@ -301,12 +301,12 @@ func TestSandboxPollAndReturnCode(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameOptions{CreateIfMissing: true})
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	image := tc.Images.FromRegistry("alpine:3.21", nil)
 
-	sandbox, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateOptions{Command: []string{"cat"}})
+	sandbox, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{Command: []string{"cat"}})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	pollResult, err := sandbox.Poll(ctx)
@@ -334,12 +334,12 @@ func TestSandboxPollAfterFailure(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameOptions{CreateIfMissing: true})
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	image := tc.Images.FromRegistry("alpine:3.21", nil)
 
-	sandbox, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateOptions{
+	sandbox, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
 		Command: []string{"sh", "-c", "exit 42"},
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -359,14 +359,14 @@ func TestCreateSandboxWithNetworkAccessParams(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameOptions{
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{
 		CreateIfMissing: true,
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	image := tc.Images.FromRegistry("alpine:3.21", nil)
 
-	sb, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateOptions{
+	sb, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
 		Command:       []string{"echo", "hello, network access"},
 		BlockNetwork:  false,
 		CIDRAllowlist: []string{"10.0.0.0/8", "192.168.0.0/16"},
@@ -381,14 +381,14 @@ func TestCreateSandboxWithNetworkAccessParams(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(exitCode).Should(gomega.Equal(0))
 
-	_, err = tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateOptions{
+	_, err = tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
 		BlockNetwork:  false,
 		CIDRAllowlist: []string{"not-an-ip/8"},
 	})
 	g.Expect(err).Should(gomega.HaveOccurred())
 	g.Expect(err.Error()).Should(gomega.ContainSubstring("Invalid CIDR: not-an-ip/8"))
 
-	_, err = tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateOptions{
+	_, err = tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
 		BlockNetwork:  true,
 		CIDRAllowlist: []string{"10.0.0.0/8"},
 	})
@@ -401,7 +401,7 @@ func TestSandboxExecSecret(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameOptions{CreateIfMissing: true})
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	image := tc.Images.FromRegistry("alpine:3.21", nil)
@@ -410,13 +410,13 @@ func TestSandboxExecSecret(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	defer terminateSandbox(g, sb)
 
-	secret, err := tc.Secrets.FromName(ctx, "libmodal-test-secret", &modal.SecretFromNameOptions{RequiredKeys: []string{"c"}})
+	secret, err := tc.Secrets.FromName(ctx, "libmodal-test-secret", &modal.SecretFromNameParams{RequiredKeys: []string{"c"}})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	secret2, err := tc.Secrets.FromMap(ctx, map[string]string{"d": "3"}, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	p, err := sb.Exec(ctx, []string{"printenv", "c", "d"}, &modal.SandboxExecOptions{Secrets: []*modal.Secret{secret, secret2}})
+	p, err := sb.Exec(ctx, []string{"printenv", "c", "d"}, &modal.SandboxExecParams{Secrets: []*modal.Secret{secret, secret2}})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	buf, err := io.ReadAll(p.Stdout)
@@ -429,7 +429,7 @@ func TestSandboxFromId(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameOptions{CreateIfMissing: true})
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	image := tc.Images.FromRegistry("alpine:3.21", nil)
@@ -450,12 +450,12 @@ func TestSandboxWithWorkdir(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameOptions{CreateIfMissing: true})
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	image := tc.Images.FromRegistry("alpine:3.21", nil)
 
-	sb, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateOptions{
+	sb, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
 		Command: []string{"pwd"},
 		Workdir: "/tmp",
 	})
@@ -470,7 +470,7 @@ func TestSandboxWithWorkdir(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(exitCode).To(gomega.Equal(0))
 
-	_, err = tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateOptions{
+	_, err = tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
 		Workdir: "relative/path",
 	})
 	g.Expect(err).Should(gomega.HaveOccurred())
@@ -482,7 +482,7 @@ func TestSandboxSetTagsAndList(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameOptions{CreateIfMissing: true})
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	image := tc.Images.FromRegistry("alpine:3.21", nil)
@@ -494,7 +494,7 @@ func TestSandboxSetTagsAndList(t *testing.T) {
 	unique := fmt.Sprintf("%d", rand.Int())
 
 	var before []string
-	it, err := tc.Sandboxes.List(ctx, &modal.SandboxListOptions{Tags: map[string]string{"test-key": unique}})
+	it, err := tc.Sandboxes.List(ctx, &modal.SandboxListParams{Tags: map[string]string{"test-key": unique}})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	for s, err := range it {
 		g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -506,7 +506,7 @@ func TestSandboxSetTagsAndList(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	var after []string
-	it, err = tc.Sandboxes.List(ctx, &modal.SandboxListOptions{Tags: map[string]string{"test-key": unique}})
+	it, err = tc.Sandboxes.List(ctx, &modal.SandboxListParams{Tags: map[string]string{"test-key": unique}})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	for s, err := range it {
 		g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -520,7 +520,7 @@ func TestSandboxTags(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameOptions{CreateIfMissing: true})
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	image := tc.Images.FromRegistry("alpine:3.21", nil)
@@ -545,7 +545,7 @@ func TestSandboxTags(t *testing.T) {
 	g.Expect(retrievedTags).To(gomega.Equal(map[string]string{"key-a": tagA, "key-b": tagB, "key-c": tagC}))
 
 	var ids []string
-	it, err := tc.Sandboxes.List(ctx, &modal.SandboxListOptions{Tags: map[string]string{"key-a": tagA}})
+	it, err := tc.Sandboxes.List(ctx, &modal.SandboxListParams{Tags: map[string]string{"key-a": tagA}})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	for s, err := range it {
 		g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -554,7 +554,7 @@ func TestSandboxTags(t *testing.T) {
 	g.Expect(ids).To(gomega.Equal([]string{sb.SandboxId}))
 
 	ids = nil
-	it, err = tc.Sandboxes.List(ctx, &modal.SandboxListOptions{Tags: map[string]string{"key-a": tagA, "key-b": tagB}})
+	it, err = tc.Sandboxes.List(ctx, &modal.SandboxListParams{Tags: map[string]string{"key-a": tagA, "key-b": tagB}})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	for s, err := range it {
 		g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -563,7 +563,7 @@ func TestSandboxTags(t *testing.T) {
 	g.Expect(ids).To(gomega.Equal([]string{sb.SandboxId}))
 
 	ids = nil
-	it, err = tc.Sandboxes.List(ctx, &modal.SandboxListOptions{Tags: map[string]string{"key-a": tagA, "key-b": tagB, "key-d": "not-set"}})
+	it, err = tc.Sandboxes.List(ctx, &modal.SandboxListParams{Tags: map[string]string{"key-a": tagA, "key-b": tagB, "key-d": "not-set"}})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	for s, err := range it {
 		g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -577,7 +577,7 @@ func TestSandboxListByAppId(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameOptions{CreateIfMissing: true})
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	image := tc.Images.FromRegistry("alpine:3.21", nil)
@@ -587,7 +587,7 @@ func TestSandboxListByAppId(t *testing.T) {
 	defer terminateSandbox(g, sb)
 
 	count := 0
-	it, err := tc.Sandboxes.List(ctx, &modal.SandboxListOptions{AppId: app.AppId})
+	it, err := tc.Sandboxes.List(ctx, &modal.SandboxListParams{AppId: app.AppId})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	for s, err := range it {
 		g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -605,14 +605,14 @@ func TestNamedSandbox(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameOptions{CreateIfMissing: true})
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	image := tc.Images.FromRegistry("alpine:3.21", nil)
 
 	sandboxName := fmt.Sprintf("test-sandbox-%d", rand.Int())
 
-	sb, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateOptions{
+	sb, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
 		Name:    sandboxName,
 		Command: []string{"sleep", "60"},
 	})
@@ -629,7 +629,7 @@ func TestNamedSandbox(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(sb2FromName.SandboxId).To(gomega.Equal(sb1FromName.SandboxId))
 
-	_, err = tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateOptions{
+	_, err = tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
 		Name:    sandboxName,
 		Command: []string{"sleep", "60"},
 	})

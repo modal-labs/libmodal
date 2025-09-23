@@ -39,20 +39,20 @@ type Queue struct {
 	client *Client
 }
 
-// QueueEphemeralOptions are options for client.Queues.Ephemeral.
-type QueueEphemeralOptions struct {
+// QueueEphemeralParams are options for client.Queues.Ephemeral.
+type QueueEphemeralParams struct {
 	Environment string
 }
 
 // Ephemeral creates a nameless, temporary Queue, that persists until CloseEphemeral is called, or the process exits.
-func (s *QueueService) Ephemeral(ctx context.Context, options *QueueEphemeralOptions) (*Queue, error) {
-	if options == nil {
-		options = &QueueEphemeralOptions{}
+func (s *QueueService) Ephemeral(ctx context.Context, params *QueueEphemeralParams) (*Queue, error) {
+	if params == nil {
+		params = &QueueEphemeralParams{}
 	}
 
 	resp, err := s.client.cpClient.QueueGetOrCreate(ctx, pb.QueueGetOrCreateRequest_builder{
 		ObjectCreationType: pb.ObjectCreationType_OBJECT_CREATION_TYPE_EPHEMERAL,
-		EnvironmentName:    environmentName(options.Environment, s.client.profile),
+		EnvironmentName:    environmentName(params.Environment, s.client.profile),
 	}.Build())
 	if err != nil {
 		return nil, err
@@ -86,26 +86,26 @@ func (q *Queue) CloseEphemeral() {
 	}
 }
 
-// QueueFromNameOptions are options for client.Queues.FromName.
-type QueueFromNameOptions struct {
+// QueueFromNameParams are options for client.Queues.FromName.
+type QueueFromNameParams struct {
 	Environment     string
 	CreateIfMissing bool
 }
 
 // FromName references a named Queue, creating if necessary.
-func (s *QueueService) FromName(ctx context.Context, name string, options *QueueFromNameOptions) (*Queue, error) {
-	if options == nil {
-		options = &QueueFromNameOptions{}
+func (s *QueueService) FromName(ctx context.Context, name string, params *QueueFromNameParams) (*Queue, error) {
+	if params == nil {
+		params = &QueueFromNameParams{}
 	}
 
 	creationType := pb.ObjectCreationType_OBJECT_CREATION_TYPE_UNSPECIFIED
-	if options.CreateIfMissing {
+	if params.CreateIfMissing {
 		creationType = pb.ObjectCreationType_OBJECT_CREATION_TYPE_CREATE_IF_MISSING
 	}
 
 	resp, err := s.client.cpClient.QueueGetOrCreate(ctx, pb.QueueGetOrCreateRequest_builder{
 		DeploymentName:     name,
-		EnvironmentName:    environmentName(options.Environment, s.client.profile),
+		EnvironmentName:    environmentName(params.Environment, s.client.profile),
 		ObjectCreationType: creationType,
 	}.Build())
 	if err != nil {
@@ -119,18 +119,18 @@ func (s *QueueService) FromName(ctx context.Context, name string, options *Queue
 	}, nil
 }
 
-// QueueDeleteOptions are options for client.Queues.Delete.
-type QueueDeleteOptions struct {
+// QueueDeleteParams are options for client.Queues.Delete.
+type QueueDeleteParams struct {
 	Environment string
 }
 
 // Delete removes a Queue by name.
-func (s *QueueService) Delete(ctx context.Context, name string, options *QueueDeleteOptions) error {
-	if options == nil {
-		options = &QueueDeleteOptions{}
+func (s *QueueService) Delete(ctx context.Context, name string, params *QueueDeleteParams) error {
+	if params == nil {
+		params = &QueueDeleteParams{}
 	}
 
-	q, err := s.FromName(ctx, name, &QueueFromNameOptions{Environment: options.Environment})
+	q, err := s.FromName(ctx, name, &QueueFromNameParams{Environment: params.Environment})
 	if err != nil {
 		return err
 	}
@@ -138,45 +138,45 @@ func (s *QueueService) Delete(ctx context.Context, name string, options *QueueDe
 	return err
 }
 
-type QueueClearOptions struct {
+type QueueClearParams struct {
 	Partition string // partition to clear (default "")
 	All       bool   // clear *all* partitions (mutually exclusive with Partition)
 }
 
 // Clear removes all objects from a Queue partition.
-func (q *Queue) Clear(ctx context.Context, options *QueueClearOptions) error {
-	if options == nil {
-		options = &QueueClearOptions{}
+func (q *Queue) Clear(ctx context.Context, params *QueueClearParams) error {
+	if params == nil {
+		params = &QueueClearParams{}
 	}
-	if options.Partition != "" && options.All {
-		return InvalidError{"options.Partition must be \"\" when clearing all partitions"}
+	if params.Partition != "" && params.All {
+		return InvalidError{"Partition must be \"\" when clearing all partitions"}
 	}
-	key, err := validatePartitionKey(options.Partition)
+	key, err := validatePartitionKey(params.Partition)
 	if err != nil {
 		return err
 	}
 	_, err = q.client.cpClient.QueueClear(ctx, pb.QueueClearRequest_builder{
 		QueueId:       q.QueueId,
 		PartitionKey:  key,
-		AllPartitions: options.All,
+		AllPartitions: params.All,
 	}.Build())
 	return err
 }
 
 // get is an internal helper for both Get and GetMany.
-func (q *Queue) get(ctx context.Context, n int, options *QueueGetOptions) ([]any, error) {
-	if options == nil {
-		options = &QueueGetOptions{}
+func (q *Queue) get(ctx context.Context, n int, params *QueueGetParams) ([]any, error) {
+	if params == nil {
+		params = &QueueGetParams{}
 	}
-	partitionKey, err := validatePartitionKey(options.Partition)
+	partitionKey, err := validatePartitionKey(params.Partition)
 	if err != nil {
 		return nil, err
 	}
 
 	startTime := time.Now()
 	pollTimeout := 50 * time.Second
-	if options.Timeout != nil && pollTimeout > *options.Timeout {
-		pollTimeout = *options.Timeout
+	if params.Timeout != nil && pollTimeout > *params.Timeout {
+		pollTimeout = *params.Timeout
 	}
 
 	for {
@@ -200,10 +200,10 @@ func (q *Queue) get(ctx context.Context, n int, options *QueueGetOptions) ([]any
 			}
 			return out, nil
 		}
-		if options.Timeout != nil {
-			remaining := *options.Timeout - time.Since(startTime)
+		if params.Timeout != nil {
+			remaining := *params.Timeout - time.Since(startTime)
 			if remaining <= 0 {
-				message := fmt.Sprintf("Queue %s did not return values within %s", q.QueueId, *options.Timeout)
+				message := fmt.Sprintf("Queue %s did not return values within %s", q.QueueId, *params.Timeout)
 				return nil, QueueEmptyError{message}
 			}
 			pollTimeout = min(pollTimeout, remaining)
@@ -211,8 +211,8 @@ func (q *Queue) get(ctx context.Context, n int, options *QueueGetOptions) ([]any
 	}
 }
 
-// QueueGetOptions are options for Queue.Get.
-type QueueGetOptions struct {
+// QueueGetParams are options for Queue.Get.
+type QueueGetParams struct {
 	Timeout   *time.Duration // wait max (nil = indefinitely)
 	Partition string
 }
@@ -222,17 +222,17 @@ type QueueGetOptions struct {
 // By default, this will wait until at least one item is present in the Queue.
 // If `timeout` is set, returns `QueueEmptyError` if no items are available
 // within that timeout in milliseconds.
-func (q *Queue) Get(ctx context.Context, options *QueueGetOptions) (any, error) {
-	vals, err := q.get(ctx, 1, options)
+func (q *Queue) Get(ctx context.Context, params *QueueGetParams) (any, error) {
+	vals, err := q.get(ctx, 1, params)
 	if err != nil {
 		return nil, err
 	}
 	return vals[0], nil // guaranteed len>=1
 }
 
-// QueueGetManyOptions are options for Queue.GetMany.
-type QueueGetManyOptions struct {
-	QueueGetOptions
+// QueueGetManyParams are options for Queue.GetMany.
+type QueueGetManyParams struct {
+	QueueGetParams
 }
 
 // GetMany removes up to n items.
@@ -240,19 +240,19 @@ type QueueGetManyOptions struct {
 // By default, this will wait until at least one item is present in the Queue.
 // If `timeout` is set, returns `QueueEmptyError` if no items are available
 // within that timeout in milliseconds.
-func (q *Queue) GetMany(ctx context.Context, n int, options *QueueGetManyOptions) ([]any, error) {
-	if options == nil {
+func (q *Queue) GetMany(ctx context.Context, n int, params *QueueGetManyParams) ([]any, error) {
+	if params == nil {
 		return q.get(ctx, n, nil)
 	}
-	return q.get(ctx, n, &options.QueueGetOptions)
+	return q.get(ctx, n, &params.QueueGetParams)
 }
 
 // put is an internal helper for both Put and PutMany.
-func (q *Queue) put(ctx context.Context, values []any, options *QueuePutOptions) error {
-	if options == nil {
-		options = &QueuePutOptions{}
+func (q *Queue) put(ctx context.Context, values []any, params *QueuePutParams) error {
+	if params == nil {
+		params = &QueuePutParams{}
 	}
-	key, err := validatePartitionKey(options.Partition)
+	key, err := validatePartitionKey(params.Partition)
 	if err != nil {
 		return err
 	}
@@ -267,12 +267,12 @@ func (q *Queue) put(ctx context.Context, values []any, options *QueuePutOptions)
 	}
 
 	deadline := time.Time{}
-	if options.Timeout != nil {
-		deadline = time.Now().Add(*options.Timeout)
+	if params.Timeout != nil {
+		deadline = time.Now().Add(*params.Timeout)
 	}
 
 	delay := queueInitialPutBackoff
-	ttl := options.PartitionTtl
+	ttl := params.PartitionTtl
 	if ttl == 0 {
 		ttl = queueDefaultPartitionTtl
 	}
@@ -309,8 +309,8 @@ func (q *Queue) put(ctx context.Context, values []any, options *QueuePutOptions)
 	}
 }
 
-// QueuePutOptions are options for Queue.Put.
-type QueuePutOptions struct {
+// QueuePutParams are options for Queue.Put.
+type QueuePutParams struct {
 	Timeout      *time.Duration // max wait for space (nil = indefinitely)
 	Partition    string
 	PartitionTtl time.Duration // ttl for the *partition* (default 24h)
@@ -321,13 +321,13 @@ type QueuePutOptions struct {
 // If the Queue is full, this will retry with exponential backoff until the
 // provided `timeout` is reached, or indefinitely if `timeout` is not set.
 // Raises `QueueFullError` if the Queue is still full after the timeout.
-func (q *Queue) Put(ctx context.Context, v any, options *QueuePutOptions) error {
-	return q.put(ctx, []any{v}, options)
+func (q *Queue) Put(ctx context.Context, v any, params *QueuePutParams) error {
+	return q.put(ctx, []any{v}, params)
 }
 
-// QueuePutManyOptions are options for Queue.PutMany.
-type QueuePutManyOptions struct {
-	QueuePutOptions
+// QueuePutManyParams are options for Queue.PutMany.
+type QueuePutManyParams struct {
+	QueuePutParams
 }
 
 // PutMany adds multiple items to the end of the Queue.
@@ -335,34 +335,34 @@ type QueuePutManyOptions struct {
 // If the Queue is full, this will retry with exponential backoff until the
 // provided `timeout` is reached, or indefinitely if `timeout` is not set.
 // Raises `QueueFullError` if the Queue is still full after the timeout.
-func (q *Queue) PutMany(ctx context.Context, values []any, options *QueuePutManyOptions) error {
-	if options == nil {
-		options = &QueuePutManyOptions{}
+func (q *Queue) PutMany(ctx context.Context, values []any, params *QueuePutManyParams) error {
+	if params == nil {
+		params = &QueuePutManyParams{}
 	}
-	return q.put(ctx, values, &options.QueuePutOptions)
+	return q.put(ctx, values, &params.QueuePutParams)
 }
 
-type QueueLenOptions struct {
+type QueueLenParams struct {
 	Partition string
 	Total     bool // total across all partitions (mutually exclusive with Partition)
 }
 
 // Len returns the number of objects in the Queue.
-func (q *Queue) Len(ctx context.Context, options *QueueLenOptions) (int, error) {
-	if options == nil {
-		options = &QueueLenOptions{}
+func (q *Queue) Len(ctx context.Context, params *QueueLenParams) (int, error) {
+	if params == nil {
+		params = &QueueLenParams{}
 	}
-	if options.Partition != "" && options.Total {
+	if params.Partition != "" && params.Total {
 		return 0, InvalidError{"partition must be empty when requesting total length"}
 	}
-	key, err := validatePartitionKey(options.Partition)
+	key, err := validatePartitionKey(params.Partition)
 	if err != nil {
 		return 0, err
 	}
 	resp, err := q.client.cpClient.QueueLen(ctx, pb.QueueLenRequest_builder{
 		QueueId:      q.QueueId,
 		PartitionKey: key,
-		Total:        options.Total,
+		Total:        params.Total,
 	}.Build())
 	if err != nil {
 		return 0, err
@@ -370,23 +370,23 @@ func (q *Queue) Len(ctx context.Context, options *QueueLenOptions) (int, error) 
 	return int(resp.GetLen()), nil
 }
 
-type QueueIterateOptions struct {
+type QueueIterateParams struct {
 	ItemPollTimeout time.Duration // exit if no new items within this period
 	Partition       string
 }
 
 // Iterate yields items from the Queue until it is empty.
-func (q *Queue) Iterate(ctx context.Context, options *QueueIterateOptions) iter.Seq2[any, error] {
-	if options == nil {
-		options = &QueueIterateOptions{}
+func (q *Queue) Iterate(ctx context.Context, params *QueueIterateParams) iter.Seq2[any, error] {
+	if params == nil {
+		params = &QueueIterateParams{}
 	}
 
-	itemPoll := options.ItemPollTimeout
+	itemPoll := params.ItemPollTimeout
 	lastEntryID := ""
 	maxPoll := 30 * time.Second
 
 	return func(yield func(any, error) bool) {
-		key, err := validatePartitionKey(options.Partition)
+		key, err := validatePartitionKey(params.Partition)
 		if err != nil {
 			yield(nil, err)
 			return

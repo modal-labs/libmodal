@@ -16,7 +16,7 @@ func main() {
 		log.Fatalf("Failed to create client: %v", err)
 	}
 
-	app, err := mc.Apps.FromName(ctx, "libmodal-example", &modal.AppFromNameOptions{CreateIfMissing: true})
+	app, err := mc.Apps.FromName(ctx, "libmodal-example", &modal.AppFromNameParams{CreateIfMissing: true})
 	if err != nil {
 		log.Fatalf("Failed to get or create App: %v", err)
 	}
@@ -56,14 +56,14 @@ func main() {
 	}
 	fmt.Println("\nRunning command:", claudeCmd)
 
-	secret, err := mc.Secrets.FromName(ctx, "libmodal-anthropic-secret", &modal.SecretFromNameOptions{
+	secret, err := mc.Secrets.FromName(ctx, "libmodal-anthropic-secret", &modal.SecretFromNameParams{
 		RequiredKeys: []string{"ANTHROPIC_API_KEY"},
 	})
 	if err != nil {
 		log.Fatalf("Failed to get secret: %v", err)
 	}
 
-	claude, err := sb.Exec(ctx, claudeCmd, &modal.SandboxExecOptions{
+	claude, err := sb.Exec(ctx, claudeCmd, &modal.SandboxExecParams{
 		PTY:     true, // Adding a PTY is important, since Claude requires it!
 		Secrets: []*modal.Secret{secret},
 		Workdir: "/repo",

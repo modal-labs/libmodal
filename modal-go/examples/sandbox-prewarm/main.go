@@ -17,7 +17,7 @@ func main() {
 		log.Fatalf("Failed to create client: %v", err)
 	}
 
-	app, err := mc.Apps.FromName(ctx, "libmodal-example", &modal.AppFromNameOptions{CreateIfMissing: true})
+	app, err := mc.Apps.FromName(ctx, "libmodal-example", &modal.AppFromNameParams{CreateIfMissing: true})
 	if err != nil {
 		log.Fatalf("Failed to get or create App: %v", err)
 	}
@@ -37,7 +37,7 @@ func main() {
 		log.Fatalf("Unable to look up Image from ID: %v", err)
 	}
 
-	sb, err := mc.Sandboxes.Create(ctx, app, image2, &modal.SandboxCreateOptions{
+	sb, err := mc.Sandboxes.Create(ctx, app, image2, &modal.SandboxCreateParams{
 		Command: []string{"cat"},
 	})
 	if err != nil {

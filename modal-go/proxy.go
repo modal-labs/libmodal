@@ -17,20 +17,20 @@ type Proxy struct {
 	ProxyId string
 }
 
-// ProxyFromNameOptions are options for looking up a Modal Proxy.
-type ProxyFromNameOptions struct {
+// ProxyFromNameParams are options for looking up a Modal Proxy.
+type ProxyFromNameParams struct {
 	Environment string
 }
 
 // FromName references a modal.Proxy by its name.
-func (s *ProxyService) FromName(ctx context.Context, name string, options *ProxyFromNameOptions) (*Proxy, error) {
-	if options == nil {
-		options = &ProxyFromNameOptions{}
+func (s *ProxyService) FromName(ctx context.Context, name string, params *ProxyFromNameParams) (*Proxy, error) {
+	if params == nil {
+		params = &ProxyFromNameParams{}
 	}
 
 	resp, err := s.client.cpClient.ProxyGet(ctx, pb.ProxyGetRequest_builder{
 		Name:            name,
-		EnvironmentName: environmentName(options.Environment, s.client.profile),
+		EnvironmentName: environmentName(params.Environment, s.client.profile),
 	}.Build())
 
 	if status, ok := status.FromError(err); ok && status.Code() == codes.NotFound {

@@ -13,7 +13,7 @@ import (
 func createSandbox(g *gomega.WithT) *modal.Sandbox {
 	ctx := context.Background()
 
-	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameOptions{CreateIfMissing: true})
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	image := tc.Images.FromRegistry("alpine:3.21", nil)

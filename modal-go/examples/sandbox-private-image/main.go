@@ -15,12 +15,12 @@ func main() {
 		log.Fatalf("Failed to create client: %v", err)
 	}
 
-	app, err := mc.Apps.FromName(ctx, "libmodal-example", &modal.AppFromNameOptions{CreateIfMissing: true})
+	app, err := mc.Apps.FromName(ctx, "libmodal-example", &modal.AppFromNameParams{CreateIfMissing: true})
 	if err != nil {
 		log.Fatalf("Failed to get or create App: %v", err)
 	}
 
-	secret, err := mc.Secrets.FromName(ctx, "libmodal-aws-ecr-test", &modal.SecretFromNameOptions{
+	secret, err := mc.Secrets.FromName(ctx, "libmodal-aws-ecr-test", &modal.SecretFromNameParams{
 		RequiredKeys: []string{"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"},
 	})
 	if err != nil {
@@ -29,7 +29,7 @@ func main() {
 
 	image := mc.Images.FromAwsEcr("459781239556.dkr.ecr.us-east-1.amazonaws.com/ecr-private-registry-test-7522615:python", secret)
 
-	sb, err := mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateOptions{
+	sb, err := mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
 		Command: []string{"python", "-c", `import sys; sys.stdout.write(sys.stdin.read())`},
 	})
 	if err != nil {

@@ -48,26 +48,26 @@ func parseGPUConfig(gpu string) (*pb.GPUConfig, error) {
 	}.Build(), nil
 }
 
-// AppFromNameOptions are options for client.Apps.FromName.
-type AppFromNameOptions struct {
+// AppFromNameParams are options for client.Apps.FromName.
+type AppFromNameParams struct {
 	Environment     string
 	CreateIfMissing bool
 }
 
 // FromName references an App with a given name, creating a new App if necessary.
-func (s *AppService) FromName(ctx context.Context, name string, options *AppFromNameOptions) (*App, error) {
-	if options == nil {
-		options = &AppFromNameOptions{}
+func (s *AppService) FromName(ctx context.Context, name string, params *AppFromNameParams) (*App, error) {
+	if params == nil {
+		params = &AppFromNameParams{}
 	}
 
 	creationType := pb.ObjectCreationType_OBJECT_CREATION_TYPE_UNSPECIFIED
-	if options.CreateIfMissing {
+	if params.CreateIfMissing {
 		creationType = pb.ObjectCreationType_OBJECT_CREATION_TYPE_CREATE_IF_MISSING
 	}
 
 	resp, err := s.client.cpClient.AppGetOrCreate(ctx, pb.AppGetOrCreateRequest_builder{
 		AppName:            name,
-		EnvironmentName:    environmentName(options.Environment, s.client.profile),
+		EnvironmentName:    environmentName(params.Environment, s.client.profile),
 		ObjectCreationType: creationType,
 	}.Build())
 

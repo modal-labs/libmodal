@@ -33,7 +33,7 @@ func NewMockClient() *MockClient {
 
 	conn := &mockClientConn{mock: mc}
 
-	modalClient, err := modal.NewClientWithOptions(modal.ClientOptions{
+	modalClient, err := modal.NewClientWithOptions(modal.ClientParams{
 		TokenId:            "test-token-id",
 		TokenSecret:        "test-token-secret",
 		Environment:        "test",

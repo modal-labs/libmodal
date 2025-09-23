@@ -22,16 +22,16 @@ func TestBuildFunctionOptionsProto_MergesEnvAndSecrets(t *testing.T) {
 	envVars := map[string]string{"B": "2"}
 	envSecret := &Secret{SecretId: "test-env-secret"}
 
-	_, err := buildFunctionOptionsProto(&serviceOptions{env: &envVars}, nil)
+	_, err := buildFunctionOptionsProto(&serviceParams{env: &envVars}, nil)
 	g.Expect(err).Should(gomega.HaveOccurred())
 	g.Expect(err.Error()).Should(gomega.ContainSubstring("internal error: env and envSecret must both be provided or neither be provided"))
 
-	mem := 1 // need to pass a non-empty serviceOptions to pass the !hasOptions(opts) check
-	_, err = buildFunctionOptionsProto(&serviceOptions{memory: &mem}, envSecret)
+	mem := 1 // need to pass a non-empty serviceOptions to pass the !hasParams() check
+	_, err = buildFunctionOptionsProto(&serviceParams{memory: &mem}, envSecret)
 	g.Expect(err).Should(gomega.HaveOccurred())
 	g.Expect(err.Error()).Should(gomega.ContainSubstring("internal error: env and envSecret must both be provided or neither be provided"))
 
-	functionOptions, err := buildFunctionOptionsProto(&serviceOptions{
+	functionOptions, err := buildFunctionOptionsProto(&serviceParams{
 		env:     &envVars,
 		secrets: &[]*Secret{secret},
 	}, envSecret)
@@ -49,7 +49,7 @@ func TestBuildFunctionOptionsProto_WithOnlyEnvParameter(t *testing.T) {
 	envVars := map[string]string{"B": "2"}
 	envSecret := &Secret{SecretId: "test-env-secret"}
 
-	functionOptions, err := buildFunctionOptionsProto(&serviceOptions{
+	functionOptions, err := buildFunctionOptionsProto(&serviceParams{
 		env: &envVars,
 	}, envSecret)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -64,9 +64,9 @@ func TestBuildFunctionOptionsProto_EmptyEnv_WithSecrets(t *testing.T) {
 
 	secret := &Secret{SecretId: "test-secret-1"}
 
-	opts := &serviceOptions{env: &map[string]string{}, secrets: &[]*Secret{secret}}
+	params := &serviceParams{env: &map[string]string{}, secrets: &[]*Secret{secret}}
 
-	functionOptions, err := buildFunctionOptionsProto(opts, nil)
+	functionOptions, err := buildFunctionOptionsProto(params, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	g.Expect(functionOptions.GetSecretIds()).To(gomega.HaveLen(1))
@@ -77,7 +77,7 @@ func TestBuildFunctionOptionsProto_EmptyEnv_WithSecrets(t *testing.T) {
 func TestBuildFunctionOptionsProto_EmptyEnv_NoSecrets(t *testing.T) {
 	g := gomega.NewWithT(t)
 
-	functionOptions, err := buildFunctionOptionsProto(&serviceOptions{env: &map[string]string{}}, nil)
+	functionOptions, err := buildFunctionOptionsProto(&serviceParams{env: &map[string]string{}}, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	g.Expect(functionOptions.GetSecretIds()).To(gomega.HaveLen(0))

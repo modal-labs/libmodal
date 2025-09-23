@@ -20,26 +20,26 @@ type Volume struct {
 	cancelEphemeral context.CancelFunc
 }
 
-// VolumeFromNameOptions are options for finding Modal Volumes.
-type VolumeFromNameOptions struct {
+// VolumeFromNameParams are options for finding Modal Volumes.
+type VolumeFromNameParams struct {
 	Environment     string
 	CreateIfMissing bool
 }
 
 // FromName references a Volume by its name.
-func (s *VolumeService) FromName(ctx context.Context, name string, options *VolumeFromNameOptions) (*Volume, error) {
-	if options == nil {
-		options = &VolumeFromNameOptions{}
+func (s *VolumeService) FromName(ctx context.Context, name string, params *VolumeFromNameParams) (*Volume, error) {
+	if params == nil {
+		params = &VolumeFromNameParams{}
 	}
 
 	creationType := pb.ObjectCreationType_OBJECT_CREATION_TYPE_UNSPECIFIED
-	if options.CreateIfMissing {
+	if params.CreateIfMissing {
 		creationType = pb.ObjectCreationType_OBJECT_CREATION_TYPE_CREATE_IF_MISSING
 	}
 
 	resp, err := s.client.cpClient.VolumeGetOrCreate(ctx, pb.VolumeGetOrCreateRequest_builder{
 		DeploymentName:     name,
-		EnvironmentName:    environmentName(options.Environment, s.client.profile),
+		EnvironmentName:    environmentName(params.Environment, s.client.profile),
 		ObjectCreationType: creationType,
 	}.Build())
 
@@ -68,20 +68,20 @@ func (v *Volume) IsReadOnly() bool {
 	return v.readOnly
 }
 
-// VolumeEphemeralOptions are options for client.Volumes.Ephemeral.
-type VolumeEphemeralOptions struct {
+// VolumeEphemeralParams are options for client.Volumes.Ephemeral.
+type VolumeEphemeralParams struct {
 	Environment string
 }
 
 // Ephemeral creates a nameless, temporary Volume, that persists until CloseEphemeral is called, or the process exits.
-func (s *VolumeService) Ephemeral(ctx context.Context, options *VolumeEphemeralOptions) (*Volume, error) {
-	if options == nil {
-		options = &VolumeEphemeralOptions{}
+func (s *VolumeService) Ephemeral(ctx context.Context, params *VolumeEphemeralParams) (*Volume, error) {
+	if params == nil {
+		params = &VolumeEphemeralParams{}
 	}
 
 	resp, err := s.client.cpClient.VolumeGetOrCreate(ctx, pb.VolumeGetOrCreateRequest_builder{
 		ObjectCreationType: pb.ObjectCreationType_OBJECT_CREATION_TYPE_EPHEMERAL,
-		EnvironmentName:    environmentName(options.Environment, s.client.profile),
+		EnvironmentName:    environmentName(params.Environment, s.client.profile),
 	}.Build())
 	if err != nil {
 		return nil, err
