@@ -1,3 +1,4 @@
+// Package grpcmock provides utilities for mocking gRPC services in tests.
 package grpcmock
 
 import (
