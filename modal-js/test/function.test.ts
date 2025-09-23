@@ -17,11 +17,14 @@ test("FunctionCall", async () => {
 });
 
 test("FunctionCallJsMap", async () => {
-  const function_ = await Function_.lookup("libmodal-test-support", "identity");
+  const function_ = await Function_.lookup(
+    "libmodal-test-support",
+    "identity_with_repr",
+  );
 
   // Represent Python kwargs.
   const resultKwargs = await function_.remote([new Map([["a", "b"]])]);
-  expect(resultKwargs).toStrictEqual({ a: "b" });
+  expect(resultKwargs).toStrictEqual([{ a: "b" }, "{'a': 'b'}"]);
 });
 
 test("FunctionCallLargeInput", async () => {
