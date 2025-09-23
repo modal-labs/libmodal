@@ -15,7 +15,7 @@ func main() {
 		log.Fatalf("Failed to create client: %v", err)
 	}
 
-	app, err := mc.Apps.FromName(ctx, "libmodal-example", &modal.LookupOptions{CreateIfMissing: true})
+	app, err := mc.Apps.FromName(ctx, "libmodal-example", &modal.AppFromNameOptions{CreateIfMissing: true})
 	if err != nil {
 		log.Fatalf("Failed to get or create App: %v", err)
 	}
@@ -37,7 +37,7 @@ func main() {
 
 	log.Println("Running `nvidia-smi` in Sandbox:")
 
-	p, err := sb.Exec(ctx, []string{"nvidia-smi"}, modal.ExecOptions{})
+	p, err := sb.Exec(ctx, []string{"nvidia-smi"}, nil)
 	if err != nil {
 		log.Fatalf("Failed to execute nvidia-smi in Sandbox: %v", err)
 	}

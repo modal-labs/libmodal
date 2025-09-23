@@ -16,7 +16,7 @@ func main() {
 		log.Fatalf("Failed to create client: %v", err)
 	}
 
-	app, err := mc.Apps.FromName(ctx, "libmodal-example", &modal.LookupOptions{CreateIfMissing: true})
+	app, err := mc.Apps.FromName(ctx, "libmodal-example", &modal.AppFromNameOptions{CreateIfMissing: true})
 	if err != nil {
 		log.Fatalf("Failed to get or create App: %v", err)
 	}
@@ -34,12 +34,12 @@ func main() {
 		}
 	}()
 
-	_, err = sb.Exec(ctx, []string{"mkdir", "-p", "/app/data"}, modal.ExecOptions{})
+	_, err = sb.Exec(ctx, []string{"mkdir", "-p", "/app/data"}, nil)
 	if err != nil {
 		log.Fatalf("Failed to create directory: %v", err)
 	}
 
-	_, err = sb.Exec(ctx, []string{"sh", "-c", "echo 'This file was created in the first Sandbox' > /app/data/info.txt"}, modal.ExecOptions{})
+	_, err = sb.Exec(ctx, []string{"sh", "-c", "echo 'This file was created in the first Sandbox' > /app/data/info.txt"}, nil)
 	if err != nil {
 		log.Fatalf("Failed to create file: %v", err)
 	}
@@ -70,7 +70,7 @@ func main() {
 		}
 	}()
 
-	proc, err := sb2.Exec(ctx, []string{"cat", "/app/data/info.txt"}, modal.ExecOptions{})
+	proc, err := sb2.Exec(ctx, []string{"cat", "/app/data/info.txt"}, nil)
 	if err != nil {
 		log.Fatalf("Failed to exec cat command: %v", err)
 	}

@@ -15,8 +15,8 @@ import (
 // ClsService provides Cls related operations.
 type ClsService struct{ client *Client }
 
-// ClsOptions represents runtime options for a Modal Cls.
-type ClsOptions struct {
+// ClsWithOptionsOptions represents runtime options for a Modal Cls.
+type ClsWithOptionsOptions struct {
 	CPU              *float64
 	Memory           *int
 	GPU              *string
@@ -30,14 +30,14 @@ type ClsOptions struct {
 	Timeout          *time.Duration
 }
 
-// ClsConcurrencyOptions represents concurrency configuration for a Modal Cls.
-type ClsConcurrencyOptions struct {
+// ClsWithConcurrencyOptions represents concurrency configuration for a Modal Cls.
+type ClsWithConcurrencyOptions struct {
 	MaxInputs    int
 	TargetInputs *int
 }
 
-// ClsBatchingOptions represents batching configuration for a Modal Cls.
-type ClsBatchingOptions struct {
+// ClsWithBatchingOptions represents batching configuration for a Modal Cls.
+type ClsWithBatchingOptions struct {
 	MaxBatchSize int
 	Wait         time.Duration
 }
@@ -72,10 +72,16 @@ type Cls struct {
 	client *Client
 }
 
+// ClsFromNameOptions are options for client.Cls.FromName.
+type ClsFromNameOptions struct {
+	Environment     string
+	CreateIfMissing bool
+}
+
 // FromName references a Cls from a deployed App by its name.
-func (s *ClsService) FromName(ctx context.Context, appName string, name string, options *LookupOptions) (*Cls, error) {
+func (s *ClsService) FromName(ctx context.Context, appName string, name string, options *ClsFromNameOptions) (*Cls, error) {
 	if options == nil {
-		options = &LookupOptions{}
+		options = &ClsFromNameOptions{}
 	}
 
 	cls := Cls{
@@ -153,7 +159,7 @@ func (c *Cls) Instance(ctx context.Context, params map[string]any) (*ClsInstance
 }
 
 // WithOptions overrides the static Function configuration at runtime.
-func (c *Cls) WithOptions(opts ClsOptions) *Cls {
+func (c *Cls) WithOptions(opts ClsWithOptionsOptions) *Cls {
 	var secretsPtr *[]*Secret
 	if opts.Secrets != nil {
 		s := opts.Secrets
@@ -195,7 +201,7 @@ func (c *Cls) WithOptions(opts ClsOptions) *Cls {
 }
 
 // WithConcurrency creates an instance of the Cls with input concurrency enabled or overridden with new values.
-func (c *Cls) WithConcurrency(opts ClsConcurrencyOptions) *Cls {
+func (c *Cls) WithConcurrency(opts ClsWithConcurrencyOptions) *Cls {
 	merged := mergeServiceOptions(c.options, &serviceOptions{
 		maxConcurrentInputs:    &opts.MaxInputs,
 		targetConcurrentInputs: opts.TargetInputs,
@@ -212,7 +218,7 @@ func (c *Cls) WithConcurrency(opts ClsConcurrencyOptions) *Cls {
 }
 
 // WithBatching creates an instance of the Cls with dynamic batching enabled or overridden with new values.
-func (c *Cls) WithBatching(opts ClsBatchingOptions) *Cls {
+func (c *Cls) WithBatching(opts ClsWithBatchingOptions) *Cls {
 	merged := mergeServiceOptions(c.options, &serviceOptions{
 		batchMaxSize: &opts.MaxBatchSize,
 		batchWait:    &opts.Wait,

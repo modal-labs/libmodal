@@ -15,7 +15,7 @@ func main() {
 		log.Fatalf("Failed to create client: %v", err)
 	}
 
-	app, err := mc.Apps.FromName(ctx, "libmodal-example", &modal.LookupOptions{CreateIfMissing: true})
+	app, err := mc.Apps.FromName(ctx, "libmodal-example", &modal.AppFromNameOptions{CreateIfMissing: true})
 	if err != nil {
 		log.Fatalf("Failed to get or create App: %v", err)
 	}
@@ -46,10 +46,7 @@ for i in range(50000):
 	print(i)
 	print(i, file=sys.stderr)`,
 		},
-		modal.ExecOptions{
-			Stdout: modal.Pipe,
-			Stderr: modal.Pipe,
-		},
+		nil,
 	)
 	if err != nil {
 		log.Fatalf("Failed to execute command in Sandbox: %v", err)
@@ -77,7 +74,7 @@ for i in range(50000):
 	}
 
 	// Passing Secrets in a command
-	p, err = sb.Exec(ctx, []string{"printenv", "c"}, modal.ExecOptions{Stdout: modal.Pipe, Stderr: modal.Pipe, Secrets: []*modal.Secret{secret}})
+	p, err = sb.Exec(ctx, []string{"printenv", "c"}, &modal.SandboxExecOptions{Secrets: []*modal.Secret{secret}})
 	if err != nil {
 		log.Fatalf("Faield to execute env command in Sandbox: %v", err)
 	}

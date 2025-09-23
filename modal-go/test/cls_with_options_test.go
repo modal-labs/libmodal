@@ -71,9 +71,9 @@ func TestClsWithOptionsStacking(t *testing.T) {
 	newTimeout := 60 * time.Second
 
 	optioned := cls.
-		WithOptions(modal.ClsOptions{Timeout: &timeout, CPU: &cpu}).
-		WithOptions(modal.ClsOptions{Timeout: &newTimeout, Memory: &memory, GPU: &gpu}).
-		WithOptions(modal.ClsOptions{Secrets: []*modal.Secret{secret}, Volumes: map[string]*modal.Volume{"/mnt/test": volume}})
+		WithOptions(modal.ClsWithOptionsOptions{Timeout: &timeout, CPU: &cpu}).
+		WithOptions(modal.ClsWithOptionsOptions{Timeout: &newTimeout, Memory: &memory, GPU: &gpu}).
+		WithOptions(modal.ClsWithOptionsOptions{Secrets: []*modal.Secret{secret}, Volumes: map[string]*modal.Volume{"/mnt/test": volume}})
 
 	instance, err := optioned.Instance(ctx, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -116,9 +116,9 @@ func TestClsWithConcurrencyWithBatchingChaining(t *testing.T) {
 
 	timeout := 60 * time.Second
 	chained := cls.
-		WithOptions(modal.ClsOptions{Timeout: &timeout}).
-		WithConcurrency(modal.ClsConcurrencyOptions{MaxInputs: 10}).
-		WithBatching(modal.ClsBatchingOptions{MaxBatchSize: 11, Wait: 12 * time.Millisecond})
+		WithOptions(modal.ClsWithOptionsOptions{Timeout: &timeout}).
+		WithConcurrency(modal.ClsWithConcurrencyOptions{MaxInputs: 10}).
+		WithBatching(modal.ClsWithBatchingOptions{MaxBatchSize: 11, Wait: 12 * time.Millisecond})
 
 	instance, err := chained.Instance(ctx, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -169,7 +169,7 @@ func TestClsWithOptionsRetries(t *testing.T) {
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	_, err = cls.WithOptions(modal.ClsOptions{Retries: retries}).Instance(ctx, nil)
+	_, err = cls.WithOptions(modal.ClsWithOptionsOptions{Retries: retries}).Instance(ctx, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 }
 
@@ -194,22 +194,22 @@ func TestClsWithOptionsInvalidValues(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	timeout := 500 * time.Millisecond
-	_, err = cls.WithOptions(modal.ClsOptions{Timeout: &timeout}).Instance(ctx, nil)
+	_, err = cls.WithOptions(modal.ClsWithOptionsOptions{Timeout: &timeout}).Instance(ctx, nil)
 	g.Expect(err).Should(gomega.HaveOccurred())
 	g.Expect(err.Error()).Should(gomega.ContainSubstring("timeout must be at least 1 second"))
 
 	scaledownWindow := 100 * time.Millisecond
-	_, err = cls.WithOptions(modal.ClsOptions{ScaledownWindow: &scaledownWindow}).Instance(ctx, nil)
+	_, err = cls.WithOptions(modal.ClsWithOptionsOptions{ScaledownWindow: &scaledownWindow}).Instance(ctx, nil)
 	g.Expect(err).Should(gomega.HaveOccurred())
 	g.Expect(err.Error()).Should(gomega.ContainSubstring("scaledownWindow must be at least 1 second"))
 
 	fractionalTimeout := 1500 * time.Millisecond
-	_, err = cls.WithOptions(modal.ClsOptions{Timeout: &fractionalTimeout}).Instance(ctx, nil)
+	_, err = cls.WithOptions(modal.ClsWithOptionsOptions{Timeout: &fractionalTimeout}).Instance(ctx, nil)
 	g.Expect(err).Should(gomega.HaveOccurred())
 	g.Expect(err.Error()).Should(gomega.ContainSubstring("whole number of seconds"))
 
 	fractionalScaledown := 1500 * time.Millisecond
-	_, err = cls.WithOptions(modal.ClsOptions{ScaledownWindow: &fractionalScaledown}).Instance(ctx, nil)
+	_, err = cls.WithOptions(modal.ClsWithOptionsOptions{ScaledownWindow: &fractionalScaledown}).Instance(ctx, nil)
 	g.Expect(err).Should(gomega.HaveOccurred())
 	g.Expect(err.Error()).Should(gomega.ContainSubstring("whole number of seconds"))
 }
@@ -246,7 +246,7 @@ func TestWithOptionsEmptySecretsDoesNotReplace(t *testing.T) {
 		},
 	)
 
-	_, err = cls.WithOptions(modal.ClsOptions{Secrets: []*modal.Secret{}}).Instance(ctx, nil)
+	_, err = cls.WithOptions(modal.ClsWithOptionsOptions{Secrets: []*modal.Secret{}}).Instance(ctx, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 }
 
@@ -282,6 +282,6 @@ func TestWithOptionsEmptyVolumesDoesNotReplace(t *testing.T) {
 		},
 	)
 
-	_, err = cls.WithOptions(modal.ClsOptions{Volumes: map[string]*modal.Volume{}}).Instance(ctx, nil)
+	_, err = cls.WithOptions(modal.ClsWithOptionsOptions{Volumes: map[string]*modal.Volume{}}).Instance(ctx, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 }

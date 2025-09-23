@@ -84,7 +84,7 @@ func TestSandboxCreateRequestProto_WithOnlyEnvParameter(t *testing.T) {
 
 func TestContainerExecProto_WithoutPTY(t *testing.T) {
 	g := gomega.NewWithT(t)
-	req, err := buildContainerExecRequestProto("task-123", []string{"bash"}, ExecOptions{}, nil)
+	req, err := buildContainerExecRequestProto("task-123", []string{"bash"}, SandboxExecOptions{}, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	ptyInfo := req.GetPtyInfo()
@@ -93,7 +93,7 @@ func TestContainerExecProto_WithoutPTY(t *testing.T) {
 
 func TestContainerExecProto_WithPTY(t *testing.T) {
 	g := gomega.NewWithT(t)
-	req, err := buildContainerExecRequestProto("task-123", []string{"bash"}, ExecOptions{
+	req, err := buildContainerExecRequestProto("task-123", []string{"bash"}, SandboxExecOptions{
 		PTY: true,
 	}, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -117,17 +117,17 @@ func TestContainerExecRequestProto_MergesEnvAndSecrets(t *testing.T) {
 	envVars := map[string]string{"B": "2"}
 	envSecret := &Secret{SecretId: "test-env-secret"}
 
-	_, err := buildContainerExecRequestProto("ta", []string{"echo", "hello"}, ExecOptions{
+	_, err := buildContainerExecRequestProto("ta", []string{"echo", "hello"}, SandboxExecOptions{
 		Env: envVars,
 	}, nil)
 	g.Expect(err).Should(gomega.HaveOccurred())
 	g.Expect(err.Error()).Should(gomega.ContainSubstring("internal error: Env and envSecret must both be provided or neither be provided"))
 
-	_, err = buildContainerExecRequestProto("ta", []string{"echo", "hello"}, ExecOptions{}, envSecret)
+	_, err = buildContainerExecRequestProto("ta", []string{"echo", "hello"}, SandboxExecOptions{}, envSecret)
 	g.Expect(err).Should(gomega.HaveOccurred())
 	g.Expect(err.Error()).Should(gomega.ContainSubstring("internal error: Env and envSecret must both be provided or neither be provided"))
 
-	req, err := buildContainerExecRequestProto("ta", []string{"echo", "hello"}, ExecOptions{
+	req, err := buildContainerExecRequestProto("ta", []string{"echo", "hello"}, SandboxExecOptions{
 		Env:     envVars,
 		Secrets: []*Secret{secret},
 	}, envSecret)
@@ -144,7 +144,7 @@ func TestContainerExecRequestProto_WithOnlyEnvParameter(t *testing.T) {
 	envVars := map[string]string{"B": "2"}
 	envSecret := &Secret{SecretId: "test-env-secret"}
 
-	req, err := buildContainerExecRequestProto("ta", []string{"echo", "hello"}, ExecOptions{
+	req, err := buildContainerExecRequestProto("ta", []string{"echo", "hello"}, SandboxExecOptions{
 		Env: envVars,
 	}, envSecret)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())

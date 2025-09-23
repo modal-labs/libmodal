@@ -15,7 +15,7 @@ func main() {
 		log.Fatalf("Failed to create client: %v", err)
 	}
 
-	app, err := mc.Apps.FromName(ctx, "libmodal-example", &modal.LookupOptions{CreateIfMissing: true})
+	app, err := mc.Apps.FromName(ctx, "libmodal-example", &modal.AppFromNameOptions{CreateIfMissing: true})
 	if err != nil {
 		log.Fatalf("Failed to get or create App: %v", err)
 	}
@@ -41,7 +41,7 @@ func main() {
 		}
 	}()
 
-	p, err := sb.Exec(ctx, []string{"curl", "-s", "ifconfig.me"}, modal.ExecOptions{})
+	p, err := sb.Exec(ctx, []string{"curl", "-s", "ifconfig.me"}, nil)
 	if err != nil {
 		log.Fatalf("Failed to start IP fetch command: %v", err)
 	}

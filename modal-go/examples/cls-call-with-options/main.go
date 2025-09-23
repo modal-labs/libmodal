@@ -40,10 +40,10 @@ func main() {
 	}
 
 	instanceWithOptions, err := cls.
-		WithOptions(modal.ClsOptions{
+		WithOptions(modal.ClsWithOptionsOptions{
 			Secrets: []*modal.Secret{secret},
 		}).
-		WithConcurrency(modal.ClsConcurrencyOptions{MaxInputs: 1}).
+		WithConcurrency(modal.ClsWithConcurrencyOptions{MaxInputs: 1}).
 		Instance(ctx, nil)
 	if err != nil {
 		log.Fatalf("Failed to create Cls instance with options: %v", err)
