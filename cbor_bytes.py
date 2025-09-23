@@ -204,6 +204,26 @@ process.stdin.on('end', () => {{
                 return true;
             }}
 
+            // Handle Map vs Object equivalence (for CBOR roundtrip compatibility)
+            if (a instanceof Map && typeof b === 'object' && b !== null && !Array.isArray(b) && !(b instanceof Map) && !(b instanceof Set) && !(b instanceof Date)) {{
+                const bKeys = Object.keys(b);
+                if (a.size !== bKeys.length) return false;
+                for (let [key, value] of a) {{
+                    if (typeof key !== 'string' || !bKeys.includes(key) || !deepEqual(b[key], value)) return false;
+                }}
+                return true;
+            }}
+
+            // Handle Object vs Map equivalence (for CBOR roundtrip compatibility)
+            if (typeof a === 'object' && a !== null && !Array.isArray(a) && !(a instanceof Map) && !(a instanceof Set) && !(a instanceof Date) && b instanceof Map) {{
+                const aKeys = Object.keys(a);
+                if (aKeys.length !== b.size) return false;
+                for (let key of aKeys) {{
+                    if (!b.has(key) || !deepEqual(a[key], b.get(key))) return false;
+                }}
+                return true;
+            }}
+
             // Handle Arrays
             if (Array.isArray(a) && Array.isArray(b)) {{
                 if (a.length !== b.length) return false;
@@ -313,82 +333,6 @@ process.stdin.on('end', () => {
 
 
 # Removed js_to_python_type function - no longer needed since we don't transport JS data back to Python
-
-
-def encode_with_node_cbor_x(data: bytes) -> bytes:
-    """
-    Calls out to node and the cbor-x package to encode the given bytes as CBOR.
-    Returns the CBOR-encoded bytes.
-    """
-    # Path to node modules
-    node_modules = os.path.join(os.path.dirname(__file__), "modal-js", "node_modules")
-    # Write a small JS script to encode stdin as CBOR using cbor-x
-    js_code = """
-const { encode } = require('cbor-x');
-const fs = require('fs');
-
-let chunks = [];
-process.stdin.on('data', chunk => chunks.push(chunk));
-process.stdin.on('end', () => {
-    const buf = Buffer.concat(chunks);
-    // Option 1: Use Buffer directly (Node.js specific)
-    // const cbor = encode(buf);
-
-    // Option 2: Use Uint8Array with tagUint8Array: false (doesn't work!)
-    // const cbor = encode(new Uint8Array(buf), { tagUint8Array: false });
-
-    // Option 3: Use ArrayBuffer (cross-platform, should work!)
-    const cbor = encode(new Uint8Array(buf).buffer);
-    process.stdout.write(cbor);
-});
-"""
-    # Run node with the JS code, passing the data via stdin
-    proc = subprocess.Popen(
-        ["node", "-e", js_code],
-        stdin=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        cwd=os.path.dirname(__file__),
-        env={**os.environ, "NODE_PATH": node_modules},
-    )
-    cbor_bytes, err = proc.communicate(input=data)
-    if proc.returncode != 0:
-        raise RuntimeError(f"Node cbor-x encode failed: {err.decode()}")
-    return cbor_bytes
-
-
-def test_cbor_x_encode_and_python_decode():
-    # Test data
-    original = b"hello world \x00\xff"
-    cbor_bytes = encode_with_node_cbor_x(original)
-    decoded = cbor2.loads(cbor_bytes)
-    print("Decoded", decoded)
-    assert isinstance(decoded, bytes), f"Decoded type is {type(decoded)}"
-    assert decoded == original, f"Decoded bytes {decoded!r} != original {original!r}"
-    print(f"✅ ArrayBuffer approach works! Decoded: {decoded!r}")
-
-
-def test_uint8array_with_tag64_support():
-    # Test data
-    original = b"hello world \x00\xff"
-    # Use the Uint8Array encoder (creates tag 64)
-    cbor_bytes = encode_with_node_cbor_x_uint8array(original)
-
-    # Try regular cbor2.loads first (should fail)
-    try:
-        decoded_regular = cbor2.loads(cbor_bytes)
-        print(f"Regular cbor2.loads: {decoded_regular} (type: {type(decoded_regular)})")
-    except Exception as e:
-        print(f"Regular cbor2.loads failed: {e}")
-
-    # Now try with tag 64 support
-    decoded = cbor_loads_with_tag64_support(cbor_bytes)
-    print(f"With tag 64 support: {decoded} (type: {type(decoded)})")
-    assert isinstance(decoded, bytes), f"Decoded type is {type(decoded)}"
-    assert decoded == original, f"Decoded bytes {decoded!r} != original {original!r}"
-    print(f"✅ Uint8Array with tag 64 support works! Decoded: {decoded!r}")
-
-
 def has_cbor_tags(obj: Any, path: str = "root") -> List[str]:
     """
     Recursively check if an object contains any CBORTag objects.
@@ -478,14 +422,15 @@ def encode_js_code_with_cbor_x(js_code: str) -> bytes:
     node_modules = os.path.join(os.path.dirname(__file__), "modal-js", "node_modules")
 
     full_js_code = f"""
-const {{ encode }} = require('cbor-x');
+const {{ Encoder }} = require('cbor-x');
 
 // Evaluate the JavaScript input
 const jsData = {js_code};
 
 console.error(`Encoding JS data: ${{JSON.stringify(jsData, null, 2)}} (type: ${{typeof jsData}}, constructor: ${{jsData?.constructor?.name}})`);
 
-const cbor = encode(jsData);
+const limitedEncoder = new Encoder({{mapsAsObjects: true, useRecords: false, tagUint8Array: false, useTag259ForMaps: false}});
+const cbor = limitedEncoder.encode(jsData);
 process.stdout.write(cbor);
 """
 
@@ -636,11 +581,6 @@ def test_collection_types_js():
         results.append((name, success))
 
     return results
-
-
-def test_collection_types():
-    """Legacy test function - kept for compatibility"""
-    return test_collection_types_js()
 
 
 def test_date_types_js():
@@ -797,7 +737,7 @@ def run_all_roundtrip_tests():
 
     # Run all test suites
     all_results.extend(test_basic_types())
-    all_results.extend(test_collection_types())
+    all_results.extend(test_collection_types_js())
     all_results.extend(test_date_types())
     all_results.extend(test_edge_cases())
 
@@ -825,15 +765,6 @@ def run_all_roundtrip_tests():
 
 
 if __name__ == "__main__":
-    # Run original tests first
-    print("=== Testing ArrayBuffer approach (no tags) ===")
-    test_cbor_x_encode_and_python_decode()
-    print("CBOR-x encode and cbor2 decode roundtrip successful.")
-
-    print("\n=== Testing Uint8Array with tag 64 support ===")
-    test_uint8array_with_tag64_support()
-    print("Uint8Array with tag 64 support roundtrip successful.")
-
     # Run comprehensive roundtrip tests
     print("\n" + "=" * 80)
     print("COMPREHENSIVE CBOR ROUNDTRIP TESTS")
