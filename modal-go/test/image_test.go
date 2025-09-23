@@ -16,7 +16,7 @@ func TestImageFromId(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	app, err := tc.Apps.Lookup(ctx, "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	image, err := tc.Images.FromRegistry("alpine:3.21", nil).Build(ctx, app)
@@ -35,7 +35,7 @@ func TestImageFromRegistry(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	app, err := tc.Apps.Lookup(ctx, "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	image, err := tc.Images.FromRegistry("alpine:3.21", nil).Build(ctx, app)
@@ -53,7 +53,7 @@ func TestImageFromRegistryWithSecret(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	app, err := tc.Apps.Lookup(ctx, "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	secret, err := tc.Secrets.FromName(ctx, "libmodal-gcp-artifact-registry-test", &modal.SecretFromNameOptions{
@@ -73,7 +73,7 @@ func TestImageFromAwsEcr(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	app, err := tc.Apps.Lookup(ctx, "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	secret, err := tc.Secrets.FromName(ctx, "libmodal-aws-ecr-test", &modal.SecretFromNameOptions{
@@ -91,7 +91,7 @@ func TestImageFromGcpArtifactRegistry(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	app, err := tc.Apps.Lookup(ctx, "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	secret, err := tc.Secrets.FromName(ctx, "libmodal-gcp-artifact-registry-test", &modal.SecretFromNameOptions{
@@ -109,7 +109,7 @@ func TestCreateSandboxWithImage(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	app, err := tc.Apps.Lookup(ctx, "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	image := tc.Images.FromRegistry("alpine:3.21", nil)
@@ -127,7 +127,7 @@ func TestImageDelete(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	app, err := tc.Apps.Lookup(ctx, "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	image, err := tc.Images.FromRegistry("alpine:3.13", nil).Build(ctx, app)
@@ -157,7 +157,7 @@ func TestDockerfileCommands(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	app, err := tc.Apps.Lookup(ctx, "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	image := tc.Images.FromRegistry("alpine:3.21", nil).DockerfileCommands(
@@ -190,7 +190,7 @@ func TestDockerfileCommandsChaining(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	app, err := tc.Apps.Lookup(ctx, "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	secret, err := tc.Secrets.FromMap(ctx, map[string]string{"SECRET": "hello"}, nil)
@@ -228,7 +228,7 @@ func TestDockerfileCommandsCopyCommandValidation(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	app, err := tc.Apps.Lookup(ctx, "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	image := tc.Images.FromRegistry("alpine:3.21", nil)

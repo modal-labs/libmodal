@@ -17,8 +17,8 @@ func TestQueueInvalidName(t *testing.T) {
 	g := gomega.NewWithT(t)
 
 	for _, name := range []string{"has space", "has/slash", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"} {
-		_, err := tc.Queues.Lookup(context.Background(), name, nil)
-		g.Expect(err).Should(gomega.HaveOccurred(), "Queue lookup should fail for invalid name: %s", name)
+		_, err := tc.Queues.FromName(context.Background(), name, nil)
+		g.Expect(err).Should(gomega.HaveOccurred())
 	}
 }
 
@@ -179,7 +179,7 @@ func TestQueueNonEphemeral(t *testing.T) {
 	ctx := context.Background()
 
 	queueName := "test-queue-" + strconv.FormatInt(time.Now().UnixNano(), 10)
-	queue1, err := tc.Queues.Lookup(ctx, queueName, &modal.LookupOptions{CreateIfMissing: true})
+	queue1, err := tc.Queues.FromName(ctx, queueName, &modal.LookupOptions{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(queue1.Name).To(gomega.Equal(queueName))
 
@@ -187,14 +187,14 @@ func TestQueueNonEphemeral(t *testing.T) {
 		err := tc.Queues.Delete(ctx, queueName, nil)
 		g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-		_, err = tc.Queues.Lookup(ctx, queueName, nil)
+		_, err = tc.Queues.FromName(ctx, queueName, nil)
 		g.Expect(err).Should(gomega.HaveOccurred())
 	}()
 
 	err = queue1.Put(ctx, "data", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	queue2, err := tc.Queues.Lookup(ctx, queueName, nil)
+	queue2, err := tc.Queues.FromName(ctx, queueName, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	value, err := queue2.Get(ctx, nil)

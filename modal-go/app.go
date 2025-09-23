@@ -64,8 +64,8 @@ func parseGPUConfig(gpu string) (*pb.GPUConfig, error) {
 	}.Build(), nil
 }
 
-// Lookup looks up an existing App, or creates an empty one.
-func (s *AppService) Lookup(ctx context.Context, name string, options *LookupOptions) (*App, error) {
+// FromName references an App with a given name, creating a new App if necessary.
+func (s *AppService) FromName(ctx context.Context, name string, options *LookupOptions) (*App, error) {
 	if options == nil {
 		options = &LookupOptions{}
 	}

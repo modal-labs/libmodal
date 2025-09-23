@@ -15,9 +15,9 @@ func main() {
 		log.Fatalf("Failed to create client: %v", err)
 	}
 
-	app, err := mc.Apps.Lookup(ctx, "libmodal-example", &modal.LookupOptions{CreateIfMissing: true})
+	app, err := mc.Apps.FromName(ctx, "libmodal-example", &modal.LookupOptions{CreateIfMissing: true})
 	if err != nil {
-		log.Fatalf("Failed to lookup or create App: %v", err)
+		log.Fatalf("Failed to get or create App: %v", err)
 	}
 
 	secret, err := mc.Secrets.FromName(ctx, "libmodal-aws-ecr-test", &modal.SecretFromNameOptions{

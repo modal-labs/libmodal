@@ -36,7 +36,7 @@ func TestClsWithOptionsStacking(t *testing.T) {
 		},
 	)
 
-	cls, err := mock.Cls.Lookup(ctx, "libmodal-test-support", "EchoCls", nil)
+	cls, err := mock.Cls.FromName(ctx, "libmodal-test-support", "EchoCls", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	grpcmock.HandleUnary(
@@ -97,7 +97,7 @@ func TestClsWithConcurrencyWithBatchingChaining(t *testing.T) {
 		},
 	)
 
-	cls, err := mock.Cls.Lookup(ctx, "libmodal-test-support", "EchoCls", nil)
+	cls, err := mock.Cls.FromName(ctx, "libmodal-test-support", "EchoCls", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	grpcmock.HandleUnary(
@@ -142,7 +142,7 @@ func TestClsWithOptionsRetries(t *testing.T) {
 		},
 	)
 
-	cls, err := mock.Cls.Lookup(ctx, "libmodal-test-support", "EchoCls", nil)
+	cls, err := mock.Cls.FromName(ctx, "libmodal-test-support", "EchoCls", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	grpcmock.HandleUnary(
@@ -190,7 +190,7 @@ func TestClsWithOptionsInvalidValues(t *testing.T) {
 		},
 	)
 
-	cls, err := mock.Cls.Lookup(ctx, "libmodal-test-support", "EchoCls", nil)
+	cls, err := mock.Cls.FromName(ctx, "libmodal-test-support", "EchoCls", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	timeout := 500 * time.Millisecond
@@ -231,7 +231,7 @@ func TestWithOptionsEmptySecretsDoesNotReplace(t *testing.T) {
 		},
 	)
 
-	cls, err := mock.Cls.Lookup(ctx, "libmodal-test-support", "EchoCls", nil)
+	cls, err := mock.Cls.FromName(ctx, "libmodal-test-support", "EchoCls", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	grpcmock.HandleUnary(
@@ -267,7 +267,7 @@ func TestWithOptionsEmptyVolumesDoesNotReplace(t *testing.T) {
 		},
 	)
 
-	cls, err := mock.Cls.Lookup(ctx, "libmodal-test-support", "EchoCls", nil)
+	cls, err := mock.Cls.FromName(ctx, "libmodal-test-support", "EchoCls", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	grpcmock.HandleUnary(

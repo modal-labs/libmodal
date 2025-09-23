@@ -107,8 +107,8 @@ func (q *Queue) CloseEphemeral() {
 	}
 }
 
-// Lookup returns a handle to a (possibly new) Queue by name.
-func (s *QueueService) Lookup(ctx context.Context, name string, options *LookupOptions) (*Queue, error) {
+// FromName references a named Queue, creating if necessary.
+func (s *QueueService) FromName(ctx context.Context, name string, options *LookupOptions) (*Queue, error) {
 	if options == nil {
 		options = &LookupOptions{}
 	}
@@ -140,7 +140,7 @@ func (s *QueueService) Delete(ctx context.Context, name string, options *DeleteO
 		options = &DeleteOptions{}
 	}
 
-	q, err := s.Lookup(ctx, name, &LookupOptions{Environment: options.Environment})
+	q, err := s.FromName(ctx, name, &LookupOptions{Environment: options.Environment})
 	if err != nil {
 		return err
 	}

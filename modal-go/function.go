@@ -59,8 +59,8 @@ type Function struct {
 	client *Client
 }
 
-// Lookup looks up an existing Function on a deployed App.
-func (s *FunctionService) Lookup(ctx context.Context, appName string, name string, options *LookupOptions) (*Function, error) {
+// FromName references a Function from a deployed App by its name.
+func (s *FunctionService) FromName(ctx context.Context, appName string, name string, options *LookupOptions) (*Function, error) {
 	if options == nil {
 		options = &LookupOptions{}
 	}

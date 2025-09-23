@@ -15,7 +15,7 @@ func TestFunctionCall(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	function, err := tc.Functions.Lookup(ctx, "libmodal-test-support", "echo_string", nil)
+	function, err := tc.Functions.FromName(ctx, "libmodal-test-support", "echo_string", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	// Represent Python kwargs.
@@ -34,7 +34,7 @@ func TestFunctionCallLargeInput(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	function, err := tc.Functions.Lookup(ctx, "libmodal-test-support", "bytelength", nil)
+	function, err := tc.Functions.FromName(ctx, "libmodal-test-support", "bytelength", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	len := 3 * 1000 * 1000 // More than 2 MiB, offload to blob storage
@@ -49,7 +49,7 @@ func TestFunctionNotFound(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	_, err := tc.Functions.Lookup(ctx, "libmodal-test-support", "not_a_real_function", nil)
+	_, err := tc.Functions.FromName(ctx, "libmodal-test-support", "not_a_real_function", nil)
 	g.Expect(err).Should(gomega.BeAssignableToTypeOf(modal.NotFoundError{}))
 }
 
@@ -58,7 +58,7 @@ func TestFunctionCallInputPlane(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	function, err := tc.Functions.Lookup(ctx, "libmodal-test-support", "input_plane", nil)
+	function, err := tc.Functions.FromName(ctx, "libmodal-test-support", "input_plane", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	// Try the same, but with args.
@@ -86,7 +86,7 @@ func TestFunctionGetCurrentStats(t *testing.T) {
 		},
 	)
 
-	f, err := mock.Functions.Lookup(ctx, "test-app", "test-function", nil)
+	f, err := mock.Functions.FromName(ctx, "test-app", "test-function", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	grpcmock.HandleUnary(
@@ -121,7 +121,7 @@ func TestFunctionUpdateAutoscaler(t *testing.T) {
 		},
 	)
 
-	f, err := mock.Functions.Lookup(ctx, "test-app", "test-function", nil)
+	f, err := mock.Functions.FromName(ctx, "test-app", "test-function", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	grpcmock.HandleUnary(
@@ -181,7 +181,7 @@ func TestFunctionGetWebURL(t *testing.T) {
 		},
 	)
 
-	f, err := mock.Functions.Lookup(ctx, "libmodal-test-support", "echo_string", nil)
+	f, err := mock.Functions.FromName(ctx, "libmodal-test-support", "echo_string", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(f.GetWebURL()).To(gomega.Equal(""))
 
@@ -197,7 +197,7 @@ func TestFunctionGetWebURL(t *testing.T) {
 		},
 	)
 
-	wef, err := mock.Functions.Lookup(ctx, "libmodal-test-support", "web_endpoint", nil)
+	wef, err := mock.Functions.FromName(ctx, "libmodal-test-support", "web_endpoint", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(wef.GetWebURL()).To(gomega.Equal("https://endpoint.internal"))
 }

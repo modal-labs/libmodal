@@ -1,7 +1,5 @@
 package modal
 
-// Cls lookups and Function binding.
-
 import (
 	"context"
 	"fmt"
@@ -74,8 +72,8 @@ type Cls struct {
 	client *Client
 }
 
-// Lookup looks up an existing Cls on a deployed App.
-func (s *ClsService) Lookup(ctx context.Context, appName string, name string, options *LookupOptions) (*Cls, error) {
+// FromName references a Cls from a deployed App by its name.
+func (s *ClsService) FromName(ctx context.Context, appName string, name string, options *LookupOptions) (*Cls, error) {
 	if options == nil {
 		options = &LookupOptions{}
 	}
