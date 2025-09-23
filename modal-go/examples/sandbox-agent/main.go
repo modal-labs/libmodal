@@ -39,7 +39,7 @@ func main() {
 	}()
 
 	repoUrl := "https://github.com/modal-labs/libmodal"
-	git, err := sb.Exec(ctx, []string{"git", "clone", repoUrl, "/repo"}, modal.ExecOptions{})
+	git, err := sb.Exec(ctx, []string{"git", "clone", repoUrl, "/repo"}, nil)
 	if err != nil {
 		log.Fatalf("Failed to execute git clone: %v", err)
 	}
@@ -63,12 +63,10 @@ func main() {
 		log.Fatalf("Failed to get secret: %v", err)
 	}
 
-	claude, err := sb.Exec(ctx, claudeCmd, modal.ExecOptions{
+	claude, err := sb.Exec(ctx, claudeCmd, &modal.SandboxExecOptions{
 		PTY:     true, // Adding a PTY is important, since Claude requires it!
 		Secrets: []*modal.Secret{secret},
 		Workdir: "/repo",
-		Stdout:  modal.Pipe,
-		Stderr:  modal.Pipe,
 	})
 	if err != nil {
 		log.Fatalf("Failed to execute claude command: %v", err)

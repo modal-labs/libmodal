@@ -24,10 +24,10 @@ func TestSnapshotFilesystem(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	defer terminateSandbox(g, sb)
 
-	_, err = sb.Exec(ctx, []string{"sh", "-c", "echo -n 'test content' > /tmp/test.txt"}, modal.ExecOptions{})
+	_, err = sb.Exec(ctx, []string{"sh", "-c", "echo -n 'test content' > /tmp/test.txt"}, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	_, err = sb.Exec(ctx, []string{"mkdir", "-p", "/tmp/testdir"}, modal.ExecOptions{})
+	_, err = sb.Exec(ctx, []string{"mkdir", "-p", "/tmp/testdir"}, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	snapshotImage, err := sb.SnapshotFilesystem(ctx, 55*time.Second)
@@ -44,7 +44,7 @@ func TestSnapshotFilesystem(t *testing.T) {
 	defer terminateSandbox(g, sb2)
 
 	// Verify file exists in snapshot
-	proc, err := sb2.Exec(ctx, []string{"cat", "/tmp/test.txt"}, modal.ExecOptions{})
+	proc, err := sb2.Exec(ctx, []string{"cat", "/tmp/test.txt"}, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	output, err := io.ReadAll(proc.Stdout)
@@ -52,7 +52,7 @@ func TestSnapshotFilesystem(t *testing.T) {
 	g.Expect(string(output)).To(gomega.Equal("test content"))
 
 	// Verify directory exists in snapshot
-	dirCheck, err := sb2.Exec(ctx, []string{"test", "-d", "/tmp/testdir"}, modal.ExecOptions{})
+	dirCheck, err := sb2.Exec(ctx, []string{"test", "-d", "/tmp/testdir"}, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	exitCode, err := dirCheck.Wait(ctx)

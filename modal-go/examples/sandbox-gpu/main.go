@@ -37,7 +37,7 @@ func main() {
 
 	log.Println("Running `nvidia-smi` in Sandbox:")
 
-	p, err := sb.Exec(ctx, []string{"nvidia-smi"}, modal.ExecOptions{})
+	p, err := sb.Exec(ctx, []string{"nvidia-smi"}, nil)
 	if err != nil {
 		log.Fatalf("Failed to execute nvidia-smi in Sandbox: %v", err)
 	}

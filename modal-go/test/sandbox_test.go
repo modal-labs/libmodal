@@ -74,7 +74,7 @@ func TestIgnoreLargeStdout(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	defer terminateSandbox(g, sb)
 
-	p, err := sb.Exec(ctx, []string{"python", "-c", `print("a" * 1_000_000)`}, modal.ExecOptions{Stdout: modal.Ignore})
+	p, err := sb.Exec(ctx, []string{"python", "-c", `print("a" * 1_000_000)`}, &modal.SandboxExecOptions{Stdout: modal.Ignore})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	buf, err := io.ReadAll(p.Stdout)
@@ -143,7 +143,7 @@ func TestSandboxExecOptions(t *testing.T) {
 	defer terminateSandbox(g, sb)
 
 	// Test with a custom working directory and timeout.
-	p, err := sb.Exec(ctx, []string{"pwd"}, modal.ExecOptions{
+	p, err := sb.Exec(ctx, []string{"pwd"}, &modal.SandboxExecOptions{
 		Workdir: "/tmp",
 		Timeout: 5,
 	})
@@ -416,7 +416,7 @@ func TestSandboxExecSecret(t *testing.T) {
 	secret2, err := tc.Secrets.FromMap(ctx, map[string]string{"d": "3"}, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	p, err := sb.Exec(ctx, []string{"printenv", "c", "d"}, modal.ExecOptions{Stdout: modal.Pipe, Secrets: []*modal.Secret{secret, secret2}})
+	p, err := sb.Exec(ctx, []string{"printenv", "c", "d"}, &modal.SandboxExecOptions{Secrets: []*modal.Secret{secret, secret2}})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	buf, err := io.ReadAll(p.Stdout)

@@ -41,7 +41,7 @@ func main() {
 		}
 	}()
 
-	p, err := sb.Exec(ctx, []string{"curl", "-s", "ifconfig.me"}, modal.ExecOptions{})
+	p, err := sb.Exec(ctx, []string{"curl", "-s", "ifconfig.me"}, nil)
 	if err != nil {
 		log.Fatalf("Failed to start IP fetch command: %v", err)
 	}

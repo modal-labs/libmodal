@@ -71,9 +71,7 @@ func main() {
 		}
 	}()
 
-	rp, err := readerSandbox.Exec(ctx, []string{"cat", "/mnt/volume/message.txt"}, modal.ExecOptions{
-		Stdout: modal.Pipe,
-	})
+	rp, err := readerSandbox.Exec(ctx, []string{"cat", "/mnt/volume/message.txt"}, nil)
 	if err != nil {
 		log.Fatalf("Failed to exec read command: %v", err)
 	}
@@ -83,10 +81,7 @@ func main() {
 	}
 	fmt.Printf("Reader output: %s", string(readOutput))
 
-	wp, err := readerSandbox.Exec(ctx, []string{"sh", "-c", "echo 'This should fail' >> /mnt/volume/message.txt"}, modal.ExecOptions{
-		Stdout: modal.Pipe,
-		Stderr: modal.Pipe,
-	})
+	wp, err := readerSandbox.Exec(ctx, []string{"sh", "-c", "echo 'This should fail' >> /mnt/volume/message.txt"}, nil)
 	if err != nil {
 		log.Fatalf("Failed to exec write command: %v", err)
 	}

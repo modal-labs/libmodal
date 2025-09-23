@@ -240,24 +240,6 @@ const (
 	Ignore StdioBehavior = "ignore"
 )
 
-// ExecOptions defines options for executing commands in a Sandbox.
-type ExecOptions struct {
-	// Stdout defines whether to pipe or ignore standard output.
-	Stdout StdioBehavior
-	// Stderr defines whether to pipe or ignore standard error.
-	Stderr StdioBehavior
-	// Workdir is the working directory to run the command in.
-	Workdir string
-	// Timeout is the timeout for command execution. Defaults to 0 (no timeout).
-	Timeout time.Duration
-	// Environment variables to set for the command.
-	Env map[string]string
-	// Secrets to inject as environment variables for the command.
-	Secrets []*Secret
-	// PTY defines whether to enable a PTY for the command.
-	PTY bool
-}
-
 // Tunnel represents a port forwarded from within a running Modal Sandbox.
 type Tunnel struct {
 	Host            string // The public hostname for the tunnel
@@ -366,8 +348,26 @@ func (s *SandboxService) FromName(ctx context.Context, appName, name string, opt
 	return newSandbox(s.client, resp.GetSandboxId()), nil
 }
 
+// SandboxExecOptions defines options for executing commands in a Sandbox.
+type SandboxExecOptions struct {
+	// Stdout defines whether to pipe or ignore standard output.
+	Stdout StdioBehavior
+	// Stderr defines whether to pipe or ignore standard error.
+	Stderr StdioBehavior
+	// Workdir is the working directory to run the command in.
+	Workdir string
+	// Timeout is the timeout for command execution. Defaults to 0 (no timeout).
+	Timeout time.Duration
+	// Environment variables to set for the command.
+	Env map[string]string
+	// Secrets to inject as environment variables for the command.
+	Secrets []*Secret
+	// PTY defines whether to enable a PTY for the command.
+	PTY bool
+}
+
 // buildContainerExecRequestProto builds a ContainerExecRequest proto from command and options.
-func buildContainerExecRequestProto(taskId string, command []string, opts ExecOptions, envSecret *Secret) (*pb.ContainerExecRequest, error) {
+func buildContainerExecRequestProto(taskId string, command []string, opts SandboxExecOptions, envSecret *Secret) (*pb.ContainerExecRequest, error) {
 	var workdir *string
 	if opts.Workdir != "" {
 		workdir = &opts.Workdir
@@ -401,7 +401,11 @@ func buildContainerExecRequestProto(taskId string, command []string, opts ExecOp
 }
 
 // Exec runs a command in the Sandbox and returns text streams.
-func (sb *Sandbox) Exec(ctx context.Context, command []string, opts ExecOptions) (*ContainerProcess, error) {
+func (sb *Sandbox) Exec(ctx context.Context, command []string, opts *SandboxExecOptions) (*ContainerProcess, error) {
+	if opts == nil {
+		opts = &SandboxExecOptions{}
+	}
+
 	if err := sb.ensureTaskId(ctx); err != nil {
 		return nil, err
 	}
@@ -415,7 +419,7 @@ func (sb *Sandbox) Exec(ctx context.Context, command []string, opts ExecOptions)
 		}
 	}
 
-	req, err := buildContainerExecRequestProto(sb.taskId, command, opts, envSecret)
+	req, err := buildContainerExecRequestProto(sb.taskId, command, *opts, envSecret)
 	if err != nil {
 		return nil, err
 	}
@@ -423,7 +427,7 @@ func (sb *Sandbox) Exec(ctx context.Context, command []string, opts ExecOptions)
 	if err != nil {
 		return nil, err
 	}
-	return newContainerProcess(sb.client.cpClient, resp.GetExecId(), opts), nil
+	return newContainerProcess(sb.client.cpClient, resp.GetExecId(), *opts), nil
 }
 
 // Open opens a file in the Sandbox filesystem.
@@ -684,7 +688,7 @@ type ContainerProcess struct {
 	cpClient pb.ModalClientClient
 }
 
-func newContainerProcess(cpClient pb.ModalClientClient, execId string, opts ExecOptions) *ContainerProcess {
+func newContainerProcess(cpClient pb.ModalClientClient, execId string, opts SandboxExecOptions) *ContainerProcess {
 	stdoutBehavior := Pipe
 	stderrBehavior := Pipe
 	if opts.Stdout != "" {
