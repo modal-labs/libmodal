@@ -13,8 +13,8 @@ def echo_string(s: str) -> str:
 
 
 @app.function(min_containers=1, _experimental_restrict_output=True)
-def identity(s: typing.Any) -> typing.Any:
-    return s
+def identity_with_repr(s: typing.Any) -> typing.Any:
+    return s, repr(s)
 
 
 @app.function(min_containers=1)

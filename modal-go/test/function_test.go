@@ -2,6 +2,7 @@ package test
 
 import (
 	"context"
+	"reflect"
 	"testing"
 
 	modal "github.com/modal-labs/libmodal/modal-go"
@@ -26,6 +27,34 @@ func TestFunctionCall(t *testing.T) {
 	result, err = function.Remote([]any{"hello"}, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(result).Should(gomega.Equal("output: hello"))
+}
+
+func TestFunctionCallGoMap(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	function, err := modal.FunctionLookup(context.Background(), "libmodal-test-support", "identity_with_repr", nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	// Represent Python kwargs.
+	inputArg := map[string]any{"s": "hello"}
+	result, err := function.Remote([]any{inputArg}, nil)
+	t.Log("result", result)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	// "Explode" result into two parts, assuming it's a slice/array of length 2.
+	resultSlice, ok := result.([]any)
+	g.Expect(ok).Should(gomega.BeTrue(), "result should be a []any")
+	g.Expect(len(resultSlice)).Should(gomega.Equal(2), "result should have two elements")
+
+	// Assert and type the first element as string
+	identityResult := resultSlice[0]
+	// Use custom comparison for deep equality ignoring concrete types (e.g. map[string]interface{} vs map[string]any)
+	g.Expect(compareFlexible(identityResult, inputArg)).Should(gomega.BeTrue(), "identityResult should deeply equal inputArg (ignoring concrete map types)")
+
+	reprResult, ok := resultSlice[1].(string)
+	g.Expect(ok).Should(gomega.BeTrue(), "first element should be a string")
+	g.Expect(reprResult).Should(gomega.Equal(`{'s': 'hello'}`), "first element should equal the Python repr {'s': 'hello'}")
+
 }
 
 func TestFunctionCallLargeInput(t *testing.T) {
@@ -154,4 +183,73 @@ func TestFunctionGetWebURL(t *testing.T) {
 	wef, err := modal.FunctionLookup(context.Background(), "libmodal-test-support", "web_endpoint", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(wef.GetWebURL()).To(gomega.Equal("https://endpoint.internal"))
+}
+
+// compareFlexible compares two values with flexible type handling
+func compareFlexible(a, b interface{}) bool {
+	// Handle nil cases explicitly
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+
+	// Handle map comparisons
+	av := reflect.ValueOf(a)
+	bv := reflect.ValueOf(b)
+
+	if av.Kind() == reflect.Map && bv.Kind() == reflect.Map {
+		return compareMaps(a, b)
+	}
+
+	// If types are exactly the same, use reflect.DeepEqual
+	if reflect.TypeOf(a) == reflect.TypeOf(b) {
+		return reflect.DeepEqual(a, b)
+	}
+
+	// For other types, fall back to reflect.DeepEqual
+	return reflect.DeepEqual(a, b)
+}
+
+// compareMaps compares two maps with flexible key type handling
+func compareMaps(a, b interface{}) bool {
+	av := reflect.ValueOf(a)
+	bv := reflect.ValueOf(b)
+
+	if av.Kind() != reflect.Map || bv.Kind() != reflect.Map {
+		return false
+	}
+
+	if av.Len() != bv.Len() {
+		return false
+	}
+
+	for _, key := range av.MapKeys() {
+		aVal := av.MapIndex(key)
+
+		// Try to find the corresponding key in b
+		// Handle cases where key types might differ (string vs interface{})
+		var bVal reflect.Value
+		found := false
+
+		for _, bKey := range bv.MapKeys() {
+			if compareFlexible(key.Interface(), bKey.Interface()) {
+				bVal = bv.MapIndex(bKey)
+				found = true
+				break
+			}
+		}
+
+		if !found || !bVal.IsValid() {
+			return false
+		}
+
+		// Use flexible comparison for values
+		if !compareFlexible(aVal.Interface(), bVal.Interface()) {
+			return false
+		}
+	}
+
+	return true
 }
