@@ -263,8 +263,10 @@ func blobDownload(ctx context.Context, blobId string) ([]byte, error) {
 
 func deserializeDataFormat(data []byte, dataFormat pb.DataFormat) (any, error) {
 	switch dataFormat {
+	case pb.DataFormat_DATA_FORMAT_CBOR:
+		return cborDeserialize(data)
 	case pb.DataFormat_DATA_FORMAT_PICKLE:
-		return pickleDeserialize(data)
+		return nil, fmt.Errorf("PICKLE output format is not supported - remote function must return CBOR format")
 	case pb.DataFormat_DATA_FORMAT_ASGI:
 		return nil, fmt.Errorf("ASGI data format is not supported in Go")
 	case pb.DataFormat_DATA_FORMAT_GENERATOR_DONE:

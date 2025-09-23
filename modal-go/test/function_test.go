@@ -39,7 +39,7 @@ func TestFunctionCallLargeInput(t *testing.T) {
 	input := make([]byte, len)
 	result, err := function.Remote([]any{input}, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(result).Should(gomega.Equal(int64(len)))
+	g.Expect(result).Should(gomega.Equal(uint64(len)))
 }
 
 func TestFunctionNotFound(t *testing.T) {

@@ -62,12 +62,13 @@ type serviceOptions struct {
 // Cls represents a Modal class definition that can be instantiated with parameters.
 // It contains metadata about the class and its methods.
 type Cls struct {
-	ctx               context.Context
-	serviceFunctionId string
-	schema            []*pb.ClassParameterSpec
-	methodNames       []string
-	inputPlaneUrl     string // if empty, use control plane
-	options           *serviceOptions
+	ctx                     context.Context
+	serviceFunctionId       string
+	schema                  []*pb.ClassParameterSpec
+	methodNames             []string
+	inputPlaneUrl           string // if empty, use control plane
+	serviceFunctionMetadata *pb.FunctionHandleMetadata
+	options                 *serviceOptions
 }
 
 // ClsLookup looks up an existing Cls on a deployed App.
@@ -107,6 +108,7 @@ func ClsLookup(ctx context.Context, appName string, name string, options *Lookup
 	}
 
 	cls.serviceFunctionId = serviceFunction.GetFunctionId()
+	cls.serviceFunctionMetadata = serviceFunction.GetHandleMetadata()
 
 	// Check if we have method metadata on the class service function (v0.67+)
 	if serviceFunction.GetHandleMetadata().GetMethodHandleMetadata() != nil {
@@ -140,11 +142,15 @@ func (c *Cls) Instance(params map[string]any) (*ClsInstance, error) {
 
 	methods := make(map[string]*Function)
 	for _, name := range c.methodNames {
+		var methodMetadata *pb.FunctionHandleMetadata
+		if c.serviceFunctionMetadata != nil && c.serviceFunctionMetadata.GetMethodHandleMetadata() != nil {
+			methodMetadata = c.serviceFunctionMetadata.GetMethodHandleMetadata()[name]
+		}
 		methods[name] = &Function{
-			FunctionId:    functionId,
-			MethodName:    &name,
-			inputPlaneUrl: c.inputPlaneUrl,
-			ctx:           c.ctx,
+			FunctionId:     functionId,
+			MethodName:     &name,
+			HandleMetadata: methodMetadata,
+			ctx:            c.ctx,
 		}
 	}
 	return &ClsInstance{methods: methods}, nil
