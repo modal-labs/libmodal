@@ -1,14 +1,20 @@
 import os
 import time
+import typing
 
 import modal
 
 app = modal.App("libmodal-test-support")
 
 
-@app.function(min_containers=1)
+@app.function(min_containers=1, _experimental_restrict_output=True)
 def echo_string(s: str) -> str:
     return "output: " + s
+
+
+@app.function(min_containers=1, _experimental_restrict_output=True)
+def identity(s: typing.Any) -> typing.Any:
+    return s
 
 
 @app.function(min_containers=1)
