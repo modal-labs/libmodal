@@ -48,7 +48,7 @@ type Client struct {
 
 // NewClient generates a new client with the default profile configuration read from environment variables and ~/.modal.toml.
 func NewClient() (*Client, error) {
-	return NewClientWithOptions(ClientParams{})
+	return NewClientWithOptions(nil)
 }
 
 // ClientParams defines credentials and options for initializing the Modal client.
@@ -61,7 +61,11 @@ type ClientParams struct {
 }
 
 // NewClientWithOptions generates a new client and allows overriding options in the default profile configuration.
-func NewClientWithOptions(params ClientParams) (*Client, error) {
+func NewClientWithOptions(params *ClientParams) (*Client, error) {
+	if params == nil {
+		params = &ClientParams{}
+	}
+
 	var cfg config
 	if params.Config != nil {
 		cfg = *params.Config
