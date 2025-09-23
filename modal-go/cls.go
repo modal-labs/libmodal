@@ -159,7 +159,11 @@ func (c *Cls) Instance(ctx context.Context, params map[string]any) (*ClsInstance
 }
 
 // WithOptions overrides the static Function configuration at runtime.
-func (c *Cls) WithOptions(params ClsWithOptionsParams) *Cls {
+func (c *Cls) WithOptions(params *ClsWithOptionsParams) *Cls {
+	if params == nil {
+		params = &ClsWithOptionsParams{}
+	}
+
 	var secretsPtr *[]*Secret
 	if params.Secrets != nil {
 		s := params.Secrets
@@ -201,7 +205,11 @@ func (c *Cls) WithOptions(params ClsWithOptionsParams) *Cls {
 }
 
 // WithConcurrency creates an instance of the Cls with input concurrency enabled or overridden with new values.
-func (c *Cls) WithConcurrency(params ClsWithConcurrencyParams) *Cls {
+func (c *Cls) WithConcurrency(params *ClsWithConcurrencyParams) *Cls {
+	if params == nil {
+		params = &ClsWithConcurrencyParams{}
+	}
+
 	merged := mergeServiceParams(c.params, &serviceParams{
 		maxConcurrentInputs:    &params.MaxInputs,
 		targetConcurrentInputs: params.TargetInputs,
@@ -218,7 +226,11 @@ func (c *Cls) WithConcurrency(params ClsWithConcurrencyParams) *Cls {
 }
 
 // WithBatching creates an instance of the Cls with dynamic batching enabled or overridden with new values.
-func (c *Cls) WithBatching(params ClsWithBatchingParams) *Cls {
+func (c *Cls) WithBatching(params *ClsWithBatchingParams) *Cls {
+	if params == nil {
+		params = &ClsWithBatchingParams{}
+	}
+
 	merged := mergeServiceParams(c.params, &serviceParams{
 		batchMaxSize: &params.MaxBatchSize,
 		batchWait:    &params.Wait,
