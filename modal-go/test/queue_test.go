@@ -179,7 +179,7 @@ func TestQueueNonEphemeral(t *testing.T) {
 	ctx := context.Background()
 
 	queueName := "test-queue-" + strconv.FormatInt(time.Now().UnixNano(), 10)
-	queue1, err := tc.Queues.FromName(ctx, queueName, &modal.LookupOptions{CreateIfMissing: true})
+	queue1, err := tc.Queues.FromName(ctx, queueName, &modal.QueueFromNameOptions{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(queue1.Name).To(gomega.Equal(queueName))
 

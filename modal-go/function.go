@@ -41,8 +41,8 @@ type FunctionStats struct {
 	NumTotalRunners int
 }
 
-// UpdateAutoscalerOptions contains options for overriding a Function's autoscaler behavior.
-type UpdateAutoscalerOptions struct {
+// FunctionUpdateAutoscalerOptions contains options for overriding a Function's autoscaler behavior.
+type FunctionUpdateAutoscalerOptions struct {
 	MinContainers    *uint32
 	MaxContainers    *uint32
 	BufferContainers *uint32
@@ -59,10 +59,16 @@ type Function struct {
 	client *Client
 }
 
+// FunctionFromNameOptions are options for client.Functions.FromName.
+type FunctionFromNameOptions struct {
+	Environment     string
+	CreateIfMissing bool
+}
+
 // FromName references a Function from a deployed App by its name.
-func (s *FunctionService) FromName(ctx context.Context, appName string, name string, options *LookupOptions) (*Function, error) {
+func (s *FunctionService) FromName(ctx context.Context, appName string, name string, options *FunctionFromNameOptions) (*Function, error) {
 	if options == nil {
-		options = &LookupOptions{}
+		options = &FunctionFromNameOptions{}
 	}
 
 	resp, err := s.client.cpClient.FunctionGet(ctx, pb.FunctionGetRequest_builder{
@@ -216,7 +222,7 @@ func (f *Function) GetCurrentStats(ctx context.Context) (*FunctionStats, error) 
 }
 
 // UpdateAutoscaler overrides the current autoscaler behavior for this Function.
-func (f *Function) UpdateAutoscaler(ctx context.Context, opts UpdateAutoscalerOptions) error {
+func (f *Function) UpdateAutoscaler(ctx context.Context, opts FunctionUpdateAutoscalerOptions) error {
 	settings := pb.AutoscalerSettings_builder{
 		MinContainers:    opts.MinContainers,
 		MaxContainers:    opts.MaxContainers,

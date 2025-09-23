@@ -68,10 +68,15 @@ func (v *Volume) IsReadOnly() bool {
 	return v.readOnly
 }
 
+// VolumeEphemeralOptions are options for client.Volumes.Ephemeral.
+type VolumeEphemeralOptions struct {
+	Environment string
+}
+
 // Ephemeral creates a nameless, temporary Volume, that persists until CloseEphemeral is called, or the process exits.
-func (s *VolumeService) Ephemeral(ctx context.Context, options *EphemeralOptions) (*Volume, error) {
+func (s *VolumeService) Ephemeral(ctx context.Context, options *VolumeEphemeralOptions) (*Volume, error) {
 	if options == nil {
-		options = &EphemeralOptions{}
+		options = &VolumeEphemeralOptions{}
 	}
 
 	resp, err := s.client.cpClient.VolumeGetOrCreate(ctx, pb.VolumeGetOrCreateRequest_builder{

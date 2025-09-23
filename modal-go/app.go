@@ -20,22 +20,6 @@ type App struct {
 	Name  string
 }
 
-// LookupOptions are options for finding deployed Modal objects.
-type LookupOptions struct {
-	Environment     string
-	CreateIfMissing bool
-}
-
-// DeleteOptions are options for deleting a named object.
-type DeleteOptions struct {
-	Environment string // Environment to delete the object from.
-}
-
-// EphemeralOptions are options for creating a temporary, nameless object.
-type EphemeralOptions struct {
-	Environment string // Environment to create the object in.
-}
-
 // parseGPUConfig parses a GPU configuration string into a GPUConfig object.
 // The GPU string format is "type" or "type:count" (e.g. "T4", "A100:2").
 // Returns nil if gpu is empty, or an error if the format is invalid.
@@ -64,10 +48,16 @@ func parseGPUConfig(gpu string) (*pb.GPUConfig, error) {
 	}.Build(), nil
 }
 
+// AppFromNameOptions are options for client.Apps.FromName.
+type AppFromNameOptions struct {
+	Environment     string
+	CreateIfMissing bool
+}
+
 // FromName references an App with a given name, creating a new App if necessary.
-func (s *AppService) FromName(ctx context.Context, name string, options *LookupOptions) (*App, error) {
+func (s *AppService) FromName(ctx context.Context, name string, options *AppFromNameOptions) (*App, error) {
 	if options == nil {
-		options = &LookupOptions{}
+		options = &AppFromNameOptions{}
 	}
 
 	creationType := pb.ObjectCreationType_OBJECT_CREATION_TYPE_UNSPECIFIED

@@ -30,32 +30,6 @@ func validatePartitionKey(partition string) ([]byte, error) {
 	return b, nil
 }
 
-type QueueClearOptions struct {
-	Partition string // partition to clear (default "")
-	All       bool   // clear *all* partitions (mutually exclusive with Partition)
-}
-
-type QueueGetOptions struct {
-	Timeout   *time.Duration // wait max (nil = indefinitely)
-	Partition string
-}
-
-type QueuePutOptions struct {
-	Timeout      *time.Duration // max wait for space (nil = indefinitely)
-	Partition    string
-	PartitionTtl time.Duration // ttl for the *partition* (default 24h)
-}
-
-type QueueLenOptions struct {
-	Partition string
-	Total     bool // total across all partitions (mutually exclusive with Partition)
-}
-
-type QueueIterateOptions struct {
-	ItemPollTimeout time.Duration // exit if no new items within this period
-	Partition       string
-}
-
 // Queue is a distributed, FIFO queue for data flow in Modal Apps.
 type Queue struct {
 	QueueId         string
@@ -65,10 +39,15 @@ type Queue struct {
 	client *Client
 }
 
+// QueueEphemeralOptions are options for client.Queues.Ephemeral.
+type QueueEphemeralOptions struct {
+	Environment string
+}
+
 // Ephemeral creates a nameless, temporary Queue, that persists until CloseEphemeral is called, or the process exits.
-func (s *QueueService) Ephemeral(ctx context.Context, options *EphemeralOptions) (*Queue, error) {
+func (s *QueueService) Ephemeral(ctx context.Context, options *QueueEphemeralOptions) (*Queue, error) {
 	if options == nil {
-		options = &EphemeralOptions{}
+		options = &QueueEphemeralOptions{}
 	}
 
 	resp, err := s.client.cpClient.QueueGetOrCreate(ctx, pb.QueueGetOrCreateRequest_builder{
@@ -107,10 +86,16 @@ func (q *Queue) CloseEphemeral() {
 	}
 }
 
+// QueueFromNameOptions are options for client.Queues.FromName.
+type QueueFromNameOptions struct {
+	Environment     string
+	CreateIfMissing bool
+}
+
 // FromName references a named Queue, creating if necessary.
-func (s *QueueService) FromName(ctx context.Context, name string, options *LookupOptions) (*Queue, error) {
+func (s *QueueService) FromName(ctx context.Context, name string, options *QueueFromNameOptions) (*Queue, error) {
 	if options == nil {
-		options = &LookupOptions{}
+		options = &QueueFromNameOptions{}
 	}
 
 	creationType := pb.ObjectCreationType_OBJECT_CREATION_TYPE_UNSPECIFIED
@@ -134,18 +119,28 @@ func (s *QueueService) FromName(ctx context.Context, name string, options *Looku
 	}, nil
 }
 
+// QueueDeleteOptions are options for client.Queues.Delete.
+type QueueDeleteOptions struct {
+	Environment string
+}
+
 // Delete removes a Queue by name.
-func (s *QueueService) Delete(ctx context.Context, name string, options *DeleteOptions) error {
+func (s *QueueService) Delete(ctx context.Context, name string, options *QueueDeleteOptions) error {
 	if options == nil {
-		options = &DeleteOptions{}
+		options = &QueueDeleteOptions{}
 	}
 
-	q, err := s.FromName(ctx, name, &LookupOptions{Environment: options.Environment})
+	q, err := s.FromName(ctx, name, &QueueFromNameOptions{Environment: options.Environment})
 	if err != nil {
 		return err
 	}
 	_, err = s.client.cpClient.QueueDelete(ctx, pb.QueueDeleteRequest_builder{QueueId: q.QueueId}.Build())
 	return err
+}
+
+type QueueClearOptions struct {
+	Partition string // partition to clear (default "")
+	All       bool   // clear *all* partitions (mutually exclusive with Partition)
 }
 
 // Clear removes all objects from a Queue partition.
@@ -216,6 +211,12 @@ func (q *Queue) get(ctx context.Context, n int, options *QueueGetOptions) ([]any
 	}
 }
 
+// QueueGetOptions are options for Queue.Get.
+type QueueGetOptions struct {
+	Timeout   *time.Duration // wait max (nil = indefinitely)
+	Partition string
+}
+
 // Get removes and returns one item (blocking by default).
 //
 // By default, this will wait until at least one item is present in the Queue.
@@ -229,13 +230,21 @@ func (q *Queue) Get(ctx context.Context, options *QueueGetOptions) (any, error) 
 	return vals[0], nil // guaranteed len>=1
 }
 
+// QueueGetManyOptions are options for Queue.GetMany.
+type QueueGetManyOptions struct {
+	QueueGetOptions
+}
+
 // GetMany removes up to n items.
 //
 // By default, this will wait until at least one item is present in the Queue.
 // If `timeout` is set, returns `QueueEmptyError` if no items are available
 // within that timeout in milliseconds.
-func (q *Queue) GetMany(ctx context.Context, n int, options *QueueGetOptions) ([]any, error) {
-	return q.get(ctx, n, options)
+func (q *Queue) GetMany(ctx context.Context, n int, options *QueueGetManyOptions) ([]any, error) {
+	if options == nil {
+		return q.get(ctx, n, nil)
+	}
+	return q.get(ctx, n, &options.QueueGetOptions)
 }
 
 // put is an internal helper for both Put and PutMany.
@@ -300,6 +309,13 @@ func (q *Queue) put(ctx context.Context, values []any, options *QueuePutOptions)
 	}
 }
 
+// QueuePutOptions are options for Queue.Put.
+type QueuePutOptions struct {
+	Timeout      *time.Duration // max wait for space (nil = indefinitely)
+	Partition    string
+	PartitionTtl time.Duration // ttl for the *partition* (default 24h)
+}
+
 // Put adds a single item to the end of the Queue.
 //
 // If the Queue is full, this will retry with exponential backoff until the
@@ -309,13 +325,26 @@ func (q *Queue) Put(ctx context.Context, v any, options *QueuePutOptions) error 
 	return q.put(ctx, []any{v}, options)
 }
 
+// QueuePutManyOptions are options for Queue.PutMany.
+type QueuePutManyOptions struct {
+	QueuePutOptions
+}
+
 // PutMany adds multiple items to the end of the Queue.
 //
 // If the Queue is full, this will retry with exponential backoff until the
 // provided `timeout` is reached, or indefinitely if `timeout` is not set.
 // Raises `QueueFullError` if the Queue is still full after the timeout.
-func (q *Queue) PutMany(ctx context.Context, values []any, options *QueuePutOptions) error {
-	return q.put(ctx, values, options)
+func (q *Queue) PutMany(ctx context.Context, values []any, options *QueuePutManyOptions) error {
+	if options == nil {
+		options = &QueuePutManyOptions{}
+	}
+	return q.put(ctx, values, &options.QueuePutOptions)
+}
+
+type QueueLenOptions struct {
+	Partition string
+	Total     bool // total across all partitions (mutually exclusive with Partition)
 }
 
 // Len returns the number of objects in the Queue.
@@ -339,6 +368,11 @@ func (q *Queue) Len(ctx context.Context, options *QueueLenOptions) (int, error) 
 		return 0, err
 	}
 	return int(resp.GetLen()), nil
+}
+
+type QueueIterateOptions struct {
+	ItemPollTimeout time.Duration // exit if no new items within this period
+	Partition       string
 }
 
 // Iterate yields items from the Queue until it is empty.
