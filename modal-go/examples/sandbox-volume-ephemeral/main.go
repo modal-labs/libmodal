@@ -42,10 +42,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create writer Sandbox: %v", err)
 	}
-	fmt.Printf("Writer Sandbox: %s\n", writerSandbox.SandboxId)
+	fmt.Printf("Writer Sandbox: %s\n", writerSandbox.SandboxID)
 	defer func() {
 		if err := writerSandbox.Terminate(context.Background()); err != nil {
-			log.Fatalf("Failed to terminate Sandbox %s: %v", writerSandbox.SandboxId, err)
+			log.Fatalf("Failed to terminate Sandbox %s: %v", writerSandbox.SandboxID, err)
 		}
 	}()
 
@@ -56,7 +56,7 @@ func main() {
 	fmt.Printf("Writer finished with exit code: %d\n", exitCode)
 
 	if err := writerSandbox.Terminate(ctx); err != nil {
-		log.Fatalf("Failed to terminate Sandbox %s: %v", writerSandbox.SandboxId, err)
+		log.Fatalf("Failed to terminate Sandbox %s: %v", writerSandbox.SandboxID, err)
 	}
 
 	readerSandbox, err := mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
@@ -68,10 +68,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create reader Sandbox: %v", err)
 	}
-	fmt.Printf("Reader Sandbox: %s\n", readerSandbox.SandboxId)
+	fmt.Printf("Reader Sandbox: %s\n", readerSandbox.SandboxID)
 	defer func() {
 		if err := readerSandbox.Terminate(context.Background()); err != nil {
-			log.Fatalf("Failed to terminate Sandbox %s: %v", readerSandbox.SandboxId, err)
+			log.Fatalf("Failed to terminate Sandbox %s: %v", readerSandbox.SandboxID, err)
 		}
 	}()
 

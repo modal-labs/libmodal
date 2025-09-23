@@ -15,15 +15,15 @@ type FunctionCallService struct{ client *Client }
 // Function invocations with a given input. They can be consumed
 // asynchronously (see Get()) or cancelled (see Cancel()).
 type FunctionCall struct {
-	FunctionCallId string
+	FunctionCallID string
 
 	client *Client
 }
 
-// FromId looks up a FunctionCall by ID.
-func (s *FunctionCallService) FromId(ctx context.Context, functionCallId string) (*FunctionCall, error) {
+// FromID looks up a FunctionCall by ID.
+func (s *FunctionCallService) FromID(ctx context.Context, functionCallID string) (*FunctionCall, error) {
 	functionCall := FunctionCall{
-		FunctionCallId: functionCallId,
+		FunctionCallID: functionCallID,
 		client:         s.client,
 	}
 	return &functionCall, nil
@@ -43,7 +43,7 @@ func (fc *FunctionCall) Get(ctx context.Context, params *FunctionCallGetParams) 
 	if params == nil {
 		params = &FunctionCallGetParams{}
 	}
-	invocation := controlPlaneInvocationFromFunctionCallId(fc.client.cpClient, fc.FunctionCallId)
+	invocation := controlPlaneInvocationFromFunctionCallID(fc.client.cpClient, fc.FunctionCallID)
 	return invocation.awaitOutput(ctx, params.Timeout)
 }
 
@@ -58,7 +58,7 @@ func (fc *FunctionCall) Cancel(ctx context.Context, params *FunctionCallCancelPa
 		params = &FunctionCallCancelParams{}
 	}
 	_, err := fc.client.cpClient.FunctionCallCancel(ctx, pb.FunctionCallCancelRequest_builder{
-		FunctionCallId:      fc.FunctionCallId,
+		FunctionCallId:      fc.FunctionCallID,
 		TerminateContainers: params.TerminateContainers,
 	}.Build())
 	if err != nil {

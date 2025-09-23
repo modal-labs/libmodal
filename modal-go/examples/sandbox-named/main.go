@@ -34,12 +34,12 @@ func main() {
 	}
 	defer func() {
 		if err := sb.Terminate(context.Background()); err != nil {
-			log.Fatalf("Failed to terminate Sandbox %s: %v", sb.SandboxId, err)
+			log.Fatalf("Failed to terminate Sandbox %s: %v", sb.SandboxID, err)
 		}
 	}()
 
 	fmt.Printf("Created Sandbox with name: %s\n", sandboxName)
-	fmt.Printf("Sandbox ID: %s\n", sb.SandboxId)
+	fmt.Printf("Sandbox ID: %s\n", sb.SandboxID)
 
 	_, err = mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
 		Name:    sandboxName,
@@ -57,7 +57,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to get Sandbox by name: %v", err)
 	}
-	fmt.Printf("Retrieved the same Sandbox from name: %s\n", sbFromName.SandboxId)
+	fmt.Printf("Retrieved the same Sandbox from name: %s\n", sbFromName.SandboxID)
 
 	_, err = sbFromName.Stdin.Write([]byte("hello, named Sandbox"))
 	if err != nil {

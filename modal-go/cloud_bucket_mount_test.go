@@ -21,11 +21,11 @@ func TestNewCloudBucketMount_MinimalOptions(t *testing.T) {
 	g.Expect(mount.ReadOnly).Should(gomega.BeFalse())
 	g.Expect(mount.RequesterPays).Should(gomega.BeFalse())
 	g.Expect(mount.Secret).Should(gomega.BeNil())
-	g.Expect(mount.BucketEndpointUrl).Should(gomega.BeNil())
+	g.Expect(mount.BucketEndpointURL).Should(gomega.BeNil())
 	g.Expect(mount.KeyPrefix).Should(gomega.BeNil())
 	g.Expect(mount.OidcAuthRoleArn).Should(gomega.BeNil())
 
-	bucketType, err := getBucketTypeFromEndpointURL(mount.BucketEndpointUrl)
+	bucketType, err := getBucketTypeFromEndpointURL(mount.BucketEndpointURL)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(bucketType).Should(gomega.Equal(pb.CloudBucketMount_S3))
 }
@@ -34,7 +34,7 @@ func TestNewCloudBucketMount_AllOptions(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
-	mockSecret := &Secret{SecretId: "sec-123"}
+	mockSecret := &Secret{SecretID: "sec-123"}
 	endpointURL := "https://my-bucket.r2.cloudflarestorage.com"
 	keyPrefix := "prefix/"
 	oidcRole := "arn:aws:iam::123456789:role/MyRole"
@@ -43,7 +43,7 @@ func TestNewCloudBucketMount_AllOptions(t *testing.T) {
 		Secret:            mockSecret,
 		ReadOnly:          true,
 		RequesterPays:     true,
-		BucketEndpointUrl: &endpointURL,
+		BucketEndpointURL: &endpointURL,
 		KeyPrefix:         &keyPrefix,
 		OidcAuthRoleArn:   &oidcRole,
 	})
@@ -52,21 +52,21 @@ func TestNewCloudBucketMount_AllOptions(t *testing.T) {
 	g.Expect(mount.ReadOnly).Should(gomega.BeTrue())
 	g.Expect(mount.RequesterPays).Should(gomega.BeTrue())
 	g.Expect(mount.Secret).Should(gomega.Equal(mockSecret))
-	g.Expect(mount.BucketEndpointUrl).ShouldNot(gomega.BeNil())
-	g.Expect(*mount.BucketEndpointUrl).Should(gomega.Equal(endpointURL))
+	g.Expect(mount.BucketEndpointURL).ShouldNot(gomega.BeNil())
+	g.Expect(*mount.BucketEndpointURL).Should(gomega.Equal(endpointURL))
 	g.Expect(mount.KeyPrefix).ShouldNot(gomega.BeNil())
 	g.Expect(*mount.KeyPrefix).Should(gomega.Equal(keyPrefix))
 	g.Expect(mount.OidcAuthRoleArn).ShouldNot(gomega.BeNil())
 	g.Expect(*mount.OidcAuthRoleArn).Should(gomega.Equal(oidcRole))
 
-	bucketType, err := getBucketTypeFromEndpointURL(mount.BucketEndpointUrl)
+	bucketType, err := getBucketTypeFromEndpointURL(mount.BucketEndpointURL)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(bucketType).Should(gomega.Equal(pb.CloudBucketMount_R2))
 }
 
 func TestGetBucketTypeFromEndpointURL(t *testing.T) {
 	t.Parallel()
-	test_cases := []struct {
+	testCases := []struct {
 		name         string
 		endpointURL  string
 		expectedType pb.CloudBucketMount_BucketType
@@ -93,20 +93,20 @@ func TestGetBucketTypeFromEndpointURL(t *testing.T) {
 		},
 	}
 
-	for _, tc := range test_cases {
+	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			g := gomega.NewWithT(t)
 
 			params := &CloudBucketMountParams{}
 			if tc.endpointURL != "" {
-				params.BucketEndpointUrl = &tc.endpointURL
+				params.BucketEndpointURL = &tc.endpointURL
 			}
 
 			mount, err := newTestMount("my-bucket", params)
 			g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-			bucketType, err := getBucketTypeFromEndpointURL(mount.BucketEndpointUrl)
+			bucketType, err := getBucketTypeFromEndpointURL(mount.BucketEndpointURL)
 			g.Expect(err).ShouldNot(gomega.HaveOccurred())
 			g.Expect(bucketType).Should(gomega.Equal(tc.expectedType))
 		})
@@ -172,7 +172,7 @@ func TestCloudBucketMount_ToProtoAllOptions(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
-	mockSecret := &Secret{SecretId: "sec-123"}
+	mockSecret := &Secret{SecretID: "sec-123"}
 	endpointURL := "https://my-bucket.r2.cloudflarestorage.com"
 	keyPrefix := "prefix/"
 	oidcRole := "arn:aws:iam::123456789:role/MyRole"
@@ -181,7 +181,7 @@ func TestCloudBucketMount_ToProtoAllOptions(t *testing.T) {
 		Secret:            mockSecret,
 		ReadOnly:          true,
 		RequesterPays:     true,
-		BucketEndpointUrl: &endpointURL,
+		BucketEndpointURL: &endpointURL,
 		KeyPrefix:         &keyPrefix,
 		OidcAuthRoleArn:   &oidcRole,
 	})

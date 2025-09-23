@@ -53,7 +53,7 @@ func NewClient() (*Client, error) {
 
 // ClientParams defines credentials and options for initializing the Modal client.
 type ClientParams struct {
-	TokenId            string
+	TokenID            string
 	TokenSecret        string
 	Environment        string
 	Config             *config
@@ -79,8 +79,8 @@ func NewClientWithOptions(params *ClientParams) (*Client, error) {
 
 	profile := getProfile(os.Getenv("MODAL_PROFILE"), cfg)
 
-	if params.TokenId != "" {
-		profile.TokenId = params.TokenId
+	if params.TokenID != "" {
+		profile.TokenID = params.TokenID
 	}
 	if params.TokenSecret != "" {
 		profile.TokenSecret = params.TokenSecret
@@ -229,7 +229,7 @@ func newClient(profile Profile, c *Client) (*grpc.ClientConn, pb.ModalClientClie
 
 // injectRequiredHeaders adds required headers to the context.
 func injectRequiredHeaders(ctx context.Context, profile Profile) (context.Context, error) {
-	if profile.TokenId == "" || profile.TokenSecret == "" {
+	if profile.TokenID == "" || profile.TokenSecret == "" {
 		return nil, fmt.Errorf("missing token_id or token_secret, please set in .modal.toml, environment variables, or via NewClientWithOptions()")
 	}
 
@@ -238,7 +238,7 @@ func injectRequiredHeaders(ctx context.Context, profile Profile) (context.Contex
 		ctx,
 		"x-modal-client-type", clientType,
 		"x-modal-client-version", "1.0.0", // CLIENT VERSION: Behaves like this Python SDK version
-		"x-modal-token-id", profile.TokenId,
+		"x-modal-token-id", profile.TokenID,
 		"x-modal-token-secret", profile.TokenSecret,
 	), nil
 }

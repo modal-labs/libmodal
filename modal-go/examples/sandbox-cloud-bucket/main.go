@@ -48,11 +48,11 @@ func main() {
 	}
 	defer func() {
 		if err := sb.Terminate(context.Background()); err != nil {
-			log.Fatalf("Failed to terminate Sandbox %s: %v", sb.SandboxId, err)
+			log.Fatalf("Failed to terminate Sandbox %s: %v", sb.SandboxID, err)
 		}
 	}()
 
-	log.Printf("S3 Sandbox: %s", sb.SandboxId)
+	log.Printf("S3 Sandbox: %s", sb.SandboxID)
 
 	output, err := io.ReadAll(sb.Stdout)
 	if err != nil {

@@ -16,7 +16,7 @@ func TestSecretFromName(t *testing.T) {
 
 	secret, err := tc.Secrets.FromName(ctx, "libmodal-test-secret", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(secret.SecretId).Should(gomega.HavePrefix("st-"))
+	g.Expect(secret.SecretID).Should(gomega.HavePrefix("st-"))
 	g.Expect(secret.Name).To(gomega.Equal("libmodal-test-secret"))
 
 	_, err = tc.Secrets.FromName(ctx, "missing-secret", nil)
@@ -32,7 +32,7 @@ func TestSecretFromNameWithRequiredKeys(t *testing.T) {
 		RequiredKeys: []string{"a", "b", "c"},
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(secret.SecretId).Should(gomega.HavePrefix("st-"))
+	g.Expect(secret.SecretID).Should(gomega.HavePrefix("st-"))
 
 	_, err = tc.Secrets.FromName(ctx, "libmodal-test-secret", &modal.SecretFromNameParams{
 		RequiredKeys: []string{"a", "b", "c", "missing-key"},
@@ -52,7 +52,7 @@ func TestSecretFromMap(t *testing.T) {
 
 	secret, err := tc.Secrets.FromMap(ctx, map[string]string{"key": "value"}, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(secret.SecretId).Should(gomega.HavePrefix("st-"))
+	g.Expect(secret.SecretID).Should(gomega.HavePrefix("st-"))
 
 	sb, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{Secrets: []*modal.Secret{secret}, Command: []string{"printenv", "key"}})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())

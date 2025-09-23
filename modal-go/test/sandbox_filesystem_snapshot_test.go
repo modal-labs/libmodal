@@ -33,7 +33,7 @@ func TestSnapshotFilesystem(t *testing.T) {
 	snapshotImage, err := sb.SnapshotFilesystem(ctx, 55*time.Second)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(snapshotImage).ShouldNot(gomega.BeNil())
-	g.Expect(snapshotImage.ImageId).To(gomega.HavePrefix("im-"))
+	g.Expect(snapshotImage.ImageID).To(gomega.HavePrefix("im-"))
 
 	err = sb.Terminate(ctx)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())

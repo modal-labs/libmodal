@@ -14,18 +14,18 @@ import (
 func main() {
 	ctx := context.Background()
 
-	modal_id := os.Getenv("CUSTOM_MODAL_ID")
-	if modal_id == "" {
+	modalID := os.Getenv("CUSTOM_MODAL_ID")
+	if modalID == "" {
 		log.Fatal("CUSTOM_MODAL_ID environment variable not set")
 	}
-	modal_secret := os.Getenv("CUSTOM_MODAL_SECRET")
-	if modal_secret == "" {
+	modalSecret := os.Getenv("CUSTOM_MODAL_SECRET")
+	if modalSecret == "" {
 		log.Fatal("CUSTOM_MODAL_SECRET environment variable not set")
 	}
 
 	mc, err := modal.NewClientWithOptions(&modal.ClientParams{
-		TokenId:     modal_id,
-		TokenSecret: modal_secret,
+		TokenID:     modalID,
+		TokenSecret: modalSecret,
 	})
 	if err != nil {
 		log.Fatalf("Failed to create client: %v", err)

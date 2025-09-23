@@ -62,8 +62,8 @@ func TestClsWithOptionsStacking(t *testing.T) {
 		},
 	)
 
-	secret := &modal.Secret{SecretId: "sec-1"}
-	volume := &modal.Volume{VolumeId: "vol-1"}
+	secret := &modal.Secret{SecretID: "sec-1"}
+	volume := &modal.Volume{VolumeID: "vol-1"}
 	cpu := 0.25
 	memory := 256
 	gpu := "T4"

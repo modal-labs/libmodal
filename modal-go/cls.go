@@ -63,10 +63,10 @@ type serviceParams struct {
 // Cls represents a Modal class definition that can be instantiated with parameters.
 // It contains metadata about the class and its methods.
 type Cls struct {
-	serviceFunctionId string
+	serviceFunctionID string
 	schema            []*pb.ClassParameterSpec
 	methodNames       []string
-	inputPlaneUrl     string // if empty, use control plane
+	inputPlaneURL     string // if empty, use control plane
 	params            *serviceParams
 
 	client *Client
@@ -114,7 +114,7 @@ func (s *ClsService) FromName(ctx context.Context, appName string, name string, 
 		cls.schema = schema
 	}
 
-	cls.serviceFunctionId = serviceFunction.GetFunctionId()
+	cls.serviceFunctionID = serviceFunction.GetFunctionId()
 
 	// Check if we have method metadata on the class service function (v0.67+)
 	if serviceFunction.GetHandleMetadata().GetMethodHandleMetadata() != nil {
@@ -126,8 +126,8 @@ func (s *ClsService) FromName(ctx context.Context, appName string, name string, 
 		return nil, fmt.Errorf("Cls requires Modal deployments using client v0.67 or later")
 	}
 
-	if inputPlaneUrl := serviceFunction.GetHandleMetadata().GetInputPlaneUrl(); inputPlaneUrl != "" {
-		cls.inputPlaneUrl = inputPlaneUrl
+	if inputPlaneURL := serviceFunction.GetHandleMetadata().GetInputPlaneUrl(); inputPlaneURL != "" {
+		cls.inputPlaneURL = inputPlaneURL
 	}
 
 	return &cls, nil
@@ -135,23 +135,23 @@ func (s *ClsService) FromName(ctx context.Context, appName string, name string, 
 
 // Instance creates a new instance of the class with the provided parameters.
 func (c *Cls) Instance(ctx context.Context, params map[string]any) (*ClsInstance, error) {
-	var functionId string
+	var functionID string
 	if len(c.schema) == 0 && !hasParams(c.params) {
-		functionId = c.serviceFunctionId
+		functionID = c.serviceFunctionID
 	} else {
-		boundFunctionId, err := c.bindParameters(ctx, params)
+		boundFunctionID, err := c.bindParameters(ctx, params)
 		if err != nil {
 			return nil, err
 		}
-		functionId = boundFunctionId
+		functionID = boundFunctionID
 	}
 
 	methods := make(map[string]*Function)
 	for _, name := range c.methodNames {
 		methods[name] = &Function{
-			FunctionId:    functionId,
+			FunctionID:    functionID,
 			MethodName:    &name,
-			inputPlaneUrl: c.inputPlaneUrl,
+			inputPlaneURL: c.inputPlaneURL,
 			client:        c.client,
 		}
 	}
@@ -195,10 +195,10 @@ func (c *Cls) WithOptions(params *ClsWithOptionsParams) *Cls {
 	})
 
 	return &Cls{
-		serviceFunctionId: c.serviceFunctionId,
+		serviceFunctionID: c.serviceFunctionID,
 		schema:            c.schema,
 		methodNames:       c.methodNames,
-		inputPlaneUrl:     c.inputPlaneUrl,
+		inputPlaneURL:     c.inputPlaneURL,
 		params:            merged,
 		client:            c.client,
 	}
@@ -216,10 +216,10 @@ func (c *Cls) WithConcurrency(params *ClsWithConcurrencyParams) *Cls {
 	})
 
 	return &Cls{
-		serviceFunctionId: c.serviceFunctionId,
+		serviceFunctionID: c.serviceFunctionID,
 		schema:            c.schema,
 		methodNames:       c.methodNames,
-		inputPlaneUrl:     c.inputPlaneUrl,
+		inputPlaneURL:     c.inputPlaneURL,
 		params:            merged,
 		client:            c.client,
 	}
@@ -237,10 +237,10 @@ func (c *Cls) WithBatching(params *ClsWithBatchingParams) *Cls {
 	})
 
 	return &Cls{
-		serviceFunctionId: c.serviceFunctionId,
+		serviceFunctionID: c.serviceFunctionID,
 		schema:            c.schema,
 		methodNames:       c.methodNames,
-		inputPlaneUrl:     c.inputPlaneUrl,
+		inputPlaneURL:     c.inputPlaneURL,
 		params:            merged,
 		client:            c.client,
 	}
@@ -268,7 +268,7 @@ func (c *Cls) bindParameters(ctx context.Context, params map[string]any) (string
 
 	// Bind parameters to create a parameterized function
 	bindResp, err := c.client.cpClient.FunctionBindParams(ctx, pb.FunctionBindParamsRequest_builder{
-		FunctionId:       c.serviceFunctionId,
+		FunctionId:       c.serviceFunctionID,
 		SerializedParams: serializedParams,
 		FunctionOptions:  functionOptions,
 	}.Build())
@@ -485,7 +485,7 @@ func buildFunctionOptionsProto(params *serviceParams, envSecret *Secret) (*pb.Fu
 	if params.secrets != nil {
 		for _, secret := range *params.secrets {
 			if secret != nil {
-				secretIds = append(secretIds, secret.SecretId)
+				secretIds = append(secretIds, secret.SecretID)
 			}
 		}
 	}
@@ -493,7 +493,7 @@ func buildFunctionOptionsProto(params *serviceParams, envSecret *Secret) (*pb.Fu
 		return nil, fmt.Errorf("internal error: env and envSecret must both be provided or neither be provided")
 	}
 	if envSecret != nil {
-		secretIds = append(secretIds, envSecret.SecretId)
+		secretIds = append(secretIds, envSecret.SecretID)
 	}
 
 	builder.SecretIds = secretIds
@@ -506,7 +506,7 @@ func buildFunctionOptionsProto(params *serviceParams, envSecret *Secret) (*pb.Fu
 		for mountPath, volume := range *params.volumes {
 			if volume != nil {
 				volumeMounts = append(volumeMounts, pb.VolumeMount_builder{
-					VolumeId:               volume.VolumeId,
+					VolumeId:               volume.VolumeID,
 					MountPath:              mountPath,
 					AllowBackgroundCommits: true,
 					ReadOnly:               volume.IsReadOnly(),

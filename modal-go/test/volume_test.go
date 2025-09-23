@@ -18,7 +18,7 @@ func TestVolumeFromName(t *testing.T) {
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(volume).ShouldNot(gomega.BeNil())
-	g.Expect(volume.VolumeId).Should(gomega.HavePrefix("vo-"))
+	g.Expect(volume.VolumeID).Should(gomega.HavePrefix("vo-"))
 	g.Expect(volume.Name).To(gomega.Equal("libmodal-test-volume"))
 
 	_, err = tc.Volumes.FromName(ctx, "missing-volume", nil)
@@ -39,7 +39,7 @@ func TestVolumeReadOnly(t *testing.T) {
 
 	readOnlyVolume := volume.ReadOnly()
 	g.Expect(readOnlyVolume.IsReadOnly()).To(gomega.BeTrue())
-	g.Expect(readOnlyVolume.VolumeId).To(gomega.Equal(volume.VolumeId))
+	g.Expect(readOnlyVolume.VolumeID).To(gomega.Equal(volume.VolumeID))
 	g.Expect(readOnlyVolume.Name).To(gomega.Equal(volume.Name))
 
 	g.Expect(volume.IsReadOnly()).To(gomega.BeFalse())
@@ -53,7 +53,7 @@ func TestVolumeEphemeral(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	defer volume.CloseEphemeral()
 	g.Expect(volume.Name).To(gomega.BeEmpty())
-	g.Expect(volume.VolumeId).Should(gomega.HavePrefix("vo-"))
+	g.Expect(volume.VolumeID).Should(gomega.HavePrefix("vo-"))
 	g.Expect(volume.IsReadOnly()).To(gomega.BeFalse())
 	g.Expect(volume.ReadOnly().IsReadOnly()).To(gomega.BeTrue())
 }

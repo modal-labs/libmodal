@@ -51,9 +51,9 @@ type FunctionUpdateAutoscalerParams struct {
 
 // Function references a deployed Modal Function.
 type Function struct {
-	FunctionId    string
+	FunctionID    string
 	MethodName    *string // used for class methods
-	inputPlaneUrl string  // if empty, use control plane
+	inputPlaneURL string  // if empty, use control plane
 	webURL        string  // web URL if this Function is a web endpoint
 
 	client *Client
@@ -84,17 +84,17 @@ func (s *FunctionService) FromName(ctx context.Context, appName string, name str
 		return nil, err
 	}
 
-	var inputPlaneUrl string
+	var inputPlaneURL string
 	var webURL string
 	if meta := resp.GetHandleMetadata(); meta != nil {
 		if url := meta.GetInputPlaneUrl(); url != "" {
-			inputPlaneUrl = url
+			inputPlaneURL = url
 		}
 		webURL = meta.GetWebUrl()
 	}
 	return &Function{
-		FunctionId:    resp.GetFunctionId(),
-		inputPlaneUrl: inputPlaneUrl,
+		FunctionID:    resp.GetFunctionId(),
+		inputPlaneURL: inputPlaneURL,
 		webURL:        webURL,
 		client:        s.client,
 	}, nil
@@ -131,19 +131,19 @@ func (f *Function) createInput(ctx context.Context, args []any, kwargs map[strin
 	}
 
 	argsBytes := payload.Bytes()
-	var argsBlobId *string
+	var argsBlobID *string
 	if payload.Len() > maxObjectSizeBytes {
-		blobId, err := blobUpload(ctx, f.client.cpClient, argsBytes)
+		blobID, err := blobUpload(ctx, f.client.cpClient, argsBytes)
 		if err != nil {
 			return nil, err
 		}
 		argsBytes = nil
-		argsBlobId = &blobId
+		argsBlobID = &blobID
 	}
 
 	return pb.FunctionInput_builder{
 		Args:       argsBytes,
-		ArgsBlobId: argsBlobId,
+		ArgsBlobId: argsBlobID,
 		DataFormat: pb.DataFormat_DATA_FORMAT_PICKLE,
 		MethodName: f.MethodName,
 	}.Build(), nil
@@ -179,14 +179,14 @@ func (f *Function) Remote(ctx context.Context, args []any, kwargs map[string]any
 
 // createRemoteInvocation creates an Invocation using either the input plane or control plane.
 func (f *Function) createRemoteInvocation(ctx context.Context, input *pb.FunctionInput) (invocation, error) {
-	if f.inputPlaneUrl != "" {
-		ipClient, err := f.client.ipClient(f.inputPlaneUrl)
+	if f.inputPlaneURL != "" {
+		ipClient, err := f.client.ipClient(f.inputPlaneURL)
 		if err != nil {
 			return nil, err
 		}
-		return createInputPlaneInvocation(ctx, ipClient, f.FunctionId, input)
+		return createInputPlaneInvocation(ctx, ipClient, f.FunctionID, input)
 	}
-	return createControlPlaneInvocation(ctx, f.client.cpClient, f.FunctionId, input, pb.FunctionCallInvocationType_FUNCTION_CALL_INVOCATION_TYPE_SYNC)
+	return createControlPlaneInvocation(ctx, f.client.cpClient, f.FunctionID, input, pb.FunctionCallInvocationType_FUNCTION_CALL_INVOCATION_TYPE_SYNC)
 }
 
 // Spawn starts running a single input on a remote Function.
@@ -195,12 +195,12 @@ func (f *Function) Spawn(ctx context.Context, args []any, kwargs map[string]any)
 	if err != nil {
 		return nil, err
 	}
-	invocation, err := createControlPlaneInvocation(ctx, f.client.cpClient, f.FunctionId, input, pb.FunctionCallInvocationType_FUNCTION_CALL_INVOCATION_TYPE_SYNC)
+	invocation, err := createControlPlaneInvocation(ctx, f.client.cpClient, f.FunctionID, input, pb.FunctionCallInvocationType_FUNCTION_CALL_INVOCATION_TYPE_SYNC)
 	if err != nil {
 		return nil, err
 	}
 	functionCall := FunctionCall{
-		FunctionCallId: invocation.FunctionCallId,
+		FunctionCallID: invocation.FunctionCallID,
 		client:         f.client,
 	}
 	return &functionCall, nil
@@ -209,7 +209,7 @@ func (f *Function) Spawn(ctx context.Context, args []any, kwargs map[string]any)
 // GetCurrentStats returns a FunctionStats object with statistics about the Function.
 func (f *Function) GetCurrentStats(ctx context.Context) (*FunctionStats, error) {
 	resp, err := f.client.cpClient.FunctionGetCurrentStats(ctx, pb.FunctionGetCurrentStatsRequest_builder{
-		FunctionId: f.FunctionId,
+		FunctionId: f.FunctionID,
 	}.Build())
 	if err != nil {
 		return nil, err
@@ -231,7 +231,7 @@ func (f *Function) UpdateAutoscaler(ctx context.Context, params FunctionUpdateAu
 	}.Build()
 
 	_, err := f.client.cpClient.FunctionUpdateSchedulingParams(ctx, pb.FunctionUpdateSchedulingParamsRequest_builder{
-		FunctionId:           f.FunctionId,
+		FunctionId:           f.FunctionID,
 		WarmPoolSizeOverride: 0, // Deprecated field, always set to 0
 		Settings:             settings,
 	}.Build())

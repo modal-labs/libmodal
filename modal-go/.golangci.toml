@@ -3,5 +3,8 @@ version = "2"
 [linters]
 disable = ["errcheck"]
 
+[linters.settings.staticcheck]
+checks = ["all", "-ST1000"]
+
 [formatters]
 enable = ["gofmt", "goimports"]

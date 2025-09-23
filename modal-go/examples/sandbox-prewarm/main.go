@@ -28,11 +28,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("Unable to build Image: %v", err)
 	}
-	log.Printf("Image has ID: %v", image.ImageId)
+	log.Printf("Image has ID: %v", image.ImageID)
 
 	// You can save the ImageId and create a new Image object that referes to it.
-	imageId := image.ImageId
-	image2, err := mc.Images.FromId(ctx, imageId)
+	imageID := image.ImageID
+	image2, err := mc.Images.FromID(ctx, imageID)
 	if err != nil {
 		log.Fatalf("Unable to look up Image from ID: %v", err)
 	}
@@ -45,8 +45,8 @@ func main() {
 	}
 	defer func() {
 		if err := sb.Terminate(context.Background()); err != nil {
-			log.Fatalf("Failed to terminate Sandbox %s: %v", sb.SandboxId, err)
+			log.Fatalf("Failed to terminate Sandbox %s: %v", sb.SandboxID, err)
 		}
 	}()
-	log.Printf("Sandbox: %s\n", sb.SandboxId)
+	log.Printf("Sandbox: %s\n", sb.SandboxID)
 }

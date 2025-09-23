@@ -37,11 +37,11 @@ func main() {
 	}
 	defer func() {
 		if err := sandbox.Terminate(context.Background()); err != nil {
-			log.Fatalf("Failed to terminate Sandbox %s: %v", sandbox.SandboxId, err)
+			log.Fatalf("Failed to terminate Sandbox %s: %v", sandbox.SandboxID, err)
 		}
 	}()
 
-	log.Printf("Sandbox created: %s", sandbox.SandboxId)
+	log.Printf("Sandbox created: %s", sandbox.SandboxID)
 
 	log.Printf("Waiting for server to start...")
 	time.Sleep(3 * time.Second)

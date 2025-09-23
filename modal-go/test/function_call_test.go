@@ -28,7 +28,7 @@ func TestFunctionSpawn(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(result).Should(gomega.Equal("output: hello"))
 
-	functionCall, err = tc.FunctionCalls.FromId(ctx, functionCall.FunctionCallId)
+	functionCall, err = tc.FunctionCalls.FromID(ctx, functionCall.FunctionCallID)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	result, err = functionCall.Get(ctx, nil)
