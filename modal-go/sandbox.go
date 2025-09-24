@@ -560,7 +560,7 @@ func (sb *Sandbox) SnapshotFilesystem(ctx context.Context, timeout time.Duration
 		return nil, ExecutionError{Exception: "Sandbox snapshot response missing image ID"}
 	}
 
-	return &Image{ImageID: resp.GetImageId()}, nil
+	return &Image{ImageID: resp.GetImageId(), client: sb.client}, nil
 }
 
 // Poll checks if the Sandbox has finished running.
