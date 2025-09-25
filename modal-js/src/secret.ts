@@ -1,5 +1,4 @@
 import { getDefaultClient } from "./client";
-import { environmentName as configEnvironmentName } from "./config";
 import { ClientError, Status } from "nice-grpc";
 import { InvalidError, NotFoundError } from "./errors";
 import { ObjectCreationType } from "../proto/modal_proto/api";
@@ -23,7 +22,7 @@ export class SecretService extends APIService {
     try {
       const resp = await this.client.cpClient.secretGetOrCreate({
         deploymentName: name,
-        environmentName: configEnvironmentName(options?.environment),
+        environmentName: this.client.environmentName(options?.environment),
         requiredKeys: options?.requiredKeys ?? [],
       });
       return new Secret(resp.secretId, name);
@@ -58,7 +57,7 @@ export class SecretService extends APIService {
       const resp = await this.client.cpClient.secretGetOrCreate({
         objectCreationType: ObjectCreationType.OBJECT_CREATION_TYPE_EPHEMERAL,
         envDict: entries as Record<string, string>,
-        environmentName: configEnvironmentName(options?.environment),
+        environmentName: this.client.environmentName(options?.environment),
       });
       return new Secret(resp.secretId);
     } catch (err) {
