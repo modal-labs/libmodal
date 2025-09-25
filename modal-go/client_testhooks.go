@@ -16,7 +16,7 @@ func SetClientFactoryForTesting(testClientFactory func(Profile) (grpc.ClientConn
 	// Recreate client using the overridden clientFactory, and reset the rest
 	_, client, _ = clientFactory(clientProfile)
 	inputPlaneClients = make(map[string]pb.ModalClientClient)
-	authToken = ""
+	authTokenManager = NewAuthTokenManager(client)
 
 	var once sync.Once
 	return func() {
@@ -24,7 +24,7 @@ func SetClientFactoryForTesting(testClientFactory func(Profile) (grpc.ClientConn
 			clientFactory = origClientFactory
 			_, client, _ = clientFactory(clientProfile)
 			inputPlaneClients = map[string]pb.ModalClientClient{}
-			authToken = ""
+			authTokenManager = NewAuthTokenManager(client)
 		})
 	}
 }
