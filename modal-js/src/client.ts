@@ -31,11 +31,10 @@ export interface ModalClientParams {
   endpoint?: string;
   timeout?: number;
   maxRetries?: number;
-  /** @internal */
+  /** @ignore */
   cpClient?: ModalGrpcClient;
 }
 
-/** @internal */
 export type ModalGrpcClient = Client<
   typeof ModalClientDefinition,
   TimeoutOptions & RetryOptions
@@ -53,7 +52,7 @@ export class ModalClient {
   readonly secrets: SecretService;
   readonly volumes: VolumeService;
 
-  /** @internal */
+  /** @ignore */
   readonly cpClient: ModalGrpcClient;
   readonly profile: Profile;
 
@@ -92,6 +91,7 @@ export class ModalClient {
     return version || this.profile.imageBuilderVersion || "2024.10";
   }
 
+  /** @ignore */
   ipClient(serverUrl: string): ModalGrpcClient {
     const existing = this.ipClients.get(serverUrl);
     if (existing) {

@@ -69,3 +69,4 @@ export { Volume, VolumeService, type VolumeFromNameOptions } from "./volume";
 export { Proxy, ProxyService, type ProxyFromNameOptions } from "./proxy";
 export { CloudBucketMount } from "./cloud_bucket_mount";
 export { ModalClient, type ModalClientParams } from "./client";
+export { type Profile } from "./config";
