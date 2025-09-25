@@ -24,8 +24,8 @@ const maxObjectSizeBytes = 2 * 1024 * 1024; // 2 MiB
 // From: client/modal/_functions.py
 const maxSystemRetries = 8;
 
-/** Options for `client.functions.fromName()`. */
-export type FunctionFromNameOptions = {
+/** Optional parameters for `client.functions.fromName()`. */
+export type FunctionFromNameParams = {
   environment?: string;
   createIfMissing?: boolean;
 };
@@ -45,13 +45,13 @@ export class FunctionService {
   async fromName(
     appName: string,
     name: string,
-    options: FunctionFromNameOptions = {},
+    params: FunctionFromNameParams = {},
   ): Promise<Function_> {
     try {
       const resp = await this.#client.cpClient.functionGet({
         appName,
         objectTag: name,
-        environmentName: this.#client.environmentName(options.environment),
+        environmentName: this.#client.environmentName(params.environment),
       });
       return new Function_(
         this.#client,
@@ -74,8 +74,8 @@ export interface FunctionStats {
   numTotalRunners: number;
 }
 
-/** Options for `Function_.updateAutoscaler()`. */
-export interface FunctionUpdateAutoscalerOptions {
+/** Optional parameters for `Function_.updateAutoscaler()`. */
+export interface FunctionUpdateAutoscalerParams {
   minContainers?: number;
   maxContainers?: number;
   bufferContainers?: number;
@@ -111,9 +111,9 @@ export class Function_ {
   static async lookup(
     appName: string,
     name: string,
-    options: FunctionFromNameOptions = {},
+    params: FunctionFromNameParams = {},
   ): Promise<Function_> {
-    return await getDefaultClient().functions.fromName(appName, name, options);
+    return await getDefaultClient().functions.fromName(appName, name, params);
   }
 
   // Execute a single input into a remote Function.
@@ -186,16 +186,16 @@ export class Function_ {
 
   // Overrides the current autoscaler behavior for this Function.
   async updateAutoscaler(
-    options: FunctionUpdateAutoscalerOptions,
+    params: FunctionUpdateAutoscalerParams,
   ): Promise<void> {
     await this.#client.cpClient.functionUpdateSchedulingParams({
       functionId: this.functionId,
       warmPoolSizeOverride: 0, // Deprecated field, always set to 0
       settings: {
-        minContainers: options.minContainers,
-        maxContainers: options.maxContainers,
-        bufferContainers: options.bufferContainers,
-        scaledownWindow: options.scaledownWindow,
+        minContainers: params.minContainers,
+        maxContainers: params.maxContainers,
+        bufferContainers: params.bufferContainers,
+        scaledownWindow: params.scaledownWindow,
       },
     });
   }

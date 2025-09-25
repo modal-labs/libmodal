@@ -5,7 +5,7 @@ export class Retries {
   readonly initialDelayMs: number;
   readonly maxDelayMs: number;
 
-  constructor(options: {
+  constructor(params: {
     maxRetries: number;
     backoffCoefficient?: number;
     initialDelayMs?: number;
@@ -16,7 +16,7 @@ export class Retries {
       backoffCoefficient = 2.0,
       initialDelayMs = 1000,
       maxDelayMs = 60_000,
-    } = options;
+    } = params;
 
     if (maxRetries < 0 || maxRetries > 10) {
       throw new Error(

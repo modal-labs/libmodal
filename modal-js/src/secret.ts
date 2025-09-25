@@ -3,14 +3,14 @@ import { ClientError, Status } from "nice-grpc";
 import { InvalidError, NotFoundError } from "./errors";
 import { ObjectCreationType } from "../proto/modal_proto/api";
 
-/** Options for `client.secrets.fromName()`. */
-export type SecretFromNameOptions = {
+/** Optional parameters for `client.secrets.fromName()`. */
+export type SecretFromNameParams = {
   environment?: string;
   requiredKeys?: string[];
 };
 
-/** Options for `client.secrets.fromObject()`. */
-export type SecretFromObjectOptions = {
+/** Optional parameters for `client.secrets.fromObject()`. */
+export type SecretFromObjectParams = {
   environment?: string;
 };
 
@@ -24,15 +24,12 @@ export class SecretService {
   }
 
   /** Reference a Secret by its name. */
-  async fromName(
-    name: string,
-    options?: SecretFromNameOptions,
-  ): Promise<Secret> {
+  async fromName(name: string, params?: SecretFromNameParams): Promise<Secret> {
     try {
       const resp = await this.#client.cpClient.secretGetOrCreate({
         deploymentName: name,
-        environmentName: this.#client.environmentName(options?.environment),
-        requiredKeys: options?.requiredKeys ?? [],
+        environmentName: this.#client.environmentName(params?.environment),
+        requiredKeys: params?.requiredKeys ?? [],
       });
       return new Secret(resp.secretId, name);
     } catch (err) {
@@ -51,7 +48,7 @@ export class SecretService {
   /** Create a Secret from a plain object of key-value pairs. */
   async fromObject(
     entries: Record<string, string>,
-    options?: SecretFromObjectOptions,
+    params?: SecretFromObjectParams,
   ): Promise<Secret> {
     for (const [, value] of Object.entries(entries)) {
       if (value == null || typeof value !== "string") {
@@ -66,7 +63,7 @@ export class SecretService {
       const resp = await this.#client.cpClient.secretGetOrCreate({
         objectCreationType: ObjectCreationType.OBJECT_CREATION_TYPE_EPHEMERAL,
         envDict: entries as Record<string, string>,
-        environmentName: this.#client.environmentName(options?.environment),
+        environmentName: this.#client.environmentName(params?.environment),
       });
       return new Secret(resp.secretId);
     } catch (err) {
@@ -97,9 +94,9 @@ export class Secret {
    */
   static async fromName(
     name: string,
-    options?: SecretFromNameOptions,
+    params?: SecretFromNameParams,
   ): Promise<Secret> {
-    return getDefaultClient().secrets.fromName(name, options);
+    return getDefaultClient().secrets.fromName(name, params);
   }
 
   /**
@@ -107,9 +104,9 @@ export class Secret {
    */
   static async fromObject(
     entries: Record<string, string>,
-    options?: SecretFromObjectOptions,
+    params?: SecretFromObjectParams,
   ): Promise<Secret> {
-    return getDefaultClient().secrets.fromObject(entries, options);
+    return getDefaultClient().secrets.fromObject(entries, params);
   }
 }
 

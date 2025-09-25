@@ -16,7 +16,7 @@ export class CloudBucketMount {
 
   constructor(
     bucketName: string,
-    options: {
+    params: {
       secret?: Secret;
       readOnly?: boolean;
       requesterPays?: boolean;
@@ -26,12 +26,12 @@ export class CloudBucketMount {
     } = {},
   ) {
     this.bucketName = bucketName;
-    this.secret = options.secret;
-    this.readOnly = options.readOnly ?? false;
-    this.requesterPays = options.requesterPays ?? false;
-    this.bucketEndpointUrl = options.bucketEndpointUrl;
-    this.keyPrefix = options.keyPrefix;
-    this.oidcAuthRoleArn = options.oidcAuthRoleArn;
+    this.secret = params.secret;
+    this.readOnly = params.readOnly ?? false;
+    this.requesterPays = params.requesterPays ?? false;
+    this.bucketEndpointUrl = params.bucketEndpointUrl;
+    this.keyPrefix = params.keyPrefix;
+    this.oidcAuthRoleArn = params.oidcAuthRoleArn;
 
     if (this.bucketEndpointUrl) {
       const url = new URL(this.bucketEndpointUrl);

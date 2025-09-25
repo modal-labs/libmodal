@@ -2,7 +2,7 @@ import { ClientError, Status } from "nice-grpc";
 import { ObjectCreationType } from "../proto/modal_proto/api";
 import { getDefaultClient, type ModalClient } from "./client";
 import { Image } from "./image";
-import { Sandbox, SandboxCreateOptions } from "./sandbox";
+import { Sandbox, SandboxCreateParams } from "./sandbox";
 import { NotFoundError } from "./errors";
 import { Secret } from "./secret";
 import { GPUConfig } from "../proto/modal_proto/api";
@@ -19,12 +19,12 @@ export class AppService {
   /**
    * Referencea deployed App by name, or create if it does not exist.
    */
-  async fromName(name: string, options: AppFromNameOptions = {}): Promise<App> {
+  async fromName(name: string, params: AppFromNameParams = {}): Promise<App> {
     try {
       const resp = await this.#client.cpClient.appGetOrCreate({
         appName: name,
-        environmentName: this.#client.environmentName(options.environment),
-        objectCreationType: options.createIfMissing
+        environmentName: this.#client.environmentName(params.environment),
+        objectCreationType: params.createIfMissing
           ? ObjectCreationType.OBJECT_CREATION_TYPE_CREATE_IF_MISSING
           : ObjectCreationType.OBJECT_CREATION_TYPE_UNSPECIFIED,
       });
@@ -37,24 +37,24 @@ export class AppService {
   }
 }
 
-/** Options for `client.apps.fromName()`. */
-export type AppFromNameOptions = {
+/** Optional parameters for `client.apps.fromName()`. */
+export type AppFromNameParams = {
   environment?: string;
   createIfMissing?: boolean;
 };
 
-/** @deprecated Use specific Options types instead. */
+/** @deprecated Use specific Params types instead. */
 export type LookupOptions = {
   environment?: string;
   createIfMissing?: boolean;
 };
 
-/** @deprecated Use specific Options types instead. */
+/** @deprecated Use specific Params types instead. */
 export type DeleteOptions = {
   environment?: string;
 };
 
-/** @deprecated Use specific Options types instead. */
+/** @deprecated Use specific Params types instead. */
 export type EphemeralOptions = {
   environment?: string;
 };
@@ -113,7 +113,7 @@ export class App {
    */
   async createSandbox(
     image: Image,
-    options: SandboxCreateOptions = {},
+    options: SandboxCreateParams = {},
   ): Promise<Sandbox> {
     return getDefaultClient().sandboxes.create(this, image, options);
   }

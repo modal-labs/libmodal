@@ -20,13 +20,13 @@ export class FunctionCallService {
   }
 }
 
-/** Options for `FunctionCall.get()`. */
-export type FunctionCallGetOptions = {
+/** Optional parameters for `FunctionCall.get()`. */
+export type FunctionCallGetParams = {
   timeout?: number; // in milliseconds
 };
 
-/** Options for `FunctionCall.cancel()`. */
-export type FunctionCallCancelOptions = {
+/** Optional parameters for `FunctionCall.cancel()`. */
+export type FunctionCallCancelParams = {
   terminateContainers?: boolean;
 };
 
@@ -53,8 +53,8 @@ export class FunctionCall {
   }
 
   /** Get the result of a Function call, optionally waiting with a timeout. */
-  async get(options: FunctionCallGetOptions = {}): Promise<any> {
-    const timeout = options.timeout;
+  async get(params: FunctionCallGetParams = {}): Promise<any> {
+    const timeout = params.timeout;
     const invocation = ControlPlaneInvocation.fromFunctionCallId(
       this.#client || getDefaultClient(),
       this.functionCallId,
@@ -63,12 +63,12 @@ export class FunctionCall {
   }
 
   /** Cancel a running Function call. */
-  async cancel(options: FunctionCallCancelOptions = {}) {
+  async cancel(params: FunctionCallCancelParams = {}) {
     const cpClient = this.#client?.cpClient || getDefaultClient().cpClient;
 
     await cpClient.functionCallCancel({
       functionCallId: this.functionCallId,
-      terminateContainers: options.terminateContainers,
+      terminateContainers: params.terminateContainers,
     });
   }
 }

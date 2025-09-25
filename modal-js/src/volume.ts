@@ -4,14 +4,14 @@ import { ClientError, Status } from "nice-grpc";
 import { NotFoundError, InvalidError } from "./errors";
 import { EphemeralHeartbeatManager } from "./ephemeral";
 
-/** Options for `client.volumes.fromName()`. */
-export type VolumeFromNameOptions = {
+/** Optional parameters for `client.volumes.fromName()`. */
+export type VolumeFromNameParams = {
   environment?: string;
   createIfMissing?: boolean;
 };
 
-/** Options for `client.volumes.ephemeral()`. */
-export type VolumeEphemeralOptions = {
+/** Optional parameters for `client.volumes.ephemeral()`. */
+export type VolumeEphemeralParams = {
   environment?: string;
 };
 
@@ -27,15 +27,12 @@ export class VolumeService {
   /**
    * Reference a Volume by its name.
    */
-  async fromName(
-    name: string,
-    options?: VolumeFromNameOptions,
-  ): Promise<Volume> {
+  async fromName(name: string, params?: VolumeFromNameParams): Promise<Volume> {
     try {
       const resp = await this.#client.cpClient.volumeGetOrCreate({
         deploymentName: name,
-        environmentName: this.#client.environmentName(options?.environment),
-        objectCreationType: options?.createIfMissing
+        environmentName: this.#client.environmentName(params?.environment),
+        objectCreationType: params?.createIfMissing
           ? ObjectCreationType.OBJECT_CREATION_TYPE_CREATE_IF_MISSING
           : ObjectCreationType.OBJECT_CREATION_TYPE_UNSPECIFIED,
       });
@@ -51,10 +48,10 @@ export class VolumeService {
    * Create a nameless, temporary Volume.
    * It persists until closeEphemeral() is called, or the process exits.
    */
-  async ephemeral(options: VolumeEphemeralOptions = {}): Promise<Volume> {
+  async ephemeral(params: VolumeEphemeralParams = {}): Promise<Volume> {
     const resp = await this.#client.cpClient.volumeGetOrCreate({
       objectCreationType: ObjectCreationType.OBJECT_CREATION_TYPE_EPHEMERAL,
-      environmentName: this.#client.environmentName(options.environment),
+      environmentName: this.#client.environmentName(params.environment),
     });
 
     const ephemeralHbManager = new EphemeralHeartbeatManager(() =>
@@ -90,7 +87,7 @@ export class Volume {
    */
   static async fromName(
     name: string,
-    options?: VolumeFromNameOptions,
+    options?: VolumeFromNameParams,
   ): Promise<Volume> {
     return getDefaultClient().volumes.fromName(name, options);
   }
@@ -107,9 +104,7 @@ export class Volume {
   /**
    * @deprecated Use `client.volumes.ephemeral()` instead.
    */
-  static async ephemeral(
-    options: VolumeEphemeralOptions = {},
-  ): Promise<Volume> {
+  static async ephemeral(options: VolumeEphemeralParams = {}): Promise<Volume> {
     return getDefaultClient().volumes.ephemeral(options);
   }
 

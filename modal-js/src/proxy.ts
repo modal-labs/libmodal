@@ -14,11 +14,11 @@ export class ProxyService {
   /**
    * Reference a Proxy by its name.
    */
-  async fromName(name: string, options?: ProxyFromNameOptions): Promise<Proxy> {
+  async fromName(name: string, params?: ProxyFromNameParams): Promise<Proxy> {
     try {
       const resp = await this.#client.cpClient.proxyGet({
         name,
-        environmentName: this.#client.environmentName(options?.environment),
+        environmentName: this.#client.environmentName(params?.environment),
       });
       if (!resp.proxy?.proxyId) {
         throw new NotFoundError(`Proxy '${name}' not found`);
@@ -32,8 +32,8 @@ export class ProxyService {
   }
 }
 
-/** Options for `Proxy.fromName()`. */
-export type ProxyFromNameOptions = {
+/** Optional parameters for `client.proxies.fromName()`. */
+export type ProxyFromNameParams = {
   environment?: string;
 };
 
@@ -51,8 +51,8 @@ export class Proxy {
    */
   static async fromName(
     name: string,
-    options?: ProxyFromNameOptions,
+    params?: ProxyFromNameParams,
   ): Promise<Proxy> {
-    return getDefaultClient().proxies.fromName(name, options);
+    return getDefaultClient().proxies.fromName(name, params);
   }
 }
