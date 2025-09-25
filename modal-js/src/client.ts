@@ -24,7 +24,7 @@ import { VolumeService } from "./volume";
 import { ClientType, ModalClientDefinition } from "../proto/modal_proto/api";
 import { getProfile, type Profile } from "./config";
 
-export interface ModalParams {
+export interface ModalClientParams {
   tokenId?: string;
   tokenSecret?: string;
   environment?: string;
@@ -60,7 +60,7 @@ export class ModalClient {
   private ipClients: Map<string, ModalGrpcClient>;
   private authToken?: string;
 
-  constructor(params?: ModalParams) {
+  constructor(params?: ModalClientParams) {
     const baseProfile = getProfile(process.env["MODAL_PROFILE"]);
     this.profile = {
       ...baseProfile,
@@ -337,7 +337,7 @@ const retryMiddleware: ClientMiddleware<RetryOptions> =
 let defaultClient: ModalClient | undefined;
 
 // Initialization options for the default client (from initializeClient)
-let defaultClientOptions: ModalParams | undefined;
+let defaultClientOptions: ModalClientParams | undefined;
 
 export function getDefaultClient(): ModalClient {
   if (!defaultClient) {

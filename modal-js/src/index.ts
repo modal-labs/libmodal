@@ -68,4 +68,4 @@ export { SandboxFile, type SandboxFileMode } from "./sandbox_filesystem";
 export { Volume, VolumeService, type VolumeFromNameOptions } from "./volume";
 export { Proxy, ProxyService, type ProxyFromNameOptions } from "./proxy";
 export { CloudBucketMount } from "./cloud_bucket_mount";
-export { ModalClient, type ModalParams } from "./client";
+export { ModalClient, type ModalClientParams } from "./client";
