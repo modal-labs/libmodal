@@ -31,7 +31,7 @@ export class ClsService {
   /**
    * Reference a Cls from a deployed App by its name.
    */
-  async lookup(
+  async fromName(
     appName: string,
     name: string,
     options: LookupOptions = {},
@@ -141,14 +141,14 @@ export class Cls {
   }
 
   /**
-   * @deprecated Use `client.cls.lookup()` instead.
+   * @deprecated Use `client.cls.fromName()` instead.
    */
   static async lookup(
     appName: string,
     name: string,
     options: LookupOptions = {},
   ): Promise<Cls> {
-    return getDefaultClient().cls.lookup(appName, name, options);
+    return getDefaultClient().cls.fromName(appName, name, options);
   }
 
   /** Create a new instance of the Cls with parameters and/or runtime options. */

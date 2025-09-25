@@ -4,7 +4,7 @@ import { tc } from "../test-support/test-client";
 import { NotFoundError } from "modal";
 
 test("ClsCall", async () => {
-  const cls = await tc.cls.lookup("libmodal-test-support", "EchoCls");
+  const cls = await tc.cls.fromName("libmodal-test-support", "EchoCls");
   const instance = await cls.instance();
 
   // Try accessing a non-existent method
@@ -14,7 +14,7 @@ test("ClsCall", async () => {
   const result = await function_.remote([], { s: "hello" });
   expect(result).toEqual("output: hello");
 
-  const cls2 = await tc.cls.lookup(
+  const cls2 = await tc.cls.fromName(
     "libmodal-test-support",
     "EchoClsParametrized",
   );
@@ -26,12 +26,15 @@ test("ClsCall", async () => {
 });
 
 test("ClsNotFound", async () => {
-  const cls = tc.cls.lookup("libmodal-test-support", "NotRealClassName");
+  const cls = tc.cls.fromName("libmodal-test-support", "NotRealClassName");
   await expect(cls).rejects.toThrowError(NotFoundError);
 });
 
 test("ClsCallInputPlane", async () => {
-  const cls = await tc.cls.lookup("libmodal-test-support", "EchoClsInputPlane");
+  const cls = await tc.cls.fromName(
+    "libmodal-test-support",
+    "EchoClsInputPlane",
+  );
   const instance = await cls.instance();
 
   const function_ = instance.method("echo_string");

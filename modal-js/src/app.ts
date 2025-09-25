@@ -17,9 +17,9 @@ export class AppService {
   }
 
   /**
-   * Lookup a deployed App by name, or create if it does not exist.
+   * Referencea deployed App by name, or create if it does not exist.
    */
-  async lookup(name: string, options: LookupOptions = {}): Promise<App> {
+  async fromName(name: string, options: LookupOptions = {}): Promise<App> {
     try {
       const resp = await this.#client.cpClient.appGetOrCreate({
         appName: name,
@@ -96,10 +96,10 @@ export class App {
   }
 
   /**
-   * @deprecated Use `client.apps.lookup()` instead.
+   * @deprecated Use `client.apps.fromName()` instead.
    */
   static async lookup(name: string, options: LookupOptions = {}): Promise<App> {
-    return getDefaultClient().apps.lookup(name, options);
+    return getDefaultClient().apps.fromName(name, options);
   }
 
   /**

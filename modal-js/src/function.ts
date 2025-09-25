@@ -37,7 +37,7 @@ export class FunctionService {
   /**
    * Reference a Function by its name in an App.
    */
-  async lookup(
+  async fromName(
     appName: string,
     name: string,
     options: LookupOptions = {},
@@ -101,14 +101,14 @@ export class Function_ {
   }
 
   /**
-   * @deprecated Use `client.functions.lookup()` instead.
+   * @deprecated Use `client.functions.fromName()` instead.
    */
   static async lookup(
     appName: string,
     name: string,
     options: LookupOptions = {},
   ): Promise<Function_> {
-    return await getDefaultClient().functions.lookup(appName, name, options);
+    return await getDefaultClient().functions.fromName(appName, name, options);
   }
 
   // Execute a single input into a remote Function.

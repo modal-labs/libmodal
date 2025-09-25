@@ -3,7 +3,7 @@ import { FunctionTimeoutError } from "modal";
 import { expect, test } from "vitest";
 
 test("FunctionSpawn", async () => {
-  const function_ = await tc.functions.lookup(
+  const function_ = await tc.functions.fromName(
     "libmodal-test-support",
     "echo_string",
   );
@@ -20,8 +20,8 @@ test("FunctionSpawn", async () => {
   resultKwargs = await functionCall.get();
   expect(resultKwargs).toBe("output: hello");
 
-  // Lookup function that takes a long time to complete.
-  const sleep = await tc.functions.lookup("libmodal-test-support", "sleep");
+  // Function that takes a long time to complete.
+  const sleep = await tc.functions.fromName("libmodal-test-support", "sleep");
 
   // Spawn with long running input.
   functionCall = await sleep.spawn([], { t: 5 });
@@ -33,7 +33,7 @@ test("FunctionSpawn", async () => {
 });
 
 test("FunctionCallGet0", async () => {
-  const sleep = await tc.functions.lookup("libmodal-test-support", "sleep");
+  const sleep = await tc.functions.fromName("libmodal-test-support", "sleep");
 
   const call = await sleep.spawn([0.5]);
   // Polling for output with timeout 0 should raise an error, since the

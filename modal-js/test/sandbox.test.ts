@@ -6,7 +6,9 @@ import { buildContainerExecRequestProto } from "../src/sandbox";
 import { PTYInfo_PTYType } from "../proto/modal_proto/api";
 
 test("CreateOneSandbox", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
   expect(app.appId).toBeTruthy();
   expect(app.name).toBe("libmodal-test");
 
@@ -19,7 +21,9 @@ test("CreateOneSandbox", async () => {
 });
 
 test("PassCatToStdin", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
   const image = tc.images.fromRegistry("alpine:3.21");
 
   // Spawn a sandbox running the "cat" command.
@@ -37,7 +41,9 @@ test("PassCatToStdin", async () => {
 });
 
 test("IgnoreLargeStdout", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
   const image = tc.images.fromRegistry("python:3.13-alpine");
 
   const sb = await tc.sandboxes.create(app, image);
@@ -54,7 +60,9 @@ test("IgnoreLargeStdout", async () => {
 });
 
 test("SandboxCreateOptions", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
   const image = await tc.images.fromRegistry("alpine:3.21");
 
   const sandbox = await tc.sandboxes.create(app, image, {
@@ -88,7 +96,9 @@ test("SandboxCreateOptions", async () => {
 });
 
 test("SandboxExecOptions", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
   const image = await tc.images.fromRegistry("alpine:3.21");
 
   const sb = await tc.sandboxes.create(app, image);
@@ -154,7 +164,9 @@ test("parseGpuConfig", () => {
 });
 
 test("SandboxWithVolume", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
   const image = await tc.images.fromRegistry("alpine:3.21");
 
   const volume = await tc.volumes.fromName("libmodal-test-sandbox-volume", {
@@ -174,7 +186,9 @@ test("SandboxWithVolume", async () => {
 });
 
 test("SandboxWithReadOnlyVolume", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
   const image = await tc.images.fromRegistry("alpine:3.21");
 
   const volume = await tc.volumes.fromName("libmodal-test-sandbox-volume", {
@@ -196,7 +210,9 @@ test("SandboxWithReadOnlyVolume", async () => {
 });
 
 test("SandboxWithTunnels", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
   const image = await tc.images.fromRegistry("alpine:3.21");
 
   const sandbox = await tc.sandboxes.create(app, image, {
@@ -234,7 +250,9 @@ test("SandboxWithTunnels", async () => {
 });
 
 test("CreateSandboxWithSecrets", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
   const image = await tc.images.fromRegistry("alpine:3.21");
 
   const secret = await tc.secrets.fromName("libmodal-test-secret", {
@@ -253,7 +271,9 @@ test("CreateSandboxWithSecrets", async () => {
 });
 
 test("CreateSandboxWithNetworkAccessParams", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
   const image = await tc.images.fromRegistry("alpine:3.21");
 
   const sb = await tc.sandboxes.create(app, image, {
@@ -290,7 +310,9 @@ test("CreateSandboxWithNetworkAccessParams", async () => {
 });
 
 test("SandboxPollAndReturnCode", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
   const image = await tc.images.fromRegistry("alpine:3.21");
 
   const sandbox = await tc.sandboxes.create(app, image, { command: ["cat"] });
@@ -306,7 +328,9 @@ test("SandboxPollAndReturnCode", async () => {
 });
 
 test("SandboxPollAfterFailure", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
   const image = await tc.images.fromRegistry("alpine:3.21");
 
   const sandbox = await tc.sandboxes.create(app, image, {
@@ -318,7 +342,9 @@ test("SandboxPollAfterFailure", async () => {
 });
 
 test("SandboxExecSecret", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
   const image = await tc.images.fromRegistry("alpine:3.21");
 
   const sb = await tc.sandboxes.create(app, image);
@@ -341,7 +367,9 @@ test("SandboxExecSecret", async () => {
 });
 
 test("SandboxFromId", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
   const image = await tc.images.fromRegistry("alpine:3.21");
 
   const sb = await tc.sandboxes.create(app, image);
@@ -353,7 +381,9 @@ test("SandboxFromId", async () => {
 });
 
 test("SandboxWithWorkdir", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
   const image = await tc.images.fromRegistry("alpine:3.21");
 
   const sb = await tc.sandboxes.create(app, image, {
@@ -369,7 +399,9 @@ test("SandboxWithWorkdir", async () => {
 });
 
 test("SandboxWithWorkdirValidation", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
   const image = await tc.images.fromRegistry("alpine:3.21");
 
   await expect(
@@ -380,7 +412,9 @@ test("SandboxWithWorkdirValidation", async () => {
 });
 
 test("SandboxSetTagsAndList", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
   const image = await tc.images.fromRegistry("alpine:3.21");
 
   const sb = await tc.sandboxes.create(app, image);
@@ -406,7 +440,9 @@ test("SandboxSetTagsAndList", async () => {
 });
 
 test("SandboxSetMultipleTagsAndList", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
   const image = await tc.images.fromRegistry("alpine:3.21");
 
   const sb = await tc.sandboxes.create(app, image);
@@ -452,7 +488,9 @@ test("SandboxSetMultipleTagsAndList", async () => {
 });
 
 test("SandboxListByAppId", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
   const image = await tc.images.fromRegistry("alpine:3.21");
 
   const sb = await tc.sandboxes.create(app, image);
@@ -470,7 +508,9 @@ test("SandboxListByAppId", async () => {
 });
 
 test("NamedSandbox", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
   const image = await tc.images.fromRegistry("alpine:3.21");
 
   const sandboxName = `test-sandbox-${Math.random().toString().substring(2, 10)}`;

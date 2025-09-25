@@ -43,7 +43,7 @@ export class QueueService {
   /**
    * Lookup a Queue by name.
    */
-  async lookup(name: string, options: LookupOptions = {}): Promise<Queue> {
+  async fromName(name: string, options: LookupOptions = {}): Promise<Queue> {
     const resp = await this.#client.cpClient.queueGetOrCreate({
       deploymentName: name,
       objectCreationType: options.createIfMissing
@@ -58,7 +58,7 @@ export class QueueService {
    * Delete a Queue by name.
    */
   async delete(name: string, options: DeleteOptions = {}): Promise<void> {
-    const queue = await this.lookup(name, options);
+    const queue = await this.fromName(name, options);
     await this.#client.cpClient.queueDelete({ queueId: queue.queueId });
   }
 }
@@ -163,13 +163,13 @@ export class Queue {
   }
 
   /**
-   * @deprecated Use `client.queues.lookup()` instead.
+   * @deprecated Use `client.queues.fromName()` instead.
    */
   static async lookup(
     name: string,
     options: LookupOptions = {},
   ): Promise<Queue> {
-    return getDefaultClient().queues.lookup(name, options);
+    return getDefaultClient().queues.fromName(name, options);
   }
 
   /**

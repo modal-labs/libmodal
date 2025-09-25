@@ -4,7 +4,10 @@ import { ModalClient } from "modal";
 
 const mc = new ModalClient();
 
-const echo = await mc.functions.lookup("libmodal-test-support", "echo_string");
+const echo = await mc.functions.fromName(
+  "libmodal-test-support",
+  "echo_string",
+);
 
 // Call the Function with args.
 let ret = await echo.remote(["Hello world!"]);

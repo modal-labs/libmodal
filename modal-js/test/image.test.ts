@@ -5,7 +5,9 @@ import { Secret } from "../src/secret";
 import { App } from "../src/app";
 
 test("ImageFromId", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
   expect(app.appId).toBeTruthy();
 
   const image = await tc.images.fromRegistry("alpine:3.21").build(app);
@@ -18,7 +20,9 @@ test("ImageFromId", async () => {
 });
 
 test("ImageFromRegistry", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
   expect(app.appId).toBeTruthy();
 
   const image = await tc.images.fromRegistry("alpine:3.21").build(app);
@@ -32,7 +36,9 @@ test("ImageFromRegistryWithSecret", async () => {
   // https://cloud.google.com/artifact-registry/docs/docker/authentication#json-key
   // So we use GCP Artifact Registry to test this too.
 
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
   expect(app.appId).toBeTruthy();
 
   const image = await tc.images
@@ -48,7 +54,9 @@ test("ImageFromRegistryWithSecret", async () => {
 });
 
 test("ImageFromAwsEcr", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
   expect(app.appId).toBeTruthy();
 
   const image = await app.imageFromAwsEcr(
@@ -62,7 +70,9 @@ test("ImageFromAwsEcr", async () => {
 });
 
 test("ImageFromGcpArtifactRegistry", { timeout: 30_000 }, async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
   expect(app.appId).toBeTruthy();
 
   const image = await app.imageFromGcpArtifactRegistry(
@@ -76,7 +86,9 @@ test("ImageFromGcpArtifactRegistry", { timeout: 30_000 }, async () => {
 });
 
 test("CreateOneSandboxTopLevelImageAPI", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
   expect(app.appId).toBeTruthy();
 
   const image = tc.images.fromRegistry("alpine:3.21");
@@ -90,7 +102,9 @@ test("CreateOneSandboxTopLevelImageAPI", async () => {
 });
 
 test("CreateOneSandboxTopLevelImageAPISecret", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
   expect(app.appId).toBeTruthy();
 
   const image = await tc.images.fromRegistry(
@@ -109,7 +123,9 @@ test("CreateOneSandboxTopLevelImageAPISecret", async () => {
 });
 
 test("ImageFromAwsEcrTopLevel", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
   expect(app.appId).toBeTruthy();
 
   const image = await tc.images.fromAwsEcr(
@@ -128,7 +144,9 @@ test("ImageFromAwsEcrTopLevel", async () => {
 });
 
 test("ImageFromGcpEcrTopLevel", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
   expect(app.appId).toBeTruthy();
 
   const image = await tc.images.fromGcpArtifactRegistry(
@@ -147,7 +165,9 @@ test("ImageFromGcpEcrTopLevel", async () => {
 });
 
 test("ImageDelete", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
   expect(app.appId).toBeTruthy();
 
   const image = await tc.images.fromRegistry("alpine:3.13").build(app);
@@ -173,7 +193,9 @@ test("ImageDelete", async () => {
 });
 
 test("DockerfileCommands", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
 
   const image = tc.images
     .fromRegistry("alpine:3.21")
@@ -196,7 +218,9 @@ test("DockerfileCommandsEmptyArrayNoOp", () => {
 });
 
 test("DockerfileCommandsChaining", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
 
   const image = tc.images
     .fromRegistry("alpine:3.21")

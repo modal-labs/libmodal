@@ -2,7 +2,9 @@ import { tc } from "../test-support/test-client";
 import { expect, test, onTestFinished } from "vitest";
 
 test("WriteAndReadBinaryFile", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
   const image = await tc.images.fromRegistry("alpine:3.21").build(app);
   const sb = await tc.sandboxes.create(app, image);
   onTestFinished(async () => {
@@ -23,7 +25,9 @@ test("WriteAndReadBinaryFile", async () => {
 });
 
 test("AppendToFileBinary", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
   const image = await tc.images.fromRegistry("alpine:3.21").build(app);
   const sb = await tc.sandboxes.create(app, image);
   onTestFinished(async () => {
@@ -53,7 +57,9 @@ test("AppendToFileBinary", async () => {
 });
 
 test("FileHandleFlush", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
   const image = await tc.images.fromRegistry("alpine:3.21").build(app);
   const sb = await tc.sandboxes.create(app, image);
   onTestFinished(async () => {
@@ -75,7 +81,9 @@ test("FileHandleFlush", async () => {
 });
 
 test("MultipleFileOperations", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
   const image = await tc.images.fromRegistry("alpine:3.21").build(app);
   const sb = await tc.sandboxes.create(app, image);
   onTestFinished(async () => {
@@ -108,7 +116,9 @@ test("MultipleFileOperations", async () => {
 });
 
 test("FileOpenModes", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
   const image = await tc.images.fromRegistry("alpine:3.21").build(app);
   const sb = await tc.sandboxes.create(app, image);
   onTestFinished(async () => {
@@ -143,7 +153,9 @@ test("FileOpenModes", async () => {
 });
 
 test("LargeFileOperations", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
   const image = await tc.images.fromRegistry("alpine:3.21").build(app);
   const sb = await tc.sandboxes.create(app, image);
   onTestFinished(async () => {

@@ -32,7 +32,9 @@ test("SecretFromObject", async () => {
   const secret = await tc.secrets.fromObject({ key: "value" });
   expect(secret).toBeDefined();
 
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
   const image = tc.images.fromRegistry("alpine:3.21");
 
   const sandbox = await tc.sandboxes.create(app, image, {
