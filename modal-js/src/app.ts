@@ -19,7 +19,7 @@ export class AppService {
   /**
    * Referencea deployed App by name, or create if it does not exist.
    */
-  async fromName(name: string, options: LookupOptions = {}): Promise<App> {
+  async fromName(name: string, options: AppFromNameOptions = {}): Promise<App> {
     try {
       const resp = await this.#client.cpClient.appGetOrCreate({
         appName: name,
@@ -37,18 +37,24 @@ export class AppService {
   }
 }
 
-/** Options for functions that find deployed Modal objects. */
+/** Options for `client.apps.fromName()`. */
+export type AppFromNameOptions = {
+  environment?: string;
+  createIfMissing?: boolean;
+};
+
+/** @deprecated Use specific Options types instead. */
 export type LookupOptions = {
   environment?: string;
   createIfMissing?: boolean;
 };
 
-/** Options for deleting a named object. */
+/** @deprecated Use specific Options types instead. */
 export type DeleteOptions = {
   environment?: string;
 };
 
-/** Options for constructors that create a temporary, nameless object. */
+/** @deprecated Use specific Options types instead. */
 export type EphemeralOptions = {
   environment?: string;
 };

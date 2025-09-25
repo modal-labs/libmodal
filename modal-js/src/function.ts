@@ -7,7 +7,6 @@ import {
   FunctionCallInvocationType,
   FunctionInput,
 } from "../proto/modal_proto/api";
-import type { LookupOptions } from "./app";
 import { getDefaultClient, ModalGrpcClient, type ModalClient } from "./client";
 import { FunctionCall } from "./function_call";
 import { InternalFailure, NotFoundError } from "./errors";
@@ -25,6 +24,12 @@ const maxObjectSizeBytes = 2 * 1024 * 1024; // 2 MiB
 // From: client/modal/_functions.py
 const maxSystemRetries = 8;
 
+/** Options for `client.functions.fromName()`. */
+export type FunctionFromNameOptions = {
+  environment?: string;
+  createIfMissing?: boolean;
+};
+
 /**
  * Service for managing Functions.
  */
@@ -40,7 +45,7 @@ export class FunctionService {
   async fromName(
     appName: string,
     name: string,
-    options: LookupOptions = {},
+    options: FunctionFromNameOptions = {},
   ): Promise<Function_> {
     try {
       const resp = await this.#client.cpClient.functionGet({
@@ -69,8 +74,8 @@ export interface FunctionStats {
   numTotalRunners: number;
 }
 
-/** Options for overriding a Function's autoscaler behavior. */
-export interface UpdateAutoscalerOptions {
+/** Options for `Function_.updateAutoscaler()`. */
+export interface FunctionUpdateAutoscalerOptions {
   minContainers?: number;
   maxContainers?: number;
   bufferContainers?: number;
@@ -106,7 +111,7 @@ export class Function_ {
   static async lookup(
     appName: string,
     name: string,
-    options: LookupOptions = {},
+    options: FunctionFromNameOptions = {},
   ): Promise<Function_> {
     return await getDefaultClient().functions.fromName(appName, name, options);
   }
@@ -180,7 +185,9 @@ export class Function_ {
   }
 
   // Overrides the current autoscaler behavior for this Function.
-  async updateAutoscaler(options: UpdateAutoscalerOptions): Promise<void> {
+  async updateAutoscaler(
+    options: FunctionUpdateAutoscalerOptions,
+  ): Promise<void> {
     await this.#client.cpClient.functionUpdateSchedulingParams({
       functionId: this.functionId,
       warmPoolSizeOverride: 0, // Deprecated field, always set to 0

@@ -3,12 +3,16 @@ import { getDefaultClient, type ModalClient } from "./client";
 import { ClientError, Status } from "nice-grpc";
 import { NotFoundError, InvalidError } from "./errors";
 import { EphemeralHeartbeatManager } from "./ephemeral";
-import type { EphemeralOptions } from "./app";
 
-/** Options for `Volume.fromName()`. */
+/** Options for `client.volumes.fromName()`. */
 export type VolumeFromNameOptions = {
   environment?: string;
   createIfMissing?: boolean;
+};
+
+/** Options for `client.volumes.ephemeral()`. */
+export type VolumeEphemeralOptions = {
+  environment?: string;
 };
 
 /**
@@ -47,7 +51,7 @@ export class VolumeService {
    * Create a nameless, temporary Volume.
    * It persists until closeEphemeral() is called, or the process exits.
    */
-  async ephemeral(options: EphemeralOptions = {}): Promise<Volume> {
+  async ephemeral(options: VolumeEphemeralOptions = {}): Promise<Volume> {
     const resp = await this.#client.cpClient.volumeGetOrCreate({
       objectCreationType: ObjectCreationType.OBJECT_CREATION_TYPE_EPHEMERAL,
       environmentName: this.#client.environmentName(options.environment),
@@ -103,7 +107,9 @@ export class Volume {
   /**
    * @deprecated Use `client.volumes.ephemeral()` instead.
    */
-  static async ephemeral(options: EphemeralOptions = {}): Promise<Volume> {
+  static async ephemeral(
+    options: VolumeEphemeralOptions = {},
+  ): Promise<Volume> {
     return getDefaultClient().volumes.ephemeral(options);
   }
 

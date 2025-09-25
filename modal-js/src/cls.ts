@@ -9,7 +9,6 @@ import {
   ParameterType,
   VolumeMount,
 } from "../proto/modal_proto/api";
-import type { LookupOptions } from "./app";
 import { NotFoundError } from "./errors";
 import { getDefaultClient, type ModalClient } from "./client";
 import { Function_ } from "./function";
@@ -18,6 +17,12 @@ import type { Secret } from "./secret";
 import { mergeEnvAndSecrets } from "./secret";
 import { Retries, parseRetries } from "./retries";
 import type { Volume } from "./volume";
+
+/** Options for `client.cls.fromName()`. */
+export type ClsFromNameOptions = {
+  environment?: string;
+  createIfMissing?: boolean;
+};
 
 /**
  * Service for managing Cls.
@@ -34,7 +39,7 @@ export class ClsService {
   async fromName(
     appName: string,
     name: string,
-    options: LookupOptions = {},
+    options: ClsFromNameOptions = {},
   ): Promise<Cls> {
     try {
       const serviceFunctionName = `${name}.*`;
@@ -146,7 +151,7 @@ export class Cls {
   static async lookup(
     appName: string,
     name: string,
-    options: LookupOptions = {},
+    options: ClsFromNameOptions = {},
   ): Promise<Cls> {
     return getDefaultClient().cls.fromName(appName, name, options);
   }

@@ -334,19 +334,19 @@ export class SandboxService {
    *
    * @param appName - Name of the deployed App
    * @param name - Name of the Sandbox
-   * @param environment - Optional override for the environment
+   * @param options - Options for getting the Sandbox
    * @returns Promise that resolves to a Sandbox
    */
   async fromName(
     appName: string,
     name: string,
-    environment?: string,
+    options?: SandboxFromNameOptions,
   ): Promise<Sandbox> {
     try {
       const resp = await this.#client.cpClient.sandboxGetFromName({
         sandboxName: name,
         appName,
-        environmentName: this.#client.environmentName(environment),
+        environmentName: this.#client.environmentName(options?.environment),
       });
       return new Sandbox(this.#client, resp.sandboxId);
     } catch (err) {
@@ -413,8 +413,13 @@ export type SandboxListOptions = {
   environment?: string;
 };
 
-/** Options to configure a `Sandbox.exec()` operation. */
-export type ExecOptions = {
+/** Options for `client.sandboxes.fromName()`. */
+export type SandboxFromNameOptions = {
+  environment?: string;
+};
+
+/** Options for `Sandbox.exec()`. */
+export type SandboxExecOptions = {
   /** Specifies text or binary encoding for input and output streams. */
   mode?: StreamMode;
   /** Whether to pipe or ignore standard output. */
@@ -484,7 +489,7 @@ export function defaultSandboxPTYInfo(): PTYInfo {
 export async function buildContainerExecRequestProto(
   taskId: string,
   command: string[],
-  options?: ExecOptions,
+  options?: SandboxExecOptions,
 ): Promise<ContainerExecRequest> {
   const mergedSecrets = await mergeEnvAndSecrets(
     options?.env,
@@ -600,7 +605,9 @@ export class Sandbox {
     name: string,
     environment?: string,
   ): Promise<Sandbox> {
-    return getDefaultClient().sandboxes.fromName(appName, name, environment);
+    return getDefaultClient().sandboxes.fromName(appName, name, {
+      environment,
+    });
   }
 
   /**
@@ -625,12 +632,12 @@ export class Sandbox {
 
   async exec(
     command: string[],
-    options?: ExecOptions & { mode?: "text" },
+    options?: SandboxExecOptions & { mode?: "text" },
   ): Promise<ContainerProcess<string>>;
 
   async exec(
     command: string[],
-    options: ExecOptions & { mode: "binary" },
+    options: SandboxExecOptions & { mode: "binary" },
   ): Promise<ContainerProcess<Uint8Array>>;
 
   async exec(
@@ -808,7 +815,11 @@ export class ContainerProcess<R extends string | Uint8Array = any> {
   readonly #client: ModalClient;
   readonly #execId: string;
 
-  constructor(client: ModalClient, execId: string, options?: ExecOptions) {
+  constructor(
+    client: ModalClient,
+    execId: string,
+    options?: SandboxExecOptions,
+  ) {
     this.#client = client;
     const mode = options?.mode ?? "text";
     const stdout = options?.stdout ?? "pipe";

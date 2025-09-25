@@ -3,10 +3,15 @@ import { ClientError, Status } from "nice-grpc";
 import { InvalidError, NotFoundError } from "./errors";
 import { ObjectCreationType } from "../proto/modal_proto/api";
 
-/** Options for `Secret.fromName()`. */
+/** Options for `client.secrets.fromName()`. */
 export type SecretFromNameOptions = {
   environment?: string;
   requiredKeys?: string[];
+};
+
+/** Options for `client.secrets.fromObject()`. */
+export type SecretFromObjectOptions = {
+  environment?: string;
 };
 
 /**
@@ -46,7 +51,7 @@ export class SecretService {
   /** Create a Secret from a plain object of key-value pairs. */
   async fromObject(
     entries: Record<string, string>,
-    options?: { environment?: string },
+    options?: SecretFromObjectOptions,
   ): Promise<Secret> {
     for (const [, value] of Object.entries(entries)) {
       if (value == null || typeof value !== "string") {
@@ -102,7 +107,7 @@ export class Secret {
    */
   static async fromObject(
     entries: Record<string, string>,
-    options?: { environment?: string },
+    options?: SecretFromObjectOptions,
   ): Promise<Secret> {
     return getDefaultClient().secrets.fromObject(entries, options);
   }

@@ -4,7 +4,6 @@ import {
   ObjectCreationType,
   QueueNextItemsRequest,
 } from "../proto/modal_proto/api";
-import type { DeleteOptions, EphemeralOptions, LookupOptions } from "./app";
 import { getDefaultClient, type ModalClient } from "./client";
 import { InvalidError, QueueEmptyError, QueueFullError } from "./errors";
 import { dumps, loads } from "./pickle";
@@ -13,6 +12,22 @@ import { EphemeralHeartbeatManager } from "./ephemeral";
 
 const queueInitialPutBackoff = 100; // 100 milliseconds
 const queueDefaultPartitionTtl = 24 * 3600 * 1000; // 24 hours
+
+/** Options for `client.queues.fromName()`. */
+export type QueueFromNameOptions = {
+  environment?: string;
+  createIfMissing?: boolean;
+};
+
+/** Options for `client.queues.delete()`. */
+export type QueueDeleteOptions = {
+  environment?: string;
+};
+
+/** Options for `client.queues.ephemeral()`. */
+export type QueueEphemeralOptions = {
+  environment?: string;
+};
 
 /**
  * Service for managing Queues.
@@ -27,7 +42,7 @@ export class QueueService {
    * Create a nameless, temporary Queue.
    * You will need to call `closeEphemeral()` to delete the Queue.
    */
-  async ephemeral(options: EphemeralOptions = {}): Promise<Queue> {
+  async ephemeral(options: QueueEphemeralOptions = {}): Promise<Queue> {
     const resp = await this.#client.cpClient.queueGetOrCreate({
       objectCreationType: ObjectCreationType.OBJECT_CREATION_TYPE_EPHEMERAL,
       environmentName: this.#client.environmentName(options.environment),
@@ -43,7 +58,10 @@ export class QueueService {
   /**
    * Lookup a Queue by name.
    */
-  async fromName(name: string, options: LookupOptions = {}): Promise<Queue> {
+  async fromName(
+    name: string,
+    options: QueueFromNameOptions = {},
+  ): Promise<Queue> {
     const resp = await this.#client.cpClient.queueGetOrCreate({
       deploymentName: name,
       objectCreationType: options.createIfMissing
@@ -57,7 +75,7 @@ export class QueueService {
   /**
    * Delete a Queue by name.
    */
-  async delete(name: string, options: DeleteOptions = {}): Promise<void> {
+  async delete(name: string, options: QueueDeleteOptions = {}): Promise<void> {
     const queue = await this.fromName(name, options);
     await this.#client.cpClient.queueDelete({ queueId: queue.queueId });
   }
@@ -149,7 +167,7 @@ export class Queue {
   /**
    * @deprecated Use `client.queues.ephemeral()` instead.
    */
-  static async ephemeral(options: EphemeralOptions = {}): Promise<Queue> {
+  static async ephemeral(options: QueueEphemeralOptions = {}): Promise<Queue> {
     return getDefaultClient().queues.ephemeral(options);
   }
 
@@ -167,7 +185,7 @@ export class Queue {
    */
   static async lookup(
     name: string,
-    options: LookupOptions = {},
+    options: QueueFromNameOptions = {},
   ): Promise<Queue> {
     return getDefaultClient().queues.fromName(name, options);
   }
@@ -177,7 +195,7 @@ export class Queue {
    */
   static async delete(
     name: string,
-    options: DeleteOptions = {},
+    options: QueueDeleteOptions = {},
   ): Promise<void> {
     return getDefaultClient().queues.delete(name, options);
   }
