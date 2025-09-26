@@ -81,13 +81,13 @@ func (m *AuthTokenManager) refreshToken(ctx context.Context) (string, error) {
 	}
 
 	resp, err := m.client.AuthTokenGet(ctx, &pb.AuthTokenGetRequest{})
-  // Not expected
+	// Not expected
 	if err != nil {
 		return "", fmt.Errorf("failed to get auth token: %w", err)
 	}
 
 	token := resp.GetToken()
-  // // Not expected
+	// Not expected
 	if token == "" {
 		return "", fmt.Errorf("internal error: did not receive auth token from server, please contact Modal support")
 	}
