@@ -33,7 +33,17 @@ func NewAuthTokenManager(client pb.ModalClientClient) *AuthTokenManager {
 		expiry: 0,
 	}
 }
-
+/*
+When called, the AuthTokenManager can be in one of three states:
+1. Has a valid cached token. It is returned to the caller.
+2. Has no cached token, or the token is expired. We fetch a new one and cache it. If `get_token` is called
+concurrently by multiple coroutines, all requests will block until the token has been fetched. But only one
+coroutine will actually make a request to the control plane to fetch the new token. This ensures we do not hit
+the control plane with more requests than needed.
+3. Has a valid cached token, but it is going to expire in the next 5 minutes. In this case we fetch a new token
+and cache it. If `get_token` is called concurrently, all requests should receive the new token.
+"""
+*/
 func (m *AuthTokenManager) GetToken(ctx context.Context) (string, error) {
 	if m.token == "" || m.isExpired() {
 		return m.refreshToken(ctx)
@@ -55,6 +65,10 @@ func (m *AuthTokenManager) GetToken(ctx context.Context) (string, error) {
 	return token, nil
 }
 
+/*
+Fetch a new token from the control plane. If called concurrently, only one coroutine will make a request for a
+new token. The others will block on a lock, until the first coroutine has fetched the new token.
+*/
 func (m *AuthTokenManager) refreshToken(ctx context.Context) (string, error) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
