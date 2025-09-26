@@ -15,7 +15,116 @@ import { getProfile, type Profile } from "./config";
 
 const defaultProfile = getProfile(process.env["MODAL_PROFILE"]);
 
-let modalAuthToken: string | undefined;
+// Start refreshing this many seconds before the token expires
+const REFRESH_WINDOW = 5 * 60;
+// If the token doesn't have an expiry field, default to current time plus this value (not expected).
+const DEFAULT_EXPIRY_OFFSET = 20 * 60;
+
+let authTokenManager: AuthTokenManager | undefined;
+
+class AuthTokenManager {
+  private client: any;
+  private token: string = "";
+  private expiry: number = 0;
+  private refreshPromise: Promise<string> | null = null;
+
+  constructor(client: any) {
+    this.client = client;
+  }
+
+  /**
+   * When called, the AuthTokenManager can be in one of three states:
+   *   1. Has a valid cached token. It is returned to the caller.
+   *   2. Has no cached token, or the token is expired. We fetch a new one and cache it. If `getToken` is called
+   *      concurrently by multiple async functions, all requests will await the same Promise until the token has been
+   *      fetched. But only one call will actually make a request to fetch the new token.
+   *   3. Has a valid cached token, but it is going to expire in the next 5 minutes. In this case we fetch a new token
+   *      and cache it. If `getToken` is called concurrently, only one request will fetch the new token, and the others
+   *      will be given the old (but still valid) token - i.e. they will not await.
+   */
+  async getToken(): Promise<string> {
+    if (!this.token || this.isExpired()) {
+      return this.refreshToken();
+    } else if (this.needsRefresh()) {
+      // Check if someone else is already refreshing
+      if (this.refreshPromise) {
+        return this.refreshPromise;
+      }
+      return this.refreshToken();
+    }
+    return this.token;
+  }
+
+  /**
+   * Fetch a new token from the control plane. If called concurrently, only one async function will make a request for a
+   * new token. The others will await the same Promise, until the first call has fetched the new token.
+   */
+  private async refreshToken(): Promise<string> {
+    // Prevent multiple concurrent refreshToken() calls
+    if (this.refreshPromise) {
+      return this.refreshPromise;
+    }
+    this.refreshPromise = this.refresh();
+    try {
+      const token = await this.refreshPromise;
+      return token;
+    } finally {
+      this.refreshPromise = null;
+    }
+  }
+
+  private async refresh(): Promise<string> {
+    // Check if someone else already refreshed the token while we were waiting
+    if (this.token && !this.isExpired() && !this.needsRefresh()) {
+      return this.token;
+    }
+
+    const resp = await this.client.authTokenGet({});
+    const token = resp.token;
+
+    // Not expected
+    if (!token) {
+      throw new Error(
+        "Internal error: Did not receive auth token from server. Please contact Modal support.",
+      );
+    }
+    this.token = token;
+    const exp = this.decodeJWT(token);
+    if (exp > 0) {
+      this.expiry = exp;
+    } else {
+      // This should never happen.
+      console.warn("x-modal-auth-token does not contain exp field");
+      this.expiry = Math.floor(Date.now() / 1000) + DEFAULT_EXPIRY_OFFSET;
+    }
+    return this.token;
+  }
+
+  private decodeJWT(token: string): number {
+    try {
+      const parts = token.split(".");
+      if (parts.length !== 3) {
+        return 0;
+      }
+      const payload = parts[1];
+      const paddedPayload =
+        payload + "=".repeat((4 - (payload.length % 4)) % 4);
+      const decoded = atob(paddedPayload);
+      const claims = JSON.parse(decoded);
+      return claims.exp || 0;
+    } catch {
+      return 0;
+    }
+  }
+
+  private isExpired(): boolean {
+    return Math.floor(Date.now() / 1000) >= this.expiry;
+  }
+
+  private needsRefresh(): boolean {
+    return Math.floor(Date.now() / 1000) >= this.expiry - REFRESH_WINDOW;
+  }
+}
 
 /** gRPC client middleware to add auth token to request. */
 function authMiddleware(profile: Profile): ClientMiddleware {
@@ -38,8 +147,21 @@ function authMiddleware(profile: Profile): ClientMiddleware {
     options.metadata.set("x-modal-client-version", "1.0.0"); // CLIENT VERSION: Behaves like this Python SDK version
     options.metadata.set("x-modal-token-id", tokenId);
     options.metadata.set("x-modal-token-secret", tokenSecret);
-    if (modalAuthToken) {
-      options.metadata.set("x-modal-auth-token", modalAuthToken);
+
+    // TODO (wtang) Skip auth token for authTokenGet requests to prevent infinite recursion
+    if (
+      authTokenManager &&
+      call.method.path !== "/modal.client.ModalClient/AuthTokenGet"
+    ) {
+      try {
+        const authToken = await authTokenManager.getToken();
+        if (authToken) {
+          options.metadata.set("x-modal-auth-token", authToken);
+        }
+      } catch (error) {
+        // Log error but don't fail the request - let it proceed without auth token
+        console.error("Failed to get auth token:", error);
+      }
     }
 
     // We receive an auth token from the control plane on our first request. We then include that auth token in every
@@ -47,18 +169,10 @@ function authMiddleware(profile: Profile): ClientMiddleware {
     // the worker returns it in the headers.
     const prevOnHeader = options.onHeader;
     options.onHeader = (header) => {
-      const token = header.get("x-modal-auth-token");
-      if (token) {
-        modalAuthToken = token;
-      }
       prevOnHeader?.(header);
     };
     const prevOnTrailer = options.onTrailer;
     options.onTrailer = (trailer) => {
-      const token = trailer.get("x-modal-auth-token");
-      if (token) {
-        modalAuthToken = token;
-      }
       prevOnTrailer?.(trailer);
     };
     return yield* call.next(call.request, options);
@@ -260,6 +374,8 @@ export let clientProfile = defaultProfile;
 
 export let client = createClient(clientProfile);
 
+authTokenManager = new AuthTokenManager(client);
+
 /** Options for initializing a client at runtime. */
 export type ClientOptions = {
   tokenId: string;
@@ -282,4 +398,5 @@ export function initializeClient(options: ClientOptions) {
   };
   clientProfile = mergedProfile;
   client = createClient(mergedProfile);
+  authTokenManager = new AuthTokenManager(client);
 }
