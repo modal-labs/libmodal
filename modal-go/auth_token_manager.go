@@ -33,6 +33,7 @@ func NewAuthTokenManager(client pb.ModalClientClient) *AuthTokenManager {
 		expiry: 0,
 	}
 }
+
 /*
 When called, the AuthTokenManager can be in one of three states:
 1. Has a valid cached token. It is returned to the caller.
@@ -66,12 +67,18 @@ func (m *AuthTokenManager) GetToken(ctx context.Context) (string, error) {
 }
 
 /*
-Fetch a new token from the control plane. If called concurrently, only one coroutine will make a request for a
-new token. The others will block on a lock, until the first coroutine has fetched the new token.
+Fetch a new token from the control plane. If called concurrently, only one goroutine will make a request for a
+new token. The others will block on a lock, until the first goroutine has fetched the new token.
 */
 func (m *AuthTokenManager) refreshToken(ctx context.Context) (string, error) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
+
+	// Check if someone else already refreshed the token while we were waiting for the lock
+	now := time.Now().Unix()
+	if m.token != "" && now < m.expiry && now < (m.expiry-refreshWindow) {
+		return m.token, nil
+	}
 
 	resp, err := m.client.AuthTokenGet(ctx, &pb.AuthTokenGetRequest{})
 	if err != nil {

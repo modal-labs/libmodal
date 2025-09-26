@@ -277,6 +277,9 @@ func TestConcurrentRefresh(t *testing.T) {
 	// Typically, all calls should have returned the new token, but due to timing, some may have returned the old token
 	g.Expect(results).Should(gomega.ContainElement(newToken))
 
+	// Should have made only one call to AuthTokenGet
+	g.Expect(mockClient.getCallCount()).Should(gomega.Equal(1))
+
 	// The new token should be cached now
 	finalToken, err := authTokenManager.GetToken(context.Background())
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
