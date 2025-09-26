@@ -8,7 +8,7 @@ import {
 } from "../proto/modal_proto/api";
 import { getDefaultClient, type ModalClient } from "./client";
 import { App, parseGpuConfig } from "./app";
-import { Secret, mergeEnvAndSecrets } from "./secret";
+import { Secret, mergeEnvIntoSecrets } from "./secret";
 import { ClientError } from "nice-grpc";
 import { Status } from "nice-grpc";
 import { NotFoundError, InvalidError } from "./errors";
@@ -269,7 +269,12 @@ export class Image {
     for (let i = 0; i < this.#layers.length; i++) {
       const layer = this.#layers[i];
 
-      const mergedSecrets = await mergeEnvAndSecrets(layer.env, layer.secrets);
+      const mergedSecrets = await mergeEnvIntoSecrets(
+        this.#client,
+        layer.env,
+        layer.secrets,
+      );
+
       const secretIds = mergedSecrets.map((secret) => secret.secretId);
       const gpuConfig = layer.gpuConfig;
 

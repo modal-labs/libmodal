@@ -1,4 +1,4 @@
-import { getDefaultClient, ModalClient } from "./client";
+import { getDefaultClient, type ModalClient } from "./client";
 import { ClientError, Status } from "nice-grpc";
 import { InvalidError, NotFoundError } from "./errors";
 import { ObjectCreationType } from "../proto/modal_proto/api";
@@ -110,13 +110,14 @@ export class Secret {
   }
 }
 
-export async function mergeEnvAndSecrets(
+export async function mergeEnvIntoSecrets(
+  client: ModalClient,
   env?: Record<string, string>,
   secrets?: Secret[],
 ): Promise<Secret[]> {
   const result = [...(secrets || [])];
   if (env && Object.keys(env).length > 0) {
-    result.push(await getDefaultClient().secrets.fromObject(env));
+    result.push(await client.secrets.fromObject(env));
   }
   return result;
 }

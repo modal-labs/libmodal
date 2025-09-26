@@ -196,16 +196,14 @@ func (image *Image) Build(ctx context.Context, app *App) (*Image, error) {
 	var currentImageID string
 
 	for i, currentLayer := range image.layers {
-		var secretIds []string
-		for _, secret := range currentLayer.secrets {
-			secretIds = append(secretIds, secret.SecretID)
+		mergedSecrets, err := mergeEnvIntoSecrets(ctx, image.client, &currentLayer.env, &currentLayer.secrets)
+		if err != nil {
+			return nil, err
 		}
-		if len(currentLayer.env) > 0 {
-			envSecret, err := image.client.Secrets.FromMap(ctx, currentLayer.env, nil)
-			if err != nil {
-				return nil, err
-			}
-			secretIds = append(secretIds, envSecret.SecretID)
+
+		var secretIds []string
+		for _, secret := range mergedSecrets {
+			secretIds = append(secretIds, secret.SecretID)
 		}
 
 		var gpuConfig *pb.GPUConfig
