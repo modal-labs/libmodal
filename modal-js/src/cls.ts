@@ -126,7 +126,7 @@ export class Cls {
   #schema: ClassParameterSpec[];
   #methodNames: string[];
   #inputPlaneUrl?: string;
-  #options?: ServiceOptions;
+  #serviceOptions?: ServiceOptions;
 
   /** @ignore */
   constructor(
@@ -142,7 +142,7 @@ export class Cls {
     this.#schema = schema;
     this.#methodNames = methodNames;
     this.#inputPlaneUrl = inputPlaneUrl;
-    this.#options = options;
+    this.#serviceOptions = options;
   }
 
   /**
@@ -159,7 +159,7 @@ export class Cls {
   /** Create a new instance of the Cls with parameters and/or runtime options. */
   async instance(parameters: Record<string, any> = {}): Promise<ClsInstance> {
     let functionId: string;
-    if (this.#schema.length === 0 && this.#options === undefined) {
+    if (this.#schema.length === 0 && this.#serviceOptions === undefined) {
       functionId = this.#serviceFunctionId;
     } else {
       functionId = await this.#bindParameters(parameters);
@@ -176,7 +176,7 @@ export class Cls {
 
   /** Override the static Function configuration at runtime. */
   withOptions(params: ClsWithOptionsParams): Cls {
-    const merged = mergeServiceOptions(this.#options, params);
+    const merged = mergeServiceOptions(this.#serviceOptions, params);
     return new Cls(
       this.#client,
       this.#serviceFunctionId,
@@ -189,7 +189,7 @@ export class Cls {
 
   /** Create an instance of the Cls with input concurrency enabled or overridden with new values. */
   withConcurrency(params: ClsConcurrencyParams): Cls {
-    const merged = mergeServiceOptions(this.#options, {
+    const merged = mergeServiceOptions(this.#serviceOptions, {
       maxConcurrentInputs: params.maxInputs,
       targetConcurrentInputs: params.targetInputs,
     });
@@ -205,7 +205,7 @@ export class Cls {
 
   /** Create an instance of the Cls with dynamic batching enabled or overridden with new values. */
   withBatching(params: ClsBatchingParams): Cls {
-    const merged = mergeServiceOptions(this.#options, {
+    const merged = mergeServiceOptions(this.#serviceOptions, {
       batchMaxSize: params.maxBatchSize,
       batchWaitMs: params.waitMs,
     });
@@ -222,7 +222,9 @@ export class Cls {
   /** Bind parameters to the Cls function. */
   async #bindParameters(parameters: Record<string, any>): Promise<string> {
     const serializedParams = encodeParameterSet(this.#schema, parameters);
-    const functionOptions = await buildFunctionOptionsProto(this.#options);
+    const functionOptions = await buildFunctionOptionsProto(
+      this.#serviceOptions,
+    );
     const bindResp = await this.#client.cpClient.functionBindParams({
       functionId: this.#serviceFunctionId,
       serializedParams,
