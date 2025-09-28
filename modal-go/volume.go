@@ -10,7 +10,12 @@ import (
 )
 
 // VolumeService provides Volume related operations.
-type VolumeService struct{ client *Client }
+type VolumeService interface {
+	FromName(ctx context.Context, name string, params *VolumeFromNameParams) (*Volume, error)
+	Ephemeral(ctx context.Context, params *VolumeEphemeralParams) (*Volume, error)
+}
+
+type volumeServiceImpl struct{ client *Client }
 
 // Volume represents a Modal Volume that provides persistent storage.
 type Volume struct {
@@ -27,7 +32,7 @@ type VolumeFromNameParams struct {
 }
 
 // FromName references a Volume by its name.
-func (s *VolumeService) FromName(ctx context.Context, name string, params *VolumeFromNameParams) (*Volume, error) {
+func (s *volumeServiceImpl) FromName(ctx context.Context, name string, params *VolumeFromNameParams) (*Volume, error) {
 	if params == nil {
 		params = &VolumeFromNameParams{}
 	}
@@ -74,7 +79,7 @@ type VolumeEphemeralParams struct {
 }
 
 // Ephemeral creates a nameless, temporary Volume, that persists until CloseEphemeral is called, or the process exits.
-func (s *VolumeService) Ephemeral(ctx context.Context, params *VolumeEphemeralParams) (*Volume, error) {
+func (s *volumeServiceImpl) Ephemeral(ctx context.Context, params *VolumeEphemeralParams) (*Volume, error) {
 	if params == nil {
 		params = &VolumeEphemeralParams{}
 	}

@@ -18,7 +18,14 @@ import (
 )
 
 // SandboxService provides Sandbox related operations.
-type SandboxService struct{ client *Client }
+type SandboxService interface {
+	Create(ctx context.Context, app *App, image *Image, params *SandboxCreateParams) (*Sandbox, error)
+	FromID(ctx context.Context, sandboxID string) (*Sandbox, error)
+	FromName(ctx context.Context, appName, name string, params *SandboxFromNameParams) (*Sandbox, error)
+	List(ctx context.Context, params *SandboxListParams) (iter.Seq2[*Sandbox, error], error)
+}
+
+type sandboxServiceImpl struct{ client *Client }
 
 // SandboxCreateParams are options for creating a Modal Sandbox.
 type SandboxCreateParams struct {
@@ -196,7 +203,7 @@ func buildSandboxCreateRequestProto(appID, imageID string, params SandboxCreateP
 }
 
 // Create creates a new Sandbox in the App with the specified Image and options.
-func (s *SandboxService) Create(ctx context.Context, app *App, image *Image, params *SandboxCreateParams) (*Sandbox, error) {
+func (s *sandboxServiceImpl) Create(ctx context.Context, app *App, image *Image, params *SandboxCreateParams) (*Sandbox, error) {
 	if params == nil {
 		params = &SandboxCreateParams{}
 	}
@@ -305,7 +312,7 @@ func newSandbox(client *Client, sandboxID string) *Sandbox {
 }
 
 // FromID returns a running Sandbox object from an ID.
-func (s *SandboxService) FromID(ctx context.Context, sandboxID string) (*Sandbox, error) {
+func (s *sandboxServiceImpl) FromID(ctx context.Context, sandboxID string) (*Sandbox, error) {
 	_, err := s.client.cpClient.SandboxWait(ctx, pb.SandboxWaitRequest_builder{
 		SandboxId: sandboxID,
 		Timeout:   0,
@@ -328,7 +335,7 @@ type SandboxFromNameParams struct {
 //
 // Raises a NotFoundError if no running Sandbox is found with the given name.
 // A Sandbox's name is the `Name` argument passed to `App.CreateSandbox`.
-func (s *SandboxService) FromName(ctx context.Context, appName, name string, params *SandboxFromNameParams) (*Sandbox, error) {
+func (s *sandboxServiceImpl) FromName(ctx context.Context, appName, name string, params *SandboxFromNameParams) (*Sandbox, error) {
 	if params == nil {
 		params = &SandboxFromNameParams{}
 	}
@@ -618,7 +625,7 @@ type SandboxListParams struct {
 }
 
 // List lists Sandboxes for the current environment (or provided App ID), optionally filtered by tags.
-func (s *SandboxService) List(ctx context.Context, params *SandboxListParams) (iter.Seq2[*Sandbox, error], error) {
+func (s *sandboxServiceImpl) List(ctx context.Context, params *SandboxListParams) (iter.Seq2[*Sandbox, error], error) {
 	if params == nil {
 		params = &SandboxListParams{}
 	}

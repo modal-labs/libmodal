@@ -10,7 +10,11 @@ import (
 )
 
 // ProxyService provides Proxy related operations.
-type ProxyService struct{ client *Client }
+type ProxyService interface {
+	FromName(ctx context.Context, name string, params *ProxyFromNameParams) (*Proxy, error)
+}
+
+type proxyServiceImpl struct{ client *Client }
 
 // Proxy represents a Modal Proxy.
 type Proxy struct {
@@ -23,7 +27,7 @@ type ProxyFromNameParams struct {
 }
 
 // FromName references a modal.Proxy by its name.
-func (s *ProxyService) FromName(ctx context.Context, name string, params *ProxyFromNameParams) (*Proxy, error) {
+func (s *proxyServiceImpl) FromName(ctx context.Context, name string, params *ProxyFromNameParams) (*Proxy, error) {
 	if params == nil {
 		params = &ProxyFromNameParams{}
 	}

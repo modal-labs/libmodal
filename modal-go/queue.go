@@ -14,7 +14,13 @@ import (
 )
 
 // QueueService provides Queue related operations.
-type QueueService struct{ client *Client }
+type QueueService interface {
+	Ephemeral(ctx context.Context, params *QueueEphemeralParams) (*Queue, error)
+	FromName(ctx context.Context, name string, params *QueueFromNameParams) (*Queue, error)
+	Delete(ctx context.Context, name string, params *QueueDeleteParams) error
+}
+
+type queueServiceImpl struct{ client *Client }
 
 const queueInitialPutBackoff = 100 * time.Millisecond
 const queueDefaultPartitionTTL = 24 * time.Hour
@@ -45,7 +51,7 @@ type QueueEphemeralParams struct {
 }
 
 // Ephemeral creates a nameless, temporary Queue, that persists until CloseEphemeral is called, or the process exits.
-func (s *QueueService) Ephemeral(ctx context.Context, params *QueueEphemeralParams) (*Queue, error) {
+func (s *queueServiceImpl) Ephemeral(ctx context.Context, params *QueueEphemeralParams) (*Queue, error) {
 	if params == nil {
 		params = &QueueEphemeralParams{}
 	}
@@ -93,7 +99,7 @@ type QueueFromNameParams struct {
 }
 
 // FromName references a named Queue, creating if necessary.
-func (s *QueueService) FromName(ctx context.Context, name string, params *QueueFromNameParams) (*Queue, error) {
+func (s *queueServiceImpl) FromName(ctx context.Context, name string, params *QueueFromNameParams) (*Queue, error) {
 	if params == nil {
 		params = &QueueFromNameParams{}
 	}
@@ -125,7 +131,7 @@ type QueueDeleteParams struct {
 }
 
 // Delete removes a Queue by name.
-func (s *QueueService) Delete(ctx context.Context, name string, params *QueueDeleteParams) error {
+func (s *queueServiceImpl) Delete(ctx context.Context, name string, params *QueueDeleteParams) error {
 	if params == nil {
 		params = &QueueDeleteParams{}
 	}

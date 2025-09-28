@@ -9,7 +9,11 @@ import (
 )
 
 // CloudBucketMountService provides CloudBucketMount related operations.
-type CloudBucketMountService struct{ client *Client }
+type CloudBucketMountService interface {
+	New(bucketName string, params *CloudBucketMountParams) (*CloudBucketMount, error)
+}
+
+type cloudBucketMountServiceImpl struct{ client *Client }
 
 // CloudBucketMount provides access to cloud storage buckets within Modal Functions.
 type CloudBucketMount struct {
@@ -33,7 +37,7 @@ type CloudBucketMountParams struct {
 }
 
 // New creates a new CloudBucketMount.
-func (s *CloudBucketMountService) New(bucketName string, params *CloudBucketMountParams) (*CloudBucketMount, error) {
+func (s *cloudBucketMountServiceImpl) New(bucketName string, params *CloudBucketMountParams) (*CloudBucketMount, error) {
 	if params == nil {
 		params = &CloudBucketMountParams{}
 	}

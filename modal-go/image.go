@@ -12,7 +12,15 @@ import (
 )
 
 // ImageService provides Image related operations.
-type ImageService struct{ client *Client }
+type ImageService interface {
+	FromRegistry(tag string, params *ImageFromRegistryParams) *Image
+	FromAwsEcr(tag string, secret *Secret) *Image
+	FromGcpArtifactRegistry(tag string, secret *Secret) *Image
+	FromID(ctx context.Context, imageID string) (*Image, error)
+	Delete(ctx context.Context, imageID string, params *ImageDeleteParams) error
+}
+
+type imageServiceImpl struct{ client *Client }
 
 // ImageDockerfileCommandsParams are options for Image.DockerfileCommands().
 type ImageDockerfileCommandsParams struct {
@@ -55,7 +63,7 @@ type ImageFromRegistryParams struct {
 }
 
 // FromRegistry builds a Modal Image from a public or private image registry without any changes.
-func (s *ImageService) FromRegistry(tag string, params *ImageFromRegistryParams) *Image {
+func (s *imageServiceImpl) FromRegistry(tag string, params *ImageFromRegistryParams) *Image {
 	if params == nil {
 		params = &ImageFromRegistryParams{}
 	}
@@ -77,7 +85,7 @@ func (s *ImageService) FromRegistry(tag string, params *ImageFromRegistryParams)
 }
 
 // FromAwsEcr creates an Image from an AWS ECR tag
-func (s *ImageService) FromAwsEcr(tag string, secret *Secret) *Image {
+func (s *imageServiceImpl) FromAwsEcr(tag string, secret *Secret) *Image {
 	imageRegistryConfig := pb.ImageRegistryConfig_builder{
 		RegistryAuthType: pb.RegistryAuthType_REGISTRY_AUTH_TYPE_AWS,
 		SecretId:         secret.SecretID,
@@ -93,7 +101,7 @@ func (s *ImageService) FromAwsEcr(tag string, secret *Secret) *Image {
 }
 
 // FromGcpArtifactRegistry creates an Image from a GCP Artifact Registry tag.
-func (s *ImageService) FromGcpArtifactRegistry(tag string, secret *Secret) *Image {
+func (s *imageServiceImpl) FromGcpArtifactRegistry(tag string, secret *Secret) *Image {
 	imageRegistryConfig := pb.ImageRegistryConfig_builder{
 		RegistryAuthType: pb.RegistryAuthType_REGISTRY_AUTH_TYPE_GCP,
 		SecretId:         secret.SecretID,
@@ -108,7 +116,7 @@ func (s *ImageService) FromGcpArtifactRegistry(tag string, secret *Secret) *Imag
 }
 
 // FromID looks up an Image from an ID
-func (s *ImageService) FromID(ctx context.Context, imageID string) (*Image, error) {
+func (s *imageServiceImpl) FromID(ctx context.Context, imageID string) (*Image, error) {
 	resp, err := s.client.cpClient.ImageFromId(
 		ctx,
 		pb.ImageFromIdRequest_builder{
@@ -303,7 +311,7 @@ type ImageDeleteParams struct {
 }
 
 // Delete deletes an Image by ID. Warning: This removes an *entire Image*, and cannot be undone.
-func (s *ImageService) Delete(ctx context.Context, imageID string, params *ImageDeleteParams) error {
+func (s *imageServiceImpl) Delete(ctx context.Context, imageID string, params *ImageDeleteParams) error {
 	image, err := s.FromID(ctx, imageID)
 	if err != nil {
 		return err
