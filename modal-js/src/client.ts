@@ -16,13 +16,13 @@ import { getProfile, type Profile } from "./config";
 const defaultProfile = getProfile(process.env["MODAL_PROFILE"]);
 
 // Start refreshing this many seconds before the token expires
-const REFRESH_WINDOW = 5 * 60;
+export const REFRESH_WINDOW = 5 * 60;
 // If the token doesn't have an expiry field, default to current time plus this value (not expected).
-const DEFAULT_EXPIRY_OFFSET = 20 * 60;
+export const DEFAULT_EXPIRY_OFFSET = 20 * 60;
 
 let authTokenManager: AuthTokenManager | undefined;
 
-class AuthTokenManager {
+export class AuthTokenManager {
   private client: any;
   private token: string = "";
   private expiry: number = 0;
@@ -84,9 +84,7 @@ class AuthTokenManager {
 
     // Not expected
     if (!token) {
-      throw new Error(
-        "Internal error: Did not receive auth token from server. Please contact Modal support.",
-      );
+      throw new Error("Empty auth token received");
     }
     this.token = token;
     const exp = this.decodeJWT(token);
@@ -94,13 +92,13 @@ class AuthTokenManager {
       this.expiry = exp;
     } else {
       // This should never happen.
-      console.warn("x-modal-auth-token does not contain exp field");
+      console.warn("Failed to decode x-modal-auth-token exp field");
       this.expiry = Math.floor(Date.now() / 1000) + DEFAULT_EXPIRY_OFFSET;
     }
     return this.token;
   }
 
-  private decodeJWT(token: string): number {
+  decodeJWT(token: string): number {
     try {
       const parts = token.split(".");
       if (parts.length !== 3) {
@@ -117,11 +115,11 @@ class AuthTokenManager {
     }
   }
 
-  private isExpired(): boolean {
+  isExpired(): boolean {
     return Math.floor(Date.now() / 1000) >= this.expiry;
   }
 
-  private needsRefresh(): boolean {
+  needsRefresh(): boolean {
     return Math.floor(Date.now() / 1000) >= this.expiry - REFRESH_WINDOW;
   }
 }
