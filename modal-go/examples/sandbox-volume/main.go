@@ -30,7 +30,7 @@ func main() {
 		log.Fatalf("Failed to create Volume: %v", err)
 	}
 
-	writerSandbox, err := mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
+	writerSandbox, err := mc.Sandboxes.Create(ctx, *app, *image, &modal.SandboxCreateParams{
 		Command: []string{
 			"sh",
 			"-c",
@@ -56,7 +56,7 @@ func main() {
 	}
 	fmt.Printf("Writer finished with exit code: %d\n", exitCode)
 
-	readerSandbox, err := mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
+	readerSandbox, err := mc.Sandboxes.Create(ctx, *app, *image, &modal.SandboxCreateParams{
 		Volumes: map[string]*modal.Volume{
 			"/mnt/volume": volume.ReadOnly(),
 		},

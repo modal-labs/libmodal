@@ -23,7 +23,7 @@ func main() {
 
 	baseImage := mc.Images.FromRegistry("alpine:3.21", nil)
 
-	sb, err := mc.Sandboxes.Create(ctx, app, baseImage, &modal.SandboxCreateParams{})
+	sb, err := mc.Sandboxes.Create(ctx, *app, *baseImage, &modal.SandboxCreateParams{})
 	if err != nil {
 		log.Fatalf("Failed to create Sandbox: %v", err)
 	}
@@ -58,7 +58,7 @@ func main() {
 	log.Printf("Terminated first Sandbox")
 
 	// Create new Sandbox from snapshot Image
-	sb2, err := mc.Sandboxes.Create(ctx, app, snapshotImage, nil)
+	sb2, err := mc.Sandboxes.Create(ctx, *app, *snapshotImage, nil)
 	if err != nil {
 		log.Fatalf("Failed to create Sandbox from snapshot: %v", err)
 	}

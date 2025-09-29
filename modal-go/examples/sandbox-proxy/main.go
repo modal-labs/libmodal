@@ -28,7 +28,7 @@ func main() {
 	}
 	log.Printf("Using Proxy: %s", proxy.ProxyID)
 
-	sb, err := mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
+	sb, err := mc.Sandboxes.Create(ctx, *app, *image, &modal.SandboxCreateParams{
 		Proxy: proxy,
 	})
 	if err != nil {

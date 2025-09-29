@@ -196,12 +196,12 @@ func buildSandboxCreateRequestProto(appID, imageID string, params SandboxCreateP
 }
 
 // Create creates a new Sandbox in the App with the specified Image and options.
-func (s *SandboxService) Create(ctx context.Context, app *App, image *Image, params *SandboxCreateParams) (*Sandbox, error) {
+func (s *SandboxService) Create(ctx context.Context, app App, image Image, params *SandboxCreateParams) (*Sandbox, error) {
 	if params == nil {
 		params = &SandboxCreateParams{}
 	}
 
-	image, err := image.Build(ctx, app)
+	builtImage, err := image.Build(ctx, app)
 	if err != nil {
 		return nil, err
 	}
@@ -214,7 +214,7 @@ func (s *SandboxService) Create(ctx context.Context, app *App, image *Image, par
 		}
 	}
 
-	req, err := buildSandboxCreateRequestProto(app.AppID, image.ImageID, *params, envSecret)
+	req, err := buildSandboxCreateRequestProto(app.AppID, builtImage.ImageID, *params, envSecret)
 	if err != nil {
 		return nil, err
 	}

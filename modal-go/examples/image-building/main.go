@@ -34,7 +34,7 @@ func main() {
 		}).
 		DockerfileCommands([]string{"ENV SERVER=ipconfig.me"}, nil)
 
-	sb, err := mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
+	sb, err := mc.Sandboxes.Create(ctx, *app, *image, &modal.SandboxCreateParams{
 		Command: []string{"sh", "-c", "curl -Ls $SERVER"},
 	})
 	if err != nil {

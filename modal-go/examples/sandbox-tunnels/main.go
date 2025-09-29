@@ -26,7 +26,7 @@ func main() {
 	// Create a Sandbox with Python's built-in HTTP server
 	image := mc.Images.FromRegistry("python:3.12-alpine", nil)
 
-	sandbox, err := mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
+	sandbox, err := mc.Sandboxes.Create(ctx, *app, *image, &modal.SandboxCreateParams{
 		Command:        []string{"python3", "-m", "http.server", "8000"},
 		EncryptedPorts: []int{8000},
 		Timeout:        1 * time.Minute,

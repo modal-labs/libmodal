@@ -22,7 +22,7 @@ func main() {
 
 	image := mc.Images.FromRegistry("python:3.13-slim", nil)
 
-	sb, err := mc.Sandboxes.Create(ctx, app, image, nil)
+	sb, err := mc.Sandboxes.Create(ctx, *app, *image, nil)
 	if err != nil {
 		log.Fatalf("Failed to create Sandbox: %v", err)
 	}

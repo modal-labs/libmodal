@@ -23,7 +23,7 @@ func main() {
 
 	image := mc.Images.FromRegistry("alpine:3.21", nil)
 
-	sb, err := mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{})
+	sb, err := mc.Sandboxes.Create(ctx, *app, *image, &modal.SandboxCreateParams{})
 	if err != nil {
 		log.Fatalf("Failed to create Sandbox: %v", err)
 	}

@@ -24,7 +24,7 @@ func TestCreateSandboxWithProxy(t *testing.T) {
 	g.Expect(proxy.ProxyID).ShouldNot(gomega.BeEmpty())
 	g.Expect(strings.HasPrefix(proxy.ProxyID, "pr-")).To(gomega.BeTrue())
 
-	sb, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
+	sb, err := tc.Sandboxes.Create(ctx, *app, *image, &modal.SandboxCreateParams{
 		Proxy:   proxy,
 		Command: []string{"echo", "hello, Sandbox with Proxy"},
 	})

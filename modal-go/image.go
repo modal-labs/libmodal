@@ -173,7 +173,7 @@ func validateDockerfileCommands(commands []string) error {
 }
 
 // Build eagerly builds an Image on Modal.
-func (image *Image) Build(ctx context.Context, app *App) (*Image, error) {
+func (image *Image) Build(ctx context.Context, app App) (*Image, error) {
 	// Image is already hyrdated
 	if image.ImageID != "" {
 		return image, nil
