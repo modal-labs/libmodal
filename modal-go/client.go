@@ -82,13 +82,6 @@ var inputPlaneClients = map[string]pb.ModalClientClient{}
 // authTokenManager handles fetching and refreshing of the input plane auth token.
 var authTokenManager *AuthTokenManager
 
-// Todo wtang: remove
-// var authToken string
-
-func GetAuthTokenManager() *AuthTokenManager {
-	return authTokenManager
-}
-
 func init() {
 	defaultConfig, _ = readConfigFile()
 	defaultProfile = getProfile(os.Getenv("MODAL_PROFILE"))
