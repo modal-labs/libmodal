@@ -77,7 +77,10 @@ func (s *ImageService) FromRegistry(tag string, params *ImageFromRegistryParams)
 }
 
 // FromAwsEcr creates an Image from an AWS ECR tag
-func (s *ImageService) FromAwsEcr(tag string, secret *Secret) *Image {
+func (s *ImageService) FromAwsEcr(tag string, secret *Secret) (*Image, error) {
+	if secret == nil {
+		return nil, InvalidError{Exception: "secret cannot be nil"}
+	}
 	imageRegistryConfig := pb.ImageRegistryConfig_builder{
 		RegistryAuthType: pb.RegistryAuthType_REGISTRY_AUTH_TYPE_AWS,
 		SecretId:         secret.SecretID,
@@ -89,11 +92,14 @@ func (s *ImageService) FromAwsEcr(tag string, secret *Secret) *Image {
 		tag:                 tag,
 		layers:              []layer{{}},
 		client:              s.client,
-	}
+	}, nil
 }
 
 // FromGcpArtifactRegistry creates an Image from a GCP Artifact Registry tag.
-func (s *ImageService) FromGcpArtifactRegistry(tag string, secret *Secret) *Image {
+func (s *ImageService) FromGcpArtifactRegistry(tag string, secret *Secret) (*Image, error) {
+	if secret == nil {
+		return nil, InvalidError{Exception: "secret cannot be nil"}
+	}
 	imageRegistryConfig := pb.ImageRegistryConfig_builder{
 		RegistryAuthType: pb.RegistryAuthType_REGISTRY_AUTH_TYPE_GCP,
 		SecretId:         secret.SecretID,
@@ -104,7 +110,7 @@ func (s *ImageService) FromGcpArtifactRegistry(tag string, secret *Secret) *Imag
 		tag:                 tag,
 		layers:              []layer{{}},
 		client:              s.client,
-	}
+	}, nil
 }
 
 // FromID looks up an Image from an ID
@@ -174,6 +180,10 @@ func validateDockerfileCommands(commands []string) error {
 
 // Build eagerly builds an Image on Modal.
 func (image *Image) Build(ctx context.Context, app *App) (*Image, error) {
+	if app == nil {
+		return nil, InvalidError{Exception: "app cannot be nil"}
+	}
+
 	// Image is already hyrdated
 	if image.ImageID != "" {
 		return image, nil
