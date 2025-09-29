@@ -12,12 +12,16 @@ import { Secret, mergeEnvAndSecrets } from "./secret";
 import { ClientError } from "nice-grpc";
 import { Status } from "nice-grpc";
 import { NotFoundError, InvalidError } from "./errors";
-import { APIService } from "./api-service";
 
 /**
  * Service for managing Images.
  */
-export class ImageService extends APIService {
+export class ImageService {
+  readonly #client: ModalClient;
+  constructor(client: ModalClient) {
+    this.#client = client;
+  }
+
   /**
    * Creates an Image from an Image ID
    *
@@ -25,8 +29,8 @@ export class ImageService extends APIService {
    */
   async fromId(imageId: string): Promise<Image> {
     try {
-      const resp = await this.client.cpClient.imageFromId({ imageId });
-      return new Image(this.client, resp.imageId, "");
+      const resp = await this.#client.cpClient.imageFromId({ imageId });
+      return new Image(this.#client, resp.imageId, "");
     } catch (err) {
       if (err instanceof ClientError && err.code === Status.NOT_FOUND)
         throw new NotFoundError(err.details);
@@ -59,7 +63,7 @@ export class ImageService extends APIService {
         secretId: secret.secretId,
       };
     }
-    return new Image(this.client, "", tag, imageRegistryConfig);
+    return new Image(this.#client, "", tag, imageRegistryConfig);
   }
 
   /**
@@ -81,7 +85,7 @@ export class ImageService extends APIService {
         secretId: secret.secretId,
       };
     }
-    return new Image(this.client, "", tag, imageRegistryConfig);
+    return new Image(this.#client, "", tag, imageRegistryConfig);
   }
 
   /**
@@ -103,7 +107,7 @@ export class ImageService extends APIService {
         secretId: secret.secretId,
       };
     }
-    return new Image(this.client, "", tag, imageRegistryConfig);
+    return new Image(this.#client, "", tag, imageRegistryConfig);
   }
 
   /**
@@ -111,7 +115,7 @@ export class ImageService extends APIService {
    */
   async delete(imageId: string, _: ImageDeleteOptions = {}): Promise<void> {
     const image = await this.fromId(imageId);
-    await this.client.cpClient.imageDelete({ imageId: image.imageId });
+    await this.#client.cpClient.imageDelete({ imageId: image.imageId });
   }
 }
 

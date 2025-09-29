@@ -1,8 +1,7 @@
-import { getDefaultClient } from "./client";
+import { getDefaultClient, ModalClient } from "./client";
 import { ClientError, Status } from "nice-grpc";
 import { InvalidError, NotFoundError } from "./errors";
 import { ObjectCreationType } from "../proto/modal_proto/api";
-import { APIService } from "./api-service";
 
 /** Options for `Secret.fromName()`. */
 export type SecretFromNameOptions = {
@@ -13,16 +12,21 @@ export type SecretFromNameOptions = {
 /**
  * Service for managing Secrets.
  */
-export class SecretService extends APIService {
+export class SecretService {
+  readonly #client: ModalClient;
+  constructor(client: ModalClient) {
+    this.#client = client;
+  }
+
   /** Reference a Secret by its name. */
   async fromName(
     name: string,
     options?: SecretFromNameOptions,
   ): Promise<Secret> {
     try {
-      const resp = await this.client.cpClient.secretGetOrCreate({
+      const resp = await this.#client.cpClient.secretGetOrCreate({
         deploymentName: name,
-        environmentName: this.client.environmentName(options?.environment),
+        environmentName: this.#client.environmentName(options?.environment),
         requiredKeys: options?.requiredKeys ?? [],
       });
       return new Secret(resp.secretId, name);
@@ -54,10 +58,10 @@ export class SecretService extends APIService {
     }
 
     try {
-      const resp = await this.client.cpClient.secretGetOrCreate({
+      const resp = await this.#client.cpClient.secretGetOrCreate({
         objectCreationType: ObjectCreationType.OBJECT_CREATION_TYPE_EPHEMERAL,
         envDict: entries as Record<string, string>,
-        environmentName: this.client.environmentName(options?.environment),
+        environmentName: this.#client.environmentName(options?.environment),
       });
       return new Secret(resp.secretId);
     } catch (err) {

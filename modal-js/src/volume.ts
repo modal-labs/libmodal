@@ -1,10 +1,9 @@
 import { ObjectCreationType } from "../proto/modal_proto/api";
-import { getDefaultClient } from "./client";
+import { getDefaultClient, type ModalClient } from "./client";
 import { ClientError, Status } from "nice-grpc";
 import { NotFoundError, InvalidError } from "./errors";
 import { EphemeralHeartbeatManager } from "./ephemeral";
 import type { EphemeralOptions } from "./app";
-import { APIService } from "./api-service";
 
 /** Options for `Volume.fromName()`. */
 export type VolumeFromNameOptions = {
@@ -15,7 +14,12 @@ export type VolumeFromNameOptions = {
 /**
  * Service for managing Volumes.
  */
-export class VolumeService extends APIService {
+export class VolumeService {
+  readonly #client: ModalClient;
+  constructor(client: ModalClient) {
+    this.#client = client;
+  }
+
   /**
    * Reference a Volume by its name.
    */
@@ -24,9 +28,9 @@ export class VolumeService extends APIService {
     options?: VolumeFromNameOptions,
   ): Promise<Volume> {
     try {
-      const resp = await this.client.cpClient.volumeGetOrCreate({
+      const resp = await this.#client.cpClient.volumeGetOrCreate({
         deploymentName: name,
-        environmentName: this.client.environmentName(options?.environment),
+        environmentName: this.#client.environmentName(options?.environment),
         objectCreationType: options?.createIfMissing
           ? ObjectCreationType.OBJECT_CREATION_TYPE_CREATE_IF_MISSING
           : ObjectCreationType.OBJECT_CREATION_TYPE_UNSPECIFIED,
@@ -44,13 +48,13 @@ export class VolumeService extends APIService {
    * It persists until closeEphemeral() is called, or the process exits.
    */
   async ephemeral(options: EphemeralOptions = {}): Promise<Volume> {
-    const resp = await this.client.cpClient.volumeGetOrCreate({
+    const resp = await this.#client.cpClient.volumeGetOrCreate({
       objectCreationType: ObjectCreationType.OBJECT_CREATION_TYPE_EPHEMERAL,
-      environmentName: this.client.environmentName(options.environment),
+      environmentName: this.#client.environmentName(options.environment),
     });
 
     const ephemeralHbManager = new EphemeralHeartbeatManager(() =>
-      this.client.cpClient.volumeHeartbeat({ volumeId: resp.volumeId }),
+      this.#client.cpClient.volumeHeartbeat({ volumeId: resp.volumeId }),
     );
 
     return new Volume(resp.volumeId, undefined, false, ephemeralHbManager);

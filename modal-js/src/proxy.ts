@@ -1,20 +1,24 @@
-import { getDefaultClient } from "./client";
+import { getDefaultClient, type ModalClient } from "./client";
 import { ClientError, Status } from "nice-grpc";
 import { NotFoundError } from "./errors";
-import { APIService } from "./api-service";
 
 /**
  * Service for managing Proxies.
  */
-export class ProxyService extends APIService {
+export class ProxyService {
+  readonly #client: ModalClient;
+  constructor(client: ModalClient) {
+    this.#client = client;
+  }
+
   /**
    * Reference a Proxy by its name.
    */
   async fromName(name: string, options?: ProxyFromNameOptions): Promise<Proxy> {
     try {
-      const resp = await this.client.cpClient.proxyGet({
+      const resp = await this.#client.cpClient.proxyGet({
         name,
-        environmentName: this.client.environmentName(options?.environment),
+        environmentName: this.#client.environmentName(options?.environment),
       });
       if (!resp.proxy?.proxyId) {
         throw new NotFoundError(`Proxy '${name}' not found`);

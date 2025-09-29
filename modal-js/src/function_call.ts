@@ -1,18 +1,22 @@
 // Manage existing Function Calls (look-ups, polling for output, cancellation).
 
-import { APIService } from "./api-service";
 import { getDefaultClient, type ModalClient } from "./client";
 import { ControlPlaneInvocation } from "./invocation";
 
 /**
  * Service for managing FunctionCalls.
  */
-export class FunctionCallService extends APIService {
+export class FunctionCallService {
+  readonly #client: ModalClient;
+  constructor(client: ModalClient) {
+    this.#client = client;
+  }
+
   /**
    * Create a new Function call from ID.
    */
   async fromId(functionCallId: string): Promise<FunctionCall> {
-    return new FunctionCall(this.client, functionCallId);
+    return new FunctionCall(this.#client, functionCallId);
   }
 }
 

@@ -1,25 +1,29 @@
 import { ClientError, Status } from "nice-grpc";
 import { ObjectCreationType } from "../proto/modal_proto/api";
-import { getDefaultClient } from "./client";
+import { getDefaultClient, type ModalClient } from "./client";
 import { Image } from "./image";
 import { Sandbox, SandboxCreateOptions } from "./sandbox";
 import { NotFoundError } from "./errors";
 import { Secret } from "./secret";
-import { APIService } from "./api-service";
 import { GPUConfig } from "../proto/modal_proto/api";
 
 /**
  * Service for managing Apps.
  */
-export class AppService extends APIService {
+export class AppService {
+  readonly #client: ModalClient;
+  constructor(client: ModalClient) {
+    this.#client = client;
+  }
+
   /**
    * Lookup a deployed App by name, or create if it does not exist.
    */
   async lookup(name: string, options: LookupOptions = {}): Promise<App> {
     try {
-      const resp = await this.client.cpClient.appGetOrCreate({
+      const resp = await this.#client.cpClient.appGetOrCreate({
         appName: name,
-        environmentName: this.client.environmentName(options.environment),
+        environmentName: this.#client.environmentName(options.environment),
         objectCreationType: options.createIfMissing
           ? ObjectCreationType.OBJECT_CREATION_TYPE_CREATE_IF_MISSING
           : ObjectCreationType.OBJECT_CREATION_TYPE_UNSPECIFIED,

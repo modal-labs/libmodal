@@ -18,12 +18,16 @@ import type { Secret } from "./secret";
 import { mergeEnvAndSecrets } from "./secret";
 import { Retries, parseRetries } from "./retries";
 import type { Volume } from "./volume";
-import { APIService } from "./api-service";
 
 /**
  * Service for managing Cls.
  */
-export class ClsService extends APIService {
+export class ClsService {
+  readonly #client: ModalClient;
+  constructor(client: ModalClient) {
+    this.#client = client;
+  }
+
   /**
    * Reference a Cls from a deployed App by its name.
    */
@@ -34,10 +38,10 @@ export class ClsService extends APIService {
   ): Promise<Cls> {
     try {
       const serviceFunctionName = `${name}.*`;
-      const serviceFunction = await this.client.cpClient.functionGet({
+      const serviceFunction = await this.#client.cpClient.functionGet({
         appName,
         objectTag: serviceFunctionName,
-        environmentName: this.client.environmentName(options.environment),
+        environmentName: this.#client.environmentName(options.environment),
       });
 
       const parameterInfo = serviceFunction.handleMetadata?.classParameterInfo;
@@ -64,7 +68,7 @@ export class ClsService extends APIService {
         );
       }
       return new Cls(
-        this.client,
+        this.#client,
         serviceFunction.functionId,
         schema,
         methodNames,

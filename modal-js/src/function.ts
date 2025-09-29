@@ -18,7 +18,6 @@ import {
   InputPlaneInvocation,
   Invocation,
 } from "./invocation";
-import { APIService } from "./api-service";
 
 // From: modal/_utils/blob_utils.py
 const maxObjectSizeBytes = 2 * 1024 * 1024; // 2 MiB
@@ -29,7 +28,12 @@ const maxSystemRetries = 8;
 /**
  * Service for managing Functions.
  */
-export class FunctionService extends APIService {
+export class FunctionService {
+  readonly #client: ModalClient;
+  constructor(client: ModalClient) {
+    this.#client = client;
+  }
+
   /**
    * Reference a Function by its name in an App.
    */
@@ -39,13 +43,13 @@ export class FunctionService extends APIService {
     options: LookupOptions = {},
   ): Promise<Function_> {
     try {
-      const resp = await this.client.cpClient.functionGet({
+      const resp = await this.#client.cpClient.functionGet({
         appName,
         objectTag: name,
-        environmentName: this.client.environmentName(options.environment),
+        environmentName: this.#client.environmentName(options.environment),
       });
       return new Function_(
-        this.client,
+        this.#client,
         resp.functionId,
         undefined,
         resp.handleMetadata?.inputPlaneUrl,

@@ -46,7 +46,6 @@ import type { Volume } from "./volume";
 import type { Proxy } from "./proxy";
 import type { CloudBucketMount } from "./cloud_bucket_mount";
 import { cloudBucketMountToProto } from "./cloud_bucket_mount";
-import { APIService } from "./api-service";
 import type { App } from "./app";
 import { parseGpuConfig } from "./app";
 
@@ -275,7 +274,12 @@ export async function buildSandboxCreateRequestProto(
 /**
  * Service for managing Sandboxes.
  */
-export class SandboxService extends APIService {
+export class SandboxService {
+  readonly #client: ModalClient;
+  constructor(client: ModalClient) {
+    this.#client = client;
+  }
+
   /**
    * Create a new Sandbox in the App with the specified Image and options.
    */
@@ -293,7 +297,7 @@ export class SandboxService extends APIService {
     );
     let createResp;
     try {
-      createResp = await this.client.cpClient.sandboxCreate(createReq);
+      createResp = await this.#client.cpClient.sandboxCreate(createReq);
     } catch (err) {
       if (err instanceof ClientError && err.code === Status.ALREADY_EXISTS) {
         throw new AlreadyExistsError(err.details || err.message);
@@ -301,7 +305,7 @@ export class SandboxService extends APIService {
       throw err;
     }
 
-    return new Sandbox(this.client, createResp.sandboxId);
+    return new Sandbox(this.#client, createResp.sandboxId);
   }
 
   /** Returns a running Sandbox object from an ID.
@@ -310,7 +314,7 @@ export class SandboxService extends APIService {
    */
   async fromId(sandboxId: string): Promise<Sandbox> {
     try {
-      await this.client.cpClient.sandboxWait({
+      await this.#client.cpClient.sandboxWait({
         sandboxId,
         timeout: 0,
       });
@@ -320,7 +324,7 @@ export class SandboxService extends APIService {
       throw err;
     }
 
-    return new Sandbox(this.client, sandboxId);
+    return new Sandbox(this.#client, sandboxId);
   }
 
   /** Get a running Sandbox by name from a deployed App.
@@ -339,12 +343,12 @@ export class SandboxService extends APIService {
     environment?: string,
   ): Promise<Sandbox> {
     try {
-      const resp = await this.client.cpClient.sandboxGetFromName({
+      const resp = await this.#client.cpClient.sandboxGetFromName({
         sandboxName: name,
         appName,
-        environmentName: this.client.environmentName(environment),
+        environmentName: this.#client.environmentName(environment),
       });
-      return new Sandbox(this.client, resp.sandboxId);
+      return new Sandbox(this.#client, resp.sandboxId);
     } catch (err) {
       if (err instanceof ClientError && err.code === Status.NOT_FOUND)
         throw new NotFoundError(
@@ -361,7 +365,7 @@ export class SandboxService extends APIService {
   async *list(
     options: SandboxListOptions = {},
   ): AsyncGenerator<Sandbox, void, unknown> {
-    const env = this.client.environmentName(options.environment);
+    const env = this.#client.environmentName(options.environment);
     const tagsList = options.tags
       ? Object.entries(options.tags).map(([tagName, tagValue]) => ({
           tagName,
@@ -372,7 +376,7 @@ export class SandboxService extends APIService {
     let beforeTimestamp: number | undefined = undefined;
     while (true) {
       try {
-        const resp = await this.client.cpClient.sandboxList({
+        const resp = await this.#client.cpClient.sandboxList({
           appId: options.appId,
           beforeTimestamp,
           environmentName: env,
@@ -383,7 +387,7 @@ export class SandboxService extends APIService {
           return;
         }
         for (const info of resp.sandboxes) {
-          yield new Sandbox(this.client, info.id);
+          yield new Sandbox(this.#client, info.id);
         }
         beforeTimestamp = resp.sandboxes[resp.sandboxes.length - 1].createdAt;
       } catch (err) {

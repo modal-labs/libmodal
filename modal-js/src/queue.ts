@@ -10,7 +10,6 @@ import { InvalidError, QueueEmptyError, QueueFullError } from "./errors";
 import { dumps, loads } from "./pickle";
 import { ClientError, Status } from "nice-grpc";
 import { EphemeralHeartbeatManager } from "./ephemeral";
-import { APIService } from "./api-service";
 
 const queueInitialPutBackoff = 100; // 100 milliseconds
 const queueDefaultPartitionTtl = 24 * 3600 * 1000; // 24 hours
@@ -18,36 +17,41 @@ const queueDefaultPartitionTtl = 24 * 3600 * 1000; // 24 hours
 /**
  * Service for managing Queues.
  */
-export class QueueService extends APIService {
+export class QueueService {
+  readonly #client: ModalClient;
+  constructor(client: ModalClient) {
+    this.#client = client;
+  }
+
   /**
    * Create a nameless, temporary Queue.
    * You will need to call `closeEphemeral()` to delete the Queue.
    */
   async ephemeral(options: EphemeralOptions = {}): Promise<Queue> {
-    const resp = await this.client.cpClient.queueGetOrCreate({
+    const resp = await this.#client.cpClient.queueGetOrCreate({
       objectCreationType: ObjectCreationType.OBJECT_CREATION_TYPE_EPHEMERAL,
-      environmentName: this.client.environmentName(options.environment),
+      environmentName: this.#client.environmentName(options.environment),
     });
 
     const ephemeralHbManager = new EphemeralHeartbeatManager(() =>
-      this.client.cpClient.queueHeartbeat({ queueId: resp.queueId }),
+      this.#client.cpClient.queueHeartbeat({ queueId: resp.queueId }),
     );
 
-    return new Queue(this.client, resp.queueId, undefined, ephemeralHbManager);
+    return new Queue(this.#client, resp.queueId, undefined, ephemeralHbManager);
   }
 
   /**
    * Lookup a Queue by name.
    */
   async lookup(name: string, options: LookupOptions = {}): Promise<Queue> {
-    const resp = await this.client.cpClient.queueGetOrCreate({
+    const resp = await this.#client.cpClient.queueGetOrCreate({
       deploymentName: name,
       objectCreationType: options.createIfMissing
         ? ObjectCreationType.OBJECT_CREATION_TYPE_CREATE_IF_MISSING
         : undefined,
-      environmentName: this.client.environmentName(options.environment),
+      environmentName: this.#client.environmentName(options.environment),
     });
-    return new Queue(this.client, resp.queueId, name);
+    return new Queue(this.#client, resp.queueId, name);
   }
 
   /**
@@ -55,7 +59,7 @@ export class QueueService extends APIService {
    */
   async delete(name: string, options: DeleteOptions = {}): Promise<void> {
     const queue = await this.lookup(name, options);
-    await this.client.cpClient.queueDelete({ queueId: queue.queueId });
+    await this.#client.cpClient.queueDelete({ queueId: queue.queueId });
   }
 }
 
