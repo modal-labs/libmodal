@@ -1,27 +1,25 @@
-import { tc } from "../test-support/test-client";
+import { App, Secret, Image } from "modal";
 import { expect, test } from "vitest";
-import { createMockModalClients } from "../test-support/grpc_mock";
-import { Secret } from "../src/secret";
-import { App } from "../src/app";
+import { createMockModalClients } from "../../test-support/grpc_mock";
 
 test("ImageFromId", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
   expect(app.appId).toBeTruthy();
 
-  const image = await tc.images.fromRegistry("alpine:3.21").build(app);
+  const image = await Image.fromRegistry("alpine:3.21").build(app);
   expect(image.imageId).toBeTruthy();
 
-  const imageFromId = await tc.images.fromId(image.imageId);
+  const imageFromId = await Image.fromId(image.imageId);
   expect(imageFromId.imageId).toBe(image.imageId);
 
-  await expect(tc.images.fromId("im-nonexistent")).rejects.toThrow();
+  await expect(Image.fromId("im-nonexistent")).rejects.toThrow();
 });
 
 test("ImageFromRegistry", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
   expect(app.appId).toBeTruthy();
 
-  const image = await tc.images.fromRegistry("alpine:3.21").build(app);
+  const image = await app.imageFromRegistry("alpine:3.21");
   expect(image.imageId).toBeTruthy();
   expect(image.imageId).toMatch(/^im-/);
 });
@@ -32,28 +30,26 @@ test("ImageFromRegistryWithSecret", async () => {
   // https://cloud.google.com/artifact-registry/docs/docker/authentication#json-key
   // So we use GCP Artifact Registry to test this too.
 
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
   expect(app.appId).toBeTruthy();
 
-  const image = await tc.images
-    .fromRegistry(
-      "us-east1-docker.pkg.dev/modal-prod-367916/private-repo-test/my-image",
-      await tc.secrets.fromName("libmodal-gcp-artifact-registry-test", {
-        requiredKeys: ["REGISTRY_USERNAME", "REGISTRY_PASSWORD"],
-      }),
-    )
-    .build(app);
+  const image = await app.imageFromRegistry(
+    "us-east1-docker.pkg.dev/modal-prod-367916/private-repo-test/my-image",
+    await Secret.fromName("libmodal-gcp-artifact-registry-test", {
+      requiredKeys: ["REGISTRY_USERNAME", "REGISTRY_PASSWORD"],
+    }),
+  );
   expect(image.imageId).toBeTruthy();
   expect(image.imageId).toMatch(/^im-/);
 });
 
 test("ImageFromAwsEcr", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
   expect(app.appId).toBeTruthy();
 
   const image = await app.imageFromAwsEcr(
     "459781239556.dkr.ecr.us-east-1.amazonaws.com/ecr-private-registry-test-7522615:python",
-    await tc.secrets.fromName("libmodal-aws-ecr-test", {
+    await Secret.fromName("libmodal-aws-ecr-test", {
       requiredKeys: ["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"],
     }),
   );
@@ -62,12 +58,12 @@ test("ImageFromAwsEcr", async () => {
 });
 
 test("ImageFromGcpArtifactRegistry", { timeout: 30_000 }, async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
   expect(app.appId).toBeTruthy();
 
   const image = await app.imageFromGcpArtifactRegistry(
     "us-east1-docker.pkg.dev/modal-prod-367916/private-repo-test/my-image",
-    await tc.secrets.fromName("libmodal-gcp-artifact-registry-test", {
+    await Secret.fromName("libmodal-gcp-artifact-registry-test", {
       requiredKeys: ["SERVICE_ACCOUNT_JSON"],
     }),
   );
@@ -76,13 +72,13 @@ test("ImageFromGcpArtifactRegistry", { timeout: 30_000 }, async () => {
 });
 
 test("CreateOneSandboxTopLevelImageAPI", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
   expect(app.appId).toBeTruthy();
 
-  const image = tc.images.fromRegistry("alpine:3.21");
+  const image = Image.fromRegistry("alpine:3.21");
   expect(image.imageId).toBeFalsy();
 
-  const sb = await tc.sandboxes.create(app, image);
+  const sb = await app.createSandbox(image);
   expect(sb.sandboxId).toBeTruthy();
   await sb.terminate();
 
@@ -90,18 +86,18 @@ test("CreateOneSandboxTopLevelImageAPI", async () => {
 });
 
 test("CreateOneSandboxTopLevelImageAPISecret", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
   expect(app.appId).toBeTruthy();
 
-  const image = await tc.images.fromRegistry(
+  const image = await Image.fromRegistry(
     "us-east1-docker.pkg.dev/modal-prod-367916/private-repo-test/my-image",
-    await tc.secrets.fromName("libmodal-gcp-artifact-registry-test", {
+    await Secret.fromName("libmodal-gcp-artifact-registry-test", {
       requiredKeys: ["REGISTRY_USERNAME", "REGISTRY_PASSWORD"],
     }),
   );
   expect(image.imageId).toBeFalsy();
 
-  const sb = await tc.sandboxes.create(app, image);
+  const sb = await app.createSandbox(image);
   expect(sb.sandboxId).toBeTruthy();
   await sb.terminate();
 
@@ -109,18 +105,18 @@ test("CreateOneSandboxTopLevelImageAPISecret", async () => {
 });
 
 test("ImageFromAwsEcrTopLevel", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
   expect(app.appId).toBeTruthy();
 
-  const image = await tc.images.fromAwsEcr(
+  const image = await Image.fromAwsEcr(
     "459781239556.dkr.ecr.us-east-1.amazonaws.com/ecr-private-registry-test-7522615:python",
-    await tc.secrets.fromName("libmodal-aws-ecr-test", {
+    await Secret.fromName("libmodal-aws-ecr-test", {
       requiredKeys: ["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"],
     }),
   );
   expect(image.imageId).toBeFalsy();
 
-  const sb = await tc.sandboxes.create(app, image);
+  const sb = await app.createSandbox(image);
   expect(sb.sandboxId).toBeTruthy();
   await sb.terminate();
 
@@ -128,18 +124,18 @@ test("ImageFromAwsEcrTopLevel", async () => {
 });
 
 test("ImageFromGcpEcrTopLevel", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
   expect(app.appId).toBeTruthy();
 
-  const image = await tc.images.fromGcpArtifactRegistry(
+  const image = await Image.fromGcpArtifactRegistry(
     "us-east1-docker.pkg.dev/modal-prod-367916/private-repo-test/my-image",
-    await tc.secrets.fromName("libmodal-gcp-artifact-registry-test", {
+    await Secret.fromName("libmodal-gcp-artifact-registry-test", {
       requiredKeys: ["SERVICE_ACCOUNT_JSON"],
     }),
   );
   expect(image.imageId).toBeFalsy();
 
-  const sb = await tc.sandboxes.create(app, image);
+  const sb = await app.createSandbox(image);
   expect(sb.sandboxId).toBeTruthy();
   await sb.terminate();
 
@@ -147,39 +143,39 @@ test("ImageFromGcpEcrTopLevel", async () => {
 });
 
 test("ImageDelete", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
   expect(app.appId).toBeTruthy();
 
-  const image = await tc.images.fromRegistry("alpine:3.13").build(app);
+  const image = await Image.fromRegistry("alpine:3.13").build(app);
   expect(image.imageId).toBeTruthy();
   expect(image.imageId).toMatch(/^im-/);
 
-  const imageFromId = await tc.images.fromId(image.imageId);
+  const imageFromId = await Image.fromId(image.imageId);
   expect(imageFromId.imageId).toBe(image.imageId);
 
-  await tc.images.delete(image.imageId);
+  await Image.delete(image.imageId);
 
-  await expect(tc.images.fromId(image.imageId)).rejects.toThrow(
+  await expect(Image.fromId(image.imageId)).rejects.toThrow(
     "Could not find image with ID",
   );
 
-  const newImage = await tc.images.fromRegistry("alpine:3.13").build(app);
+  const newImage = await Image.fromRegistry("alpine:3.13").build(app);
   expect(newImage.imageId).toBeTruthy();
   expect(newImage.imageId).not.toBe(image.imageId);
 
-  await expect(tc.images.delete("im-nonexistent")).rejects.toThrow(
+  await expect(Image.delete("im-nonexistent")).rejects.toThrow(
     "No Image with ID",
   );
 });
 
 test("DockerfileCommands", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
 
-  const image = tc.images
-    .fromRegistry("alpine:3.21")
-    .dockerfileCommands(["RUN echo hey > /root/hello.txt"]);
+  const image = Image.fromRegistry("alpine:3.21").dockerfileCommands([
+    "RUN echo hey > /root/hello.txt",
+  ]);
 
-  const sb = await tc.sandboxes.create(app, image, {
+  const sb = await app.createSandbox(image, {
     command: ["cat", "/root/hello.txt"],
   });
 
@@ -190,23 +186,22 @@ test("DockerfileCommands", async () => {
 });
 
 test("DockerfileCommandsEmptyArrayNoOp", () => {
-  const image1 = tc.images.fromRegistry("alpine:3.21");
+  const image1 = Image.fromRegistry("alpine:3.21");
   const image2 = image1.dockerfileCommands([]);
   expect(image2).toBe(image1);
 });
 
 test("DockerfileCommandsChaining", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
 
-  const image = tc.images
-    .fromRegistry("alpine:3.21")
+  const image = Image.fromRegistry("alpine:3.21")
     .dockerfileCommands(["RUN echo ${SECRET:-unset} > /root/layer1.txt"])
     .dockerfileCommands(["RUN echo ${SECRET:-unset} > /root/layer2.txt"], {
-      secrets: [await tc.secrets.fromObject({ SECRET: "hello" })],
+      secrets: [await Secret.fromObject({ SECRET: "hello" })],
     })
     .dockerfileCommands(["RUN echo ${SECRET:-unset} > /root/layer3.txt"]);
 
-  const sb = await tc.sandboxes.create(app, image, {
+  const sb = await app.createSandbox(image, {
     command: [
       "cat",
       "/root/layer1.txt",
@@ -223,35 +218,31 @@ test("DockerfileCommandsChaining", async () => {
 
 test("DockerfileCommandsCopyCommandValidation", () => {
   expect(() => {
-    tc.images
-      .fromRegistry("alpine:3.21")
-      .dockerfileCommands([
-        "COPY --from=alpine:latest /etc/os-release /tmp/os-release",
-      ]);
+    Image.fromRegistry("alpine:3.21").dockerfileCommands([
+      "COPY --from=alpine:latest /etc/os-release /tmp/os-release",
+    ]);
   }).not.toThrow();
 
   expect(() => {
-    tc.images
-      .fromRegistry("alpine:3.21")
-      .dockerfileCommands(["COPY ./file.txt /root/"]);
+    Image.fromRegistry("alpine:3.21").dockerfileCommands([
+      "COPY ./file.txt /root/",
+    ]);
   }).toThrow(
     "COPY commands that copy from local context are not yet supported",
   );
 
   expect(() => {
-    tc.images
-      .fromRegistry("alpine:3.21")
-      .dockerfileCommands(["RUN echo 'COPY ./file.txt /root/'"]);
+    Image.fromRegistry("alpine:3.21").dockerfileCommands([
+      "RUN echo 'COPY ./file.txt /root/'",
+    ]);
   }).not.toThrow();
 
   expect(() => {
-    tc.images
-      .fromRegistry("alpine:3.21")
-      .dockerfileCommands([
-        "RUN echo hey",
-        "copy ./file.txt /root/",
-        "RUN echo hey",
-      ]);
+    Image.fromRegistry("alpine:3.21").dockerfileCommands([
+      "RUN echo hey",
+      "copy ./file.txt /root/",
+      "RUN echo hey",
+    ]);
   }).toThrow(
     "COPY commands that copy from local context are not yet supported",
   );

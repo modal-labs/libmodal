@@ -1,15 +1,17 @@
 // This example calls a Modal Cls defined in `libmodal_test_support.py`,
 // and overrides the default options.
 
-import { Cls, Secret } from "modal";
+import { ModalClient } from "modal";
 
-const cls = await Cls.lookup("libmodal-test-support", "EchoClsParametrized");
+const mc = new ModalClient();
+
+const cls = await mc.cls.lookup("libmodal-test-support", "EchoClsParametrized");
 const instance = await cls.instance();
 const method = instance.method("echo_env_var");
 
 const instanceWithOptions = await cls
   .withOptions({
-    secrets: [await Secret.fromObject({ SECRET_MESSAGE: "hello, Secret" })],
+    secrets: [await mc.secrets.fromObject({ SECRET_MESSAGE: "hello, Secret" })],
   })
   .withConcurrency({ maxInputs: 1 })
   .instance();

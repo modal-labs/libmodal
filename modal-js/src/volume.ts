@@ -1,6 +1,5 @@
 import { ObjectCreationType } from "../proto/modal_proto/api";
-import { client } from "./client";
-import { environmentName as configEnvironmentName } from "./config";
+import { getDefaultClient, type ModalClient } from "./client";
 import { ClientError, Status } from "nice-grpc";
 import { NotFoundError, InvalidError } from "./errors";
 import { EphemeralHeartbeatManager } from "./ephemeral";
@@ -11,6 +10,56 @@ export type VolumeFromNameOptions = {
   environment?: string;
   createIfMissing?: boolean;
 };
+
+/**
+ * Service for managing Volumes.
+ */
+export class VolumeService {
+  readonly #client: ModalClient;
+  constructor(client: ModalClient) {
+    this.#client = client;
+  }
+
+  /**
+   * Reference a Volume by its name.
+   */
+  async fromName(
+    name: string,
+    options?: VolumeFromNameOptions,
+  ): Promise<Volume> {
+    try {
+      const resp = await this.#client.cpClient.volumeGetOrCreate({
+        deploymentName: name,
+        environmentName: this.#client.environmentName(options?.environment),
+        objectCreationType: options?.createIfMissing
+          ? ObjectCreationType.OBJECT_CREATION_TYPE_CREATE_IF_MISSING
+          : ObjectCreationType.OBJECT_CREATION_TYPE_UNSPECIFIED,
+      });
+      return new Volume(resp.volumeId, name);
+    } catch (err) {
+      if (err instanceof ClientError && err.code === Status.NOT_FOUND)
+        throw new NotFoundError(err.details);
+      throw err;
+    }
+  }
+
+  /**
+   * Create a nameless, temporary Volume.
+   * It persists until closeEphemeral() is called, or the process exits.
+   */
+  async ephemeral(options: EphemeralOptions = {}): Promise<Volume> {
+    const resp = await this.#client.cpClient.volumeGetOrCreate({
+      objectCreationType: ObjectCreationType.OBJECT_CREATION_TYPE_EPHEMERAL,
+      environmentName: this.#client.environmentName(options.environment),
+    });
+
+    const ephemeralHbManager = new EphemeralHeartbeatManager(() =>
+      this.#client.cpClient.volumeHeartbeat({ volumeId: resp.volumeId }),
+    );
+
+    return new Volume(resp.volumeId, undefined, false, ephemeralHbManager);
+  }
+}
 
 /** Volumes provide persistent storage that can be mounted in Modal Functions. */
 export class Volume {
@@ -32,24 +81,14 @@ export class Volume {
     this.#ephemeralHbManager = ephemeralHbManager;
   }
 
+  /**
+   * @deprecated Use `client.volumes.fromName()` instead.
+   */
   static async fromName(
     name: string,
     options?: VolumeFromNameOptions,
   ): Promise<Volume> {
-    try {
-      const resp = await client.volumeGetOrCreate({
-        deploymentName: name,
-        environmentName: configEnvironmentName(options?.environment),
-        objectCreationType: options?.createIfMissing
-          ? ObjectCreationType.OBJECT_CREATION_TYPE_CREATE_IF_MISSING
-          : ObjectCreationType.OBJECT_CREATION_TYPE_UNSPECIFIED,
-      });
-      return new Volume(resp.volumeId, name);
-    } catch (err) {
-      if (err instanceof ClientError && err.code === Status.NOT_FOUND)
-        throw new NotFoundError(err.details);
-      throw err;
-    }
+    return getDefaultClient().volumes.fromName(name, options);
   }
 
   /** Configure Volume to mount as read-only. */
@@ -62,23 +101,13 @@ export class Volume {
   }
 
   /**
-   * Create a nameless, temporary Volume.
-   * You will need to call `closeEphemeral()` to delete the Volume.
+   * @deprecated Use `client.volumes.ephemeral()` instead.
    */
   static async ephemeral(options: EphemeralOptions = {}): Promise<Volume> {
-    const resp = await client.volumeGetOrCreate({
-      objectCreationType: ObjectCreationType.OBJECT_CREATION_TYPE_EPHEMERAL,
-      environmentName: configEnvironmentName(options.environment),
-    });
-
-    const ephemeralHbManager = new EphemeralHeartbeatManager(() =>
-      client.volumeHeartbeat({ volumeId: resp.volumeId }),
-    );
-
-    return new Volume(resp.volumeId, undefined, false, ephemeralHbManager);
+    return getDefaultClient().volumes.ephemeral(options);
   }
 
-  /** Delete the ephemeral Volume. Only usable with `Volume.ephemeral()`. */
+  /** Delete the ephemeral Volume. Only usable with emphemeral Volumes. */
   closeEphemeral(): void {
     if (this.#ephemeralHbManager) {
       this.#ephemeralHbManager.stop();

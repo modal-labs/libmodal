@@ -3,7 +3,7 @@ import {
   DeepPartial,
   ContainerFilesystemExecResponse,
 } from "../proto/modal_proto/api";
-import { client, isRetryableGrpc } from "./client";
+import { type ModalClient, ModalGrpcClient, isRetryableGrpc } from "./client";
 import { SandboxFilesystemError } from "./errors";
 
 /** File open modes supported by the filesystem API. */
@@ -14,11 +14,13 @@ export type SandboxFileMode = "r" | "w" | "a" | "r+" | "w+" | "a+";
  * Provides read/write operations similar to Node.js `fsPromises.FileHandle`.
  */
 export class SandboxFile {
+  readonly #client: ModalClient;
   readonly #fileDescriptor: string;
   readonly #taskId: string;
 
   /** @ignore */
-  constructor(fileDescriptor: string, taskId: string) {
+  constructor(client: ModalClient, fileDescriptor: string, taskId: string) {
+    this.#client = client;
     this.#fileDescriptor = fileDescriptor;
     this.#taskId = taskId;
   }
@@ -28,7 +30,7 @@ export class SandboxFile {
    * @returns Promise that resolves to the read data as Uint8Array
    */
   async read(): Promise<Uint8Array> {
-    const resp = await runFilesystemExec({
+    const resp = await runFilesystemExec(this.#client.cpClient, {
       fileReadRequest: {
         fileDescriptor: this.#fileDescriptor,
       },
@@ -53,7 +55,7 @@ export class SandboxFile {
    * @param data - Data to write (string or Uint8Array)
    */
   async write(data: Uint8Array): Promise<void> {
-    await runFilesystemExec({
+    await runFilesystemExec(this.#client.cpClient, {
       fileWriteRequest: {
         fileDescriptor: this.#fileDescriptor,
         data,
@@ -66,7 +68,7 @@ export class SandboxFile {
    * Flush any buffered data to the file.
    */
   async flush(): Promise<void> {
-    await runFilesystemExec({
+    await runFilesystemExec(this.#client.cpClient, {
       fileFlushRequest: {
         fileDescriptor: this.#fileDescriptor,
       },
@@ -78,7 +80,7 @@ export class SandboxFile {
    * Close the file handle.
    */
   async close(): Promise<void> {
-    await runFilesystemExec({
+    await runFilesystemExec(this.#client.cpClient, {
       fileCloseRequest: {
         fileDescriptor: this.#fileDescriptor,
       },
@@ -88,19 +90,20 @@ export class SandboxFile {
 }
 
 export async function runFilesystemExec(
+  cpClient: ModalGrpcClient,
   request: DeepPartial<ContainerFilesystemExecRequest>,
 ): Promise<{
   chunks: Uint8Array[];
   response: ContainerFilesystemExecResponse;
 }> {
-  const response = await client.containerFilesystemExec(request);
+  const response = await cpClient.containerFilesystemExec(request);
 
   const chunks: Uint8Array[] = [];
   let retries = 10;
   let completed = false;
   while (!completed) {
     try {
-      const outputIterator = client.containerFilesystemExecGetOutput({
+      const outputIterator = cpClient.containerFilesystemExecGetOutput({
         execId: response.execId,
         timeout: 55,
       });

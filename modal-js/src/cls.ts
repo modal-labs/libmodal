@@ -11,14 +11,77 @@ import {
 } from "../proto/modal_proto/api";
 import type { LookupOptions } from "./app";
 import { NotFoundError } from "./errors";
-import { client } from "./client";
-import { environmentName } from "./config";
+import { getDefaultClient, type ModalClient } from "./client";
 import { Function_ } from "./function";
 import { parseGpuConfig } from "./app";
 import type { Secret } from "./secret";
 import { mergeEnvAndSecrets } from "./secret";
 import { Retries, parseRetries } from "./retries";
 import type { Volume } from "./volume";
+
+/**
+ * Service for managing Cls.
+ */
+export class ClsService {
+  readonly #client: ModalClient;
+  constructor(client: ModalClient) {
+    this.#client = client;
+  }
+
+  /**
+   * Reference a Cls from a deployed App by its name.
+   */
+  async lookup(
+    appName: string,
+    name: string,
+    options: LookupOptions = {},
+  ): Promise<Cls> {
+    try {
+      const serviceFunctionName = `${name}.*`;
+      const serviceFunction = await this.#client.cpClient.functionGet({
+        appName,
+        objectTag: serviceFunctionName,
+        environmentName: this.#client.environmentName(options.environment),
+      });
+
+      const parameterInfo = serviceFunction.handleMetadata?.classParameterInfo;
+      const schema = parameterInfo?.schema ?? [];
+      if (
+        schema.length > 0 &&
+        parameterInfo?.format !==
+          ClassParameterInfo_ParameterSerializationFormat.PARAM_SERIALIZATION_FORMAT_PROTO
+      ) {
+        throw new Error(
+          `Unsupported parameter format: ${parameterInfo?.format}`,
+        );
+      }
+
+      let methodNames: string[];
+      if (serviceFunction.handleMetadata?.methodHandleMetadata) {
+        methodNames = Object.keys(
+          serviceFunction.handleMetadata.methodHandleMetadata,
+        );
+      } else {
+        // Legacy approach not supported
+        throw new Error(
+          "Cls requires Modal deployments using client v0.67 or later.",
+        );
+      }
+      return new Cls(
+        this.#client,
+        serviceFunction.functionId,
+        schema,
+        methodNames,
+        serviceFunction.handleMetadata?.inputPlaneUrl,
+        undefined,
+      );
+    } catch (err) {
+      if (err instanceof ClientError && err.code === Status.NOT_FOUND)
+        throw new NotFoundError(`Class '${appName}/${name}' not found`);
+      throw err;
+    }
+  }
+}
 
 export type ClsOptions = {
   cpu?: number;
@@ -53,6 +116,7 @@ type ServiceOptions = ClsOptions & {
 
 /** Represents a deployed Modal Cls. */
 export class Cls {
+  #client: ModalClient;
   #serviceFunctionId: string;
   #schema: ClassParameterSpec[];
   #methodNames: string[];
@@ -61,12 +125,14 @@ export class Cls {
 
   /** @ignore */
   constructor(
+    client: ModalClient,
     serviceFunctionId: string,
     schema: ClassParameterSpec[],
     methodNames: string[],
     inputPlaneUrl?: string,
     options?: ServiceOptions,
   ) {
+    this.#client = client;
     this.#serviceFunctionId = serviceFunctionId;
     this.#schema = schema;
     this.#methodNames = methodNames;
@@ -74,54 +140,15 @@ export class Cls {
     this.#options = options;
   }
 
+  /**
+   * @deprecated Use `client.cls.lookup()` instead.
+   */
   static async lookup(
     appName: string,
     name: string,
     options: LookupOptions = {},
   ): Promise<Cls> {
-    try {
-      const serviceFunctionName = `${name}.*`;
-      const serviceFunction = await client.functionGet({
-        appName,
-        objectTag: serviceFunctionName,
-        environmentName: environmentName(options.environment),
-      });
-
-      const parameterInfo = serviceFunction.handleMetadata?.classParameterInfo;
-      const schema = parameterInfo?.schema ?? [];
-      if (
-        schema.length > 0 &&
-        parameterInfo?.format !==
-          ClassParameterInfo_ParameterSerializationFormat.PARAM_SERIALIZATION_FORMAT_PROTO
-      ) {
-        throw new Error(
-          `Unsupported parameter format: ${parameterInfo?.format}`,
-        );
-      }
-
-      let methodNames: string[];
-      if (serviceFunction.handleMetadata?.methodHandleMetadata) {
-        methodNames = Object.keys(
-          serviceFunction.handleMetadata.methodHandleMetadata,
-        );
-      } else {
-        // Legacy approach not supported
-        throw new Error(
-          "Cls requires Modal deployments using client v0.67 or later.",
-        );
-      }
-      return new Cls(
-        serviceFunction.functionId,
-        schema,
-        methodNames,
-        serviceFunction.handleMetadata?.inputPlaneUrl,
-        undefined,
-      );
-    } catch (err) {
-      if (err instanceof ClientError && err.code === Status.NOT_FOUND)
-        throw new NotFoundError(`Class '${appName}/${name}' not found`);
-      throw err;
-    }
+    return getDefaultClient().cls.lookup(appName, name, options);
   }
 
   /** Create a new instance of the Cls with parameters and/or runtime options. */
@@ -134,7 +161,10 @@ export class Cls {
     }
     const methods = new Map<string, Function_>();
     for (const name of this.#methodNames) {
-      methods.set(name, new Function_(functionId, name, this.#inputPlaneUrl));
+      methods.set(
+        name,
+        new Function_(this.#client, functionId, name, this.#inputPlaneUrl),
+      );
     }
     return new ClsInstance(methods);
   }
@@ -143,6 +173,7 @@ export class Cls {
   withOptions(options: ClsOptions): Cls {
     const merged = mergeServiceOptions(this.#options, options);
     return new Cls(
+      this.#client,
       this.#serviceFunctionId,
       this.#schema,
       this.#methodNames,
@@ -158,6 +189,7 @@ export class Cls {
       targetConcurrentInputs: options.targetInputs,
     });
     return new Cls(
+      this.#client,
       this.#serviceFunctionId,
       this.#schema,
       this.#methodNames,
@@ -173,6 +205,7 @@ export class Cls {
       batchWaitMs: options.waitMs,
     });
     return new Cls(
+      this.#client,
       this.#serviceFunctionId,
       this.#schema,
       this.#methodNames,
@@ -185,7 +218,7 @@ export class Cls {
   async #bindParameters(params: Record<string, any>): Promise<string> {
     const serializedParams = encodeParameterSet(this.#schema, params);
     const functionOptions = await buildFunctionOptionsProto(this.#options);
-    const bindResp = await client.functionBindParams({
+    const bindResp = await this.#client.cpClient.functionBindParams({
       functionId: this.#serviceFunctionId,
       serializedParams,
       functionOptions,

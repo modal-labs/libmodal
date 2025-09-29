@@ -1,8 +1,10 @@
 // This example calls a Function defined in `libmodal_test_support.py`.
 
-import { Function_ } from "modal";
+import { ModalClient } from "modal";
 
-const echo = await Function_.lookup("libmodal-test-support", "echo_string");
+const mc = new ModalClient();
+
+const echo = await mc.functions.lookup("libmodal-test-support", "echo_string");
 
 // Spawn the Function with kwargs.
 const functionCall = await echo.spawn([], { s: "Hello world!" });

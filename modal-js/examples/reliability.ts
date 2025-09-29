@@ -1,22 +1,26 @@
 // Run a bunch of container exec commands, alerting of any output issues.
 
 import PQueue from "p-queue";
-import { App } from "modal";
+import { ModalClient } from "modal";
 
-const app = await App.lookup("libmodal-example", { createIfMissing: true });
-const image = await app.imageFromRegistry("python:3.13-slim");
+const mc = new ModalClient();
+
+const app = await mc.apps.lookup("libmodal-example", {
+  createIfMissing: true,
+});
+const image = mc.images.fromRegistry("python:3.13-slim");
 
 const sandboxes = [
-  await app.createSandbox(image),
-  await app.createSandbox(image),
-  await app.createSandbox(image),
-  await app.createSandbox(image),
-  await app.createSandbox(image),
-  await app.createSandbox(image),
-  await app.createSandbox(image),
-  await app.createSandbox(image),
-  await app.createSandbox(image),
-  await app.createSandbox(image),
+  await mc.sandboxes.create(app, image),
+  await mc.sandboxes.create(app, image),
+  await mc.sandboxes.create(app, image),
+  await mc.sandboxes.create(app, image),
+  await mc.sandboxes.create(app, image),
+  await mc.sandboxes.create(app, image),
+  await mc.sandboxes.create(app, image),
+  await mc.sandboxes.create(app, image),
+  await mc.sandboxes.create(app, image),
+  await mc.sandboxes.create(app, image),
 ];
 
 try {

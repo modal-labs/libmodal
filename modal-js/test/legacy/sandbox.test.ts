@@ -1,29 +1,30 @@
-import { tc } from "../test-support/test-client";
-import { parseGpuConfig } from "../src/app";
-import { buildSandboxCreateRequestProto } from "../src/sandbox";
+import { App, Volume, Sandbox, Secret, Image } from "modal";
+import { parseGpuConfig } from "../../src/app";
+import { buildSandboxCreateRequestProto } from "../../src/sandbox";
 import { expect, test, onTestFinished } from "vitest";
-import { buildContainerExecRequestProto } from "../src/sandbox";
-import { PTYInfo_PTYType } from "../proto/modal_proto/api";
+import { buildContainerExecRequestProto } from "../../src/sandbox";
+import { PTYInfo_PTYType } from "../../proto/modal_proto/api";
 
 test("CreateOneSandbox", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
   expect(app.appId).toBeTruthy();
   expect(app.name).toBe("libmodal-test");
 
-  const image = tc.images.fromRegistry("alpine:3.21");
+  const image = await app.imageFromRegistry("alpine:3.21");
+  expect(image.imageId).toBeTruthy();
 
-  const sb = await tc.sandboxes.create(app, image);
+  const sb = await app.createSandbox(image);
   expect(sb.sandboxId).toBeTruthy();
   await sb.terminate();
   expect(await sb.wait()).toBe(137);
 });
 
 test("PassCatToStdin", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
-  const image = tc.images.fromRegistry("alpine:3.21");
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
+  const image = await app.imageFromRegistry("alpine:3.21");
 
   // Spawn a sandbox running the "cat" command.
-  const sb = await tc.sandboxes.create(app, image, { command: ["cat"] });
+  const sb = await app.createSandbox(image, { command: ["cat"] });
 
   // Write to the sandbox's stdin and read from its stdout.
   await sb.stdin.writeText("this is input that should be mirrored by cat");
@@ -37,10 +38,10 @@ test("PassCatToStdin", async () => {
 });
 
 test("IgnoreLargeStdout", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
-  const image = tc.images.fromRegistry("python:3.13-alpine");
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
+  const image = await app.imageFromRegistry("python:3.13-alpine");
 
-  const sb = await tc.sandboxes.create(app, image);
+  const sb = await app.createSandbox(image);
   try {
     const p = await sb.exec(["python", "-c", `print("a" * 1_000_000)`], {
       stdout: "ignore",
@@ -54,10 +55,10 @@ test("IgnoreLargeStdout", async () => {
 });
 
 test("SandboxCreateOptions", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
-  const image = await tc.images.fromRegistry("alpine:3.21");
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
+  const image = await app.imageFromRegistry("alpine:3.21");
 
-  const sandbox = await tc.sandboxes.create(app, image, {
+  const sandbox = await app.createSandbox(image, {
     command: ["echo", "hello, params"],
     cloud: "aws",
     regions: ["us-east-1", "us-west-2"],
@@ -75,23 +76,23 @@ test("SandboxCreateOptions", async () => {
   expect(exitCode).toBe(0);
 
   await expect(
-    tc.sandboxes.create(app, image, {
+    app.createSandbox(image, {
       cloud: "invalid-cloud",
     }),
   ).rejects.toThrow("INVALID_ARGUMENT");
 
   await expect(
-    tc.sandboxes.create(app, image, {
+    app.createSandbox(image, {
       regions: ["invalid-region"],
     }),
   ).rejects.toThrow("INVALID_ARGUMENT");
 });
 
 test("SandboxExecOptions", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
-  const image = await tc.images.fromRegistry("alpine:3.21");
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
+  const image = await app.imageFromRegistry("alpine:3.21");
 
-  const sb = await tc.sandboxes.create(app, image);
+  const sb = await app.createSandbox(image);
   try {
     // Test with a custom working directory and timeout.
     const p = await sb.exec(["pwd"], {
@@ -154,14 +155,14 @@ test("parseGpuConfig", () => {
 });
 
 test("SandboxWithVolume", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
-  const image = await tc.images.fromRegistry("alpine:3.21");
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
+  const image = await app.imageFromRegistry("alpine:3.21");
 
-  const volume = await tc.volumes.fromName("libmodal-test-sandbox-volume", {
+  const volume = await Volume.fromName("libmodal-test-sandbox-volume", {
     createIfMissing: true,
   });
 
-  const sandbox = await tc.sandboxes.create(app, image, {
+  const sandbox = await app.createSandbox(image, {
     command: ["echo", "volume test"],
     volumes: { "/mnt/test": volume },
   });
@@ -174,17 +175,17 @@ test("SandboxWithVolume", async () => {
 });
 
 test("SandboxWithReadOnlyVolume", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
-  const image = await tc.images.fromRegistry("alpine:3.21");
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
+  const image = await Image.fromRegistry("alpine:3.21");
 
-  const volume = await tc.volumes.fromName("libmodal-test-sandbox-volume", {
+  const volume = await Volume.fromName("libmodal-test-sandbox-volume", {
     createIfMissing: true,
   });
 
   const readOnlyVolume = volume.readOnly();
   expect(readOnlyVolume.isReadOnly).toBe(true);
 
-  const sb = await tc.sandboxes.create(app, image, {
+  const sb = await app.createSandbox(image, {
     command: ["sh", "-c", "echo 'test' > /mnt/test/test.txt"],
     volumes: { "/mnt/test": readOnlyVolume },
   });
@@ -196,10 +197,10 @@ test("SandboxWithReadOnlyVolume", async () => {
 });
 
 test("SandboxWithTunnels", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
-  const image = await tc.images.fromRegistry("alpine:3.21");
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
+  const image = await app.imageFromRegistry("alpine:3.21");
 
-  const sandbox = await tc.sandboxes.create(app, image, {
+  const sandbox = await app.createSandbox(image, {
     command: ["cat"],
     encryptedPorts: [8443],
     unencryptedPorts: [8080],
@@ -234,15 +235,15 @@ test("SandboxWithTunnels", async () => {
 });
 
 test("CreateSandboxWithSecrets", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
-  const image = await tc.images.fromRegistry("alpine:3.21");
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
+  const image = await app.imageFromRegistry("alpine:3.21");
 
-  const secret = await tc.secrets.fromName("libmodal-test-secret", {
+  const secret = await Secret.fromName("libmodal-test-secret", {
     requiredKeys: ["c"],
   });
   expect(secret).toBeDefined();
 
-  const sandbox = await tc.sandboxes.create(app, image, {
+  const sandbox = await app.createSandbox(image, {
     command: ["printenv", "c"],
     secrets: [secret],
   });
@@ -253,10 +254,10 @@ test("CreateSandboxWithSecrets", async () => {
 });
 
 test("CreateSandboxWithNetworkAccessParams", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
-  const image = await tc.images.fromRegistry("alpine:3.21");
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
+  const image = await app.imageFromRegistry("alpine:3.21");
 
-  const sb = await tc.sandboxes.create(app, image, {
+  const sb = await app.createSandbox(image, {
     command: ["echo", "hello, network access"],
     blockNetwork: false,
     cidrAllowlist: ["10.0.0.0/8", "192.168.0.0/16"],
@@ -273,14 +274,14 @@ test("CreateSandboxWithNetworkAccessParams", async () => {
   expect(exitCode).toBe(0);
 
   await expect(
-    tc.sandboxes.create(app, image, {
+    app.createSandbox(image, {
       blockNetwork: false,
       cidrAllowlist: ["not-an-ip/8"],
     }),
   ).rejects.toThrow("Invalid CIDR: not-an-ip/8");
 
   await expect(
-    tc.sandboxes.create(app, image, {
+    app.createSandbox(image, {
       blockNetwork: true,
       cidrAllowlist: ["10.0.0.0/8"],
     }),
@@ -290,10 +291,10 @@ test("CreateSandboxWithNetworkAccessParams", async () => {
 });
 
 test("SandboxPollAndReturnCode", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
-  const image = await tc.images.fromRegistry("alpine:3.21");
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
+  const image = await app.imageFromRegistry("alpine:3.21");
 
-  const sandbox = await tc.sandboxes.create(app, image, { command: ["cat"] });
+  const sandbox = await app.createSandbox(image, { command: ["cat"] });
 
   expect(await sandbox.poll()).toBeNull();
 
@@ -306,10 +307,10 @@ test("SandboxPollAndReturnCode", async () => {
 });
 
 test("SandboxPollAfterFailure", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
-  const image = await tc.images.fromRegistry("alpine:3.21");
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
+  const image = await app.imageFromRegistry("alpine:3.21");
 
-  const sandbox = await tc.sandboxes.create(app, image, {
+  const sandbox = await app.createSandbox(image, {
     command: ["sh", "-c", "exit 42"],
   });
 
@@ -318,20 +319,20 @@ test("SandboxPollAfterFailure", async () => {
 });
 
 test("SandboxExecSecret", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
-  const image = await tc.images.fromRegistry("alpine:3.21");
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
+  const image = await app.imageFromRegistry("alpine:3.21");
 
-  const sb = await tc.sandboxes.create(app, image);
+  const sb = await app.createSandbox(image);
   expect(sb.sandboxId).toBeTruthy();
 
   onTestFinished(async () => {
     await sb.terminate();
   });
 
-  const secret = await tc.secrets.fromName("libmodal-test-secret", {
+  const secret = await Secret.fromName("libmodal-test-secret", {
     requiredKeys: ["c"],
   });
-  const secret2 = await tc.secrets.fromObject({ d: "3" });
+  const secret2 = await Secret.fromObject({ d: "3" });
   const printSecret = await sb.exec(["printenv", "c", "d"], {
     stdout: "pipe",
     secrets: [secret, secret2],
@@ -341,22 +342,22 @@ test("SandboxExecSecret", async () => {
 });
 
 test("SandboxFromId", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
-  const image = await tc.images.fromRegistry("alpine:3.21");
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
+  const image = await app.imageFromRegistry("alpine:3.21");
 
-  const sb = await tc.sandboxes.create(app, image);
+  const sb = await app.createSandbox(image);
   onTestFinished(async () => {
     await sb.terminate();
   });
-  const sbFromId = await tc.sandboxes.fromId(sb.sandboxId);
+  const sbFromId = await Sandbox.fromId(sb.sandboxId);
   expect(sbFromId.sandboxId).toBe(sb.sandboxId);
 });
 
 test("SandboxWithWorkdir", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
-  const image = await tc.images.fromRegistry("alpine:3.21");
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
+  const image = await app.imageFromRegistry("alpine:3.21");
 
-  const sb = await tc.sandboxes.create(app, image, {
+  const sb = await app.createSandbox(image, {
     command: ["pwd"],
     workdir: "/tmp",
   });
@@ -369,21 +370,21 @@ test("SandboxWithWorkdir", async () => {
 });
 
 test("SandboxWithWorkdirValidation", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
-  const image = await tc.images.fromRegistry("alpine:3.21");
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
+  const image = await app.imageFromRegistry("alpine:3.21");
 
   await expect(
-    tc.sandboxes.create(app, image, {
+    app.createSandbox(image, {
       workdir: "relative/path",
     }),
   ).rejects.toThrow("workdir must be an absolute path, got: relative/path");
 });
 
 test("SandboxSetTagsAndList", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
-  const image = await tc.images.fromRegistry("alpine:3.21");
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
+  const image = await app.imageFromRegistry("alpine:3.21");
 
-  const sb = await tc.sandboxes.create(app, image);
+  const sb = await app.createSandbox(image);
   onTestFinished(async () => {
     await sb.terminate();
   });
@@ -391,7 +392,7 @@ test("SandboxSetTagsAndList", async () => {
   const unique = `${Math.random()}`;
 
   const foundBefore: string[] = [];
-  for await (const s of tc.sandboxes.list({ tags: { "test-key": unique } })) {
+  for await (const s of Sandbox.list({ tags: { "test-key": unique } })) {
     foundBefore.push(s.sandboxId);
   }
   expect(foundBefore.length).toBe(0);
@@ -399,17 +400,17 @@ test("SandboxSetTagsAndList", async () => {
   await sb.setTags({ "test-key": unique });
 
   const foundAfter: string[] = [];
-  for await (const s of tc.sandboxes.list({ tags: { "test-key": unique } })) {
+  for await (const s of Sandbox.list({ tags: { "test-key": unique } })) {
     foundAfter.push(s.sandboxId);
   }
   expect(foundAfter).toEqual([sb.sandboxId]);
 });
 
 test("SandboxSetMultipleTagsAndList", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
-  const image = await tc.images.fromRegistry("alpine:3.21");
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
+  const image = await app.imageFromRegistry("alpine:3.21");
 
-  const sb = await tc.sandboxes.create(app, image);
+  const sb = await app.createSandbox(image);
   onTestFinished(async () => {
     await sb.terminate();
   });
@@ -429,13 +430,13 @@ test("SandboxSetMultipleTagsAndList", async () => {
   });
 
   let ids: string[] = [];
-  for await (const s of tc.sandboxes.list({ tags: { "key-a": tagA } })) {
+  for await (const s of Sandbox.list({ tags: { "key-a": tagA } })) {
     ids.push(s.sandboxId);
   }
   expect(ids).toEqual([sb.sandboxId]);
 
   ids = [];
-  for await (const s of tc.sandboxes.list({
+  for await (const s of Sandbox.list({
     tags: { "key-a": tagA, "key-b": tagB },
   })) {
     ids.push(s.sandboxId);
@@ -443,7 +444,7 @@ test("SandboxSetMultipleTagsAndList", async () => {
   expect(ids).toEqual([sb.sandboxId]);
 
   ids = [];
-  for await (const s of tc.sandboxes.list({
+  for await (const s of Sandbox.list({
     tags: { "key-a": tagA, "key-b": tagB, "key-d": "not-set" },
   })) {
     ids.push(s.sandboxId);
@@ -452,16 +453,16 @@ test("SandboxSetMultipleTagsAndList", async () => {
 });
 
 test("SandboxListByAppId", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
-  const image = await tc.images.fromRegistry("alpine:3.21");
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
+  const image = await app.imageFromRegistry("alpine:3.21");
 
-  const sb = await tc.sandboxes.create(app, image);
+  const sb = await app.createSandbox(image);
   onTestFinished(async () => {
     await sb.terminate();
   });
 
   let count = 0;
-  for await (const s of tc.sandboxes.list({ appId: app.appId })) {
+  for await (const s of Sandbox.list({ appId: app.appId })) {
     expect(s.sandboxId).toMatch(/^sb-/);
     count++;
     if (count > 0) break;
@@ -470,12 +471,12 @@ test("SandboxListByAppId", async () => {
 });
 
 test("NamedSandbox", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
-  const image = await tc.images.fromRegistry("alpine:3.21");
+  const app = await App.lookup("libmodal-test", { createIfMissing: true });
+  const image = await app.imageFromRegistry("alpine:3.21");
 
   const sandboxName = `test-sandbox-${Math.random().toString().substring(2, 10)}`;
 
-  const sb = await tc.sandboxes.create(app, image, {
+  const sb = await app.createSandbox(image, {
     name: sandboxName,
     command: ["sleep", "60"],
   });
@@ -484,13 +485,13 @@ test("NamedSandbox", async () => {
     await sb.terminate();
   });
 
-  const sb1FromName = await tc.sandboxes.fromName("libmodal-test", sandboxName);
+  const sb1FromName = await Sandbox.fromName("libmodal-test", sandboxName);
   expect(sb1FromName.sandboxId).toBe(sb.sandboxId);
-  const sb2FromName = await tc.sandboxes.fromName("libmodal-test", sandboxName);
+  const sb2FromName = await Sandbox.fromName("libmodal-test", sandboxName);
   expect(sb2FromName.sandboxId).toBe(sb1FromName.sandboxId);
 
   await expect(
-    tc.sandboxes.create(app, image, {
+    app.createSandbox(image, {
       name: sandboxName,
       command: ["sleep", "60"],
     }),
@@ -499,7 +500,7 @@ test("NamedSandbox", async () => {
 
 test("NamedSandboxNotFound", async () => {
   await expect(
-    tc.sandboxes.fromName("libmodal-test", "non-existent-sandbox"),
+    Sandbox.fromName("libmodal-test", "non-existent-sandbox"),
   ).rejects.toThrow("not found");
 });
 
@@ -526,7 +527,7 @@ test("buildContainerExecRequestProto with PTY", async () => {
 });
 
 test("buildSandboxCreateRequestProto merges env and secrets", async () => {
-  const secret = await tc.secrets.fromObject({ A: "1" });
+  const secret = await Secret.fromObject({ A: "1" });
 
   const req = await buildSandboxCreateRequestProto("ap", "im", {
     env: { B: "2" },
@@ -576,7 +577,7 @@ test("buildSandboxCreateRequestProto with PTY", async () => {
 });
 
 test("buildContainerExecRequestProto merges env and secrets", async () => {
-  const secret = await tc.secrets.fromObject({ A: "1" });
+  const secret = await Secret.fromObject({ A: "1" });
 
   const req = await buildContainerExecRequestProto("ta", ["echo", "hello"], {
     env: { B: "2" },

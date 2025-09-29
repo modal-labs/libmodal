@@ -5,8 +5,7 @@ import {
   QueueNextItemsRequest,
 } from "../proto/modal_proto/api";
 import type { DeleteOptions, EphemeralOptions, LookupOptions } from "./app";
-import { client } from "./client";
-import { environmentName } from "./config";
+import { getDefaultClient, type ModalClient } from "./client";
 import { InvalidError, QueueEmptyError, QueueFullError } from "./errors";
 import { dumps, loads } from "./pickle";
 import { ClientError, Status } from "nice-grpc";
@@ -14,6 +13,55 @@ import { EphemeralHeartbeatManager } from "./ephemeral";
 
 const queueInitialPutBackoff = 100; // 100 milliseconds
 const queueDefaultPartitionTtl = 24 * 3600 * 1000; // 24 hours
+
+/**
+ * Service for managing Queues.
+ */
+export class QueueService {
+  readonly #client: ModalClient;
+  constructor(client: ModalClient) {
+    this.#client = client;
+  }
+
+  /**
+   * Create a nameless, temporary Queue.
+   * You will need to call `closeEphemeral()` to delete the Queue.
+   */
+  async ephemeral(options: EphemeralOptions = {}): Promise<Queue> {
+    const resp = await this.#client.cpClient.queueGetOrCreate({
+      objectCreationType: ObjectCreationType.OBJECT_CREATION_TYPE_EPHEMERAL,
+      environmentName: this.#client.environmentName(options.environment),
+    });
+
+    const ephemeralHbManager = new EphemeralHeartbeatManager(() =>
+      this.#client.cpClient.queueHeartbeat({ queueId: resp.queueId }),
+    );
+
+    return new Queue(this.#client, resp.queueId, undefined, ephemeralHbManager);
+  }
+
+  /**
+   * Lookup a Queue by name.
+   */
+  async lookup(name: string, options: LookupOptions = {}): Promise<Queue> {
+    const resp = await this.#client.cpClient.queueGetOrCreate({
+      deploymentName: name,
+      objectCreationType: options.createIfMissing
+        ? ObjectCreationType.OBJECT_CREATION_TYPE_CREATE_IF_MISSING
+        : undefined,
+      environmentName: this.#client.environmentName(options.environment),
+    });
+    return new Queue(this.#client, resp.queueId, name);
+  }
+
+  /**
+   * Delete a Queue by name.
+   */
+  async delete(name: string, options: DeleteOptions = {}): Promise<void> {
+    const queue = await this.lookup(name, options);
+    await this.#client.cpClient.queueDelete({ queueId: queue.queueId });
+  }
+}
 
 /** Options to configure a `Queue.clear()` operation. */
 export type QueueClearOptions = {
@@ -67,16 +115,19 @@ export type QueueIterateOptions = {
  * Distributed, FIFO queue for data flow in Modal Apps.
  */
 export class Queue {
+  readonly #client: ModalClient;
   readonly queueId: string;
   readonly name?: string;
   readonly #ephemeralHbManager?: EphemeralHeartbeatManager;
 
   /** @ignore */
   constructor(
+    client: ModalClient,
     queueId: string,
     name?: string,
     ephemeralHbManager?: EphemeralHeartbeatManager,
   ) {
+    this.#client = client;
     this.queueId = queueId;
     this.name = name;
     this.#ephemeralHbManager = ephemeralHbManager;
@@ -96,23 +147,13 @@ export class Queue {
   }
 
   /**
-   * Create a nameless, temporary Queue.
-   * You will need to call `closeEphemeral()` to delete the Queue.
+   * @deprecated Use `client.queues.ephemeral()` instead.
    */
   static async ephemeral(options: EphemeralOptions = {}): Promise<Queue> {
-    const resp = await client.queueGetOrCreate({
-      objectCreationType: ObjectCreationType.OBJECT_CREATION_TYPE_EPHEMERAL,
-      environmentName: environmentName(options.environment),
-    });
-
-    const ephemeralHbManager = new EphemeralHeartbeatManager(() =>
-      client.queueHeartbeat({ queueId: resp.queueId }),
-    );
-
-    return new Queue(resp.queueId, undefined, ephemeralHbManager);
+    return getDefaultClient().queues.ephemeral(options);
   }
 
-  /** Delete the ephemeral Queue. Only usable with `Queue.ephemeral()`. */
+  /** Delete the ephemeral Queue. Only usable with ephemeral Queues. */
   closeEphemeral(): void {
     if (this.#ephemeralHbManager) {
       this.#ephemeralHbManager.stop();
@@ -122,29 +163,23 @@ export class Queue {
   }
 
   /**
-   * Lookup a Queue by name.
+   * @deprecated Use `client.queues.lookup()` instead.
    */
   static async lookup(
     name: string,
     options: LookupOptions = {},
   ): Promise<Queue> {
-    const resp = await client.queueGetOrCreate({
-      deploymentName: name,
-      objectCreationType: options.createIfMissing
-        ? ObjectCreationType.OBJECT_CREATION_TYPE_CREATE_IF_MISSING
-        : undefined,
-      environmentName: environmentName(options.environment),
-    });
-    return new Queue(resp.queueId, name);
+    return getDefaultClient().queues.lookup(name, options);
   }
 
-  /** Delete a Queue by name. */
+  /**
+   * @deprecated Use `client.queues.delete()` instead.
+   */
   static async delete(
     name: string,
     options: DeleteOptions = {},
   ): Promise<void> {
-    const queue = await Queue.lookup(name, options);
-    await client.queueDelete({ queueId: queue.queueId });
+    return getDefaultClient().queues.delete(name, options);
   }
 
   /**
@@ -156,7 +191,7 @@ export class Queue {
         "Partition must be null when requesting to clear all.",
       );
     }
-    await client.queueClear({
+    await this.#client.cpClient.queueClear({
       queueId: this.queueId,
       partitionKey: Queue.#validatePartitionKey(options.partition),
       allPartitions: options.all,
@@ -173,7 +208,7 @@ export class Queue {
     }
 
     while (true) {
-      const response = await client.queueGet({
+      const response = await this.#client.cpClient.queueGet({
         queueId: this.queueId,
         partitionKey,
         timeout: pollTimeout / 1000,
@@ -229,7 +264,7 @@ export class Queue {
     const deadline = timeout ? Date.now() + timeout : undefined;
     while (true) {
       try {
-        await client.queuePut({
+        await this.#client.cpClient.queuePut({
           queueId: this.queueId,
           values: valuesEncoded,
           partitionKey,
@@ -294,7 +329,7 @@ export class Queue {
         "Partition must be null when requesting total length.",
       );
     }
-    const resp = await client.queueLen({
+    const resp = await this.#client.cpClient.queueLen({
       queueId: this.queueId,
       partitionKey: Queue.#validatePartitionKey(options.partition),
       total: options.total,
@@ -325,7 +360,7 @@ export class Queue {
         lastEntryId: lastEntryId || "",
       };
 
-      const response = await client.queueNextItems(request);
+      const response = await this.#client.cpClient.queueNextItems(request);
       if (response.items && response.items.length > 0) {
         for (const item of response.items) {
           yield loads(item.value);

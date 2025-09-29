@@ -1,9 +1,13 @@
-import { App, Secret, Image } from "modal";
+import { ModalClient } from "modal";
 
-const app = await App.lookup("libmodal-example", { createIfMissing: true });
-const image = await Image.fromRegistry("python:3.13-slim");
+const mc = new ModalClient();
 
-const sb = await app.createSandbox(image);
+const app = await mc.apps.lookup("libmodal-example", {
+  createIfMissing: true,
+});
+const image = mc.images.fromRegistry("python:3.13-slim");
+
+const sb = await mc.sandboxes.create(app, image);
 console.log("Started Sandbox:", sb.sandboxId);
 
 try {
@@ -36,7 +40,7 @@ for i in range(50000):
   );
   console.log("Return code:", await p.wait());
 
-  const secret = await Secret.fromName("libmodal-test-secret", {
+  const secret = await mc.secrets.fromName("libmodal-test-secret", {
     requiredKeys: ["c"],
   });
   const printSecret = await sb.exec(["printenv", "c"], {

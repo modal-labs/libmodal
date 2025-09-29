@@ -1,14 +1,15 @@
 export {
   App,
+  AppService,
   type DeleteOptions,
   type EphemeralOptions,
   type LookupOptions,
-  type SandboxCreateOptions,
 } from "./app";
 export { type ClientOptions, initializeClient } from "./client";
 export {
   Cls,
   ClsInstance,
+  ClsService,
   type ClsOptions,
   type ClsConcurrencyOptions,
   type ClsBatchingOptions,
@@ -26,16 +27,19 @@ export {
 } from "./errors";
 export {
   Function_,
+  FunctionService,
   type FunctionStats,
   type UpdateAutoscalerOptions,
 } from "./function";
 export {
   FunctionCall,
+  FunctionCallService,
   type FunctionCallGetOptions,
   type FunctionCallCancelOptions,
 } from "./function_call";
 export {
   Queue,
+  QueueService,
   type QueueClearOptions,
   type QueueGetOptions,
   type QueueIterateOptions,
@@ -44,6 +48,7 @@ export {
 } from "./queue";
 export {
   Image,
+  ImageService,
   type ImageDeleteOptions,
   type ImageDockerfileCommandsOptions,
 } from "./image";
@@ -54,11 +59,14 @@ export type {
   StreamMode,
   Tunnel,
   SandboxListOptions,
+  SandboxCreateOptions,
 } from "./sandbox";
-export { ContainerProcess, Sandbox } from "./sandbox";
+export { ContainerProcess, Sandbox, SandboxService } from "./sandbox";
 export type { ModalReadStream, ModalWriteStream } from "./streams";
-export { Secret, type SecretFromNameOptions } from "./secret";
+export { Secret, SecretService, type SecretFromNameOptions } from "./secret";
 export { SandboxFile, type SandboxFileMode } from "./sandbox_filesystem";
-export { Volume, type VolumeFromNameOptions } from "./volume";
-export { Proxy, type ProxyFromNameOptions } from "./proxy";
+export { Volume, VolumeService, type VolumeFromNameOptions } from "./volume";
+export { Proxy, ProxyService, type ProxyFromNameOptions } from "./proxy";
 export { CloudBucketMount } from "./cloud_bucket_mount";
+export { ModalClient, type ModalClientParams } from "./client";
+export { type Profile } from "./config";

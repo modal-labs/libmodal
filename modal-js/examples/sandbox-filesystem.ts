@@ -1,4 +1,4 @@
-import { App, Image } from "modal";
+import { ModalClient } from "modal";
 
 /**
  * Example demonstrating filesystem operations in a Modal Sandbox.
@@ -10,10 +10,14 @@ import { App, Image } from "modal";
  * - Close file handles
  */
 
-const app = await App.lookup("libmodal-example", { createIfMissing: true });
-const image = await Image.fromRegistry("alpine:3.21");
+const mc = new ModalClient();
 
-const sb = await app.createSandbox(image);
+const app = await mc.apps.lookup("libmodal-example", {
+  createIfMissing: true,
+});
+const image = mc.images.fromRegistry("alpine:3.21");
+
+const sb = await mc.sandboxes.create(app, image);
 console.log("Started Sandbox:", sb.sandboxId);
 
 try {
