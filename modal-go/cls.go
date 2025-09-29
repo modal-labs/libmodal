@@ -143,10 +143,11 @@ func (c *Cls) Instance(ctx context.Context, parameters map[string]any) (*ClsInst
 	if len(c.schema) == 0 && !hasOptions(c.serviceOptions) {
 		functionID = c.serviceFunctionID
 	} else {
-		if c.serviceOptions == nil {
-			c.serviceOptions = &serviceOptions{}
+		opts := c.serviceOptions
+		if opts == nil {
+			opts = &serviceOptions{}
 		}
-		boundFunctionID, err := c.bindParameters(ctx, parameters)
+		boundFunctionID, err := c.bindParameters(ctx, parameters, opts)
 		if err != nil {
 			return nil, err
 		}
@@ -254,13 +255,13 @@ func (c *Cls) WithBatching(params *ClsWithBatchingParams) *Cls {
 }
 
 // bindParameters processes the parameters and binds them to the class function.
-func (c *Cls) bindParameters(ctx context.Context, parameters map[string]any) (string, error) {
-	mergedSecrets, err := mergeEnvIntoSecrets(ctx, c.client, c.serviceOptions.env, c.serviceOptions.secrets)
+func (c *Cls) bindParameters(ctx context.Context, parameters map[string]any, opts *serviceOptions) (string, error) {
+	mergedSecrets, err := mergeEnvIntoSecrets(ctx, c.client, opts.env, opts.secrets)
 	if err != nil {
 		return "", err
 	}
 
-	mergedOptions := mergeServiceOptions(c.serviceOptions, &serviceOptions{
+	mergedOptions := mergeServiceOptions(opts, &serviceOptions{
 		secrets: &mergedSecrets,
 		env:     nil,
 	})
