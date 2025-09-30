@@ -103,9 +103,24 @@ func pickleDeserialize(buffer []byte) (any, error) {
 	return result, nil
 }
 
+// cborEncoder is configured with time tags enabled so that time.Time values
+// are represented as datetime objects in Python. Uses TimeRFC3339Nano to preserve
+// nanosecond precision (Python datetime has microsecond precision).
+//
+// Both options are required:
+//   - Time: TimeRFC3339Nano - specifies the format (RFC3339 with nanosecond precision)
+//   - TimeTag: EncTagRequired - wraps the time in CBOR tag 0, signaling it's a datetime
+//     Without the tag, Python would receive it as a plain string, not a datetime object.
+var cborEncoder, _ = cbor.EncOptions{
+	Time:    cbor.TimeRFC3339Nano,
+	TimeTag: cbor.EncTagRequired,
+}.EncMode()
+
 // cborSerialize serializes Go data types to the CBOR format.
+// Uses CBOR time tags so that time.Time values are represented as
+// datetime objects in Python.
 func cborSerialize(v any) ([]byte, error) {
-	data, err := cbor.Marshal(v)
+	data, err := cborEncoder.Marshal(v)
 	if err != nil {
 		return nil, fmt.Errorf("error encoding CBOR data: %w", err)
 	}

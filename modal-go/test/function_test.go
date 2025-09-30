@@ -3,7 +3,9 @@ package test
 import (
 	"context"
 	"reflect"
+	"strings"
 	"testing"
+	"time"
 
 	modal "github.com/modal-labs/libmodal/modal-go"
 	pb "github.com/modal-labs/libmodal/modal-go/proto/modal_proto"
@@ -55,6 +57,90 @@ func TestFunctionCallGoMap(t *testing.T) {
 	g.Expect(ok).Should(gomega.BeTrue(), "first element should be a string")
 	g.Expect(reprResult).Should(gomega.Equal(`{'s': 'hello'}`), "first element should equal the Python repr {'s': 'hello'}")
 
+}
+
+func TestFunctionCallDateTimeRoundtrip(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	function, err := modal.FunctionLookup(context.Background(), "libmodal-test-support", "identity_with_repr", nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	// Test: Send a Go time.Time to Python and see how it's represented
+	testTime := time.Date(2024, 1, 15, 10, 30, 45, 123456789, time.UTC)
+	result, err := function.Remote([]any{testTime}, nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	// Parse the result - identity_with_repr returns [input, repr(input)]
+	resultSlice, ok := result.([]any)
+	g.Expect(ok).Should(gomega.BeTrue(), "result should be a []any")
+	g.Expect(len(resultSlice)).Should(gomega.Equal(2), "result should have two elements")
+
+	// Check what we got back (should be the original time, potentially with precision loss)
+	identityResult := resultSlice[0]
+	t.Logf("Go sent: %s", testTime.String())
+	t.Logf("Go received back: %+v (type: %T)", identityResult, identityResult)
+
+	// Check the Python representation
+	reprResult, ok := resultSlice[1].(string)
+	g.Expect(ok).Should(gomega.BeTrue(), "repr result should be a string")
+	t.Logf("Python repr: %s", reprResult)
+
+	// Analyze what Python received
+	if strings.Contains(reprResult, "datetime.datetime") {
+		// Success! Python received it as a datetime
+		g.Expect(reprResult).Should(gomega.ContainSubstring("datetime.datetime"))
+		g.Expect(reprResult).Should(gomega.ContainSubstring("2024"))
+		t.Logf("✅ SUCCESS: Go time.Time was received as Python datetime.datetime")
+
+		// Verify the roundtrip - we should get back a time.Time
+		receivedTime, ok := identityResult.(time.Time)
+		g.Expect(ok).Should(gomega.BeTrue(), "identity result should be a time.Time after roundtrip")
+
+		// Check precision
+		timeDiff := testTime.Sub(receivedTime)
+		if timeDiff < 0 {
+			timeDiff = -timeDiff
+		}
+		t.Logf("Original time: %v", testTime)
+		t.Logf("Received time: %v", receivedTime)
+		t.Logf("Time difference after roundtrip: %v (%v nanoseconds)", timeDiff, timeDiff.Nanoseconds())
+
+		// Python's datetime has microsecond precision (not nanosecond)
+		// CBOR encodes time.Time with TimeRFC3339Nano (nanosecond precision)
+		// Python decodes to datetime (rounds to nearest microsecond)
+		// When Python re-encodes, we get back microsecond precision
+		// So we should expect to lose sub-microsecond precision (< 1000 ns)
+		//
+		// Our test uses 123456789 nanoseconds = 123.456789 milliseconds
+		// Python will round to 123456 microseconds = 123.456 milliseconds
+		// So we should lose exactly 789 nanoseconds
+		g.Expect(timeDiff).Should(gomega.BeNumerically("<", time.Microsecond),
+			"time difference should be less than 1 microsecond (sub-microsecond precision loss), got %v", timeDiff)
+
+		// Verify the times are equal when truncated to microseconds
+		g.Expect(receivedTime.Truncate(time.Microsecond)).Should(gomega.Equal(testTime.Truncate(time.Microsecond)),
+			"times should be equal when truncated to microseconds")
+
+	} else {
+		// Check if it's a Unix timestamp (integer)
+		if unixTime, ok := identityResult.(uint64); ok {
+			expectedUnix := uint64(testTime.Unix())
+			g.Expect(unixTime).Should(gomega.Equal(expectedUnix), "Unix timestamp should match")
+			t.Logf("⚠️  Python received Go time.Time as Unix timestamp: %s", reprResult)
+			t.Logf("This means CBOR time tags are NOT being used by the Go client")
+			t.Logf("✅ Unix timestamp roundtrip successful: %d", unixTime)
+		} else if unixTime, ok := identityResult.(int64); ok {
+			expectedUnix := testTime.Unix()
+			g.Expect(unixTime).Should(gomega.Equal(expectedUnix), "Unix timestamp should match")
+			t.Logf("⚠️  Python received Go time.Time as Unix timestamp: %s", reprResult)
+			t.Logf("This means CBOR time tags are NOT being used by the Go client")
+			t.Logf("✅ Unix timestamp roundtrip successful: %d", unixTime)
+		} else {
+			t.Logf("❓ Unexpected Python representation: %s", reprResult)
+			t.Logf("Identity result: %+v (type: %T)", identityResult, identityResult)
+		}
+	}
 }
 
 func TestFunctionCallLargeInput(t *testing.T) {
