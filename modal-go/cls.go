@@ -13,7 +13,11 @@ import (
 )
 
 // ClsService provides Cls related operations.
-type ClsService struct{ client *Client }
+type ClsService interface {
+	FromName(ctx context.Context, appName string, name string, params *ClsFromNameParams) (*Cls, error)
+}
+
+type clsServiceImpl struct{ client *Client }
 
 // ClsWithOptionsParams represents runtime options for a Modal Cls.
 type ClsWithOptionsParams struct {
@@ -79,7 +83,7 @@ type ClsFromNameParams struct {
 }
 
 // FromName references a Cls from a deployed App by its name.
-func (s *ClsService) FromName(ctx context.Context, appName string, name string, params *ClsFromNameParams) (*Cls, error) {
+func (s *clsServiceImpl) FromName(ctx context.Context, appName string, name string, params *ClsFromNameParams) (*Cls, error) {
 	if params == nil {
 		params = &ClsFromNameParams{}
 	}

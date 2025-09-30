@@ -26,17 +26,17 @@ import (
 // Client exposes services for interacting with Modal resources.
 // You should not instantiate it directly, and instead use [NewClient]/[NewClientWithOptions].
 type Client struct {
-	Apps              *AppService
-	CloudBucketMounts *CloudBucketMountService
-	Cls               *ClsService
-	Functions         *FunctionService
-	FunctionCalls     *FunctionCallService
-	Images            *ImageService
-	Proxies           *ProxyService
-	Queues            *QueueService
-	Sandboxes         *SandboxService
-	Secrets           *SecretService
-	Volumes           *VolumeService
+	Apps              AppService
+	CloudBucketMounts CloudBucketMountService
+	Cls               ClsService
+	Functions         FunctionService
+	FunctionCalls     FunctionCallService
+	Images            ImageService
+	Proxies           ProxyService
+	Queues            QueueService
+	Sandboxes         SandboxService
+	Secrets           SecretService
+	Volumes           VolumeService
 
 	config    config
 	profile   Profile
@@ -105,17 +105,17 @@ func NewClientWithOptions(params *ClientParams) (*Client, error) {
 		return nil, fmt.Errorf("failed to create control plane client: %w", err)
 	}
 
-	c.Apps = &AppService{client: c}
-	c.CloudBucketMounts = &CloudBucketMountService{client: c}
-	c.Cls = &ClsService{client: c}
-	c.Functions = &FunctionService{client: c}
-	c.FunctionCalls = &FunctionCallService{client: c}
-	c.Images = &ImageService{client: c}
-	c.Proxies = &ProxyService{client: c}
-	c.Queues = &QueueService{client: c}
-	c.Sandboxes = &SandboxService{client: c}
-	c.Secrets = &SecretService{client: c}
-	c.Volumes = &VolumeService{client: c}
+	c.Apps = &appServiceImpl{client: c}
+	c.CloudBucketMounts = &cloudBucketMountServiceImpl{client: c}
+	c.Cls = &clsServiceImpl{client: c}
+	c.Functions = &functionServiceImpl{client: c}
+	c.FunctionCalls = &functionCallServiceImpl{client: c}
+	c.Images = &imageServiceImpl{client: c}
+	c.Proxies = &proxyServiceImpl{client: c}
+	c.Queues = &queueServiceImpl{client: c}
+	c.Sandboxes = &sandboxServiceImpl{client: c}
+	c.Secrets = &secretServiceImpl{client: c}
+	c.Volumes = &volumeServiceImpl{client: c}
 
 	return c, nil
 }

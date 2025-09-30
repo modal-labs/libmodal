@@ -7,7 +7,13 @@ import (
 )
 
 // SecretService provides Secret related operations.
-type SecretService struct{ client *Client }
+type SecretService interface {
+	FromName(ctx context.Context, name string, params *SecretFromNameParams) (*Secret, error)
+	FromMap(ctx context.Context, keyValuePairs map[string]string, params *SecretFromMapParams) (*Secret, error)
+}
+
+// secretServiceImpl is the real implementation of SecretService.
+type secretServiceImpl struct{ client *Client }
 
 // Secret represents a Modal Secret.
 type Secret struct {
@@ -22,7 +28,7 @@ type SecretFromNameParams struct {
 }
 
 // FromName references a Secret by its name.
-func (s *SecretService) FromName(ctx context.Context, name string, params *SecretFromNameParams) (*Secret, error) {
+func (s *secretServiceImpl) FromName(ctx context.Context, name string, params *SecretFromNameParams) (*Secret, error) {
 	if params == nil {
 		params = &SecretFromNameParams{}
 	}
@@ -46,7 +52,7 @@ type SecretFromMapParams struct {
 }
 
 // FromMap creates a Secret from a map of key-value pairs.
-func (s *SecretService) FromMap(ctx context.Context, keyValuePairs map[string]string, params *SecretFromMapParams) (*Secret, error) {
+func (s *secretServiceImpl) FromMap(ctx context.Context, keyValuePairs map[string]string, params *SecretFromMapParams) (*Secret, error) {
 	if params == nil {
 		params = &SecretFromMapParams{}
 	}

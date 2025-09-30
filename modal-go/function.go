@@ -20,7 +20,11 @@ import (
 )
 
 // FunctionService provides Function related operations.
-type FunctionService struct{ client *Client }
+type FunctionService interface {
+	FromName(ctx context.Context, appName string, name string, params *FunctionFromNameParams) (*Function, error)
+}
+
+type functionServiceImpl struct{ client *Client }
 
 // From: modal/_utils/blob_utils.py
 const maxObjectSizeBytes int = 2 * 1024 * 1024 // 2 MiB
@@ -66,7 +70,7 @@ type FunctionFromNameParams struct {
 }
 
 // FromName references a Function from a deployed App by its name.
-func (s *FunctionService) FromName(ctx context.Context, appName string, name string, params *FunctionFromNameParams) (*Function, error) {
+func (s *functionServiceImpl) FromName(ctx context.Context, appName string, name string, params *FunctionFromNameParams) (*Function, error) {
 	if params == nil {
 		params = &FunctionFromNameParams{}
 	}

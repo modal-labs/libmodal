@@ -8,7 +8,7 @@ import (
 )
 
 func newTestMount(bucketName string, params *CloudBucketMountParams) (*CloudBucketMount, error) {
-	return (&CloudBucketMountService{}).New(bucketName, params)
+	return (&cloudBucketMountServiceImpl{}).New(bucketName, params)
 }
 
 func TestNewCloudBucketMount_MinimalOptions(t *testing.T) {

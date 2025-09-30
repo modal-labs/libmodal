@@ -12,7 +12,11 @@ import (
 )
 
 // AppService provides App related operations.
-type AppService struct{ client *Client }
+type AppService interface {
+	FromName(ctx context.Context, name string, params *AppFromNameParams) (*App, error)
+}
+
+type appServiceImpl struct{ client *Client }
 
 // App references a deployed Modal App.
 type App struct {
@@ -55,7 +59,7 @@ type AppFromNameParams struct {
 }
 
 // FromName references an App with a given name, creating a new App if necessary.
-func (s *AppService) FromName(ctx context.Context, name string, params *AppFromNameParams) (*App, error) {
+func (s *appServiceImpl) FromName(ctx context.Context, name string, params *AppFromNameParams) (*App, error) {
 	if params == nil {
 		params = &AppFromNameParams{}
 	}

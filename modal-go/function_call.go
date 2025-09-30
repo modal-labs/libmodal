@@ -9,7 +9,11 @@ import (
 )
 
 // FunctionCallService provides FunctionCall related operations.
-type FunctionCallService struct{ client *Client }
+type FunctionCallService interface {
+	FromID(ctx context.Context, functionCallID string) (*FunctionCall, error)
+}
+
+type functionCallServiceImpl struct{ client *Client }
 
 // FunctionCall references a Modal Function Call. Function Calls are
 // Function invocations with a given input. They can be consumed
@@ -21,7 +25,7 @@ type FunctionCall struct {
 }
 
 // FromID looks up a FunctionCall by ID.
-func (s *FunctionCallService) FromID(ctx context.Context, functionCallID string) (*FunctionCall, error) {
+func (s *functionCallServiceImpl) FromID(ctx context.Context, functionCallID string) (*FunctionCall, error) {
 	functionCall := FunctionCall{
 		FunctionCallID: functionCallID,
 		client:         s.client,
