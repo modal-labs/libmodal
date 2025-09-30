@@ -61,10 +61,8 @@ func (m *AuthTokenManager) GetToken(ctx context.Context) (string, error) {
 func (m *AuthTokenManager) backgroundRefresh(ctx context.Context) {
 	// If we have no token, fetch one.
 	if m.GetCurrentToken() == "" {
-		fmt.Printf("Walter - fething a new token \n")
 		if _, err := m.FetchToken(ctx); err != nil {
 			fmt.Printf("Failed to fetch auth token: %v\n", err)
-			return
 		}
 	}
 
