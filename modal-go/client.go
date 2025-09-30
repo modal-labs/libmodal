@@ -79,9 +79,8 @@ var client pb.ModalClientClient
 // inputPlaneClients is a map of server URL to input-plane client.
 var inputPlaneClients = map[string]pb.ModalClientClient{}
 
-// authToken is the auth token received from the control plane on the first request, and sent with all
-// subsequent requests to both the control plane and the input plane.
-var authToken string
+// authTokenManager manages auth tokens proactively in the background.
+var authTokenManager *AuthTokenManager
 
 func init() {
 	defaultConfig, _ = readConfigFile()
@@ -92,6 +91,10 @@ func init() {
 	if err != nil {
 		panic(fmt.Sprintf("failed to initialize Modal client at startup: %v", err))
 	}
+
+	// Initialize and start background auth token manager
+	authTokenManager = NewAuthTokenManager(client)
+	authTokenManager.Start(context.Background())
 }
 
 // ClientOptions defines credentials and options for initializing the Modal client at runtime.
@@ -113,7 +116,15 @@ func InitializeClient(options ClientOptions) error {
 	clientProfile = mergedProfile
 	var err error
 	_, client, err = clientFactory(mergedProfile)
-	return err
+	if err != nil {
+		return err
+	}
+
+	// Initialize new auth manager with updated client
+	authTokenManager = NewAuthTokenManager(client)
+	authTokenManager.Start(context.Background())
+
+	return nil
 }
 
 // getOrCreateInputPlaneClient returns a client for the given server URL, creating it if it doesn't exist.
@@ -230,9 +241,7 @@ func headerInjectorStreamInterceptor() grpc.StreamClientInterceptor {
 	}
 }
 
-// authTokenInterceptor handles sending and receiving the "x-modal-auth-token" header.
-// We receive an auth token from the control plane on our first request. We then include that auth token in every
-// subsequent request to both the control plane and the input plane.
+// authTokenInterceptor adds auth tokens to outgoing requests using the background auth manager.
 func authTokenInterceptor() grpc.UnaryClientInterceptor {
 	return func(
 		ctx context.Context,
@@ -242,22 +251,13 @@ func authTokenInterceptor() grpc.UnaryClientInterceptor {
 		inv grpc.UnaryInvoker,
 		opts ...grpc.CallOption,
 	) error {
-		var headers, trailers metadata.MD
-		// Add authToken to outgoing context if it's set
-		if authToken != "" {
-			ctx = metadata.AppendToOutgoingContext(ctx, "x-modal-auth-token", authToken)
+		// Skip auth token for AuthTokenGet requests to prevent it from getting stuck
+		if authTokenManager != nil && method != "/modal.client.ModalClient/AuthTokenGet" {
+			if token, err := authTokenManager.GetToken(ctx); err == nil && token != "" {
+				ctx = metadata.AppendToOutgoingContext(ctx, "x-modal-auth-token", token)
+			}
 		}
-		opts = append(opts, grpc.Header(&headers), grpc.Trailer(&trailers))
-		err := inv(ctx, method, req, reply, cc, opts...)
-		// If we're talking to the control plane, and no auth token was sent, it will return one.
-		// The python server returns it in the trailers, the worker returns it in the headers.
-		if val, ok := headers["x-modal-auth-token"]; ok {
-			authToken = val[0]
-		} else if val, ok := trailers["x-modal-auth-token"]; ok {
-			authToken = val[0]
-		}
-
-		return err
+		return inv(ctx, method, req, reply, cc, opts...)
 	}
 }
 

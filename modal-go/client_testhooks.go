@@ -1,6 +1,7 @@
 package modal
 
 import (
+	"context"
 	"sync"
 
 	pb "github.com/modal-labs/libmodal/modal-go/proto/modal_proto"
@@ -16,7 +17,8 @@ func SetClientFactoryForTesting(testClientFactory func(Profile) (grpc.ClientConn
 	// Recreate client using the overridden clientFactory, and reset the rest
 	_, client, _ = clientFactory(clientProfile)
 	inputPlaneClients = make(map[string]pb.ModalClientClient)
-	authToken = ""
+
+	authTokenManager = NewAuthTokenManager(client)
 
 	var once sync.Once
 	return func() {
@@ -24,7 +26,9 @@ func SetClientFactoryForTesting(testClientFactory func(Profile) (grpc.ClientConn
 			clientFactory = origClientFactory
 			_, client, _ = clientFactory(clientProfile)
 			inputPlaneClients = map[string]pb.ModalClientClient{}
-			authToken = ""
+
+			authTokenManager = NewAuthTokenManager(client)
+			authTokenManager.Start(context.Background())
 		})
 	}
 }
