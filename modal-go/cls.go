@@ -42,7 +42,7 @@ type ClsWithBatchingParams struct {
 	Wait         time.Duration
 }
 
-type serviceParams struct {
+type serviceOptions struct {
 	cpu                    *float64
 	memory                 *int
 	gpu                    *string
@@ -67,7 +67,7 @@ type Cls struct {
 	schema            []*pb.ClassParameterSpec
 	methodNames       []string
 	inputPlaneURL     string // if empty, use control plane
-	params            *serviceParams
+	serviceOptions    *serviceOptions
 
 	client *Client
 }
@@ -134,12 +134,12 @@ func (s *ClsService) FromName(ctx context.Context, appName string, name string, 
 }
 
 // Instance creates a new instance of the class with the provided parameters.
-func (c *Cls) Instance(ctx context.Context, params map[string]any) (*ClsInstance, error) {
+func (c *Cls) Instance(ctx context.Context, parameters map[string]any) (*ClsInstance, error) {
 	var functionID string
-	if len(c.schema) == 0 && !hasParams(c.params) {
+	if len(c.schema) == 0 && !hasOptions(c.serviceOptions) {
 		functionID = c.serviceFunctionID
 	} else {
-		boundFunctionID, err := c.bindParameters(ctx, params)
+		boundFunctionID, err := c.bindParameters(ctx, parameters)
 		if err != nil {
 			return nil, err
 		}
@@ -180,7 +180,7 @@ func (c *Cls) WithOptions(params *ClsWithOptionsParams) *Cls {
 		envPtr = &e
 	}
 
-	merged := mergeServiceParams(c.params, &serviceParams{
+	merged := mergeServiceOptions(c.serviceOptions, &serviceOptions{
 		cpu:              params.CPU,
 		memory:           params.Memory,
 		gpu:              params.GPU,
@@ -199,7 +199,7 @@ func (c *Cls) WithOptions(params *ClsWithOptionsParams) *Cls {
 		schema:            c.schema,
 		methodNames:       c.methodNames,
 		inputPlaneURL:     c.inputPlaneURL,
-		params:            merged,
+		serviceOptions:    merged,
 		client:            c.client,
 	}
 }
@@ -210,7 +210,7 @@ func (c *Cls) WithConcurrency(params *ClsWithConcurrencyParams) *Cls {
 		params = &ClsWithConcurrencyParams{}
 	}
 
-	merged := mergeServiceParams(c.params, &serviceParams{
+	merged := mergeServiceOptions(c.serviceOptions, &serviceOptions{
 		maxConcurrentInputs:    &params.MaxInputs,
 		targetConcurrentInputs: params.TargetInputs,
 	})
@@ -220,7 +220,7 @@ func (c *Cls) WithConcurrency(params *ClsWithConcurrencyParams) *Cls {
 		schema:            c.schema,
 		methodNames:       c.methodNames,
 		inputPlaneURL:     c.inputPlaneURL,
-		params:            merged,
+		serviceOptions:    merged,
 		client:            c.client,
 	}
 }
@@ -231,7 +231,7 @@ func (c *Cls) WithBatching(params *ClsWithBatchingParams) *Cls {
 		params = &ClsWithBatchingParams{}
 	}
 
-	merged := mergeServiceParams(c.params, &serviceParams{
+	merged := mergeServiceOptions(c.serviceOptions, &serviceOptions{
 		batchMaxSize: &params.MaxBatchSize,
 		batchWait:    &params.Wait,
 	})
@@ -241,32 +241,30 @@ func (c *Cls) WithBatching(params *ClsWithBatchingParams) *Cls {
 		schema:            c.schema,
 		methodNames:       c.methodNames,
 		inputPlaneURL:     c.inputPlaneURL,
-		params:            merged,
+		serviceOptions:    merged,
 		client:            c.client,
 	}
 }
 
 // bindParameters processes the parameters and binds them to the class function.
-func (c *Cls) bindParameters(ctx context.Context, params map[string]any) (string, error) {
-	serializedParams, err := encodeParameterSet(c.schema, params)
-	if err != nil {
-		return "", fmt.Errorf("failed to serialize parameters: %w", err)
-	}
-
+func (c *Cls) bindParameters(ctx context.Context, parameters map[string]any) (string, error) {
 	var envSecret *Secret
-	if c.params != nil && c.params.env != nil && len(*c.params.env) > 0 {
-		envSecret, err = c.client.Secrets.FromMap(ctx, *c.params.env, nil)
+	var err error
+	if c.serviceOptions != nil && c.serviceOptions.env != nil && len(*c.serviceOptions.env) > 0 {
+		envSecret, err = c.client.Secrets.FromMap(ctx, *c.serviceOptions.env, nil)
 		if err != nil {
 			return "", err
 		}
 	}
 
-	functionOptions, err := buildFunctionOptionsProto(c.params, envSecret)
+	serializedParams, err := encodeParameterSet(c.schema, parameters)
+	if err != nil {
+		return "", fmt.Errorf("failed to serialize parameters: %w", err)
+	}
+	functionOptions, err := buildFunctionOptionsProto(c.serviceOptions, envSecret)
 	if err != nil {
 		return "", fmt.Errorf("failed to build function options: %w", err)
 	}
-
-	// Bind parameters to create a parameterized function
 	bindResp, err := c.client.cpClient.FunctionBindParams(ctx, pb.FunctionBindParamsRequest_builder{
 		FunctionId:       c.serviceFunctionID,
 		SerializedParams: serializedParams,
@@ -280,11 +278,11 @@ func (c *Cls) bindParameters(ctx context.Context, params map[string]any) (string
 }
 
 // encodeParameterSet encodes the parameter values into a binary format.
-func encodeParameterSet(schema []*pb.ClassParameterSpec, params map[string]any) ([]byte, error) {
+func encodeParameterSet(schema []*pb.ClassParameterSpec, parameters map[string]any) ([]byte, error) {
 	var encoded []*pb.ClassParameterValue
 
-	for _, paramSpec := range schema {
-		paramValue, err := encodeParameter(paramSpec, params[paramSpec.GetName()])
+	for _, parameterSpec := range schema {
+		paramValue, err := encodeParameter(parameterSpec, parameters[parameterSpec.GetName()])
 		if err != nil {
 			return nil, err
 		}
@@ -299,9 +297,9 @@ func encodeParameterSet(schema []*pb.ClassParameterSpec, params map[string]any) 
 }
 
 // encodeParameter converts a Go value to a ParameterValue proto message
-func encodeParameter(paramSpec *pb.ClassParameterSpec, value any) (*pb.ClassParameterValue, error) {
-	name := paramSpec.GetName()
-	paramType := paramSpec.GetType()
+func encodeParameter(parameterSpec *pb.ClassParameterSpec, value any) (*pb.ClassParameterValue, error) {
+	name := parameterSpec.GetName()
+	paramType := parameterSpec.GetType()
 	paramValue := pb.ClassParameterValue_builder{
 		Name: name,
 		Type: paramType,
@@ -309,8 +307,8 @@ func encodeParameter(paramSpec *pb.ClassParameterSpec, value any) (*pb.ClassPara
 
 	switch paramType {
 	case pb.ParameterType_PARAM_TYPE_STRING:
-		if value == nil && paramSpec.GetHasDefault() {
-			value = paramSpec.GetStringDefault()
+		if value == nil && parameterSpec.GetHasDefault() {
+			value = parameterSpec.GetStringDefault()
 		}
 		strValue, ok := value.(string)
 		if !ok {
@@ -319,8 +317,8 @@ func encodeParameter(paramSpec *pb.ClassParameterSpec, value any) (*pb.ClassPara
 		paramValue.SetStringValue(strValue)
 
 	case pb.ParameterType_PARAM_TYPE_INT:
-		if value == nil && paramSpec.GetHasDefault() {
-			value = paramSpec.GetIntDefault()
+		if value == nil && parameterSpec.GetHasDefault() {
+			value = parameterSpec.GetIntDefault()
 		}
 		var intValue int64
 		switch v := value.(type) {
@@ -336,8 +334,8 @@ func encodeParameter(paramSpec *pb.ClassParameterSpec, value any) (*pb.ClassPara
 		paramValue.SetIntValue(intValue)
 
 	case pb.ParameterType_PARAM_TYPE_BOOL:
-		if value == nil && paramSpec.GetHasDefault() {
-			value = paramSpec.GetBoolDefault()
+		if value == nil && parameterSpec.GetHasDefault() {
+			value = parameterSpec.GetBoolDefault()
 		}
 		boolValue, ok := value.(bool)
 		if !ok {
@@ -346,8 +344,8 @@ func encodeParameter(paramSpec *pb.ClassParameterSpec, value any) (*pb.ClassPara
 		paramValue.SetBoolValue(boolValue)
 
 	case pb.ParameterType_PARAM_TYPE_BYTES:
-		if value == nil && paramSpec.GetHasDefault() {
-			value = paramSpec.GetBytesDefault()
+		if value == nil && parameterSpec.GetHasDefault() {
+			value = parameterSpec.GetBytesDefault()
 		}
 		bytesValue, ok := value.([]byte)
 		if !ok {
@@ -377,11 +375,11 @@ func (c *ClsInstance) Method(name string) (*Function, error) {
 	return method, nil
 }
 
-func hasParams(o *serviceParams) bool {
-	return o != nil && *o != (serviceParams{})
+func hasOptions(o *serviceOptions) bool {
+	return o != nil && *o != (serviceOptions{})
 }
 
-func mergeServiceParams(base, new *serviceParams) *serviceParams {
+func mergeServiceOptions(base, new *serviceOptions) *serviceOptions {
 	if base == nil {
 		return new
 	}
@@ -389,7 +387,7 @@ func mergeServiceParams(base, new *serviceParams) *serviceParams {
 		return base
 	}
 
-	merged := &serviceParams{
+	merged := &serviceOptions{
 		cpu:                    base.cpu,
 		memory:                 base.memory,
 		gpu:                    base.gpu,
@@ -456,23 +454,23 @@ func mergeServiceParams(base, new *serviceParams) *serviceParams {
 	return merged
 }
 
-func buildFunctionOptionsProto(params *serviceParams, envSecret *Secret) (*pb.FunctionOptions, error) {
-	if !hasParams(params) {
+func buildFunctionOptionsProto(options *serviceOptions, envSecret *Secret) (*pb.FunctionOptions, error) {
+	if !hasOptions(options) {
 		return nil, nil
 	}
 
 	builder := pb.FunctionOptions_builder{}
 
-	if params.cpu != nil || params.memory != nil || params.gpu != nil {
+	if options.cpu != nil || options.memory != nil || options.gpu != nil {
 		resBuilder := pb.Resources_builder{}
-		if params.cpu != nil {
-			resBuilder.MilliCpu = uint32(*params.cpu * 1000)
+		if options.cpu != nil {
+			resBuilder.MilliCpu = uint32(*options.cpu * 1000)
 		}
-		if params.memory != nil {
-			resBuilder.MemoryMb = uint32(*params.memory)
+		if options.memory != nil {
+			resBuilder.MemoryMb = uint32(*options.memory)
 		}
-		if params.gpu != nil {
-			gpuConfig, err := parseGPUConfig(*params.gpu)
+		if options.gpu != nil {
+			gpuConfig, err := parseGPUConfig(*options.gpu)
 			if err != nil {
 				return nil, err
 			}
@@ -482,14 +480,14 @@ func buildFunctionOptionsProto(params *serviceParams, envSecret *Secret) (*pb.Fu
 	}
 
 	secretIds := []string{}
-	if params.secrets != nil {
-		for _, secret := range *params.secrets {
+	if options.secrets != nil {
+		for _, secret := range *options.secrets {
 			if secret != nil {
 				secretIds = append(secretIds, secret.SecretID)
 			}
 		}
 	}
-	if (params.env != nil && len(*params.env) > 0) != (envSecret != nil) {
+	if (options.env != nil && len(*options.env) > 0) != (envSecret != nil) {
 		return nil, fmt.Errorf("internal error: env and envSecret must both be provided or neither be provided")
 	}
 	if envSecret != nil {
@@ -501,9 +499,9 @@ func buildFunctionOptionsProto(params *serviceParams, envSecret *Secret) (*pb.Fu
 		builder.ReplaceSecretIds = true
 	}
 
-	if params.volumes != nil {
+	if options.volumes != nil {
 		volumeMounts := []*pb.VolumeMount{}
-		for mountPath, volume := range *params.volumes {
+		for mountPath, volume := range *options.volumes {
 			if volume != nil {
 				volumeMounts = append(volumeMounts, pb.VolumeMount_builder{
 					VolumeId:               volume.VolumeID,
@@ -519,60 +517,60 @@ func buildFunctionOptionsProto(params *serviceParams, envSecret *Secret) (*pb.Fu
 		}
 	}
 
-	if params.retries != nil {
+	if options.retries != nil {
 		builder.RetryPolicy = pb.FunctionRetryPolicy_builder{
-			Retries:            uint32(params.retries.MaxRetries),
-			BackoffCoefficient: params.retries.BackoffCoefficient,
-			InitialDelayMs:     uint32(params.retries.InitialDelay / time.Millisecond),
-			MaxDelayMs:         uint32(params.retries.MaxDelay / time.Millisecond),
+			Retries:            uint32(options.retries.MaxRetries),
+			BackoffCoefficient: options.retries.BackoffCoefficient,
+			InitialDelayMs:     uint32(options.retries.InitialDelay / time.Millisecond),
+			MaxDelayMs:         uint32(options.retries.MaxDelay / time.Millisecond),
 		}.Build()
 	}
 
-	if params.maxContainers != nil {
-		v := uint32(*params.maxContainers)
+	if options.maxContainers != nil {
+		v := uint32(*options.maxContainers)
 		builder.ConcurrencyLimit = &v
 	}
-	if params.bufferContainers != nil {
-		v := uint32(*params.bufferContainers)
+	if options.bufferContainers != nil {
+		v := uint32(*options.bufferContainers)
 		builder.BufferContainers = &v
 	}
 
-	if params.scaledownWindow != nil {
-		if *params.scaledownWindow < time.Second {
-			return nil, fmt.Errorf("scaledownWindow must be at least 1 second, got %v", *params.scaledownWindow)
+	if options.scaledownWindow != nil {
+		if *options.scaledownWindow < time.Second {
+			return nil, fmt.Errorf("scaledownWindow must be at least 1 second, got %v", *options.scaledownWindow)
 		}
-		if (*params.scaledownWindow)%time.Second != 0 {
-			return nil, fmt.Errorf("scaledownWindow must be a whole number of seconds, got %v", *params.scaledownWindow)
+		if (*options.scaledownWindow)%time.Second != 0 {
+			return nil, fmt.Errorf("scaledownWindow must be a whole number of seconds, got %v", *options.scaledownWindow)
 		}
-		v := uint32((*params.scaledownWindow) / time.Second)
+		v := uint32((*options.scaledownWindow) / time.Second)
 		builder.TaskIdleTimeoutSecs = &v
 	}
-	if params.timeout != nil {
-		if *params.timeout < time.Second {
-			return nil, fmt.Errorf("timeout must be at least 1 second, got %v", *params.timeout)
+	if options.timeout != nil {
+		if *options.timeout < time.Second {
+			return nil, fmt.Errorf("timeout must be at least 1 second, got %v", *options.timeout)
 		}
-		if (*params.timeout)%time.Second != 0 {
-			return nil, fmt.Errorf("timeout must be a whole number of seconds, got %v", *params.timeout)
+		if (*options.timeout)%time.Second != 0 {
+			return nil, fmt.Errorf("timeout must be a whole number of seconds, got %v", *options.timeout)
 		}
-		v := uint32((*params.timeout) / time.Second)
+		v := uint32((*options.timeout) / time.Second)
 		builder.TimeoutSecs = &v
 	}
 
-	if params.maxConcurrentInputs != nil {
-		v := uint32(*params.maxConcurrentInputs)
+	if options.maxConcurrentInputs != nil {
+		v := uint32(*options.maxConcurrentInputs)
 		builder.MaxConcurrentInputs = &v
 	}
-	if params.targetConcurrentInputs != nil {
-		v := uint32(*params.targetConcurrentInputs)
+	if options.targetConcurrentInputs != nil {
+		v := uint32(*options.targetConcurrentInputs)
 		builder.TargetConcurrentInputs = &v
 	}
 
-	if params.batchMaxSize != nil {
-		v := uint32(*params.batchMaxSize)
+	if options.batchMaxSize != nil {
+		v := uint32(*options.batchMaxSize)
 		builder.BatchMaxSize = &v
 	}
-	if params.batchWait != nil {
-		v := uint64((*params.batchWait) / time.Millisecond)
+	if options.batchWait != nil {
+		v := uint64((*options.batchWait) / time.Millisecond)
 		builder.BatchLingerMs = &v
 	}
 

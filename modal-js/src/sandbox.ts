@@ -64,8 +64,8 @@ export type StdioBehavior = "pipe" | "ignore";
  */
 export type StreamMode = "text" | "binary";
 
-/** Options for `App.createSandbox()`. */
-export type SandboxCreateOptions = {
+/** Optional parameters for `client.sandboxes.create()`. */
+export type SandboxCreateParams = {
   /** Reservation of physical CPU cores for the Sandbox, can be fractional. */
   cpu?: number;
 
@@ -139,30 +139,28 @@ export type SandboxCreateOptions = {
 export async function buildSandboxCreateRequestProto(
   appId: string,
   imageId: string,
-  options: SandboxCreateOptions = {},
+  params: SandboxCreateParams = {},
 ): Promise<SandboxCreateRequest> {
-  const gpuConfig = parseGpuConfig(options.gpu);
+  const gpuConfig = parseGpuConfig(params.gpu);
 
   // The gRPC API only accepts a whole number of seconds.
-  if (options.timeout && options.timeout % 1000 !== 0) {
+  if (params.timeout && params.timeout % 1000 !== 0) {
     throw new Error(
-      `timeout must be a multiple of 1000ms, got ${options.timeout}`,
+      `timeout must be a multiple of 1000ms, got ${params.timeout}`,
     );
   }
-  if (options.idleTimeout && options.idleTimeout % 1000 !== 0) {
+  if (params.idleTimeout && params.idleTimeout % 1000 !== 0) {
     throw new Error(
-      `idleTimeout must be a multiple of 1000ms, got ${options.idleTimeout}`,
-    );
-  }
-
-  if (options.workdir && !options.workdir.startsWith("/")) {
-    throw new Error(
-      `workdir must be an absolute path, got: ${options.workdir}`,
+      `idleTimeout must be a multiple of 1000ms, got ${params.idleTimeout}`,
     );
   }
 
-  const volumeMounts: VolumeMount[] = options.volumes
-    ? Object.entries(options.volumes).map(([mountPath, volume]) => ({
+  if (params.workdir && !params.workdir.startsWith("/")) {
+    throw new Error(`workdir must be an absolute path, got: ${params.workdir}`);
+  }
+
+  const volumeMounts: VolumeMount[] = params.volumes
+    ? Object.entries(params.volumes).map(([mountPath, volume]) => ({
         volumeId: volume.volumeId,
         mountPath,
         allowBackgroundCommits: true,
@@ -170,45 +168,45 @@ export async function buildSandboxCreateRequestProto(
       }))
     : [];
 
-  const cloudBucketMounts: CloudBucketMountProto[] = options.cloudBucketMounts
-    ? Object.entries(options.cloudBucketMounts).map(([mountPath, mount]) =>
+  const cloudBucketMounts: CloudBucketMountProto[] = params.cloudBucketMounts
+    ? Object.entries(params.cloudBucketMounts).map(([mountPath, mount]) =>
         cloudBucketMountToProto(mount, mountPath),
       )
     : [];
 
   const openPorts: PortSpec[] = [];
-  if (options.encryptedPorts) {
+  if (params.encryptedPorts) {
     openPorts.push(
-      ...options.encryptedPorts.map((port) => ({
+      ...params.encryptedPorts.map((port) => ({
         port,
         unencrypted: false,
       })),
     );
   }
-  if (options.h2Ports) {
+  if (params.h2Ports) {
     openPorts.push(
-      ...options.h2Ports.map((port) => ({
+      ...params.h2Ports.map((port) => ({
         port,
         unencrypted: false,
         tunnelType: TunnelType.TUNNEL_TYPE_H2,
       })),
     );
   }
-  if (options.unencryptedPorts) {
+  if (params.unencryptedPorts) {
     openPorts.push(
-      ...options.unencryptedPorts.map((port) => ({
+      ...params.unencryptedPorts.map((port) => ({
         port,
         unencrypted: true,
       })),
     );
   }
 
-  const mergedSecrets = await mergeEnvAndSecrets(options.env, options.secrets);
+  const mergedSecrets = await mergeEnvAndSecrets(params.env, params.secrets);
   const secretIds = mergedSecrets.map((secret) => secret.secretId);
 
   let networkAccess: NetworkAccess;
-  if (options.blockNetwork) {
-    if (options.cidrAllowlist) {
+  if (params.blockNetwork) {
+    if (params.cidrAllowlist) {
       throw new Error(
         "cidrAllowlist cannot be used when blockNetwork is enabled",
       );
@@ -217,10 +215,10 @@ export async function buildSandboxCreateRequestProto(
       networkAccessType: NetworkAccess_NetworkAccessType.BLOCKED,
       allowedCidrs: [],
     };
-  } else if (options.cidrAllowlist) {
+  } else if (params.cidrAllowlist) {
     networkAccess = {
       networkAccessType: NetworkAccess_NetworkAccessType.ALLOWLIST,
-      allowedCidrs: options.cidrAllowlist,
+      allowedCidrs: params.cidrAllowlist,
     };
   } else {
     networkAccess = {
@@ -230,11 +228,11 @@ export async function buildSandboxCreateRequestProto(
   }
 
   const schedulerPlacement = SchedulerPlacement.create({
-    regions: options.regions ?? [],
+    regions: params.regions ?? [],
   });
 
   let ptyInfo: PTYInfo | undefined;
-  if (options.pty) {
+  if (params.pty) {
     ptyInfo = defaultSandboxPTYInfo();
   }
 
@@ -242,19 +240,17 @@ export async function buildSandboxCreateRequestProto(
     appId,
     definition: {
       // Sleep default is implicit in image builder version <=2024.10
-      entrypointArgs: options.command ?? ["sleep", "48h"],
+      entrypointArgs: params.command ?? ["sleep", "48h"],
       imageId,
-      timeoutSecs: options.timeout != undefined ? options.timeout / 1000 : 600,
+      timeoutSecs: params.timeout != undefined ? params.timeout / 1000 : 600,
       idleTimeoutSecs:
-        options.idleTimeout != undefined
-          ? options.idleTimeout / 1000
-          : undefined,
-      workdir: options.workdir ?? undefined,
+        params.idleTimeout != undefined ? params.idleTimeout / 1000 : undefined,
+      workdir: params.workdir ?? undefined,
       networkAccess,
       resources: {
         // https://modal.com/docs/guide/resources
-        milliCpu: Math.round(1000 * (options.cpu ?? 0.125)),
-        memoryMb: options.memory ?? 128,
+        milliCpu: Math.round(1000 * (params.cpu ?? 0.125)),
+        memoryMb: params.memory ?? 128,
         gpuConfig,
       },
       volumeMounts,
@@ -262,11 +258,11 @@ export async function buildSandboxCreateRequestProto(
       ptyInfo,
       secretIds,
       openPorts: openPorts.length > 0 ? { ports: openPorts } : undefined,
-      cloudProviderStr: options.cloud ?? "",
+      cloudProviderStr: params.cloud ?? "",
       schedulerPlacement,
-      verbose: options.verbose ?? false,
-      proxyId: options.proxy?.proxyId,
-      name: options.name,
+      verbose: params.verbose ?? false,
+      proxyId: params.proxy?.proxyId,
+      name: params.name,
     },
   });
 }
@@ -286,14 +282,14 @@ export class SandboxService {
   async create(
     app: App,
     image: Image,
-    options: SandboxCreateOptions = {},
+    params: SandboxCreateParams = {},
   ): Promise<Sandbox> {
     await image.build(app);
 
     const createReq = await buildSandboxCreateRequestProto(
       app.appId,
       image.imageId,
-      options,
+      params,
     );
     let createResp;
     try {
@@ -334,19 +330,19 @@ export class SandboxService {
    *
    * @param appName - Name of the deployed App
    * @param name - Name of the Sandbox
-   * @param environment - Optional override for the environment
+   * @param params - Optional parameters for getting the Sandbox
    * @returns Promise that resolves to a Sandbox
    */
   async fromName(
     appName: string,
     name: string,
-    environment?: string,
+    params?: SandboxFromNameParams,
   ): Promise<Sandbox> {
     try {
       const resp = await this.#client.cpClient.sandboxGetFromName({
         sandboxName: name,
         appName,
-        environmentName: this.#client.environmentName(environment),
+        environmentName: this.#client.environmentName(params?.environment),
       });
       return new Sandbox(this.#client, resp.sandboxId);
     } catch (err) {
@@ -363,11 +359,11 @@ export class SandboxService {
    * If tags are specified, only Sandboxes that have at least those tags are returned.
    */
   async *list(
-    options: SandboxListOptions = {},
+    params: SandboxListParams = {},
   ): AsyncGenerator<Sandbox, void, unknown> {
-    const env = this.#client.environmentName(options.environment);
-    const tagsList = options.tags
-      ? Object.entries(options.tags).map(([tagName, tagValue]) => ({
+    const env = this.#client.environmentName(params.environment);
+    const tagsList = params.tags
+      ? Object.entries(params.tags).map(([tagName, tagValue]) => ({
           tagName,
           tagValue,
         }))
@@ -377,7 +373,7 @@ export class SandboxService {
     while (true) {
       try {
         const resp = await this.#client.cpClient.sandboxList({
-          appId: options.appId,
+          appId: params.appId,
           beforeTimestamp,
           environmentName: env,
           includeFinished: false,
@@ -403,8 +399,8 @@ export class SandboxService {
   }
 }
 
-/** Options for `Sandbox.list()`. */
-export type SandboxListOptions = {
+/** Optional parameters for `client.sandboxes.list()`. */
+export type SandboxListParams = {
   /** Filter Sandboxes for a specific App. */
   appId?: string;
   /** Only return Sandboxes that include all specified tags. */
@@ -413,8 +409,13 @@ export type SandboxListOptions = {
   environment?: string;
 };
 
-/** Options to configure a `Sandbox.exec()` operation. */
-export type ExecOptions = {
+/** Optional parameters for `client.sandboxes.fromName()`. */
+export type SandboxFromNameParams = {
+  environment?: string;
+};
+
+/** Optional parameters for `Sandbox.exec()`. */
+export type SandboxExecParams = {
   /** Specifies text or binary encoding for input and output streams. */
   mode?: StreamMode;
   /** Whether to pipe or ignore standard output. */
@@ -484,24 +485,21 @@ export function defaultSandboxPTYInfo(): PTYInfo {
 export async function buildContainerExecRequestProto(
   taskId: string,
   command: string[],
-  options?: ExecOptions,
+  params?: SandboxExecParams,
 ): Promise<ContainerExecRequest> {
-  const mergedSecrets = await mergeEnvAndSecrets(
-    options?.env,
-    options?.secrets,
-  );
+  const mergedSecrets = await mergeEnvAndSecrets(params?.env, params?.secrets);
   const secretIds = mergedSecrets.map((secret) => secret.secretId);
 
   let ptyInfo: PTYInfo | undefined;
-  if (options?.pty) {
+  if (params?.pty) {
     ptyInfo = defaultSandboxPTYInfo();
   }
 
   return ContainerExecRequest.create({
     taskId,
     command,
-    workdir: options?.workdir,
-    timeoutSecs: options?.timeout ? options.timeout / 1000 : 0,
+    workdir: params?.workdir,
+    timeoutSecs: params?.timeout ? params.timeout / 1000 : 0,
     secretIds,
     ptyInfo,
   });
@@ -600,7 +598,9 @@ export class Sandbox {
     name: string,
     environment?: string,
   ): Promise<Sandbox> {
-    return getDefaultClient().sandboxes.fromName(appName, name, environment);
+    return getDefaultClient().sandboxes.fromName(appName, name, {
+      environment,
+    });
   }
 
   /**
@@ -625,33 +625,24 @@ export class Sandbox {
 
   async exec(
     command: string[],
-    options?: ExecOptions & { mode?: "text" },
+    params?: SandboxExecParams & { mode?: "text" },
   ): Promise<ContainerProcess<string>>;
 
   async exec(
     command: string[],
-    options: ExecOptions & { mode: "binary" },
+    params: SandboxExecParams & { mode: "binary" },
   ): Promise<ContainerProcess<Uint8Array>>;
 
   async exec(
     command: string[],
-    options?: {
-      mode?: StreamMode;
-      stdout?: StdioBehavior;
-      stderr?: StdioBehavior;
-      workdir?: string;
-      timeout?: number;
-      env?: Record<string, string>;
-      secrets?: Secret[];
-      pty?: boolean;
-    },
+    params?: SandboxExecParams,
   ): Promise<ContainerProcess> {
     const taskId = await this.#getTaskId();
 
-    const req = await buildContainerExecRequestProto(taskId, command, options);
+    const req = await buildContainerExecRequestProto(taskId, command, params);
     const resp = await this.#client.cpClient.containerExec(req);
 
-    return new ContainerProcess(this.#client, resp.execId, options);
+    return new ContainerProcess(this.#client, resp.execId, params);
   }
 
   async #getTaskId(): Promise<string> {
@@ -773,9 +764,9 @@ export class Sandbox {
    * @deprecated Use `client.sandboxes.list()` instead.
    */
   static async *list(
-    options: SandboxListOptions = {},
+    params: SandboxListParams = {},
   ): AsyncGenerator<Sandbox, void, unknown> {
-    yield* getDefaultClient().sandboxes.list(options);
+    yield* getDefaultClient().sandboxes.list(params);
   }
 
   static #getReturnCode(result: GenericResult | undefined): number | null {
@@ -808,11 +799,11 @@ export class ContainerProcess<R extends string | Uint8Array = any> {
   readonly #client: ModalClient;
   readonly #execId: string;
 
-  constructor(client: ModalClient, execId: string, options?: ExecOptions) {
+  constructor(client: ModalClient, execId: string, params?: SandboxExecParams) {
     this.#client = client;
-    const mode = options?.mode ?? "text";
-    const stdout = options?.stdout ?? "pipe";
-    const stderr = options?.stderr ?? "pipe";
+    const mode = params?.mode ?? "text";
+    const stdout = params?.stdout ?? "pipe";
+    const stderr = params?.stderr ?? "pipe";
 
     this.#execId = execId;
 

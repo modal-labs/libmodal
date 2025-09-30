@@ -111,7 +111,7 @@ test("FunctionGetWebUrl", async () => {
     };
   });
 
-  const web_endpoint = await mc.functions.lookup(
+  const web_endpoint = await mc.functions.fromName(
     "libmodal-test-support",
     "web_endpoint",
   );

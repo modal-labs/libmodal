@@ -2,7 +2,9 @@ import { tc } from "../test-support/test-client";
 import { expect, test, onTestFinished } from "vitest";
 
 test("snapshotFilesystem", async () => {
-  const app = await tc.apps.lookup("libmodal-test", { createIfMissing: true });
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
   const image = tc.images.fromRegistry("alpine:3.21");
 
   const sb = await tc.sandboxes.create(app, image);

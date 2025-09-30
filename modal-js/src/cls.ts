@@ -9,7 +9,6 @@ import {
   ParameterType,
   VolumeMount,
 } from "../proto/modal_proto/api";
-import type { LookupOptions } from "./app";
 import { NotFoundError } from "./errors";
 import { getDefaultClient, type ModalClient } from "./client";
 import { Function_ } from "./function";
@@ -18,6 +17,12 @@ import type { Secret } from "./secret";
 import { mergeEnvAndSecrets } from "./secret";
 import { Retries, parseRetries } from "./retries";
 import type { Volume } from "./volume";
+
+/** Optional parameters for `client.cls.fromName()`. */
+export type ClsFromNameParams = {
+  environment?: string;
+  createIfMissing?: boolean;
+};
 
 /**
  * Service for managing Cls.
@@ -31,17 +36,17 @@ export class ClsService {
   /**
    * Reference a Cls from a deployed App by its name.
    */
-  async lookup(
+  async fromName(
     appName: string,
     name: string,
-    options: LookupOptions = {},
+    params: ClsFromNameParams = {},
   ): Promise<Cls> {
     try {
       const serviceFunctionName = `${name}.*`;
       const serviceFunction = await this.#client.cpClient.functionGet({
         appName,
         objectTag: serviceFunctionName,
-        environmentName: this.#client.environmentName(options.environment),
+        environmentName: this.#client.environmentName(params.environment),
       });
 
       const parameterInfo = serviceFunction.handleMetadata?.classParameterInfo;
@@ -83,7 +88,7 @@ export class ClsService {
   }
 }
 
-export type ClsOptions = {
+export type ClsWithOptionsParams = {
   cpu?: number;
   memory?: number;
   gpu?: string;
@@ -97,17 +102,17 @@ export type ClsOptions = {
   timeout?: number; // in milliseconds
 };
 
-export type ClsConcurrencyOptions = {
+export type ClsConcurrencyParams = {
   maxInputs: number;
   targetInputs?: number;
 };
 
-export type ClsBatchingOptions = {
+export type ClsBatchingParams = {
   maxBatchSize: number;
   waitMs: number;
 };
 
-type ServiceOptions = ClsOptions & {
+type ServiceOptions = ClsWithOptionsParams & {
   maxConcurrentInputs?: number;
   targetConcurrentInputs?: number;
   batchMaxSize?: number;
@@ -121,7 +126,7 @@ export class Cls {
   #schema: ClassParameterSpec[];
   #methodNames: string[];
   #inputPlaneUrl?: string;
-  #options?: ServiceOptions;
+  #serviceOptions?: ServiceOptions;
 
   /** @ignore */
   constructor(
@@ -137,27 +142,27 @@ export class Cls {
     this.#schema = schema;
     this.#methodNames = methodNames;
     this.#inputPlaneUrl = inputPlaneUrl;
-    this.#options = options;
+    this.#serviceOptions = options;
   }
 
   /**
-   * @deprecated Use `client.cls.lookup()` instead.
+   * @deprecated Use `client.cls.fromName()` instead.
    */
   static async lookup(
     appName: string,
     name: string,
-    options: LookupOptions = {},
+    params: ClsFromNameParams = {},
   ): Promise<Cls> {
-    return getDefaultClient().cls.lookup(appName, name, options);
+    return getDefaultClient().cls.fromName(appName, name, params);
   }
 
   /** Create a new instance of the Cls with parameters and/or runtime options. */
-  async instance(params: Record<string, any> = {}): Promise<ClsInstance> {
+  async instance(parameters: Record<string, any> = {}): Promise<ClsInstance> {
     let functionId: string;
-    if (this.#schema.length === 0 && this.#options === undefined) {
+    if (this.#schema.length === 0 && this.#serviceOptions === undefined) {
       functionId = this.#serviceFunctionId;
     } else {
-      functionId = await this.#bindParameters(params);
+      functionId = await this.#bindParameters(parameters);
     }
     const methods = new Map<string, Function_>();
     for (const name of this.#methodNames) {
@@ -170,8 +175,8 @@ export class Cls {
   }
 
   /** Override the static Function configuration at runtime. */
-  withOptions(options: ClsOptions): Cls {
-    const merged = mergeServiceOptions(this.#options, options);
+  withOptions(params: ClsWithOptionsParams): Cls {
+    const merged = mergeServiceOptions(this.#serviceOptions, params);
     return new Cls(
       this.#client,
       this.#serviceFunctionId,
@@ -183,10 +188,10 @@ export class Cls {
   }
 
   /** Create an instance of the Cls with input concurrency enabled or overridden with new values. */
-  withConcurrency(options: ClsConcurrencyOptions): Cls {
-    const merged = mergeServiceOptions(this.#options, {
-      maxConcurrentInputs: options.maxInputs,
-      targetConcurrentInputs: options.targetInputs,
+  withConcurrency(params: ClsConcurrencyParams): Cls {
+    const merged = mergeServiceOptions(this.#serviceOptions, {
+      maxConcurrentInputs: params.maxInputs,
+      targetConcurrentInputs: params.targetInputs,
     });
     return new Cls(
       this.#client,
@@ -199,10 +204,10 @@ export class Cls {
   }
 
   /** Create an instance of the Cls with dynamic batching enabled or overridden with new values. */
-  withBatching(options: ClsBatchingOptions): Cls {
-    const merged = mergeServiceOptions(this.#options, {
-      batchMaxSize: options.maxBatchSize,
-      batchWaitMs: options.waitMs,
+  withBatching(params: ClsBatchingParams): Cls {
+    const merged = mergeServiceOptions(this.#serviceOptions, {
+      batchMaxSize: params.maxBatchSize,
+      batchWaitMs: params.waitMs,
     });
     return new Cls(
       this.#client,
@@ -215,9 +220,11 @@ export class Cls {
   }
 
   /** Bind parameters to the Cls function. */
-  async #bindParameters(params: Record<string, any>): Promise<string> {
-    const serializedParams = encodeParameterSet(this.#schema, params);
-    const functionOptions = await buildFunctionOptionsProto(this.#options);
+  async #bindParameters(parameters: Record<string, any>): Promise<string> {
+    const serializedParams = encodeParameterSet(this.#schema, parameters);
+    const functionOptions = await buildFunctionOptionsProto(
+      this.#serviceOptions,
+    );
     const bindResp = await this.#client.cpClient.functionBindParams({
       functionId: this.#serviceFunctionId,
       serializedParams,

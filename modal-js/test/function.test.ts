@@ -5,7 +5,7 @@ import { createMockModalClients } from "../test-support/grpc_mock";
 import { Function_ } from "../src/function";
 
 test("FunctionCall", async () => {
-  const function_ = await tc.functions.lookup(
+  const function_ = await tc.functions.fromName(
     "libmodal-test-support",
     "echo_string",
   );
@@ -20,7 +20,7 @@ test("FunctionCall", async () => {
 });
 
 test("FunctionCallLargeInput", async () => {
-  const function_ = await tc.functions.lookup(
+  const function_ = await tc.functions.fromName(
     "libmodal-test-support",
     "bytelength",
   );
@@ -31,7 +31,7 @@ test("FunctionCallLargeInput", async () => {
 });
 
 test("FunctionNotFound", async () => {
-  const promise = tc.functions.lookup(
+  const promise = tc.functions.fromName(
     "libmodal-test-support",
     "not_a_real_function",
   );
@@ -39,7 +39,7 @@ test("FunctionNotFound", async () => {
 });
 
 test("FunctionCallInputPlane", async () => {
-  const function_ = await tc.functions.lookup(
+  const function_ = await tc.functions.fromName(
     "libmodal-test-support",
     "input_plane",
   );
@@ -113,7 +113,7 @@ test("FunctionGetWebUrl", async () => {
     };
   });
 
-  const web_endpoint = await mc.functions.lookup(
+  const web_endpoint = await mc.functions.fromName(
     "libmodal-test-support",
     "web_endpoint",
   );
@@ -123,7 +123,7 @@ test("FunctionGetWebUrl", async () => {
 });
 
 test("FunctionGetWebUrlOnNonWebFunction", async () => {
-  const function_ = await tc.functions.lookup(
+  const function_ = await tc.functions.fromName(
     "libmodal-test-support",
     "echo_string",
   );

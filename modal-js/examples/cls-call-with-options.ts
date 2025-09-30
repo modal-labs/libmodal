@@ -5,7 +5,10 @@ import { ModalClient } from "modal";
 
 const mc = new ModalClient();
 
-const cls = await mc.cls.lookup("libmodal-test-support", "EchoClsParametrized");
+const cls = await mc.cls.fromName(
+  "libmodal-test-support",
+  "EchoClsParametrized",
+);
 const instance = await cls.instance();
 const method = instance.method("echo_env_var");
 

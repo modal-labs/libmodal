@@ -353,7 +353,9 @@ export const client = new Proxy({} as ModalGrpcClient, {
   },
 });
 
-/** Options for initializing a client at runtime. */
+/**
+ * @deprecated Use `new ModalClient()` instead.
+ */
 export type ClientOptions = {
   tokenId: string;
   tokenSecret: string;

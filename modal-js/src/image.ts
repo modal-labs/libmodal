@@ -113,17 +113,17 @@ export class ImageService {
   /**
    * Delete an Image by ID. Warning: This removes an *entire Image*, and cannot be undone.
    */
-  async delete(imageId: string, _: ImageDeleteOptions = {}): Promise<void> {
+  async delete(imageId: string, _: ImageDeleteParams = {}): Promise<void> {
     const image = await this.fromId(imageId);
     await this.#client.cpClient.imageDelete({ imageId: image.imageId });
   }
 }
 
-/** Options for deleting an Image. */
-export type ImageDeleteOptions = Record<never, never>;
+/** Optional parameters for `client.images.delete()`. */
+export type ImageDeleteParams = Record<never, never>;
 
-/** Options for Image.dockerfileCommands(). */
-export type ImageDockerfileCommandsOptions = {
+/** Optional parameters for `Image.dockerfileCommands()`. */
+export type ImageDockerfileCommandsParams = {
   /** Environment variables to set in the build environment. */
   env?: Record<string, string>;
 
@@ -226,12 +226,12 @@ export class Image {
    * The provided options apply only to this layer.
    *
    * @param commands - Array of Dockerfile commands as strings
-   * @param options - Optional configuration for this layer's build
+   * @param params - Optional configuration for this layer's build
    * @returns A new Image instance
    */
   dockerfileCommands(
     commands: string[],
-    options?: ImageDockerfileCommandsOptions,
+    params?: ImageDockerfileCommandsParams,
   ): Image {
     if (commands.length === 0) {
       return this;
@@ -241,10 +241,10 @@ export class Image {
 
     const newLayer: Layer = {
       commands: [...commands],
-      env: options?.env,
-      secrets: options?.secrets,
-      gpuConfig: options?.gpu ? parseGpuConfig(options.gpu) : undefined,
-      forceBuild: options?.forceBuild,
+      env: params?.env,
+      secrets: params?.secrets,
+      gpuConfig: params?.gpu ? parseGpuConfig(params.gpu) : undefined,
+      forceBuild: params?.forceBuild,
     };
 
     return new Image(this.#client, "", this.#tag, this.#imageRegistryConfig, [
@@ -362,7 +362,7 @@ export class Image {
    */
   static async delete(
     imageId: string,
-    _: ImageDeleteOptions = {},
+    _: ImageDeleteParams = {},
   ): Promise<void> {
     return getDefaultClient().images.delete(imageId);
   }

@@ -2,7 +2,7 @@ import { ModalClient } from "modal";
 
 const mc = new ModalClient();
 
-const app = await mc.apps.lookup("libmodal-example", {
+const app = await mc.apps.fromName("libmodal-example", {
   createIfMissing: true,
 });
 const image = mc.images.fromRegistry("python:3.13-slim");

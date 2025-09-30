@@ -7,7 +7,6 @@ import {
   FunctionCallInvocationType,
   FunctionInput,
 } from "../proto/modal_proto/api";
-import type { LookupOptions } from "./app";
 import { getDefaultClient, ModalGrpcClient, type ModalClient } from "./client";
 import { FunctionCall } from "./function_call";
 import { InternalFailure, NotFoundError } from "./errors";
@@ -25,6 +24,12 @@ const maxObjectSizeBytes = 2 * 1024 * 1024; // 2 MiB
 // From: client/modal/_functions.py
 const maxSystemRetries = 8;
 
+/** Optional parameters for `client.functions.fromName()`. */
+export type FunctionFromNameParams = {
+  environment?: string;
+  createIfMissing?: boolean;
+};
+
 /**
  * Service for managing Functions.
  */
@@ -37,16 +42,16 @@ export class FunctionService {
   /**
    * Reference a Function by its name in an App.
    */
-  async lookup(
+  async fromName(
     appName: string,
     name: string,
-    options: LookupOptions = {},
+    params: FunctionFromNameParams = {},
   ): Promise<Function_> {
     try {
       const resp = await this.#client.cpClient.functionGet({
         appName,
         objectTag: name,
-        environmentName: this.#client.environmentName(options.environment),
+        environmentName: this.#client.environmentName(params.environment),
       });
       return new Function_(
         this.#client,
@@ -69,8 +74,8 @@ export interface FunctionStats {
   numTotalRunners: number;
 }
 
-/** Options for overriding a Function's autoscaler behavior. */
-export interface UpdateAutoscalerOptions {
+/** Optional parameters for `Function_.updateAutoscaler()`. */
+export interface FunctionUpdateAutoscalerParams {
   minContainers?: number;
   maxContainers?: number;
   bufferContainers?: number;
@@ -101,14 +106,14 @@ export class Function_ {
   }
 
   /**
-   * @deprecated Use `client.functions.lookup()` instead.
+   * @deprecated Use `client.functions.fromName()` instead.
    */
   static async lookup(
     appName: string,
     name: string,
-    options: LookupOptions = {},
+    params: FunctionFromNameParams = {},
   ): Promise<Function_> {
-    return await getDefaultClient().functions.lookup(appName, name, options);
+    return await getDefaultClient().functions.fromName(appName, name, params);
   }
 
   // Execute a single input into a remote Function.
@@ -180,15 +185,17 @@ export class Function_ {
   }
 
   // Overrides the current autoscaler behavior for this Function.
-  async updateAutoscaler(options: UpdateAutoscalerOptions): Promise<void> {
+  async updateAutoscaler(
+    params: FunctionUpdateAutoscalerParams,
+  ): Promise<void> {
     await this.#client.cpClient.functionUpdateSchedulingParams({
       functionId: this.functionId,
       warmPoolSizeOverride: 0, // Deprecated field, always set to 0
       settings: {
-        minContainers: options.minContainers,
-        maxContainers: options.maxContainers,
-        bufferContainers: options.bufferContainers,
-        scaledownWindow: options.scaledownWindow,
+        minContainers: params.minContainers,
+        maxContainers: params.maxContainers,
+        bufferContainers: params.bufferContainers,
+        scaledownWindow: params.scaledownWindow,
       },
     });
   }

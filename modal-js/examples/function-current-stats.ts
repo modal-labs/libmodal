@@ -4,7 +4,10 @@ import { ModalClient } from "modal";
 
 const mc = new ModalClient();
 
-const func = await mc.functions.lookup("libmodal-test-support", "echo_string");
+const func = await mc.functions.fromName(
+  "libmodal-test-support",
+  "echo_string",
+);
 
 const stats = await func.getCurrentStats();
 

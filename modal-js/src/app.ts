@@ -2,7 +2,7 @@ import { ClientError, Status } from "nice-grpc";
 import { ObjectCreationType } from "../proto/modal_proto/api";
 import { getDefaultClient, type ModalClient } from "./client";
 import { Image } from "./image";
-import { Sandbox, SandboxCreateOptions } from "./sandbox";
+import { Sandbox, SandboxCreateParams } from "./sandbox";
 import { NotFoundError } from "./errors";
 import { Secret } from "./secret";
 import { GPUConfig } from "../proto/modal_proto/api";
@@ -17,14 +17,14 @@ export class AppService {
   }
 
   /**
-   * Lookup a deployed App by name, or create if it does not exist.
+   * Referencea deployed App by name, or create if it does not exist.
    */
-  async lookup(name: string, options: LookupOptions = {}): Promise<App> {
+  async fromName(name: string, params: AppFromNameParams = {}): Promise<App> {
     try {
       const resp = await this.#client.cpClient.appGetOrCreate({
         appName: name,
-        environmentName: this.#client.environmentName(options.environment),
-        objectCreationType: options.createIfMissing
+        environmentName: this.#client.environmentName(params.environment),
+        objectCreationType: params.createIfMissing
           ? ObjectCreationType.OBJECT_CREATION_TYPE_CREATE_IF_MISSING
           : ObjectCreationType.OBJECT_CREATION_TYPE_UNSPECIFIED,
       });
@@ -37,18 +37,24 @@ export class AppService {
   }
 }
 
-/** Options for functions that find deployed Modal objects. */
+/** Optional parameters for `client.apps.fromName()`. */
+export type AppFromNameParams = {
+  environment?: string;
+  createIfMissing?: boolean;
+};
+
+/** @deprecated Use specific Params types instead. */
 export type LookupOptions = {
   environment?: string;
   createIfMissing?: boolean;
 };
 
-/** Options for deleting a named object. */
+/** @deprecated Use specific Params types instead. */
 export type DeleteOptions = {
   environment?: string;
 };
 
-/** Options for constructors that create a temporary, nameless object. */
+/** @deprecated Use specific Params types instead. */
 export type EphemeralOptions = {
   environment?: string;
 };
@@ -96,10 +102,10 @@ export class App {
   }
 
   /**
-   * @deprecated Use `client.apps.lookup()` instead.
+   * @deprecated Use `client.apps.fromName()` instead.
    */
   static async lookup(name: string, options: LookupOptions = {}): Promise<App> {
-    return getDefaultClient().apps.lookup(name, options);
+    return getDefaultClient().apps.fromName(name, options);
   }
 
   /**
@@ -107,7 +113,7 @@ export class App {
    */
   async createSandbox(
     image: Image,
-    options: SandboxCreateOptions = {},
+    options: SandboxCreateParams = {},
   ): Promise<Sandbox> {
     return getDefaultClient().sandboxes.create(this, image, options);
   }

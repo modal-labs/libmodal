@@ -13,5 +13,8 @@ if (!modalSecret) {
 
 const mc = new ModalClient({ tokenId: modalId, tokenSecret: modalSecret });
 
-const echo = await mc.functions.lookup("libmodal-test-support", "echo_string");
+const echo = await mc.functions.fromName(
+  "libmodal-test-support",
+  "echo_string",
+);
 console.log(echo);
