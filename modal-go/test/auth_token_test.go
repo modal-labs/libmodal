@@ -76,7 +76,6 @@ func TestAuthToken_InitialFetch(t *testing.T) {
 	g.Expect(second_token).Should(gomega.Equal(token))
 }
 
-
 func TestAuthToken_IsExpired(t *testing.T) {
 	g := gomega.NewWithT(t)
 
@@ -116,7 +115,7 @@ func TestAuthToken_RefreshExpiredToken(t *testing.T) {
 	freshToken := createTestJWT(now + 3600)
 
 	manager := modal.NewAuthTokenManager(mockClient)
-	manager.SetToken(expiringToken, now - 60)
+	manager.SetToken(expiringToken, now-60)
 	mockClient.setAuthToken(freshToken)
 
 	// Start the background refresh goroutine
