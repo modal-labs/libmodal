@@ -15,7 +15,191 @@ import { getProfile, type Profile } from "./config";
 
 const defaultProfile = getProfile(process.env["MODAL_PROFILE"]);
 
-let modalAuthToken: string | undefined;
+// Start refreshing this many seconds before the token expires
+export const REFRESH_WINDOW = 5 * 60;
+// If the token doesn't have an expiry field, default to current time plus this value (not expected).
+export const DEFAULT_EXPIRY_OFFSET = 20 * 60;
+
+export class AuthTokenManager {
+  private client: ReturnType<typeof createClient>;
+  private currentToken: string = "";
+  private tokenExpiry: number = 0;
+  private refreshPromise: Promise<string> | null = null;
+  private refreshInterval: NodeJS.Timeout | null = null;
+
+  constructor(client: ReturnType<typeof createClient>) {
+    this.client = client;
+  }
+
+  /**
+   * Gets the current auth token. If no valid token exists, fetches one.
+   */
+  async getToken(): Promise<string> {
+    // Return existing, non-expired token
+    if (this.currentToken && !this.isExpired()) {
+      return this.currentToken;
+    }
+
+    // If already refreshing, wait for that promise
+    if (this.refreshPromise) {
+      return await this.refreshPromise;
+    }
+
+    // Start new refresh
+    return await this.refreshToken();
+  }
+
+  /**
+   * Refreshes the auth token by calling the server.
+   * Uses promise deduplication to handle concurrent refresh requests.
+   */
+  async refreshToken(): Promise<string> {
+    if (this.refreshPromise) {
+      return this.refreshPromise;
+    }
+
+    this.refreshPromise = this.refresh().finally(() => {
+      this.refreshPromise = null;
+    });
+
+    return this.refreshPromise;
+  }
+
+  /**
+   * Fetch the new auth token with authTokenGet() call.
+   */
+  private async refresh(): Promise<string> {
+    try {
+      const response = await this.client.authTokenGet({});
+      const token = response.token;
+
+      if (!token) {
+        throw new Error(
+          "Internal error: did not receive auth token from server, please contact Modal support",
+        );
+      }
+
+      this.currentToken = token;
+
+      // Parse JWT expiry
+      const exp = this.decodeJWT(token);
+      if (exp > 0) {
+        this.tokenExpiry = exp;
+      } else {
+        console.warn("Failed to decode x-modal-auth-token exp field");
+        // We'll use the token, and set the expiry to 20 min from now.
+        this.tokenExpiry =
+          Math.floor(Date.now() / 1000) + DEFAULT_EXPIRY_OFFSET;
+      }
+
+      // Schedule next refresh
+      this.scheduleRefresh();
+
+      return token;
+    } catch (error) {
+      console.error("Failed to refresh auth token:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Schedules the next token refresh based on the current token's expiry.
+   */
+  private scheduleRefresh() {
+    if (this.refreshInterval) {
+      clearTimeout(this.refreshInterval);
+    }
+
+    const now = Math.floor(Date.now() / 1000);
+    const refreshTime = this.tokenExpiry - REFRESH_WINDOW;
+    const delay = Math.max(0, refreshTime - now) * 1000;
+
+    this.refreshInterval = setTimeout(async () => {
+      try {
+        await this.refreshToken();
+      } catch (error) {
+        console.error("Background token refresh failed:", error);
+      }
+    }, delay);
+  }
+
+  /**
+   * Fetches the initial token on start.
+   */
+  async start(): Promise<void> {
+    try {
+      await this.refreshToken();
+    } catch (error) {
+      console.error("Failed to fetch initial auth token:", error);
+      // Schedule retry after 30 seconds
+      setTimeout(() => this.start(), 30000);
+    }
+  }
+
+  /**
+   * Stops the background refresh.
+   */
+  stop(): void {
+    if (this.refreshInterval) {
+      clearTimeout(this.refreshInterval);
+      this.refreshInterval = null;
+    }
+  }
+
+  /**
+   * Extracts the exp claim from a JWT token.
+   */
+  private decodeJWT(token: string): number {
+    try {
+      const parts = token.split(".");
+      if (parts.length !== 3) {
+        return 0;
+      }
+
+      let payload = parts[1];
+      while (payload.length % 4 !== 0) {
+        payload += "=";
+      }
+
+      const decoded = atob(payload);
+      const claims = JSON.parse(decoded);
+      return claims.exp || 0;
+    } catch {
+      return 0;
+    }
+  }
+
+  /**
+   * Checks if the current token is expired.
+   */
+  isExpired(): boolean {
+    const now = Math.floor(Date.now() / 1000);
+    return now >= this.tokenExpiry;
+  }
+
+  /**
+   * Checks if the token needs refresh (within REFRESH_WINDOW of expiry).
+   */
+  needsRefresh(): boolean {
+    const now = Math.floor(Date.now() / 1000);
+    return now >= this.tokenExpiry - REFRESH_WINDOW;
+  }
+
+  getCurrentToken(): string {
+    return this.currentToken;
+  }
+
+  getExpiry(): number {
+    return this.tokenExpiry;
+  }
+
+  setToken(token: string, expiry: number): void {
+    this.currentToken = token;
+    this.tokenExpiry = expiry;
+  }
+}
+
+let authTokenManager: AuthTokenManager | null = null;
 
 /** gRPC client middleware to add auth token to request. */
 function authMiddleware(profile: Profile): ClientMiddleware {
@@ -38,29 +222,26 @@ function authMiddleware(profile: Profile): ClientMiddleware {
     options.metadata.set("x-modal-client-version", "1.0.0"); // CLIENT VERSION: Behaves like this Python SDK version
     options.metadata.set("x-modal-token-id", tokenId);
     options.metadata.set("x-modal-token-secret", tokenSecret);
-    if (modalAuthToken) {
-      options.metadata.set("x-modal-auth-token", modalAuthToken);
+
+    // Skip auth token for AuthTokenGet requests to prevent it from getting stuck
+    if (call.method.path !== "/modal.client.ModalClient/AuthTokenGet") {
+      if (!authTokenManager) {
+        authTokenManager = new AuthTokenManager(client);
+        authTokenManager.start().catch((error) => {
+          console.error("Failed to start auth token manager:", error);
+        });
+      }
+
+      try {
+        const token = await authTokenManager.getToken();
+        if (token) {
+          options.metadata.set("x-modal-auth-token", token);
+        }
+      } catch (error) {
+        console.warn("Failed to get auth token:", error);
+      }
     }
 
-    // We receive an auth token from the control plane on our first request. We then include that auth token in every
-    // subsequent request to both the control plane and the input plane. The python server returns it in the trailers,
-    // the worker returns it in the headers.
-    const prevOnHeader = options.onHeader;
-    options.onHeader = (header) => {
-      const token = header.get("x-modal-auth-token");
-      if (token) {
-        modalAuthToken = token;
-      }
-      prevOnHeader?.(header);
-    };
-    const prevOnTrailer = options.onTrailer;
-    options.onTrailer = (trailer) => {
-      const token = trailer.get("x-modal-auth-token");
-      if (token) {
-        modalAuthToken = token;
-      }
-      prevOnTrailer?.(trailer);
-    };
     return yield* call.next(call.request, options);
   };
 }
@@ -282,4 +463,13 @@ export function initializeClient(options: ClientOptions) {
   };
   clientProfile = mergedProfile;
   client = createClient(mergedProfile);
+
+  // Create new auth token manager with updated client
+  if (authTokenManager) {
+    authTokenManager.stop();
+  }
+  authTokenManager = new AuthTokenManager(client);
+  authTokenManager.start().catch((error) => {
+    console.error("Failed to start auth token manager:", error);
+  });
 }
