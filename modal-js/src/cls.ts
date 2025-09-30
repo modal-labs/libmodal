@@ -102,12 +102,12 @@ export type ClsWithOptionsParams = {
   timeout?: number; // in milliseconds
 };
 
-export type ClsConcurrencyParams = {
+export type ClsWithConcurrencyParams = {
   maxInputs: number;
   targetInputs?: number;
 };
 
-export type ClsBatchingParams = {
+export type ClsWithBatchingParams = {
   maxBatchSize: number;
   waitMs: number;
 };
@@ -188,7 +188,7 @@ export class Cls {
   }
 
   /** Create an instance of the Cls with input concurrency enabled or overridden with new values. */
-  withConcurrency(params: ClsConcurrencyParams): Cls {
+  withConcurrency(params: ClsWithConcurrencyParams): Cls {
     const merged = mergeServiceOptions(this.#serviceOptions, {
       maxConcurrentInputs: params.maxInputs,
       targetConcurrentInputs: params.targetInputs,
@@ -204,7 +204,7 @@ export class Cls {
   }
 
   /** Create an instance of the Cls with dynamic batching enabled or overridden with new values. */
-  withBatching(params: ClsBatchingParams): Cls {
+  withBatching(params: ClsWithBatchingParams): Cls {
     const merged = mergeServiceOptions(this.#serviceOptions, {
       batchMaxSize: params.maxBatchSize,
       batchWaitMs: params.waitMs,

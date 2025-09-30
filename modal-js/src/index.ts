@@ -13,8 +13,8 @@ export {
   ClsService,
   type ClsFromNameParams,
   type ClsWithOptionsParams,
-  type ClsConcurrencyParams,
-  type ClsBatchingParams,
+  type ClsWithConcurrencyParams,
+  type ClsWithBatchingParams,
 } from "./cls";
 export {
   FunctionTimeoutError,

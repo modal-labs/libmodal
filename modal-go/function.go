@@ -226,7 +226,11 @@ func (f *Function) GetCurrentStats(ctx context.Context) (*FunctionStats, error) 
 }
 
 // UpdateAutoscaler overrides the current autoscaler behavior for this Function.
-func (f *Function) UpdateAutoscaler(ctx context.Context, params FunctionUpdateAutoscalerParams) error {
+func (f *Function) UpdateAutoscaler(ctx context.Context, params *FunctionUpdateAutoscalerParams) error {
+	if params == nil {
+		params = &FunctionUpdateAutoscalerParams{}
+	}
+
 	settings := pb.AutoscalerSettings_builder{
 		MinContainers:    params.MinContainers,
 		MaxContainers:    params.MaxContainers,
