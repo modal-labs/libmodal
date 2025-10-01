@@ -1,5 +1,11 @@
 # libmodal: [Modal](https://modal.com) SDKs for JavaScript / TypeScript and Go
 
+[![Build Status](https://github.com/modal-labs/libmodal/actions/workflows/ci.yaml/badge.svg?branch=main)](https://github.com/modal-labs/libmodal/actions?query=branch%3Amain)
+[![JS Reference Documentation](https://img.shields.io/static/v1?message=reference&logo=javascript&labelColor=5c5c5c&color=1182c3&logoColor=white&label=%20)](https://modal-labs.github.io/libmodal/)
+[![JS npm Version](https://img.shields.io/npm/v/modal.svg)](https://www.npmjs.org/package/modal)
+[![JS npm Downloads](https://img.shields.io/npm/dm/modal.svg)](https://www.npmjs.com/package/modal)
+[![Go Reference Documentation](https://pkg.go.dev/badge/github.com/modal-labs/libmodal/modal-go)](https://pkg.go.dev/github.com/modal-labs/libmodal/modal-go)
+
 **libmodal** (beta) provides convenient, on-demand access to serverless cloud compute on Modal from JavaScript/TypeScript and Go projects. Use it to safely run arbitrary code in Modal Sandboxes, call Modal Functions, and interact with Modal resources. For Python, see the main [Modal Python SDK](https://github.com/modal-labs/modal-client) instead.
 
 We're working towards feature parity with the main Modal Python SDK, although defining Modal Functions will likely remain exclusive to Python.
@@ -41,6 +47,8 @@ export MODAL_TOKEN_SECRET=as-FAKESECRETSTRINGABCDEF
 
 ### JavaScript / TypeScript (`modal-js/`)
 
+Requires Node 22 or later. We bundle both ES Modules and CommonJS formats, so you can load the package with either `import` or `require()` in any project.
+
 Install this in any server-side Node.js / Deno / Bun project.
 
 ```bash
@@ -50,6 +58,8 @@ npm install modal
 npm package: https://www.npmjs.com/package/modal
 
 ### Go (`modal-go/`)
+
+Requires Go 1.23 or later.
 
 Install the latest version:
 
