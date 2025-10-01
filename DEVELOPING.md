@@ -1,35 +1,34 @@
 # Developing `libmodal`
 
-## modal-go development
+## Development principles
 
-Clone this repository. You should be all set to run an example.
+We aim to maintain identical behavior across languages:
 
-```bash
-go run ./examples/sandbox
-```
+- When merging a feature or change into `main`, update it for all languages simultaneously, with tests.
+- Code structure should be similar between language folders.
+- Use a common set of gRPC primitives (retries, deadlines) and exceptions.
+- Complex types like streams must behave as similarly as possible.
 
-Whenever you need a new version of the protobufs, you can regenerate them:
+Notable differences:
+- Timeouts use milliseconds in JavaScript/TypeScript and `time.Duration` in Go.
 
-```bash
-go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
-go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
-scripts/gen-proto.sh
-```
+## Tests
 
-We check the generated into Git so that the package can be installed with `go get`.
+Tests are run against Modal cloud infrastructure, and you need to be authenticated with Modal to run them. See the [`test-support/`](./test-support) folder for details.
 
 ## modal-js development
 
-Setup after cloning the repo with submodules:
+Clone the repo, including submodules, and run:
 
 ```bash
 npm install
 ```
 
-Then run a script with:
+Run a script:
 
 ```bash
-node --import tsx path/to/script.ts
+cd modal-js
+node --import tsx examples/sandbox.ts
 ```
 
 ### gRPC support
@@ -38,25 +37,27 @@ We're using `nice-grpc` because the `@grpc/grpc-js` library doesn't support prom
 
 This gRPC library depends on the `protobuf-ts` package, which is not compatible with tree shaking because `ModalClientDefinition` transitively references every type. However, since `modal-js` is a server-side package, having a larger bundled library is not a huge issue.
 
+## modal-go development
+
+Clone the repository, including submodules. You should be all set to run an example:
+
+```bash
+cd modal-go
+go run ./examples/sandbox
+```
+
+Whenever you need a new version of the protobufs, check out the desired version of the `modal-client` submodule and regenerate the protobuf files with:
+
+```bash
+go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+scripts/gen-proto.sh
+```
+
+We check the generated protobuf files into Git so that the package can be installed with `go get`.
+
 ## How to publish
 
-1. Update `CHANGELOG.md`. Make sure that you're on a clean commit, then run the following update the `modal-js` version and update the changelog:
-
-```bash
-git switch -c release_branch_for_pr origin/main
-python ci/release.py version patch  # or 'minor'
-```
-
-2. Open a PR with changes.
-
-3. When PR is merged, pull changes locally and switch to main branch.
-
-```bash
-git switch -C main origin/main
-```
-
-4. Publish both `modal-js` and `modal-go`:
-
-```bash
-python ci/release.py publish
-```
+1. Ensure all changes are captured in the ["Unreleased" section of the `CHANGELOG.md`](https://github.com/modal-labs/libmodal/blob/main/CHANGELOG.md#unreleased).
+2. Manually trigger the [Open PR for release](https://github.com/modal-labs/libmodal/actions/workflows/release.yaml) workflow in GitHub Actions by clicking "Run workflow" and selecting the version to bump (patch, minor, or major).
+3. Review and merge the release PR. This automatically triggers the [Publish Release](https://github.com/modal-labs/libmodal/actions/workflows/publish.yaml) workflow, which builds and publishes the packages.
