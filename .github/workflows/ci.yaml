@@ -28,12 +28,14 @@ jobs:
         working-directory: modal-client
         run: |
           uv venv
-          uv pip install -r requirements.dev.txt ./modal-client
+          uv pip install -r requirements.dev.txt
+          ls -la
+          uv pip install ./modal-client
           uv run inv protoc
           uv run inv type-stubs
 
       - name: Install submodule client
-        run: uv pip install --system ./modal-client
+        run: uv pip install ./modal-client
 
       - run: |
           ruff check test-support/
