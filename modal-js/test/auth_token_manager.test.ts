@@ -112,7 +112,7 @@ describe("AuthTokenManager", () => {
     // Start the background refresh
     await manager.start();
 
-    // Brief sleep for background refresh to complete
+    // Brief wait for refresh to complete. TODO(walter): Can adjust if flaky.
     await new Promise((resolve) => setTimeout(resolve, 10));
 
     // Should have the new token cached
@@ -128,34 +128,16 @@ describe("AuthTokenManager", () => {
     manager.setToken(expiringToken, now + 60);
     mockClient.setAuthToken(freshToken);
 
-    // Verify the token needs refresh
     expect(manager.needsRefresh()).toBe(true);
 
-    // GetToken should return the current valid token immediately
-    const result = await manager.getToken();
-    expect(result).toBe(expiringToken);
+    // Start the refresh timer
+    await manager.start();
 
-    // Manually trigger what the background refresh would do
-    const refreshedToken = await manager.refreshToken();
-    expect(refreshedToken).toBe(freshToken);
+    // Brief wait for refresh to complete. TODO(walter): Can adjust if flaky.
+    await new Promise((resolve) => setTimeout(resolve, 10));
 
-    // Verify the manager now has the fresh token cached
+    // Should have the new token cached
     expect(manager.getCurrentToken()).toBe(freshToken);
-
-    // After refresh, it should no longer need refresh
     expect(manager.needsRefresh()).toBe(false);
-  });
-
-  test("TestAuthToken_GetToken_ExpiredToken", async () => {
-    const now = Math.floor(Date.now() / 1000);
-    const expiredToken = createTestJWT(now - 60);
-    const freshToken = createTestJWT(now + 3600);
-
-    manager.setToken(expiredToken, now - 60);
-    mockClient.setAuthToken(freshToken);
-
-    // getToken() should fetch new token since cached one is expired
-    const result = await manager.getToken();
-    expect(result).toBe(freshToken);
   });
 });

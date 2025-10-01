@@ -19,7 +19,7 @@ const (
 	DEFAULT_EXPIRY_OFFSET = 20 * 60
 )
 
-// Manages authentication tokens using a background goroutine, and refresh the token REFRESH_WINDOW seconds before it expires.
+// Manages authentication tokens using a goroutine, and refreshes the token REFRESH_WINDOW seconds before it expires.
 type AuthTokenManager struct {
 	client   pb.ModalClientClient
 	cancelFn context.CancelFunc

@@ -20,6 +20,9 @@ export const REFRESH_WINDOW = 5 * 60;
 // If the token doesn't have an expiry field, default to current time plus this value (not expected).
 export const DEFAULT_EXPIRY_OFFSET = 20 * 60;
 
+/**
+ * Manages auth tokens, refreshing tokens REFRESH_WINDOW seconds before they expire.
+ */
 export class AuthTokenManager {
   private client: ReturnType<typeof createClient>;
   private currentToken: string = "";
@@ -89,7 +92,7 @@ export class AuthTokenManager {
         this.tokenExpiry = exp;
       } else {
         console.warn("Failed to decode x-modal-auth-token exp field");
-        // We'll use the token, and set the expiry to 20 min from now.
+        // We'll use the token, and set the expiry to DEFAULT_EXPIRY_OFFSET from now.
         this.tokenExpiry =
           Math.floor(Date.now() / 1000) + DEFAULT_EXPIRY_OFFSET;
       }
