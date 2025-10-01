@@ -261,7 +261,6 @@ func (c *Cls) bindParameters(params map[string]any) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to bind parameters: %w", err)
 	}
-
 	return bindResp.GetBoundFunctionId(), nil
 }
 
