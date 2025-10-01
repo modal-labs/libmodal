@@ -32,7 +32,9 @@ export class AuthTokenManager {
   }
 
   /**
-   * Gets the current auth token. If no valid token exists, fetches one.
+   * Returns cached token if valid, otherwise fetches a new one.
+   * Concurrent calls will share the same refresh promise to avoid duplicate requests.
+   * The background refresh updates tokens before expiry.
    */
   async getToken(): Promise<string> {
     // Return existing, non-expired token

@@ -55,7 +55,8 @@ func (m *AuthTokenManager) Stop() {
 }
 
 // GetToken returns the current cached token.
-// If no token is available, it will attempt to fetch one.
+// If no token is available or the token is expired, it will fetch a new one.
+// The background goroutine proactively refreshes tokens before they expire,
 func (m *AuthTokenManager) GetToken(ctx context.Context) (string, error) {
 	token := m.GetCurrentToken()
 
