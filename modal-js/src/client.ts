@@ -133,7 +133,11 @@ export class AuthTokenManager {
    */
   async start(): Promise<void> {
     try {
-      await this.refreshToken();
+      if (this.currentToken === "") {
+          await this.refreshToken();
+      } else {
+        this.scheduleRefresh();
+      }
     } catch (error) {
       console.error("Failed to fetch initial auth token:", error);
     }
