@@ -33,7 +33,7 @@ jobs:
           uv run inv type-stubs
 
       - name: Install submodule client
-          uv pip install ./modal-client
+        run: uv pip install --system ./modal-client
 
       - run: |
           ruff check test-support/
