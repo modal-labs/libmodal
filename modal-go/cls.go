@@ -189,12 +189,13 @@ func (c *Cls) WithOptions(opts ClsOptions) *Cls {
 	})
 
 	return &Cls{
-		ctx:               c.ctx,
-		serviceFunctionId: c.serviceFunctionId,
-		schema:            c.schema,
-		methodNames:       c.methodNames,
-		inputPlaneUrl:     c.inputPlaneUrl,
-		options:           merged,
+		ctx:                     c.ctx,
+		serviceFunctionId:       c.serviceFunctionId,
+		schema:                  c.schema,
+		methodNames:             c.methodNames,
+		inputPlaneUrl:           c.inputPlaneUrl,
+		serviceFunctionMetadata: c.serviceFunctionMetadata,
+		options:                 merged,
 	}
 }
 
@@ -206,12 +207,13 @@ func (c *Cls) WithConcurrency(opts ClsConcurrencyOptions) *Cls {
 	})
 
 	return &Cls{
-		ctx:               c.ctx,
-		serviceFunctionId: c.serviceFunctionId,
-		schema:            c.schema,
-		methodNames:       c.methodNames,
-		inputPlaneUrl:     c.inputPlaneUrl,
-		options:           merged,
+		ctx:                     c.ctx,
+		serviceFunctionId:       c.serviceFunctionId,
+		schema:                  c.schema,
+		methodNames:             c.methodNames,
+		inputPlaneUrl:           c.inputPlaneUrl,
+		serviceFunctionMetadata: c.serviceFunctionMetadata,
+		options:                 merged,
 	}
 }
 
@@ -223,12 +225,13 @@ func (c *Cls) WithBatching(opts ClsBatchingOptions) *Cls {
 	})
 
 	return &Cls{
-		ctx:               c.ctx,
-		serviceFunctionId: c.serviceFunctionId,
-		schema:            c.schema,
-		methodNames:       c.methodNames,
-		inputPlaneUrl:     c.inputPlaneUrl,
-		options:           merged,
+		ctx:                     c.ctx,
+		serviceFunctionId:       c.serviceFunctionId,
+		schema:                  c.schema,
+		methodNames:             c.methodNames,
+		inputPlaneUrl:           c.inputPlaneUrl,
+		serviceFunctionMetadata: c.serviceFunctionMetadata,
+		options:                 merged,
 	}
 }
 
