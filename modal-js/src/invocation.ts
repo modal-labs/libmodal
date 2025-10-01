@@ -150,7 +150,6 @@ export class InputPlaneInvocation implements Invocation {
       idx: 0,
       input,
       r2Failed: false,
-      r2LatencyMs: 0,
       r2ThroughputBytesS: 0,
     });
     const client = getOrCreateInputPlaneClient(inputPlaneUrl);
