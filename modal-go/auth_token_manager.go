@@ -21,7 +21,8 @@ const (
 
 // Manages authentication tokens using a background goroutine, and refresh the token REFRESH_WINDOW seconds before it expires.
 type AuthTokenManager struct {
-	client pb.ModalClientClient
+	client   pb.ModalClientClient
+	cancelFn context.CancelFunc
 
 	token  atomic.Value
 	expiry atomic.Int64
@@ -38,9 +39,19 @@ func NewAuthTokenManager(client pb.ModalClientClient) *AuthTokenManager {
 	return manager
 }
 
-// Start the background token refresh goroutine.
+// Start the token refresh goroutine.
 func (m *AuthTokenManager) Start(ctx context.Context) {
-	go m.backgroundRefresh(ctx)
+	refreshCtx, cancel := context.WithCancel(ctx)
+	m.cancelFn = cancel
+	go m.backgroundRefresh(refreshCtx)
+}
+
+// Stop the refresh goroutine.
+func (m *AuthTokenManager) Stop() {
+	if m.cancelFn != nil {
+		m.cancelFn()
+		m.cancelFn = nil
+	}
 }
 
 // GetToken returns the current cached token.

@@ -121,6 +121,9 @@ func InitializeClient(options ClientOptions) error {
 	}
 
 	// Initialize new auth manager with updated client
+	if authTokenManager != nil {
+		authTokenManager.Stop()
+	}
 	authTokenManager = NewAuthTokenManager(client)
 	authTokenManager.Start(context.Background())
 

@@ -25,7 +25,7 @@ export class AuthTokenManager {
   private currentToken: string = "";
   private tokenExpiry: number = 0;
   private refreshPromise: Promise<string> | null = null;
-  private refreshInterval: NodeJS.Timeout | null = null;
+  private nextRefresh: NodeJS.Timeout | null = null;
 
   constructor(client: ReturnType<typeof createClient>) {
     this.client = client;
@@ -106,19 +106,19 @@ export class AuthTokenManager {
    * Schedules the next token refresh based on the current token's expiry.
    */
   private scheduleRefresh() {
-    if (this.refreshInterval) {
-      clearTimeout(this.refreshInterval);
+    if (this.nextRefresh) {
+      clearTimeout(this.nextRefresh);
     }
 
     const now = Math.floor(Date.now() / 1000);
     const refreshTime = this.tokenExpiry - REFRESH_WINDOW;
     const delay = Math.max(0, refreshTime - now) * 1000;
 
-    this.refreshInterval = setTimeout(async () => {
+    this.nextRefresh = setTimeout(async () => {
       try {
         await this.refreshToken();
       } catch (error) {
-        console.error("Background token refresh failed:", error);
+        console.error("Token refresh failed:", error);
       }
     }, delay);
   }
@@ -131,8 +131,6 @@ export class AuthTokenManager {
       await this.refreshToken();
     } catch (error) {
       console.error("Failed to fetch initial auth token:", error);
-      // Schedule retry after 30 seconds
-      setTimeout(() => this.start(), 30000);
     }
   }
 
@@ -140,9 +138,9 @@ export class AuthTokenManager {
    * Stops the background refresh.
    */
   stop(): void {
-    if (this.refreshInterval) {
-      clearTimeout(this.refreshInterval);
-      this.refreshInterval = null;
+    if (this.nextRefresh) {
+      clearTimeout(this.nextRefresh);
+      this.nextRefresh = null;
     }
   }
 
