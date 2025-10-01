@@ -100,7 +100,7 @@ export class Secret {
   }
 
   /**
-   * @deprecated Use `client.secrets.fromMap()` instead.
+   * @deprecated Use `client.secrets.fromObject()` instead.
    */
   static async fromObject(
     entries: Record<string, string>,
