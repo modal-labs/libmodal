@@ -214,7 +214,7 @@ func (s *sandboxServiceImpl) Create(ctx context.Context, app *App, image *Image,
 
 	mergedParams := *params
 	mergedParams.Secrets = mergedSecrets
-	mergedParams.Env = nil
+	mergedParams.Env = nil // nil'ing Env just to clarify it's not needed anymore
 
 	req, err := buildSandboxCreateRequestProto(app.AppID, image.ImageID, mergedParams)
 	if err != nil {
@@ -413,7 +413,7 @@ func (sb *Sandbox) Exec(ctx context.Context, command []string, params *SandboxEx
 
 	mergedParams := *params
 	mergedParams.Secrets = mergedSecrets
-	mergedParams.Env = nil
+	mergedParams.Env = nil // nil'ing Env just to clarify it's not needed anymore
 
 	req, err := buildContainerExecRequestProto(sb.taskID, command, mergedParams)
 	if err != nil {

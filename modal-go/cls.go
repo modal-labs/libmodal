@@ -263,7 +263,7 @@ func (c *Cls) bindParameters(ctx context.Context, parameters map[string]any, opt
 
 	mergedOptions := mergeServiceOptions(opts, &serviceOptions{
 		secrets: &mergedSecrets,
-		env:     nil,
+		env:     nil, // nil'ing env just to clarify it's not needed anymore
 	})
 
 	serializedParams, err := encodeParameterSet(c.schema, parameters)

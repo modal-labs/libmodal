@@ -293,7 +293,7 @@ export class SandboxService {
     const mergedParams = {
       ...params,
       secrets: mergedSecrets,
-      env: undefined,
+      env: undefined, // setting env to undefined just to clarify it's not needed anymore
     };
 
     const createReq = await buildSandboxCreateRequestProto(
@@ -656,7 +656,7 @@ export class Sandbox {
     const mergedParams = {
       ...params,
       secrets: mergedSecrets,
-      env: undefined,
+      env: undefined, // setting env to undefined just to clarify it's not needed anymore
     };
 
     const req = await buildContainerExecRequestProto(

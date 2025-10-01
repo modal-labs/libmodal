@@ -228,7 +228,7 @@ export class Cls {
     );
     const mergedOptions = mergeServiceOptions(this.#serviceOptions, {
       secrets: mergedSecrets,
-      env: undefined,
+      env: undefined, // setting env to undefined just to clarify it's not needed anymore
     });
 
     const serializedParams = encodeParameterSet(this.#schema, parameters);
