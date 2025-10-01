@@ -526,34 +526,6 @@ test("buildContainerExecRequestProto with PTY", async () => {
   expect(ptyInfo.noTerminateOnIdleStdin).toBe(true);
 });
 
-test("buildSandboxCreateRequestProto merges env and secrets", async () => {
-  const secret = await Secret.fromObject({ A: "1" });
-
-  const req = await buildSandboxCreateRequestProto("ap", "im", {
-    env: { B: "2" },
-    secrets: [secret],
-  });
-
-  expect(req.definition!.secretIds).toHaveLength(2);
-  expect(req.definition!.secretIds).toContain(secret.secretId);
-});
-
-test("buildSandboxCreateRequestProto with only env parameter", async () => {
-  const req = await buildSandboxCreateRequestProto("ap", "im", {
-    env: { B: "2", C: "3" },
-  });
-
-  expect(req.definition!.secretIds).toHaveLength(1);
-});
-
-test("buildSandboxCreateRequestProto with empty env object does not create secret", async () => {
-  const req = await buildSandboxCreateRequestProto("ap", "im", {
-    env: {},
-  });
-
-  expect(req.definition!.secretIds).toHaveLength(0);
-});
-
 test("buildSandboxCreateRequestProto without PTY", async () => {
   const req = await buildSandboxCreateRequestProto("app-123", "img-456");
 
@@ -574,32 +546,4 @@ test("buildSandboxCreateRequestProto with PTY", async () => {
   expect(ptyInfo.envTerm).toBe("xterm-256color");
   expect(ptyInfo.envColorterm).toBe("truecolor");
   expect(ptyInfo.ptyType).toBe(PTYInfo_PTYType.PTY_TYPE_SHELL);
-});
-
-test("buildContainerExecRequestProto merges env and secrets", async () => {
-  const secret = await Secret.fromObject({ A: "1" });
-
-  const req = await buildContainerExecRequestProto("ta", ["echo", "hello"], {
-    env: { B: "2" },
-    secrets: [secret],
-  });
-
-  expect(req.secretIds).toHaveLength(2);
-  expect(req.secretIds).toContain(secret.secretId);
-});
-
-test("buildContainerExecRequestProto with only env parameter", async () => {
-  const req = await buildContainerExecRequestProto("ta", ["echo", "hello"], {
-    env: { B: "2" },
-  });
-
-  expect(req.secretIds).toHaveLength(1);
-});
-
-test("buildContainerExecRequestProto with empty env object does not create secret", async () => {
-  const req = await buildContainerExecRequestProto("ta", ["echo", "hello"], {
-    env: {},
-  });
-
-  expect(req.secretIds).toHaveLength(0);
 });

@@ -12,7 +12,6 @@ type SecretService interface {
 	FromMap(ctx context.Context, keyValuePairs map[string]string, params *SecretFromMapParams) (*Secret, error)
 }
 
-// secretServiceImpl is the real implementation of SecretService.
 type secretServiceImpl struct{ client *Client }
 
 // Secret represents a Modal Secret.
@@ -66,4 +65,23 @@ func (s *secretServiceImpl) FromMap(ctx context.Context, keyValuePairs map[strin
 		return nil, err
 	}
 	return &Secret{SecretID: resp.GetSecretId()}, nil
+}
+
+// mergeEnvIntoSecrets merges environment variables into the secrets list.
+// If env contains values, it creates a new Secret from the env map and appends it to the existing secrets.
+func mergeEnvIntoSecrets(ctx context.Context, client *Client, env *map[string]string, secrets *[]*Secret) ([]*Secret, error) {
+	var result []*Secret
+	if secrets != nil {
+		result = append(result, *secrets...)
+	}
+
+	if env != nil && len(*env) > 0 {
+		envSecret, err := client.Secrets.FromMap(ctx, *env, nil)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, envSecret)
+	}
+
+	return result, nil
 }

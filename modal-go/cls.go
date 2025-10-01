@@ -143,7 +143,11 @@ func (c *Cls) Instance(ctx context.Context, parameters map[string]any) (*ClsInst
 	if len(c.schema) == 0 && !hasOptions(c.serviceOptions) {
 		functionID = c.serviceFunctionID
 	} else {
-		boundFunctionID, err := c.bindParameters(ctx, parameters)
+		opts := c.serviceOptions
+		if opts == nil {
+			opts = &serviceOptions{}
+		}
+		boundFunctionID, err := c.bindParameters(ctx, parameters, opts)
 		if err != nil {
 			return nil, err
 		}
@@ -251,21 +255,22 @@ func (c *Cls) WithBatching(params *ClsWithBatchingParams) *Cls {
 }
 
 // bindParameters processes the parameters and binds them to the class function.
-func (c *Cls) bindParameters(ctx context.Context, parameters map[string]any) (string, error) {
-	var envSecret *Secret
-	var err error
-	if c.serviceOptions != nil && c.serviceOptions.env != nil && len(*c.serviceOptions.env) > 0 {
-		envSecret, err = c.client.Secrets.FromMap(ctx, *c.serviceOptions.env, nil)
-		if err != nil {
-			return "", err
-		}
+func (c *Cls) bindParameters(ctx context.Context, parameters map[string]any, opts *serviceOptions) (string, error) {
+	mergedSecrets, err := mergeEnvIntoSecrets(ctx, c.client, opts.env, opts.secrets)
+	if err != nil {
+		return "", err
 	}
+
+	mergedOptions := mergeServiceOptions(opts, &serviceOptions{
+		secrets: &mergedSecrets,
+		env:     nil, // nil'ing env just to clarify it's not needed anymore
+	})
 
 	serializedParams, err := encodeParameterSet(c.schema, parameters)
 	if err != nil {
 		return "", fmt.Errorf("failed to serialize parameters: %w", err)
 	}
-	functionOptions, err := buildFunctionOptionsProto(c.serviceOptions, envSecret)
+	functionOptions, err := buildFunctionOptionsProto(mergedOptions)
 	if err != nil {
 		return "", fmt.Errorf("failed to build function options: %w", err)
 	}
@@ -458,7 +463,7 @@ func mergeServiceOptions(base, new *serviceOptions) *serviceOptions {
 	return merged
 }
 
-func buildFunctionOptionsProto(options *serviceOptions, envSecret *Secret) (*pb.FunctionOptions, error) {
+func buildFunctionOptionsProto(options *serviceOptions) (*pb.FunctionOptions, error) {
 	if !hasOptions(options) {
 		return nil, nil
 	}
@@ -490,12 +495,6 @@ func buildFunctionOptionsProto(options *serviceOptions, envSecret *Secret) (*pb.
 				secretIds = append(secretIds, secret.SecretID)
 			}
 		}
-	}
-	if (options.env != nil && len(*options.env) > 0) != (envSecret != nil) {
-		return nil, fmt.Errorf("internal error: env and envSecret must both be provided or neither be provided")
-	}
-	if envSecret != nil {
-		secretIds = append(secretIds, envSecret.SecretID)
 	}
 
 	builder.SecretIds = secretIds

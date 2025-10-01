@@ -14,7 +14,7 @@ import { getDefaultClient, type ModalClient } from "./client";
 import { Function_ } from "./function";
 import { parseGpuConfig } from "./app";
 import type { Secret } from "./secret";
-import { mergeEnvAndSecrets } from "./secret";
+import { mergeEnvIntoSecrets } from "./secret";
 import { Retries, parseRetries } from "./retries";
 import type { Volume } from "./volume";
 
@@ -221,10 +221,18 @@ export class Cls {
 
   /** Bind parameters to the Cls function. */
   async #bindParameters(parameters: Record<string, any>): Promise<string> {
-    const serializedParams = encodeParameterSet(this.#schema, parameters);
-    const functionOptions = await buildFunctionOptionsProto(
-      this.#serviceOptions,
+    const mergedSecrets = await mergeEnvIntoSecrets(
+      this.#client,
+      this.#serviceOptions?.env,
+      this.#serviceOptions?.secrets,
     );
+    const mergedOptions = mergeServiceOptions(this.#serviceOptions, {
+      secrets: mergedSecrets,
+      env: undefined, // setting env to undefined just to clarify it's not needed anymore
+    });
+
+    const serializedParams = encodeParameterSet(this.#schema, parameters);
+    const functionOptions = await buildFunctionOptionsProto(mergedOptions);
     const bindResp = await this.#client.cpClient.functionBindParams({
       functionId: this.#serviceFunctionId,
       serializedParams,
@@ -275,8 +283,7 @@ async function buildFunctionOptionsProto(
         }
       : undefined;
 
-  const mergedSecrets = await mergeEnvAndSecrets(o.env, o.secrets);
-  const secretIds = mergedSecrets.map((s) => s.secretId);
+  const secretIds = (o.secrets || []).map((s) => s.secretId);
 
   const volumeMounts: VolumeMount[] = o.volumes
     ? Object.entries(o.volumes).map(([mountPath, volume]) => ({

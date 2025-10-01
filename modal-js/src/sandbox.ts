@@ -34,7 +34,7 @@ import {
   toModalReadStream,
   toModalWriteStream,
 } from "./streams";
-import { type Secret, mergeEnvAndSecrets } from "./secret";
+import { type Secret, mergeEnvIntoSecrets } from "./secret";
 import {
   InvalidError,
   NotFoundError,
@@ -201,8 +201,7 @@ export async function buildSandboxCreateRequestProto(
     );
   }
 
-  const mergedSecrets = await mergeEnvAndSecrets(params.env, params.secrets);
-  const secretIds = mergedSecrets.map((secret) => secret.secretId);
+  const secretIds = (params.secrets || []).map((secret) => secret.secretId);
 
   let networkAccess: NetworkAccess;
   if (params.blockNetwork) {
@@ -286,10 +285,21 @@ export class SandboxService {
   ): Promise<Sandbox> {
     await image.build(app);
 
+    const mergedSecrets = await mergeEnvIntoSecrets(
+      this.#client,
+      params.env,
+      params.secrets,
+    );
+    const mergedParams = {
+      ...params,
+      secrets: mergedSecrets,
+      env: undefined, // setting env to undefined just to clarify it's not needed anymore
+    };
+
     const createReq = await buildSandboxCreateRequestProto(
       app.appId,
       image.imageId,
-      params,
+      mergedParams,
     );
     let createResp;
     try {
@@ -487,8 +497,7 @@ export async function buildContainerExecRequestProto(
   command: string[],
   params?: SandboxExecParams,
 ): Promise<ContainerExecRequest> {
-  const mergedSecrets = await mergeEnvAndSecrets(params?.env, params?.secrets);
-  const secretIds = mergedSecrets.map((secret) => secret.secretId);
+  const secretIds = (params?.secrets || []).map((secret) => secret.secretId);
 
   let ptyInfo: PTYInfo | undefined;
   if (params?.pty) {
@@ -639,7 +648,22 @@ export class Sandbox {
   ): Promise<ContainerProcess> {
     const taskId = await this.#getTaskId();
 
-    const req = await buildContainerExecRequestProto(taskId, command, params);
+    const mergedSecrets = await mergeEnvIntoSecrets(
+      this.#client,
+      params?.env,
+      params?.secrets,
+    );
+    const mergedParams = {
+      ...params,
+      secrets: mergedSecrets,
+      env: undefined, // setting env to undefined just to clarify it's not needed anymore
+    };
+
+    const req = await buildContainerExecRequestProto(
+      taskId,
+      command,
+      mergedParams,
+    );
     const resp = await this.#client.cpClient.containerExec(req);
 
     return new ContainerProcess(this.#client, resp.execId, params);

@@ -54,7 +54,7 @@ type SandboxCreateParams struct {
 }
 
 // buildSandboxCreateRequestProto builds a SandboxCreateRequest proto from options.
-func buildSandboxCreateRequestProto(appID, imageID string, params SandboxCreateParams, envSecret *Secret) (*pb.SandboxCreateRequest, error) {
+func buildSandboxCreateRequestProto(appID, imageID string, params SandboxCreateParams) (*pb.SandboxCreateRequest, error) {
 	gpuConfig, err := parseGPUConfig(params.GPU)
 	if err != nil {
 		return nil, err
@@ -127,12 +127,6 @@ func buildSandboxCreateRequestProto(appID, imageID string, params SandboxCreateP
 		if secret != nil {
 			secretIds = append(secretIds, secret.SecretID)
 		}
-	}
-	if (len(params.Env) > 0) != (envSecret != nil) {
-		return nil, fmt.Errorf("internal error: Env and envSecret must both be provided or neither be provided")
-	}
-	if envSecret != nil {
-		secretIds = append(secretIds, envSecret.SecretID)
 	}
 
 	var networkAccess *pb.NetworkAccess
@@ -213,15 +207,16 @@ func (s *sandboxServiceImpl) Create(ctx context.Context, app *App, image *Image,
 		return nil, err
 	}
 
-	var envSecret *Secret
-	if len(params.Env) > 0 {
-		envSecret, err = s.client.Secrets.FromMap(ctx, params.Env, nil)
-		if err != nil {
-			return nil, err
-		}
+	mergedSecrets, err := mergeEnvIntoSecrets(ctx, s.client, &params.Env, &params.Secrets)
+	if err != nil {
+		return nil, err
 	}
 
-	req, err := buildSandboxCreateRequestProto(app.AppID, image.ImageID, *params, envSecret)
+	mergedParams := *params
+	mergedParams.Secrets = mergedSecrets
+	mergedParams.Env = nil // nil'ing Env just to clarify it's not needed anymore
+
+	req, err := buildSandboxCreateRequestProto(app.AppID, image.ImageID, mergedParams)
 	if err != nil {
 		return nil, err
 	}
@@ -374,7 +369,7 @@ type SandboxExecParams struct {
 }
 
 // buildContainerExecRequestProto builds a ContainerExecRequest proto from command and options.
-func buildContainerExecRequestProto(taskID string, command []string, params SandboxExecParams, envSecret *Secret) (*pb.ContainerExecRequest, error) {
+func buildContainerExecRequestProto(taskID string, command []string, params SandboxExecParams) (*pb.ContainerExecRequest, error) {
 	var workdir *string
 	if params.Workdir != "" {
 		workdir = &params.Workdir
@@ -384,12 +379,6 @@ func buildContainerExecRequestProto(taskID string, command []string, params Sand
 		if secret != nil {
 			secretIds = append(secretIds, secret.SecretID)
 		}
-	}
-	if (len(params.Env) > 0) != (envSecret != nil) {
-		return nil, fmt.Errorf("internal error: Env and envSecret must both be provided or neither be provided")
-	}
-	if envSecret != nil {
-		secretIds = append(secretIds, envSecret.SecretID)
 	}
 
 	var ptyInfo *pb.PTYInfo
@@ -417,16 +406,16 @@ func (sb *Sandbox) Exec(ctx context.Context, command []string, params *SandboxEx
 		return nil, err
 	}
 
-	var envSecret *Secret
-	if len(params.Env) > 0 {
-		var err error
-		envSecret, err = sb.client.Secrets.FromMap(ctx, params.Env, nil)
-		if err != nil {
-			return nil, err
-		}
+	mergedSecrets, err := mergeEnvIntoSecrets(ctx, sb.client, &params.Env, &params.Secrets)
+	if err != nil {
+		return nil, err
 	}
 
-	req, err := buildContainerExecRequestProto(sb.taskID, command, *params, envSecret)
+	mergedParams := *params
+	mergedParams.Secrets = mergedSecrets
+	mergedParams.Env = nil // nil'ing Env just to clarify it's not needed anymore
+
+	req, err := buildContainerExecRequestProto(sb.taskID, command, mergedParams)
 	if err != nil {
 		return nil, err
 	}
