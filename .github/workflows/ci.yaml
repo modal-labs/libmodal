@@ -28,7 +28,7 @@ jobs:
         working-directory: modal-client
         run: |
           uv venv
-          uv pip install -r requirements.dev.txt
+          uv pip install -r requirements.dev.txt ./modal-client
           uv run inv protoc
           uv run inv type-stubs
 
