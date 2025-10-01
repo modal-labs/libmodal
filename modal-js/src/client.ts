@@ -34,7 +34,7 @@ export class AuthTokenManager {
   /**
    * Returns cached token if valid, otherwise fetches a new one.
    * Concurrent calls will share the same refresh promise to avoid duplicate requests.
-   * The background refresh updates tokens before expiry.
+   * Ideally getToken() should not refresh tokens, since we refresh tokens near expiry with a background timer.
    */
   async getToken(): Promise<string> {
     // Return existing, non-expired token
@@ -47,7 +47,7 @@ export class AuthTokenManager {
       return await this.refreshPromise;
     }
 
-    // Start new refresh
+    // Should almost never happen
     return await this.refreshToken();
   }
 
