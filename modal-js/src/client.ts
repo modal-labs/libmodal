@@ -134,7 +134,7 @@ export class AuthTokenManager {
   async start(): Promise<void> {
     try {
       if (this.currentToken === "") {
-          await this.refreshToken();
+        await this.refreshToken();
       } else {
         this.scheduleRefresh();
       }
