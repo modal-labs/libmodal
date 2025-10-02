@@ -131,11 +131,6 @@ func (c *Cls) getMethodNames() []string {
 	return methodNames
 }
 
-func (c *Cls) getInputPlaneURL() string {
-	// empty string if no input plane URL
-	return c.serviceFunctionMetadata.GetInputPlaneUrl()
-}
-
 // Instance creates a new instance of the class with the provided parameters.
 func (c *Cls) Instance(ctx context.Context, parameters map[string]any) (*ClsInstance, error) {
 	var functionID string
