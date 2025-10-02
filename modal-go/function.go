@@ -152,6 +152,7 @@ func cborDeserialize(buffer []byte) (any, error) {
 
 // createInput serializes inputs, makes a function call and returns its ID
 func (f *Function) createInput(ctx context.Context, args []any, kwargs map[string]any) (*pb.FunctionInput, error) {
+
 	// Check supported input formats and require CBOR
 	supportedInputFormats := f.getSupportedInputFormats()
 	cborSupported := false
@@ -191,7 +192,11 @@ func (f *Function) createInput(ctx context.Context, args []any, kwargs map[strin
 		argsBytes = nil
 		argsBlobID = &blobID
 	}
-	methodName := f.handleMetadata.GetUseMethodName() // this is empty if the function is not a cls method
+	metadata, err := f.getHandleMetadata()
+	if err != nil {
+		return nil, err
+	}
+	methodName := metadata.GetUseMethodName() // this is empty if the function is not a cls method
 	return pb.FunctionInput_builder{
 		Args:       argsBytes,
 		ArgsBlobId: argsBlobID,
@@ -200,22 +205,36 @@ func (f *Function) createInput(ctx context.Context, args []any, kwargs map[strin
 	}.Build(), nil
 }
 
-// getSupportedInputFormats returns the supported input formats for this function.
-// If no metadata is available, it returns an empty slice.
-func (f *Function) getSupportedInputFormats() []pb.DataFormat {
-	if f.handleMetadata != nil && len(f.handleMetadata.GetSupportedInputFormats()) > 0 {
-		return f.handleMetadata.GetSupportedInputFormats()
+// getHandleMetadata returns the function's handle metadata or an error if not set.
+func (f *Function) getHandleMetadata() (*pb.FunctionHandleMetadata, error) {
+	if f.handleMetadata == nil {
+		return nil, fmt.Errorf("Unexpected error: function has not been hydrated")
 	}
-	// Return empty slice if no metadata is available - this will cause CBOR validation to fail
+	return f.handleMetadata, nil
+}
+
+// getSupportedInputFormats returns the supported input formats for this function.
+// Returns an empty slice if metadata is not available.
+func (f *Function) getSupportedInputFormats() []pb.DataFormat {
+	metadata, err := f.getHandleMetadata()
+	if err != nil {
+		// Return empty slice if metadata is not available - this will cause CBOR validation to fail
+		return []pb.DataFormat{}
+	}
+	if len(metadata.GetSupportedInputFormats()) > 0 {
+		return metadata.GetSupportedInputFormats()
+	}
 	return []pb.DataFormat{}
 }
 
 // getWebURL returns the web URL for this function, if it's a web endpoint.
+// Returns empty string if metadata is not available or if not a web endpoint.
 func (f *Function) getWebURL() string {
-	if f.handleMetadata != nil {
-		return f.handleMetadata.GetWebUrl()
+	metadata, err := f.getHandleMetadata()
+	if err != nil {
+		return ""
 	}
-	return ""
+	return metadata.GetWebUrl()
 }
 
 // Remote executes a single input on a remote Function.
@@ -248,7 +267,11 @@ func (f *Function) Remote(ctx context.Context, args []any, kwargs map[string]any
 
 // createRemoteInvocation creates an Invocation using either the input plane or control plane.
 func (f *Function) createRemoteInvocation(ctx context.Context, input *pb.FunctionInput) (invocation, error) {
-	inputPlaneURL := f.handleMetadata.GetInputPlaneUrl()
+	metadata, err := f.getHandleMetadata()
+	if err != nil {
+		return nil, err
+	}
+	inputPlaneURL := metadata.GetInputPlaneUrl()
 	if inputPlaneURL != "" {
 		ipClient, err := f.client.ipClient(inputPlaneURL)
 		if err != nil {
