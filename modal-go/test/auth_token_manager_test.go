@@ -42,7 +42,7 @@ func createTestJWT(expiry int64) string {
 	return tokenString
 }
 
-func TestAuthToken_DecodeJWT(t *testing.T) {
+func TestAuthTokenManager_DecodeJWT(t *testing.T) {
 	g := gomega.NewWithT(t)
 
 	mockClient := newMockAuthClient()
@@ -59,7 +59,7 @@ func TestAuthToken_DecodeJWT(t *testing.T) {
 }
 
 // Setting the initial token and having it cached.
-func TestAuthToken_InitialFetch(t *testing.T) {
+func TestAuthTokenManager_InitialFetch(t *testing.T) {
 	g := gomega.NewWithT(t)
 
 	mockClient := newMockAuthClient()
@@ -77,7 +77,7 @@ func TestAuthToken_InitialFetch(t *testing.T) {
 	g.Expect(second_token).Should(gomega.Equal(token))
 }
 
-func TestAuthToken_IsExpired(t *testing.T) {
+func TestAuthTokenManager_IsExpired(t *testing.T) {
 	g := gomega.NewWithT(t)
 
 	manager := modal.NewAuthTokenManager(nil)
@@ -92,7 +92,7 @@ func TestAuthToken_IsExpired(t *testing.T) {
 }
 
 // Refreshing an expired token. Unlikely to occur since we refresh in background before expiry.
-func TestAuthToken_RefreshExpiredToken(t *testing.T) {
+func TestAuthTokenManager_RefreshExpiredToken(t *testing.T) {
 	g := gomega.NewWithT(t)
 
 	mockClient := newMockAuthClient()
@@ -114,7 +114,7 @@ func TestAuthToken_RefreshExpiredToken(t *testing.T) {
 	}, "1s", "10ms").Should(gomega.Equal(freshToken))
 }
 
-func TestAuthToken_RefreshNearExpiryToken(t *testing.T) {
+func TestAuthTokenManager_RefreshNearExpiryToken(t *testing.T) {
 	g := gomega.NewWithT(t)
 
 	mockClient := newMockAuthClient()
@@ -137,7 +137,7 @@ func TestAuthToken_RefreshNearExpiryToken(t *testing.T) {
 }
 
 // Calling GetToken() with an expired token should trigger a refresh. This scenario is unlikely to occur since we refresh in background.
-func TestAuthToken_GetToken_ExpiredToken(t *testing.T) {
+func TestAuthTokenManager_GetToken_ExpiredToken(t *testing.T) {
 	g := gomega.NewWithT(t)
 
 	mockClient := newMockAuthClient()
