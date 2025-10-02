@@ -156,8 +156,7 @@ func (c *Cls) Instance(ctx context.Context, parameters map[string]any) (*ClsInst
 		}
 		methods[name] = &Function{
 			FunctionID:     functionID,
-			MethodName:     &name,
-			HandleMetadata: methodMetadata,
+			handleMetadata: methodMetadata,
 			client:         c.client,
 		}
 	}

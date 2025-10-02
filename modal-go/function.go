@@ -57,8 +57,7 @@ type FunctionUpdateAutoscalerParams struct {
 // Function references a deployed Modal Function.
 type Function struct {
 	FunctionID     string
-	MethodName     *string                    // used for class methods
-	HandleMetadata *pb.FunctionHandleMetadata // TODO: make private?
+	handleMetadata *pb.FunctionHandleMetadata
 
 	client *Client
 }
@@ -89,7 +88,7 @@ func (s *functionServiceImpl) FromName(ctx context.Context, appName string, name
 	}
 
 	handleMetadata := resp.GetHandleMetadata()
-	return &Function{FunctionID: resp.GetFunctionId(), HandleMetadata: handleMetadata, client: s.client}, nil
+	return &Function{FunctionID: resp.GetFunctionId(), handleMetadata: handleMetadata, client: s.client}, nil
 }
 
 // pickleSerialize serializes Go data types to the Python pickle format.
@@ -192,20 +191,20 @@ func (f *Function) createInput(ctx context.Context, args []any, kwargs map[strin
 		argsBytes = nil
 		argsBlobID = &blobID
 	}
-
+	methodName := f.handleMetadata.GetUseMethodName() // this is empty if the function is not a cls method
 	return pb.FunctionInput_builder{
 		Args:       argsBytes,
 		ArgsBlobId: argsBlobID,
 		DataFormat: dataFormat,
-		MethodName: f.MethodName,
+		MethodName: &methodName,
 	}.Build(), nil
 }
 
 // getSupportedInputFormats returns the supported input formats for this function.
 // If no metadata is available, it returns an empty slice.
 func (f *Function) getSupportedInputFormats() []pb.DataFormat {
-	if f.HandleMetadata != nil && len(f.HandleMetadata.GetSupportedInputFormats()) > 0 {
-		return f.HandleMetadata.GetSupportedInputFormats()
+	if f.handleMetadata != nil && len(f.handleMetadata.GetSupportedInputFormats()) > 0 {
+		return f.handleMetadata.GetSupportedInputFormats()
 	}
 	// Return empty slice if no metadata is available - this will cause CBOR validation to fail
 	return []pb.DataFormat{}
@@ -213,16 +212,16 @@ func (f *Function) getSupportedInputFormats() []pb.DataFormat {
 
 // getInputPlaneUrl returns the input plane URL for this function, if available.
 func (f *Function) getInputPlaneUrl() string {
-	if f.HandleMetadata != nil {
-		return f.HandleMetadata.GetInputPlaneUrl()
+	if f.handleMetadata != nil {
+		return f.handleMetadata.GetInputPlaneUrl()
 	}
 	return ""
 }
 
 // getWebURL returns the web URL for this function, if it's a web endpoint.
 func (f *Function) getWebURL() string {
-	if f.HandleMetadata != nil {
-		return f.HandleMetadata.GetWebUrl()
+	if f.handleMetadata != nil {
+		return f.handleMetadata.GetWebUrl()
 	}
 	return ""
 }
