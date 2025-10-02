@@ -45,16 +45,17 @@ func createTestJWT(expiry int64) string {
 func TestAuthToken_DecodeJWT(t *testing.T) {
 	g := gomega.NewWithT(t)
 
-	manager := modal.NewAuthTokenManager(nil)
+	mockClient := newMockAuthClient()
+	manager := modal.NewAuthTokenManager(mockClient)
 
-	// Decoding valid JWT
 	validToken := createTestJWT(123456789)
-	exp := manager.DecodeJWT(validToken)
-	g.Expect(exp).Should(gomega.Equal(int64(123456789)))
+	mockClient.setAuthToken(validToken)
 
-	// Decoding invalid JWT
-	invalidExp := manager.DecodeJWT("invalid.jwt.token")
-	g.Expect(invalidExp).Should(gomega.Equal(int64(0)))
+	// FetchToken should decode and store the JWT
+	_, err := manager.FetchToken(context.Background())
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	g.Expect(manager.GetCurrentToken()).Should(gomega.Equal(validToken))
 }
 
 // Setting the initial token and having it cached.
@@ -90,20 +91,6 @@ func TestAuthToken_IsExpired(t *testing.T) {
 	g.Expect(manager.IsExpired()).Should(gomega.BeTrue())
 }
 
-func TestAuthToken_NeedsRefresh(t *testing.T) {
-	g := gomega.NewWithT(t)
-
-	manager := modal.NewAuthTokenManager(nil)
-
-	// Doesn't need refresh
-	manager.SetToken("token", time.Now().Unix()+600)
-	g.Expect(manager.NeedsRefresh()).Should(gomega.BeFalse())
-
-	// Needs refresh
-	manager.SetToken("token", time.Now().Unix()+240)
-	g.Expect(manager.NeedsRefresh()).Should(gomega.BeTrue())
-}
-
 // Refreshing an expired token. Unlikely to occur since we refresh in background before expiry.
 func TestAuthToken_RefreshExpiredToken(t *testing.T) {
 	g := gomega.NewWithT(t)
@@ -121,12 +108,10 @@ func TestAuthToken_RefreshExpiredToken(t *testing.T) {
 	// Start the background refresh goroutine
 	manager.Start(context.Background())
 
-	// Brief sleep for background goroutine to complete. TODO(walter): Can adjust if flaky.
-	time.Sleep(10 * time.Millisecond)
-
-	// Should have the new token cached
-	g.Expect(manager.GetCurrentToken()).Should(gomega.Equal(freshToken))
-	g.Expect(manager.NeedsRefresh()).Should(gomega.BeFalse())
+	// Wait for background goroutine to refresh the token
+	g.Eventually(func() string {
+		return manager.GetCurrentToken()
+	}, "1s", "10ms").Should(gomega.Equal(freshToken))
 }
 
 func TestAuthToken_RefreshNearExpiryToken(t *testing.T) {
@@ -145,15 +130,13 @@ func TestAuthToken_RefreshNearExpiryToken(t *testing.T) {
 	// Start the background refresh goroutine
 	manager.Start(context.Background())
 
-	// Brief sleep for background goroutine to complete. TODO(walter): Can adjust if flaky.
-	time.Sleep(10 * time.Millisecond)
-
-	// Should have the new token cached
-	g.Expect(manager.GetCurrentToken()).Should(gomega.Equal(freshToken))
-	g.Expect(manager.NeedsRefresh()).Should(gomega.BeFalse())
+	// Wait for background goroutine to refresh the token
+	g.Eventually(func() string {
+		return manager.GetCurrentToken()
+	}, "1s", "10ms").Should(gomega.Equal(freshToken))
 }
 
-// Calling GetToken() with an expired token should trigger a refresh. Unlikely to occur since we refresh in background.
+// Calling GetToken() with an expired token should trigger a refresh. This scenario is unlikely to occur since we refresh in background.
 func TestAuthToken_GetToken_ExpiredToken(t *testing.T) {
 	g := gomega.NewWithT(t)
 

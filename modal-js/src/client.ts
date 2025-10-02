@@ -55,56 +55,52 @@ export class AuthTokenManager {
   }
 
   /**
-   * Refreshes the auth token by calling the server.
-   * Uses promise deduplication to handle concurrent refresh requests.
+   * Refreshes the auth token by calling the server and stores it.
+   * Returns a promise that resolves to the new token. Concurrent calls will get the same promise to avoid duplicate refreshes.
    */
-  async refreshToken(): Promise<string> {
+  refreshToken(): Promise<string> {
     if (this.refreshPromise) {
       return this.refreshPromise;
     }
 
-    this.refreshPromise = this.refresh().finally(() => {
-      this.refreshPromise = null;
-    });
+    // Store the promise first, then add cleanup
+    this.refreshPromise = (async () => {
+      try {
+        const response = await this.client.authTokenGet({});
+        const token = response.token;
+
+        if (!token) {
+          throw new Error(
+            "Internal error: did not receive auth token from server, please contact Modal support",
+          );
+        }
+
+        this.currentToken = token;
+
+        // Parse JWT expiry
+        const exp = this.decodeJWT(token);
+        if (exp > 0) {
+          this.tokenExpiry = exp;
+        } else {
+          console.warn("Failed to decode x-modal-auth-token exp field");
+          // We'll use the token, and set the expiry to DEFAULT_EXPIRY_OFFSET from now.
+          this.tokenExpiry =
+            Math.floor(Date.now() / 1000) + DEFAULT_EXPIRY_OFFSET;
+        }
+
+        // Schedule next refresh
+        this.scheduleRefresh();
+
+        return token;
+      } catch (error) {
+        console.error("Failed to refresh auth token:", error);
+        throw error;
+      } finally {
+        this.refreshPromise = null;
+      }
+    })();
 
     return this.refreshPromise;
-  }
-
-  /**
-   * Fetch the new auth token with authTokenGet() call.
-   */
-  private async refresh(): Promise<string> {
-    try {
-      const response = await this.client.authTokenGet({});
-      const token = response.token;
-
-      if (!token) {
-        throw new Error(
-          "Internal error: did not receive auth token from server, please contact Modal support",
-        );
-      }
-
-      this.currentToken = token;
-
-      // Parse JWT expiry
-      const exp = this.decodeJWT(token);
-      if (exp > 0) {
-        this.tokenExpiry = exp;
-      } else {
-        console.warn("Failed to decode x-modal-auth-token exp field");
-        // We'll use the token, and set the expiry to DEFAULT_EXPIRY_OFFSET from now.
-        this.tokenExpiry =
-          Math.floor(Date.now() / 1000) + DEFAULT_EXPIRY_OFFSET;
-      }
-
-      // Schedule next refresh
-      this.scheduleRefresh();
-
-      return token;
-    } catch (error) {
-      console.error("Failed to refresh auth token:", error);
-      throw error;
-    }
   }
 
   /**
@@ -184,20 +180,8 @@ export class AuthTokenManager {
     return now >= this.tokenExpiry;
   }
 
-  /**
-   * Checks if the token needs refresh (within REFRESH_WINDOW of expiry).
-   */
-  needsRefresh(): boolean {
-    const now = Math.floor(Date.now() / 1000);
-    return now >= this.tokenExpiry - REFRESH_WINDOW;
-  }
-
   getCurrentToken(): string {
     return this.currentToken;
-  }
-
-  getExpiry(): number {
-    return this.tokenExpiry;
   }
 
   setToken(token: string, expiry: number): void {

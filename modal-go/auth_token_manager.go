@@ -19,13 +19,17 @@ const (
 	DEFAULT_EXPIRY_OFFSET = 20 * 60
 )
 
+type TokenAndExpiry struct {
+	token  string
+	expiry int64
+}
+
 // Manages authentication tokens using a goroutine, and refreshes the token REFRESH_WINDOW seconds before it expires.
 type AuthTokenManager struct {
 	client   pb.ModalClientClient
 	cancelFn context.CancelFunc
 
-	token  atomic.Value
-	expiry atomic.Int64
+	tokenAndExpiry atomic.Value
 }
 
 func NewAuthTokenManager(client pb.ModalClientClient) *AuthTokenManager {
@@ -33,8 +37,10 @@ func NewAuthTokenManager(client pb.ModalClientClient) *AuthTokenManager {
 		client: client,
 	}
 
-	manager.token.Store("")
-	manager.expiry.Store(0)
+	manager.tokenAndExpiry.Store(TokenAndExpiry{
+		token:  "",
+		expiry: 0,
+	})
 
 	return manager
 }
@@ -43,6 +49,9 @@ func NewAuthTokenManager(client pb.ModalClientClient) *AuthTokenManager {
 func (m *AuthTokenManager) Start(ctx context.Context) {
 	refreshCtx, cancel := context.WithCancel(ctx)
 	m.cancelFn = cancel
+	if _, err := m.FetchToken(refreshCtx); err != nil {
+		fmt.Printf("Failed to fetch initial auth token: %v\n", err)
+	}
 	go m.backgroundRefresh(refreshCtx)
 }
 
@@ -71,17 +80,10 @@ func (m *AuthTokenManager) GetToken(ctx context.Context) (string, error) {
 
 // backgroundRefresh runs in a goroutine and refreshes tokens REFRESH_WINDOW seconds before they expire.
 func (m *AuthTokenManager) backgroundRefresh(ctx context.Context) {
-	// If we have no token, fetch one.
-	if m.GetCurrentToken() == "" {
-		if _, err := m.FetchToken(ctx); err != nil {
-			fmt.Printf("Failed to fetch auth token: %v\n", err)
-		}
-	}
-
 	for {
-		expiry := m.GetExpiry()
+		data := m.tokenAndExpiry.Load().(TokenAndExpiry)
 		now := time.Now().Unix()
-		refreshTime := expiry - REFRESH_WINDOW
+		refreshTime := data.expiry - REFRESH_WINDOW
 
 		var delay time.Duration
 		if refreshTime > now {
@@ -108,8 +110,8 @@ func (m *AuthTokenManager) backgroundRefresh(ctx context.Context) {
 	}
 }
 
-// requestToken fetches a new token from the server.
-func (m *AuthTokenManager) requestToken(ctx context.Context) (string, error) {
+// FetchToken fetches a new token using AuthTokenGet() and stores it.
+func (m *AuthTokenManager) FetchToken(ctx context.Context) (string, error) {
 	resp, err := m.client.AuthTokenGet(ctx, &pb.AuthTokenGetRequest{})
 	if err != nil {
 		return "", fmt.Errorf("failed to get auth token: %w", err)
@@ -120,15 +122,19 @@ func (m *AuthTokenManager) requestToken(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("internal error: did not receive auth token from server, please contact Modal support")
 	}
 
-	m.token.Store(token)
-
-	if exp := m.DecodeJWT(token); exp > 0 {
-		m.expiry.Store(exp)
+	var expiry int64
+	if exp := m.decodeJWT(token); exp > 0 {
+		expiry = exp
 	} else {
 		fmt.Printf("Failed to decode x-modal-auth-token exp field\n")
 		// We'll use the token, and set the expiry to 20 min from now.
-		m.expiry.Store(time.Now().Unix() + DEFAULT_EXPIRY_OFFSET)
+		expiry = time.Now().Unix() + DEFAULT_EXPIRY_OFFSET
 	}
+
+	m.tokenAndExpiry.Store(TokenAndExpiry{
+		token:  token,
+		expiry: expiry,
+	})
 
 	return token, nil
 }
@@ -162,42 +168,23 @@ func (m *AuthTokenManager) decodeJWT(token string) int64 {
 	return 0
 }
 
-// Sets the token and expiry.
-func (m *AuthTokenManager) SetToken(token string, expiry int64) {
-	m.token.Store(token)
-	m.expiry.Store(expiry)
-}
-
-// Returns the current token expiry.
-func (m *AuthTokenManager) GetExpiry() int64 {
-	return m.expiry.Load()
-}
-
-// Extracts the expiry timestamp from a JWT.
-func (m *AuthTokenManager) DecodeJWT(token string) int64 {
-	return m.decodeJWT(token)
-}
-
-// Returns the current cached token.
+// GetCurrentToken returns the current cached token.
 func (m *AuthTokenManager) GetCurrentToken() string {
-	return m.token.Load().(string)
+	data := m.tokenAndExpiry.Load().(TokenAndExpiry)
+	return data.token
 }
 
-// Fetches a new token.
-func (m *AuthTokenManager) FetchToken(ctx context.Context) (string, error) {
-	return m.requestToken(ctx)
-}
-
-// Checks if the token needs to be refreshed soon (within REFRESH_WINDOW).
-func (m *AuthTokenManager) NeedsRefresh() bool {
-	expiry := m.expiry.Load()
-	now := time.Now().Unix()
-	return now >= (expiry - REFRESH_WINDOW)
-}
-
-// Checks if token is expired.
+// IsExpired checks if token is expired.
 func (m *AuthTokenManager) IsExpired() bool {
-	expiry := m.expiry.Load()
+	data := m.tokenAndExpiry.Load().(TokenAndExpiry)
 	now := time.Now().Unix()
-	return now >= expiry
+	return now >= data.expiry
+}
+
+// SetToken sets the token and expiry (for testing).
+func (m *AuthTokenManager) SetToken(token string, expiry int64) {
+	m.tokenAndExpiry.Store(TokenAndExpiry{
+		token:  token,
+		expiry: expiry,
+	})
 }

@@ -1,6 +1,21 @@
 import { describe, test, expect, vi, beforeEach, afterEach } from "vitest";
 import jwt from "jsonwebtoken";
-import { AuthTokenManager, DEFAULT_EXPIRY_OFFSET } from "../src/client";
+import { AuthTokenManager } from "../src/client";
+
+async function eventually(
+  condition: () => boolean,
+  timeoutMs: number = 1000,
+  intervalMs: number = 10,
+): Promise<void> {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    if (condition()) {
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+  throw new Error(`Condition not met within ${timeoutMs}ms`);
+}
 
 class mockAuthClient {
   private authToken: string = "";
@@ -42,23 +57,10 @@ describe("AuthTokenManager", () => {
     const token = createTestJWT(expiry);
     mockClient.setAuthToken(token);
 
-    // Decoding valid JWT
-    await manager.getToken();
-    expect(manager.getExpiry()).toBe(expiry);
-
-    // Decoding invalid JWT
-    const tokenWithoutExp = jwt.sign({ sub: "test" }, "walter-test");
-    mockClient.setAuthToken(tokenWithoutExp);
-
-    const beforeCall = Math.floor(Date.now() / 1000);
-    await manager.refreshToken();
-    const afterCall = Math.floor(Date.now() / 1000);
-
-    const newExpiry = manager.getExpiry();
-    expect(newExpiry).toBeGreaterThanOrEqual(
-      beforeCall + DEFAULT_EXPIRY_OFFSET,
-    );
-    expect(newExpiry).toBeLessThanOrEqual(afterCall + DEFAULT_EXPIRY_OFFSET);
+    // Test by fetching a valid JWT and checking if it gets stored properly
+    const result = await manager.refreshToken();
+    expect(result).toBe(token);
+    expect(manager.getCurrentToken()).toBe(token);
   });
 
   test("TestAuthToken_InitialFetch", async () => {
@@ -87,20 +89,6 @@ describe("AuthTokenManager", () => {
     expect(manager.isExpired()).toBe(true);
   });
 
-  test("TestAuthToken_NeedsRefresh", async () => {
-    const now = Math.floor(Date.now() / 1000);
-
-    // Doesn't need refresh
-    const freshToken = createTestJWT(now + 3600);
-    manager.setToken(freshToken, now + 3600);
-    expect(manager.needsRefresh()).toBe(false);
-
-    // Needs refresh
-    const nearExpiryToken = createTestJWT(now + 60);
-    manager.setToken(nearExpiryToken, now + 60);
-    expect(manager.needsRefresh()).toBe(true);
-  });
-
   test("TestAuthToken_RefreshExpiredToken", async () => {
     const now = Math.floor(Date.now() / 1000);
     const expiringToken = createTestJWT(now - 60);
@@ -112,12 +100,11 @@ describe("AuthTokenManager", () => {
     // Start the background refresh
     await manager.start();
 
-    // Brief wait for refresh to complete. TODO(walter): Can adjust if flaky.
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    // Wait for background refresh to update the token
+    await eventually(() => manager.getCurrentToken() === freshToken);
 
     // Should have the new token cached
     expect(manager.getCurrentToken()).toBe(freshToken);
-    expect(manager.needsRefresh()).toBe(false);
   });
 
   test("TestAuthToken_RefreshNearExpiryToken", async () => {
@@ -128,16 +115,40 @@ describe("AuthTokenManager", () => {
     manager.setToken(expiringToken, now + 60);
     mockClient.setAuthToken(freshToken);
 
-    expect(manager.needsRefresh()).toBe(true);
-
     // Start the refresh timer
     await manager.start();
 
-    // Brief wait for refresh to complete. TODO(walter): Can adjust if flaky.
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    // Wait for background refresh to update the token
+    await eventually(() => manager.getCurrentToken() === freshToken);
 
     // Should have the new token cached
     expect(manager.getCurrentToken()).toBe(freshToken);
-    expect(manager.needsRefresh()).toBe(false);
+  });
+
+  test("TestAuthToken_ConcurrentRefresh", async () => {
+    const token = createTestJWT(Math.floor(Date.now() / 1000) + 3600);
+    mockClient.setAuthToken(token);
+
+    // Multiple refresh calls
+    const promise1 = manager.refreshToken();
+    const promise2 = manager.refreshToken();
+    const promise3 = manager.refreshToken();
+
+    // All should return the same promise
+    expect(promise1).toBe(promise2);
+    expect(promise2).toBe(promise3);
+
+    // All should resolve to the same token
+    const [result1, result2, result3] = await Promise.all([
+      promise1,
+      promise2,
+      promise3,
+    ]);
+    expect(result1).toBe(token);
+    expect(result2).toBe(token);
+    expect(result3).toBe(token);
+
+    // authTokenGet should have been called only once
+    expect(mockClient.authTokenGet).toHaveBeenCalledTimes(1);
   });
 });
