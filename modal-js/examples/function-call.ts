@@ -14,5 +14,5 @@ let ret = await echo.remote(["Hello world!"]);
 console.log(ret);
 
 // Call the Function with kwargs.
-ret = await echo.remote([], { arg: "Hello world!" });
+ret = await echo.remote([], { s: "Hello world!" });
 console.log(ret);
