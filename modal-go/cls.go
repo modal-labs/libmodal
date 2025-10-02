@@ -119,23 +119,44 @@ func (s *clsServiceImpl) FromName(ctx context.Context, appName string, name stri
 	return &cls, nil
 }
 
-func (c *Cls) getSchema() []*pb.ClassParameterSpec {
-	return c.serviceFunctionMetadata.GetClassParameterInfo().GetSchema()
+// getServiceFunctionMetadata returns the class's service function metadata or an error if not set.
+func (c *Cls) getServiceFunctionMetadata() (*pb.FunctionHandleMetadata, error) {
+	if c.serviceFunctionMetadata == nil {
+		return nil, fmt.Errorf("unexpected error: class has not been hydrated")
+	}
+	return c.serviceFunctionMetadata, nil
 }
 
-func (c *Cls) getMethodNames() []string {
-	methodMap := c.serviceFunctionMetadata.GetMethodHandleMetadata()
+func (c *Cls) getSchema() ([]*pb.ClassParameterSpec, error) {
+	metadata, err := c.getServiceFunctionMetadata()
+	if err != nil {
+		return nil, err
+	}
+	return metadata.GetClassParameterInfo().GetSchema(), nil
+}
+
+func (c *Cls) getMethodNames() ([]string, error) {
+	metadata, err := c.getServiceFunctionMetadata()
+	if err != nil {
+		return nil, err
+	}
+	methodMap := metadata.GetMethodHandleMetadata()
 	methodNames := make([]string, 0, len(methodMap))
 	for name := range methodMap {
 		methodNames = append(methodNames, name)
 	}
-	return methodNames
+	return methodNames, nil
 }
 
 // Instance creates a new instance of the class with the provided parameters.
 func (c *Cls) Instance(ctx context.Context, parameters map[string]any) (*ClsInstance, error) {
+	schema, err := c.getSchema()
+	if err != nil {
+		return nil, err
+	}
+
 	var functionID string
-	if len(c.getSchema()) == 0 && !hasOptions(c.serviceOptions) {
+	if len(schema) == 0 && !hasOptions(c.serviceOptions) {
 		functionID = c.serviceFunctionID
 	} else {
 		opts := c.serviceOptions
@@ -149,11 +170,21 @@ func (c *Cls) Instance(ctx context.Context, parameters map[string]any) (*ClsInst
 		functionID = boundFunctionID
 	}
 
+	methodNames, err := c.getMethodNames()
+	if err != nil {
+		return nil, err
+	}
+
+	metadata, err := c.getServiceFunctionMetadata()
+	if err != nil {
+		return nil, err
+	}
+
 	methods := make(map[string]*Function)
-	for _, name := range c.getMethodNames() {
+	for _, name := range methodNames {
 		var methodMetadata *pb.FunctionHandleMetadata
-		if c.serviceFunctionMetadata != nil && c.serviceFunctionMetadata.GetMethodHandleMetadata() != nil {
-			methodMetadata = c.serviceFunctionMetadata.GetMethodHandleMetadata()[name]
+		if metadata.GetMethodHandleMetadata() != nil {
+			methodMetadata = metadata.GetMethodHandleMetadata()[name]
 		}
 		methods[name] = &Function{
 			FunctionID:     functionID,
@@ -258,7 +289,12 @@ func (c *Cls) bindParameters(ctx context.Context, parameters map[string]any, opt
 		env:     nil, // nil'ing env just to clarify it's not needed anymore
 	})
 
-	serializedParams, err := encodeParameterSet(c.getSchema(), parameters)
+	schema, err := c.getSchema()
+	if err != nil {
+		return "", err
+	}
+
+	serializedParams, err := encodeParameterSet(schema, parameters)
 	if err != nil {
 		return "", fmt.Errorf("failed to serialize parameters: %w", err)
 	}

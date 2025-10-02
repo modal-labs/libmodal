@@ -208,7 +208,7 @@ func (f *Function) createInput(ctx context.Context, args []any, kwargs map[strin
 // getHandleMetadata returns the function's handle metadata or an error if not set.
 func (f *Function) getHandleMetadata() (*pb.FunctionHandleMetadata, error) {
 	if f.handleMetadata == nil {
-		return nil, fmt.Errorf("Unexpected error: function has not been hydrated")
+		return nil, fmt.Errorf("unexpected error: function has not been hydrated")
 	}
 	return f.handleMetadata, nil
 }
