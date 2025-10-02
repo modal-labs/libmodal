@@ -62,12 +62,6 @@ export class ClsService {
         );
       }
 
-      if (!serviceFunction.handleMetadata?.methodHandleMetadata) {
-        // Legacy approach not supported
-        throw new Error(
-          "Cls requires Modal deployments using client v0.67 or later.",
-        );
-      }
       return new Cls(
         this.#client,
         serviceFunction.functionId,
