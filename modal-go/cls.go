@@ -68,9 +68,6 @@ type serviceOptions struct {
 // It contains metadata about the class and its methods.
 type Cls struct {
 	serviceFunctionID       string
-	schema                  []*pb.ClassParameterSpec
-	methodNames             []string
-	inputPlaneURL           string // if empty, use control plane
 	serviceOptions          *serviceOptions
 	serviceFunctionMetadata *pb.FunctionHandleMetadata
 
@@ -90,8 +87,7 @@ func (s *clsServiceImpl) FromName(ctx context.Context, appName string, name stri
 	}
 
 	cls := Cls{
-		methodNames: []string{},
-		client:      s.client,
+		client: s.client,
 	}
 
 	// Find class service function metadata. Service functions are used to implement class methods,
@@ -115,34 +111,35 @@ func (s *clsServiceImpl) FromName(ctx context.Context, appName string, name stri
 	schema := parameterInfo.GetSchema()
 	if len(schema) > 0 && parameterInfo.GetFormat() != pb.ClassParameterInfo_PARAM_SERIALIZATION_FORMAT_PROTO {
 		return nil, fmt.Errorf("unsupported parameter format: %v", parameterInfo.GetFormat())
-	} else {
-		cls.schema = schema
 	}
 
 	cls.serviceFunctionID = serviceFunction.GetFunctionId()
 	cls.serviceFunctionMetadata = serviceFunction.GetHandleMetadata()
 
-	// Check if we have method metadata on the class service function (v0.67+)
-	if serviceFunction.GetHandleMetadata().GetMethodHandleMetadata() != nil {
-		for methodName := range serviceFunction.GetHandleMetadata().GetMethodHandleMetadata() {
-			cls.methodNames = append(cls.methodNames, methodName)
-		}
-	} else {
-		// Legacy approach not supported
-		return nil, fmt.Errorf("Cls requires Modal deployments using client v0.67 or later")
-	}
-
-	if inputPlaneURL := serviceFunction.GetHandleMetadata().GetInputPlaneUrl(); inputPlaneURL != "" {
-		cls.inputPlaneURL = inputPlaneURL
-	}
-
 	return &cls, nil
+}
+
+func (c *Cls) getSchema() []*pb.ClassParameterSpec {
+	return c.serviceFunctionMetadata.GetClassParameterInfo().GetSchema()
+}
+
+func (c *Cls) getMethodNames() []string {
+	var methodNames []string = make([]string, 0)
+	for methodName := range c.serviceFunctionMetadata.GetMethodHandleMetadata() {
+		methodNames = append(methodNames, methodName)
+	}
+	return methodNames
+}
+
+func (c *Cls) getInputPlaneURL() string {
+	// empty string if no input plane URL
+	return c.serviceFunctionMetadata.GetInputPlaneUrl()
 }
 
 // Instance creates a new instance of the class with the provided parameters.
 func (c *Cls) Instance(ctx context.Context, parameters map[string]any) (*ClsInstance, error) {
 	var functionID string
-	if len(c.schema) == 0 && !hasOptions(c.serviceOptions) {
+	if len(c.getSchema()) == 0 && !hasOptions(c.serviceOptions) {
 		functionID = c.serviceFunctionID
 	} else {
 		opts := c.serviceOptions
@@ -157,7 +154,7 @@ func (c *Cls) Instance(ctx context.Context, parameters map[string]any) (*ClsInst
 	}
 
 	methods := make(map[string]*Function)
-	for _, name := range c.methodNames {
+	for _, name := range c.getMethodNames() {
 		var methodMetadata *pb.FunctionHandleMetadata
 		if c.serviceFunctionMetadata != nil && c.serviceFunctionMetadata.GetMethodHandleMetadata() != nil {
 			methodMetadata = c.serviceFunctionMetadata.GetMethodHandleMetadata()[name]
@@ -210,9 +207,6 @@ func (c *Cls) WithOptions(params *ClsWithOptionsParams) *Cls {
 
 	return &Cls{
 		serviceFunctionID:       c.serviceFunctionID,
-		schema:                  c.schema,        // TODO: remove - is part of metadata
-		methodNames:             c.methodNames,   // TODO: remove - is part of metadata
-		inputPlaneURL:           c.inputPlaneURL, // TODO: remove - is part of metadata
 		serviceOptions:          merged,
 		serviceFunctionMetadata: c.serviceFunctionMetadata,
 		client:                  c.client,
@@ -232,9 +226,6 @@ func (c *Cls) WithConcurrency(params *ClsWithConcurrencyParams) *Cls {
 
 	return &Cls{
 		serviceFunctionID:       c.serviceFunctionID,
-		schema:                  c.schema,
-		methodNames:             c.methodNames,
-		inputPlaneURL:           c.inputPlaneURL,
 		serviceOptions:          merged,
 		serviceFunctionMetadata: c.serviceFunctionMetadata,
 		client:                  c.client,
@@ -254,9 +245,6 @@ func (c *Cls) WithBatching(params *ClsWithBatchingParams) *Cls {
 
 	return &Cls{
 		serviceFunctionID:       c.serviceFunctionID,
-		schema:                  c.schema,
-		methodNames:             c.methodNames,
-		inputPlaneURL:           c.inputPlaneURL,
 		serviceOptions:          merged,
 		serviceFunctionMetadata: c.serviceFunctionMetadata,
 		client:                  c.client,
@@ -275,7 +263,7 @@ func (c *Cls) bindParameters(ctx context.Context, parameters map[string]any, opt
 		env:     nil, // nil'ing env just to clarify it's not needed anymore
 	})
 
-	serializedParams, err := encodeParameterSet(c.schema, parameters)
+	serializedParams, err := encodeParameterSet(c.getSchema(), parameters)
 	if err != nil {
 		return "", fmt.Errorf("failed to serialize parameters: %w", err)
 	}
