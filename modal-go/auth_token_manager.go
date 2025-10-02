@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"log"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -50,7 +51,7 @@ func (m *AuthTokenManager) Start(ctx context.Context) {
 	refreshCtx, cancel := context.WithCancel(ctx)
 	m.cancelFn = cancel
 	if _, err := m.FetchToken(refreshCtx); err != nil {
-		fmt.Printf("Failed to fetch initial auth token: %v\n", err)
+		log.Printf("Failed to fetch initial auth token: %v", err)
 	}
 	go m.backgroundRefresh(refreshCtx)
 }
@@ -105,7 +106,9 @@ func (m *AuthTokenManager) backgroundRefresh(ctx context.Context) {
 
 		// Refresh the token
 		if _, err := m.FetchToken(ctx); err != nil {
-			fmt.Printf("Failed to refresh auth token: %v\n", err)
+			log.Printf("Failed to refresh auth token: %v", err)
+			// Stop the background refresh goroutine on failure to fetch token
+			return
 		}
 	}
 }
@@ -126,7 +129,7 @@ func (m *AuthTokenManager) FetchToken(ctx context.Context) (string, error) {
 	if exp := m.decodeJWT(token); exp > 0 {
 		expiry = exp
 	} else {
-		fmt.Printf("Failed to decode x-modal-auth-token exp field\n")
+		log.Printf("x-modal-auth-token does not contain exp field")
 		// We'll use the token, and set the expiry to 20 min from now.
 		expiry = time.Now().Unix() + DEFAULT_EXPIRY_OFFSET
 	}

@@ -223,13 +223,9 @@ function authMiddleware(profile: Profile): ClientMiddleware {
         });
       }
 
-      try {
-        const token = await authTokenManager.getToken();
-        if (token) {
-          options.metadata.set("x-modal-auth-token", token);
-        }
-      } catch (error) {
-        console.warn("Failed to get auth token:", error);
+      const token = await authTokenManager.getToken();
+      if (token) {
+        options.metadata.set("x-modal-auth-token", token);
       }
     }
 

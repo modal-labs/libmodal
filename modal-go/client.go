@@ -256,7 +256,11 @@ func authTokenInterceptor() grpc.UnaryClientInterceptor {
 	) error {
 		// Skip auth token for AuthTokenGet requests to prevent it from getting stuck
 		if authTokenManager != nil && method != "/modal.client.ModalClient/AuthTokenGet" {
-			if token, err := authTokenManager.GetToken(ctx); err == nil && token != "" {
+			token, err := authTokenManager.GetToken(ctx)
+			if err != nil {
+				return fmt.Errorf("failed to get auth token: %w", err)
+			}
+			if token != "" {
 				ctx = metadata.AppendToOutgoingContext(ctx, "x-modal-auth-token", token)
 			}
 		}
