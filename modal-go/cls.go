@@ -67,11 +67,12 @@ type serviceOptions struct {
 // Cls represents a Modal class definition that can be instantiated with parameters.
 // It contains metadata about the class and its methods.
 type Cls struct {
-	serviceFunctionID string
-	schema            []*pb.ClassParameterSpec
-	methodNames       []string
-	inputPlaneURL     string // if empty, use control plane
-	serviceOptions    *serviceOptions
+	serviceFunctionID       string
+	schema                  []*pb.ClassParameterSpec
+	methodNames             []string
+	inputPlaneURL           string // if empty, use control plane
+	serviceOptions          *serviceOptions
+	serviceFunctionMetadata *pb.FunctionHandleMetadata
 
 	client *Client
 }
@@ -119,6 +120,7 @@ func (s *clsServiceImpl) FromName(ctx context.Context, appName string, name stri
 	}
 
 	cls.serviceFunctionID = serviceFunction.GetFunctionId()
+	cls.serviceFunctionMetadata = serviceFunction.GetHandleMetadata()
 
 	// Check if we have method metadata on the class service function (v0.67+)
 	if serviceFunction.GetHandleMetadata().GetMethodHandleMetadata() != nil {
@@ -156,11 +158,15 @@ func (c *Cls) Instance(ctx context.Context, parameters map[string]any) (*ClsInst
 
 	methods := make(map[string]*Function)
 	for _, name := range c.methodNames {
+		var methodMetadata *pb.FunctionHandleMetadata
+		if c.serviceFunctionMetadata != nil && c.serviceFunctionMetadata.GetMethodHandleMetadata() != nil {
+			methodMetadata = c.serviceFunctionMetadata.GetMethodHandleMetadata()[name]
+		}
 		methods[name] = &Function{
-			FunctionID:    functionID,
-			MethodName:    &name,
-			inputPlaneURL: c.inputPlaneURL,
-			client:        c.client,
+			FunctionID:     functionID,
+			MethodName:     &name,
+			HandleMetadata: methodMetadata,
+			client:         c.client,
 		}
 	}
 	return &ClsInstance{methods: methods}, nil
@@ -203,12 +209,13 @@ func (c *Cls) WithOptions(params *ClsWithOptionsParams) *Cls {
 	})
 
 	return &Cls{
-		serviceFunctionID: c.serviceFunctionID,
-		schema:            c.schema,
-		methodNames:       c.methodNames,
-		inputPlaneURL:     c.inputPlaneURL,
-		serviceOptions:    merged,
-		client:            c.client,
+		serviceFunctionID:       c.serviceFunctionID,
+		schema:                  c.schema,        // TODO: remove - is part of metadata
+		methodNames:             c.methodNames,   // TODO: remove - is part of metadata
+		inputPlaneURL:           c.inputPlaneURL, // TODO: remove - is part of metadata
+		serviceOptions:          merged,
+		serviceFunctionMetadata: c.serviceFunctionMetadata,
+		client:                  c.client,
 	}
 }
 
@@ -224,12 +231,13 @@ func (c *Cls) WithConcurrency(params *ClsWithConcurrencyParams) *Cls {
 	})
 
 	return &Cls{
-		serviceFunctionID: c.serviceFunctionID,
-		schema:            c.schema,
-		methodNames:       c.methodNames,
-		inputPlaneURL:     c.inputPlaneURL,
-		serviceOptions:    merged,
-		client:            c.client,
+		serviceFunctionID:       c.serviceFunctionID,
+		schema:                  c.schema,
+		methodNames:             c.methodNames,
+		inputPlaneURL:           c.inputPlaneURL,
+		serviceOptions:          merged,
+		serviceFunctionMetadata: c.serviceFunctionMetadata,
+		client:                  c.client,
 	}
 }
 
@@ -245,12 +253,13 @@ func (c *Cls) WithBatching(params *ClsWithBatchingParams) *Cls {
 	})
 
 	return &Cls{
-		serviceFunctionID: c.serviceFunctionID,
-		schema:            c.schema,
-		methodNames:       c.methodNames,
-		inputPlaneURL:     c.inputPlaneURL,
-		serviceOptions:    merged,
-		client:            c.client,
+		serviceFunctionID:       c.serviceFunctionID,
+		schema:                  c.schema,
+		methodNames:             c.methodNames,
+		inputPlaneURL:           c.inputPlaneURL,
+		serviceOptions:          merged,
+		serviceFunctionMetadata: c.serviceFunctionMetadata,
+		client:                  c.client,
 	}
 }
 
@@ -282,7 +291,6 @@ func (c *Cls) bindParameters(ctx context.Context, parameters map[string]any, opt
 	if err != nil {
 		return "", fmt.Errorf("failed to bind parameters: %w", err)
 	}
-
 	return bindResp.GetBoundFunctionId(), nil
 }
 

@@ -5,12 +5,13 @@ import { createHash } from "node:crypto";
 import {
   DataFormat,
   FunctionCallInvocationType,
+  FunctionHandleMetadata,
   FunctionInput,
 } from "../proto/modal_proto/api";
 import { getDefaultClient, ModalGrpcClient, type ModalClient } from "./client";
 import { FunctionCall } from "./function_call";
-import { InternalFailure, NotFoundError } from "./errors";
-import { dumps } from "./pickle";
+import { InternalFailure, InvalidError, NotFoundError } from "./errors";
+import { cborEncode } from "./serialization";
 import { ClientError, Status } from "nice-grpc";
 import {
   ControlPlaneInvocation,
@@ -57,8 +58,7 @@ export class FunctionService {
         this.#client,
         resp.functionId,
         undefined,
-        resp.handleMetadata?.inputPlaneUrl,
-        resp.handleMetadata?.webUrl,
+        resp.handleMetadata,
       );
     } catch (err) {
       if (err instanceof ClientError && err.code === Status.NOT_FOUND)
@@ -86,23 +86,21 @@ export interface FunctionUpdateAutoscalerParams {
 export class Function_ {
   readonly functionId: string;
   readonly methodName?: string;
-  #inputPlaneUrl?: string;
-  #webUrl?: string;
   #client: ModalClient;
+  #handleMetadata?: FunctionHandleMetadata;
 
   /** @ignore */
   constructor(
     client: ModalClient,
     functionId: string,
     methodName?: string,
-    inputPlaneUrl?: string,
-    webUrl?: string,
+    functionHandleMetadata?: FunctionHandleMetadata,
   ) {
     this.functionId = functionId;
     this.methodName = methodName;
-    this.#inputPlaneUrl = inputPlaneUrl;
-    this.#webUrl = webUrl;
+
     this.#client = client;
+    this.#handleMetadata = functionHandleMetadata;
   }
 
   /**
@@ -140,10 +138,10 @@ export class Function_ {
   }
 
   async #createRemoteInvocation(input: FunctionInput): Promise<Invocation> {
-    if (this.#inputPlaneUrl) {
+    if (this.#handleMetadata?.inputPlaneUrl) {
       return await InputPlaneInvocation.create(
         this.#client,
-        this.#inputPlaneUrl,
+        this.#handleMetadata.inputPlaneUrl,
         this.functionId,
         input,
       );
@@ -205,14 +203,25 @@ export class Function_ {
    * @returns The web URL if this Function is a web endpoint, otherwise undefined
    */
   async getWebUrl(): Promise<string | undefined> {
-    return this.#webUrl || undefined;
+    return this.#handleMetadata?.webUrl || undefined;
   }
 
   async #createInput(
     args: any[] = [],
     kwargs: Record<string, any> = {},
   ): Promise<FunctionInput> {
-    const payload = dumps([args, kwargs]);
+    const supported_input_formats = this.#handleMetadata?.supportedInputFormats
+      ?.length
+      ? this.#handleMetadata.supportedInputFormats
+      : [DataFormat.DATA_FORMAT_PICKLE];
+    if (!supported_input_formats.includes(DataFormat.DATA_FORMAT_CBOR)) {
+      // the remote function isn't cbor compatible for inputs
+      // so we can error early
+      throw new InvalidError(
+        "The remote Function needs to be deployed using modal>=1.2 to be called from libmodal",
+      );
+    }
+    const payload = cborEncode([args, kwargs]);
 
     let argsBlobId: string | undefined = undefined;
     if (payload.length > maxObjectSizeBytes) {
@@ -223,7 +232,7 @@ export class Function_ {
     return {
       args: argsBlobId ? undefined : payload,
       argsBlobId,
-      dataFormat: DataFormat.DATA_FORMAT_PICKLE,
+      dataFormat: DataFormat.DATA_FORMAT_CBOR,
       methodName: this.methodName,
       finalInput: false, // This field isn't specified in the Python client, so it defaults to false.
     };

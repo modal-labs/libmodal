@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	pickle "github.com/kisielk/og-rek"
 	"github.com/modal-labs/libmodal/modal-go"
 	"github.com/onsi/gomega"
 )
@@ -82,10 +81,10 @@ func TestFunctionCallGet0(t *testing.T) {
 	// Wait for the function call to finish.
 	result, err := functionCall.Get(ctx, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(result).Should(gomega.Equal(pickle.None{}))
+	g.Expect(result).Should(gomega.BeNil())
 
 	// Now we can get the result.
 	result, err = functionCall.Get(ctx, &modal.FunctionCallGetParams{Timeout: &timeout})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(result).Should(gomega.Equal(pickle.None{}))
+	g.Expect(result).Should(gomega.BeNil())
 }

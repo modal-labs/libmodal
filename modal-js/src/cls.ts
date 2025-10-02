@@ -4,6 +4,7 @@ import {
   ClassParameterSet,
   ClassParameterSpec,
   ClassParameterValue,
+  FunctionHandleMetadata,
   FunctionOptions,
   FunctionRetryPolicy,
   ParameterType,
@@ -61,12 +62,7 @@ export class ClsService {
         );
       }
 
-      let methodNames: string[];
-      if (serviceFunction.handleMetadata?.methodHandleMetadata) {
-        methodNames = Object.keys(
-          serviceFunction.handleMetadata.methodHandleMetadata,
-        );
-      } else {
+      if (!serviceFunction.handleMetadata?.methodHandleMetadata) {
         // Legacy approach not supported
         throw new Error(
           "Cls requires Modal deployments using client v0.67 or later.",
@@ -75,9 +71,7 @@ export class ClsService {
       return new Cls(
         this.#client,
         serviceFunction.functionId,
-        schema,
-        methodNames,
-        serviceFunction.handleMetadata?.inputPlaneUrl,
+        serviceFunction.handleMetadata!,
         undefined,
       );
     } catch (err) {
@@ -123,28 +117,31 @@ type ServiceOptions = ClsWithOptionsParams & {
 export class Cls {
   #client: ModalClient;
   #serviceFunctionId: string;
-  #schema: ClassParameterSpec[];
-  #methodNames: string[];
-  #inputPlaneUrl?: string;
+  #serviceFunctionMetadata: FunctionHandleMetadata;
   #serviceOptions?: ServiceOptions;
 
   /** @ignore */
   constructor(
     client: ModalClient,
     serviceFunctionId: string,
-    schema: ClassParameterSpec[],
-    methodNames: string[],
-    inputPlaneUrl?: string,
+    serviceFunctionMetadata: FunctionHandleMetadata,
     options?: ServiceOptions,
   ) {
     this.#client = client;
     this.#serviceFunctionId = serviceFunctionId;
-    this.#schema = schema;
-    this.#methodNames = methodNames;
-    this.#inputPlaneUrl = inputPlaneUrl;
+    this.#serviceFunctionMetadata = serviceFunctionMetadata;
     this.#serviceOptions = options;
   }
 
+  get #schema(): ClassParameterSpec[] {
+    return this.#serviceFunctionMetadata.classParameterInfo?.schema ?? [];
+  }
+
+  get #methodNames(): string[] {
+    return Object.keys(
+      this.#serviceFunctionMetadata.methodHandleMetadata ?? {},
+    );
+  }
   /**
    * @deprecated Use `client.cls.fromName()` instead.
    */
@@ -166,23 +163,23 @@ export class Cls {
     }
     const methods = new Map<string, Function_>();
     for (const name of this.#methodNames) {
+      const methodMetadata =
+        this.#serviceFunctionMetadata.methodHandleMetadata?.[name];
       methods.set(
         name,
-        new Function_(this.#client, functionId, name, this.#inputPlaneUrl),
+        new Function_(this.#client, functionId, name, methodMetadata),
       );
     }
     return new ClsInstance(methods);
   }
 
   /** Override the static Function configuration at runtime. */
-  withOptions(params: ClsWithOptionsParams): Cls {
-    const merged = mergeServiceOptions(this.#serviceOptions, params);
+  withOptions(options: ClsWithOptionsParams): Cls {
+    const merged = mergeServiceOptions(this.#serviceOptions, options);
     return new Cls(
       this.#client,
       this.#serviceFunctionId,
-      this.#schema,
-      this.#methodNames,
-      this.#inputPlaneUrl,
+      this.#serviceFunctionMetadata,
       merged,
     );
   }
@@ -196,9 +193,7 @@ export class Cls {
     return new Cls(
       this.#client,
       this.#serviceFunctionId,
-      this.#schema,
-      this.#methodNames,
-      this.#inputPlaneUrl,
+      this.#serviceFunctionMetadata,
       merged,
     );
   }
@@ -212,9 +207,7 @@ export class Cls {
     return new Cls(
       this.#client,
       this.#serviceFunctionId,
-      this.#schema,
-      this.#methodNames,
-      this.#inputPlaneUrl,
+      this.#serviceFunctionMetadata,
       merged,
     );
   }
