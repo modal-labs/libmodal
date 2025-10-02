@@ -124,9 +124,10 @@ func (c *Cls) getSchema() []*pb.ClassParameterSpec {
 }
 
 func (c *Cls) getMethodNames() []string {
-	var methodNames []string = make([]string, 0)
-	for methodName := range c.serviceFunctionMetadata.GetMethodHandleMetadata() {
-		methodNames = append(methodNames, methodName)
+	methodMap := c.serviceFunctionMetadata.GetMethodHandleMetadata()
+	methodNames := make([]string, 0, len(methodMap))
+	for name := range methodMap {
+		methodNames = append(methodNames, name)
 	}
 	return methodNames
 }

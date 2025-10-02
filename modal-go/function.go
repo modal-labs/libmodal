@@ -210,14 +210,6 @@ func (f *Function) getSupportedInputFormats() []pb.DataFormat {
 	return []pb.DataFormat{}
 }
 
-// getInputPlaneUrl returns the input plane URL for this function, if available.
-func (f *Function) getInputPlaneUrl() string {
-	if f.handleMetadata != nil {
-		return f.handleMetadata.GetInputPlaneUrl()
-	}
-	return ""
-}
-
 // getWebURL returns the web URL for this function, if it's a web endpoint.
 func (f *Function) getWebURL() string {
 	if f.handleMetadata != nil {
@@ -256,7 +248,7 @@ func (f *Function) Remote(ctx context.Context, args []any, kwargs map[string]any
 
 // createRemoteInvocation creates an Invocation using either the input plane or control plane.
 func (f *Function) createRemoteInvocation(ctx context.Context, input *pb.FunctionInput) (invocation, error) {
-	inputPlaneURL := f.getInputPlaneUrl()
+	inputPlaneURL := f.handleMetadata.GetInputPlaneUrl()
 	if inputPlaneURL != "" {
 		ipClient, err := f.client.ipClient(inputPlaneURL)
 		if err != nil {
