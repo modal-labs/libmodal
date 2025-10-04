@@ -203,3 +203,17 @@ test("FunctionGetWebUrlOnNonWebFunction", async () => {
   );
   expect(await function_.getWebUrl()).toBeUndefined();
 });
+
+test("FunctionCallOldVersionError", async () => {
+  // test that calling a pre 1.2 function raises an error
+  const function_ = await tc.functions.fromName(
+    "test-support-1-1",
+    "identity_with_repr",
+  );
+
+  // Represent Python kwargs.
+  const promise = function_.remote([], { s: "hello" });
+  await expect(promise).rejects.toThrowError(
+    /The remote Function needs to be deployed using modal>=1\.2 to be called from libmodal/,
+  );
+});

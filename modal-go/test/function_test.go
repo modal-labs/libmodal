@@ -32,6 +32,21 @@ func TestFunctionCall(t *testing.T) {
 	g.Expect(result).Should(gomega.Equal("output: hello"))
 }
 
+func TestFunctionCallOldVersionError(t *testing.T) {
+	// test that calling a pre 1.2 function raises an error
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+
+	function, err := tc.Functions.FromName(ctx, "test-support-1-1", "identity_with_repr", nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	// Represent Python kwargs.
+	_, err = function.Remote(ctx, nil, map[string]any{"s": "hello"})
+	g.Expect(err).Should(gomega.HaveOccurred())
+	g.Expect(err.Error()).Should(gomega.ContainSubstring("please redeploy the remote function using modal >= 1.2"))
+}
+
 func TestFunctionCallGoMap(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
