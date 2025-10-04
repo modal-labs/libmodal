@@ -231,7 +231,8 @@ func processResult(ctx context.Context, client pb.ModalClientClient, result *pb.
 	default:
 		// In this case, `result.GetData()` may have a pickled user code exception with traceback
 		// from Python. We ignore this and only take the string representation.
-		return nil, RemoteError{result.GetException()}
+		exception := result.GetException()
+		return nil, RemoteError{exception}
 	}
 
 	return deserializeDataFormat(data, dataFormat)
