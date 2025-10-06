@@ -91,12 +91,6 @@ func init() {
 	if err != nil {
 		panic(fmt.Sprintf("failed to initialize Modal client at startup: %v", err))
 	}
-
-	// Initialize and start background auth token manager
-	authTokenManager = NewAuthTokenManager(client)
-	if err := authTokenManager.Start(context.Background()); err != nil {
-		panic(fmt.Sprintf("failed to start auth token manager at startup: %v", err))
-	}
 }
 
 // ClientOptions defines credentials and options for initializing the Modal client at runtime.
@@ -259,14 +253,10 @@ func authTokenInterceptor() grpc.UnaryClientInterceptor {
 		opts ...grpc.CallOption,
 	) error {
 		// Skip auth token for AuthTokenGet requests to prevent it from getting stuck
-		if authTokenManager != nil && method != "/modal.client.ModalClient/AuthTokenGet" {
-			// Start auth token manager on first API call if not already started
-			if authTokenManager.GetCurrentToken() == "" {
-				if err := authTokenManager.Start(ctx); err != nil {
-					return fmt.Errorf("failed to start auth token manager: %w", err)
-				}
+		if method != "/modal.client.ModalClient/AuthTokenGet" {
+			if authTokenManager == nil {
+				return fmt.Errorf("auth token manager not initialized - ensure InitializeClient() is called first")
 			}
-
 			token, err := authTokenManager.GetToken(ctx)
 			if err != nil {
 				return fmt.Errorf("failed to get auth token: %w", err)
