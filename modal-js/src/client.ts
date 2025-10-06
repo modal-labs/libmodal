@@ -211,8 +211,11 @@ function authMiddleware(profile: Profile): ClientMiddleware {
 
     // Skip auth token for AuthTokenGet requests to prevent it from getting stuck
     if (call.method.path !== "/modal.client.ModalClient/AuthTokenGet") {
+      // IntializeClient() should have been called to create the authTokenManager.
+      // Some of our tests don't call InitializeClient(), so we need to create the authTokenManager here for testing purposes. 
       if (!authTokenManager) {
-        throw new Error("Auth token manager not initialized");
+        authTokenManager = new AuthTokenManager(client);
+        await authTokenManager.start();
       }
 
       const token = await authTokenManager.getToken();
