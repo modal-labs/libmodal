@@ -431,7 +431,6 @@ export type ClientOptions = {
   environment?: string;
 };
 
-
 // Currently, auth token will be fetched lazily on first function call.
 export function initializeClient(options: ClientOptions) {
   const mergedProfile = {
