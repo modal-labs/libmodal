@@ -213,6 +213,9 @@ function authMiddleware(profile: Profile): ClientMiddleware {
     if (call.method.path !== "/modal.client.ModalClient/AuthTokenGet") {
       if (!authTokenManager) {
         authTokenManager = new AuthTokenManager(client);
+      }
+
+      if (!authTokenManager.getCurrentToken()) {
         await authTokenManager.start();
       }
 
@@ -428,13 +431,9 @@ export type ClientOptions = {
   environment?: string;
 };
 
-/**
- * Initialize the Modal client, passing in token authentication credentials.
- *
- * You should call this function at the start of your application if not
- * configuring Modal with a `.modal.toml` file or environment variables.
- */
-export async function initializeClient(options: ClientOptions) {
+
+// Currently, auth token will be fetched lazily on first function call.
+export function initializeClient(options: ClientOptions) {
   const mergedProfile = {
     ...defaultProfile,
     tokenId: options.tokenId,
@@ -444,10 +443,8 @@ export async function initializeClient(options: ClientOptions) {
   clientProfile = mergedProfile;
   client = createClient(mergedProfile);
 
-  // Create new auth token manager with updated client
   if (authTokenManager) {
     authTokenManager.stop();
   }
   authTokenManager = new AuthTokenManager(client);
-  await authTokenManager.start();
 }
