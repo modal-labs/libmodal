@@ -117,7 +117,7 @@ func (m *AuthTokenManager) backgroundRefresh(ctx context.Context) {
 func (m *AuthTokenManager) FetchToken(ctx context.Context) (string, error) {
 	resp, err := m.client.AuthTokenGet(ctx, &pb.AuthTokenGetRequest{})
 	if err != nil {
-		return "", fmt.Errorf("failed to get auth token: %w", err)
+		return "", fmt.Errorf("failed to get new auth token: %w", err)
 	}
 
 	token := resp.GetToken()

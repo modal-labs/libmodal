@@ -17,10 +17,10 @@ func SetClientFactoryForTesting(testClientFactory func(Profile) (grpc.ClientConn
 	_, client, _ = clientFactory(clientProfile)
 	inputPlaneClients = make(map[string]pb.ModalClientClient)
 
-	if authTokenManager != nil {
-		authTokenManager.Stop()
-	}
-	authTokenManager = NewAuthTokenManager(client)
+	// if authTokenManager != nil {
+	// 	authTokenManager.Stop()
+	// }
+	// authTokenManager = NewAuthTokenManager(client)
 
 	var once sync.Once
 	return func() {
@@ -29,10 +29,10 @@ func SetClientFactoryForTesting(testClientFactory func(Profile) (grpc.ClientConn
 			_, client, _ = clientFactory(clientProfile)
 			inputPlaneClients = map[string]pb.ModalClientClient{}
 
-			if authTokenManager != nil {
-				authTokenManager.Stop()
-			}
-			authTokenManager = NewAuthTokenManager(client)
+			// if authTokenManager != nil {
+			// 	authTokenManager.Stop()
+			// }
+			// authTokenManager = NewAuthTokenManager(client)
 		})
 	}
 }

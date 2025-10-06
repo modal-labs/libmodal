@@ -211,11 +211,9 @@ function authMiddleware(profile: Profile): ClientMiddleware {
 
     // Skip auth token for AuthTokenGet requests to prevent it from getting stuck
     if (call.method.path !== "/modal.client.ModalClient/AuthTokenGet") {
-      // IntializeClient() should have been called to create the authTokenManager.
-      // Some of our tests don't call InitializeClient(), so we need to create the authTokenManager here for testing purposes. 
       if (!authTokenManager) {
         authTokenManager = new AuthTokenManager(client);
-        await authTokenManager.start();
+        authTokenManager.start();
       }
 
       const token = await authTokenManager.getToken();
@@ -435,9 +433,8 @@ export type ClientOptions = {
  *
  * You should call this function at the start of your application if not
  * configuring Modal with a `.modal.toml` file or environment variables.
- * Auth token will be fetched on startup.
  */
-export async function initializeClient(options: ClientOptions) {
+export function initializeClient(options: ClientOptions) {
   const mergedProfile = {
     ...defaultProfile,
     tokenId: options.tokenId,
@@ -451,5 +448,5 @@ export async function initializeClient(options: ClientOptions) {
     authTokenManager.stop();
   }
   authTokenManager = new AuthTokenManager(client);
-  await authTokenManager.start();
+  authTokenManager.start();
 }
