@@ -3,7 +3,6 @@ export const REFRESH_WINDOW = 5 * 60;
 // If the token doesn't have an expiry field, default to current time plus this value (not expected).
 export const DEFAULT_EXPIRY_OFFSET = 20 * 60;
 
-
 export class AuthTokenManager {
   private client: any;
   private currentToken: string = "";
