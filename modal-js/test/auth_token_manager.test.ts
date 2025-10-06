@@ -58,8 +58,7 @@ describe("AuthTokenManager", () => {
     mockClient.setAuthToken(token);
 
     // Test by fetching a valid JWT and checking if it gets stored properly
-    const result = await manager.refreshToken();
-    expect(result).toBe(token);
+    await manager.start();
     expect(manager.getCurrentToken()).toBe(token);
   });
 
@@ -127,30 +126,24 @@ describe("AuthTokenManager", () => {
     expect(manager.getCurrentToken()).toBe(freshToken);
   });
 
-  test("TestAuthToken_ConcurrentRefresh", async () => {
+  test("TestAuthToken_ConcurrentGetToken", async () => {
     const token = createTestJWT(Math.floor(Date.now() / 1000) + 3600);
     mockClient.setAuthToken(token);
 
-    // Multiple refresh calls
-    const promise1 = manager.refreshToken();
-    const promise2 = manager.refreshToken();
-    const promise3 = manager.refreshToken();
+    // Start the manager to fetch initial token
+    await manager.start();
 
-    // All should return the same promise
-    expect(promise1).toBe(promise2);
-    expect(promise2).toBe(promise3);
-
-    // All should resolve to the same token
+    // Multiple concurrent getToken calls should all return the same token
     const [result1, result2, result3] = await Promise.all([
-      promise1,
-      promise2,
-      promise3,
+      manager.getToken(),
+      manager.getToken(),
+      manager.getToken(),
     ]);
     expect(result1).toBe(token);
     expect(result2).toBe(token);
     expect(result3).toBe(token);
 
-    // authTokenGet should have been called only once
+    // authTokenGet should have been called only once (during start)
     expect(mockClient.authTokenGet).toHaveBeenCalledTimes(1);
   });
 
