@@ -47,13 +47,17 @@ func NewAuthTokenManager(client pb.ModalClientClient) *AuthTokenManager {
 }
 
 // Start the token refresh goroutine.
-func (m *AuthTokenManager) Start(ctx context.Context) {
+// Returns an error if the initial token fetch fails.
+func (m *AuthTokenManager) Start(ctx context.Context) error {
 	refreshCtx, cancel := context.WithCancel(ctx)
 	m.cancelFn = cancel
 	if _, err := m.FetchToken(refreshCtx); err != nil {
-		log.Printf("Failed to fetch initial auth token: %v", err)
+		cancel()
+		m.cancelFn = nil
+		return fmt.Errorf("failed to fetch initial auth token: %w", err)
 	}
 	go m.backgroundRefresh(refreshCtx)
+	return nil
 }
 
 // Stop the refresh goroutine.
@@ -65,18 +69,14 @@ func (m *AuthTokenManager) Stop() {
 }
 
 // GetToken returns the current cached token.
-// If no token is available or the token is expired, it will fetch a new one.
-// Ideally GetToken() should not refresh tokens, since we have a background goroutine that refreshes tokens near expiry.
 func (m *AuthTokenManager) GetToken(ctx context.Context) (string, error) {
 	token := m.GetCurrentToken()
 
-	// Return an existing, non-expired token.
 	if token != "" && !m.IsExpired() {
 		return token, nil
 	}
 
-	// Should almost never happen.
-	return m.FetchToken(ctx)
+	return "", fmt.Errorf("no valid auth token available")
 }
 
 // backgroundRefresh runs in a goroutine and refreshes tokens REFRESH_WINDOW seconds before they expire.

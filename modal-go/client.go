@@ -94,7 +94,9 @@ func init() {
 
 	// Initialize and start background auth token manager
 	authTokenManager = NewAuthTokenManager(client)
-	authTokenManager.Start(context.Background())
+	if err := authTokenManager.Start(context.Background()); err != nil {
+		panic(fmt.Sprintf("failed to start auth token manager at startup: %v", err))
+	}
 }
 
 // ClientOptions defines credentials and options for initializing the Modal client at runtime.
@@ -125,7 +127,9 @@ func InitializeClient(options ClientOptions) error {
 		authTokenManager.Stop()
 	}
 	authTokenManager = NewAuthTokenManager(client)
-	authTokenManager.Start(context.Background())
+	if err := authTokenManager.Start(context.Background()); err != nil {
+		return fmt.Errorf("failed to start auth token manager: %w", err)
+	}
 
 	return nil
 }

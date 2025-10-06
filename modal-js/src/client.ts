@@ -35,9 +35,8 @@ export class AuthTokenManager {
   }
 
   /**
-   * Returns cached token if valid, otherwise fetches a new one.
+   * Returns cached token.
    * Concurrent calls will share the same refresh promise to avoid duplicate requests.
-   * Ideally getToken() should not refresh tokens, since we refresh tokens near expiry with a background timer.
    */
   async getToken(): Promise<string> {
     // Return existing, non-expired token
@@ -50,8 +49,7 @@ export class AuthTokenManager {
       return await this.refreshPromise;
     }
 
-    // Should almost never happen
-    return await this.refreshToken();
+    throw new Error("No valid auth token available");
   }
 
   /**
@@ -126,16 +124,13 @@ export class AuthTokenManager {
 
   /**
    * Fetches the initial token on start.
+   * Throws an error if the initial token fetch fails.
    */
   async start(): Promise<void> {
-    try {
-      if (this.currentToken === "") {
-        await this.refreshToken();
-      } else {
-        this.scheduleRefresh();
-      }
-    } catch (error) {
-      console.error("Failed to fetch initial auth token:", error);
+    if (this.currentToken === "") {
+      await this.refreshToken();
+    } else {
+      this.scheduleRefresh();
     }
   }
 
@@ -218,9 +213,7 @@ function authMiddleware(profile: Profile): ClientMiddleware {
     if (call.method.path !== "/modal.client.ModalClient/AuthTokenGet") {
       if (!authTokenManager) {
         authTokenManager = new AuthTokenManager(client);
-        authTokenManager.start().catch((error) => {
-          console.error("Failed to start auth token manager:", error);
-        });
+        await authTokenManager.start();
       }
 
       const token = await authTokenManager.getToken();
@@ -441,7 +434,7 @@ export type ClientOptions = {
  * You should call this function at the start of your application if not
  * configuring Modal with a `.modal.toml` file or environment variables.
  */
-export function initializeClient(options: ClientOptions) {
+export async function initializeClient(options: ClientOptions) {
   const mergedProfile = {
     ...defaultProfile,
     tokenId: options.tokenId,
@@ -456,7 +449,5 @@ export function initializeClient(options: ClientOptions) {
     authTokenManager.stop();
   }
   authTokenManager = new AuthTokenManager(client);
-  authTokenManager.start().catch((error) => {
-    console.error("Failed to start auth token manager:", error);
-  });
+  await authTokenManager.start();
 }

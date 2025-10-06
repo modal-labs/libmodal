@@ -68,6 +68,8 @@ describe("AuthTokenManager", () => {
     const token = createTestJWT(now + 3600);
     mockClient.setAuthToken(token);
 
+    await manager.start();
+
     const firstToken = await manager.getToken();
     expect(firstToken).toBe(token);
 
@@ -150,5 +152,11 @@ describe("AuthTokenManager", () => {
 
     // authTokenGet should have been called only once
     expect(mockClient.authTokenGet).toHaveBeenCalledTimes(1);
+  });
+
+  test("TestAuthToken_GetToken_NoToken", async () => {
+    await expect(manager.getToken()).rejects.toThrow(
+      "No valid auth token available",
+    );
   });
 });

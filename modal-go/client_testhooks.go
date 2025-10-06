@@ -2,6 +2,7 @@ package modal
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	pb "github.com/modal-labs/libmodal/modal-go/proto/modal_proto"
@@ -34,7 +35,9 @@ func SetClientFactoryForTesting(testClientFactory func(Profile) (grpc.ClientConn
 				authTokenManager.Stop()
 			}
 			authTokenManager = NewAuthTokenManager(client)
-			authTokenManager.Start(context.Background())
+			if err := authTokenManager.Start(context.Background()); err != nil {
+				panic(fmt.Sprintf("failed to start auth token manager in test: %v", err))
+			}
 		})
 	}
 }

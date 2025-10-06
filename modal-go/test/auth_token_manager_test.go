@@ -67,6 +67,7 @@ func TestAuthTokenManager_InitialFetch(t *testing.T) {
 	mockClient.setAuthToken(token)
 
 	manager := modal.NewAuthTokenManager(mockClient)
+	manager.Start(context.Background())
 
 	first_token, first_err := manager.GetToken(context.Background())
 	g.Expect(first_err).ShouldNot(gomega.HaveOccurred())
@@ -106,7 +107,8 @@ func TestAuthTokenManager_RefreshExpiredToken(t *testing.T) {
 	mockClient.setAuthToken(freshToken)
 
 	// Start the background refresh goroutine
-	manager.Start(context.Background())
+	err := manager.Start(context.Background())
+	g.Expect(err).ToNot(gomega.HaveOccurred())
 
 	// Wait for background goroutine to refresh the token
 	g.Eventually(func() string {
@@ -128,7 +130,8 @@ func TestAuthTokenManager_RefreshNearExpiryToken(t *testing.T) {
 	mockClient.setAuthToken(freshToken)
 
 	// Start the background refresh goroutine
-	manager.Start(context.Background())
+	err := manager.Start(context.Background())
+	g.Expect(err).ToNot(gomega.HaveOccurred())
 
 	// Wait for background goroutine to refresh the token
 	g.Eventually(func() string {
@@ -136,22 +139,14 @@ func TestAuthTokenManager_RefreshNearExpiryToken(t *testing.T) {
 	}, "1s", "10ms").Should(gomega.Equal(freshToken))
 }
 
-// Calling GetToken() with an expired token should trigger a refresh. This scenario is unlikely to occur since we refresh in background.
+// Should error out if no valid token is available.
 func TestAuthTokenManager_GetToken_ExpiredToken(t *testing.T) {
 	g := gomega.NewWithT(t)
 
 	mockClient := newMockAuthClient()
-	expiredToken := createTestJWT(time.Now().Unix() - 60)
-	freshToken := createTestJWT(time.Now().Unix() + 3600)
-
 	manager := modal.NewAuthTokenManager(mockClient)
 
-	manager.SetToken(expiredToken, time.Now().Unix()-60)
+	_, err := manager.GetToken(context.Background())
+	g.Expect(err).Should(gomega.HaveOccurred())
 
-	mockClient.setAuthToken(freshToken)
-
-	// GetToken() should fetch new token since cached one is expired
-	result, err := manager.GetToken(context.Background())
-	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(result).Should(gomega.Equal(freshToken))
 }
