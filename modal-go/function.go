@@ -165,7 +165,7 @@ func (f *Function) createInput(ctx context.Context, args []any, kwargs map[strin
 
 	// Error if CBOR is not supported
 	if !cborSupported {
-		return nil, fmt.Errorf("The deployed function does not support libmodal beta - please redeploy the remote function using modal >= 1.2")
+		return nil, fmt.Errorf("the deployed function does not support libmodal beta - please redeploy the remote function using modal >= 1.2")
 	}
 
 	// Use CBOR encoding
