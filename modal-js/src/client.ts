@@ -280,4 +280,6 @@ export function initializeClient(options: ClientOptions) {
   };
   clientProfile = mergedProfile;
   client = createClient(mergedProfile);
+  authTokenManager = new AuthTokenManager(client);
+  authTokenManager.start();
 }

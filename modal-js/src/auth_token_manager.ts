@@ -56,10 +56,6 @@ export class AuthTokenManager {
       // We'll use the token, and set the expiry to DEFAULT_EXPIRY_OFFSET from now.
       this.tokenExpiry = Math.floor(Date.now() / 1000) + DEFAULT_EXPIRY_OFFSET;
     }
-
-    console.log(
-      `Fetched a new token. Token expiry: ${this.tokenExpiry}, now: ${Math.floor(Date.now() / 1000)}, refreshTime: ${this.tokenExpiry - REFRESH_WINDOW}`,
-    );
   }
 
   /**

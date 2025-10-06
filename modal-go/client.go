@@ -117,7 +117,7 @@ func InitializeClient(options ClientOptions) error {
 		return err
 	}
 
-	// Initialize new auth manager with updated client
+	// Initialize new auth manager with client
 	if authTokenManager == nil {
 		authTokenManager = NewAuthTokenManager(client)
 	}
