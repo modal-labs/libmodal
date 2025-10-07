@@ -265,12 +265,12 @@ func authTokenInterceptor() grpc.UnaryClientInterceptor {
 			// Some of our tests don't call InitializeClient(), so we need to create the authTokenManager here for testing purposes.
 			if authTokenManager == nil {
 				authTokenManager = NewAuthTokenManager(client)
-				if err := authTokenManager.Start(ctx); err != nil {
+				if err := authTokenManager.Start(context.Background()); err != nil {
 					return fmt.Errorf("failed to start auth token manager: %w", err)
 				}
 			} else if authTokenManager.GetCurrentToken() == "" {
 				// Auth token manager exists but hasn't been started yet
-				if err := authTokenManager.Start(ctx); err != nil {
+				if err := authTokenManager.Start(context.Background()); err != nil {
 					return fmt.Errorf("failed to start auth token manager: %w", err)
 				}
 			}
