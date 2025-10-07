@@ -128,6 +128,13 @@ func InitializeClient(options ClientOptions) error {
 	return nil
 }
 
+// Stops the auth token refresh.
+func Close() {
+	if authTokenManager != nil {
+		authTokenManager.Stop()
+	}
+}
+
 // getOrCreateInputPlaneClient returns a client for the given server URL, creating it if it doesn't exist.
 func getOrCreateInputPlaneClient(serverURL string) (pb.ModalClientClient, error) {
 	if client, ok := inputPlaneClients[serverURL]; ok {

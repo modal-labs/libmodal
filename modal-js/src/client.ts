@@ -283,3 +283,12 @@ export function initializeClient(options: ClientOptions) {
   authTokenManager = new AuthTokenManager(client);
   authTokenManager.start();
 }
+
+/**
+ * Stops the auth token refresh.
+ */
+export function close() {
+  if (authTokenManager) {
+    authTokenManager.stop();
+  }
+}
