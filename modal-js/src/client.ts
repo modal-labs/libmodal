@@ -12,10 +12,15 @@ import {
 
 import { ClientType, ModalClientDefinition } from "../proto/modal_proto/api";
 import { getProfile, type Profile } from "./config";
+import { AuthTokenManager } from "./auth_token_manager";
 
 const defaultProfile = getProfile(process.env["MODAL_PROFILE"]);
 
-let modalAuthToken: string | undefined;
+// AuthTokenManager is now imported from auth_token_manager.ts
+// Keeping a reference to it for backward compatibility
+export { AuthTokenManager } from "./auth_token_manager";
+
+let authTokenManager: AuthTokenManager | null = null;
 
 /** gRPC client middleware to add auth token to request. */
 function authMiddleware(profile: Profile): ClientMiddleware {
@@ -38,29 +43,21 @@ function authMiddleware(profile: Profile): ClientMiddleware {
     options.metadata.set("x-modal-client-version", "1.0.0"); // CLIENT VERSION: Behaves like this Python SDK version
     options.metadata.set("x-modal-token-id", tokenId);
     options.metadata.set("x-modal-token-secret", tokenSecret);
-    if (modalAuthToken) {
-      options.metadata.set("x-modal-auth-token", modalAuthToken);
+
+    // Skip auth token for AuthTokenGet requests to prevent it from getting stuck
+    if (call.method.path !== "/modal.client.ModalClient/AuthTokenGet") {
+      if (!authTokenManager) {
+        authTokenManager = new AuthTokenManager(client);
+        authTokenManager.start();
+      }
+
+      // getToken() will automatically wait if initial fetch is in progress
+      const token = await authTokenManager.getToken();
+      if (token) {
+        options.metadata.set("x-modal-auth-token", token);
+      }
     }
 
-    // We receive an auth token from the control plane on our first request. We then include that auth token in every
-    // subsequent request to both the control plane and the input plane. The python server returns it in the trailers,
-    // the worker returns it in the headers.
-    const prevOnHeader = options.onHeader;
-    options.onHeader = (header) => {
-      const token = header.get("x-modal-auth-token");
-      if (token) {
-        modalAuthToken = token;
-      }
-      prevOnHeader?.(header);
-    };
-    const prevOnTrailer = options.onTrailer;
-    options.onTrailer = (trailer) => {
-      const token = trailer.get("x-modal-auth-token");
-      if (token) {
-        modalAuthToken = token;
-      }
-      prevOnTrailer?.(trailer);
-    };
     return yield* call.next(call.request, options);
   };
 }
@@ -249,6 +246,7 @@ function createClient(profile: Profile) {
     "grpc.max_send_message_length": 100 * 1024 * 1024,
     "grpc-node.flow_control_window": 64 * 1024 * 1024,
   });
+
   return createClientFactory()
     .use(authMiddleware(profile))
     .use(retryMiddleware)
@@ -282,4 +280,15 @@ export function initializeClient(options: ClientOptions) {
   };
   clientProfile = mergedProfile;
   client = createClient(mergedProfile);
+  authTokenManager = new AuthTokenManager(client);
+  authTokenManager.start();
+}
+
+/**
+ * Stops the auth token refresh.
+ */
+export function close() {
+  if (authTokenManager) {
+    authTokenManager.stop();
+  }
 }
