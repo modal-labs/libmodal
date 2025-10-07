@@ -131,11 +131,6 @@ export class Cls {
     return this.#serviceFunctionMetadata.classParameterInfo?.schema ?? [];
   }
 
-  get #methodNames(): string[] {
-    return Object.keys(
-      this.#serviceFunctionMetadata.methodHandleMetadata ?? {},
-    );
-  }
   /**
    * @deprecated Use `client.cls.fromName()` instead.
    */
@@ -155,10 +150,11 @@ export class Cls {
     } else {
       functionId = await this.#bindParameters(parameters);
     }
+
     const methods = new Map<string, Function_>();
-    for (const name of this.#methodNames) {
-      const methodMetadata =
-        this.#serviceFunctionMetadata.methodHandleMetadata?.[name];
+    for (const [name, methodMetadata] of Object.entries(
+      this.#serviceFunctionMetadata.methodHandleMetadata,
+    )) {
       methods.set(
         name,
         new Function_(this.#client, functionId, name, methodMetadata),
