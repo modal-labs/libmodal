@@ -135,19 +135,6 @@ func (c *Cls) getSchema() ([]*pb.ClassParameterSpec, error) {
 	return metadata.GetClassParameterInfo().GetSchema(), nil
 }
 
-func (c *Cls) getMethodNames() ([]string, error) {
-	metadata, err := c.getServiceFunctionMetadata()
-	if err != nil {
-		return nil, err
-	}
-	methodMap := metadata.GetMethodHandleMetadata()
-	methodNames := make([]string, 0, len(methodMap))
-	for name := range methodMap {
-		methodNames = append(methodNames, name)
-	}
-	return methodNames, nil
-}
-
 // Instance creates a new instance of the class with the provided parameters.
 func (c *Cls) Instance(ctx context.Context, parameters map[string]any) (*ClsInstance, error) {
 	schema, err := c.getSchema()
@@ -170,22 +157,14 @@ func (c *Cls) Instance(ctx context.Context, parameters map[string]any) (*ClsInst
 		functionID = boundFunctionID
 	}
 
-	methodNames, err := c.getMethodNames()
-	if err != nil {
-		return nil, err
-	}
-
 	metadata, err := c.getServiceFunctionMetadata()
 	if err != nil {
 		return nil, err
 	}
 
-	methods := make(map[string]*Function)
-	for _, name := range methodNames {
-		var methodMetadata *pb.FunctionHandleMetadata
-		if metadata.GetMethodHandleMetadata() != nil {
-			methodMetadata = metadata.GetMethodHandleMetadata()[name]
-		}
+	methodHandleMetadata := metadata.GetMethodHandleMetadata()
+	methods := make(map[string]*Function, len(methodHandleMetadata))
+	for name, methodMetadata := range methodHandleMetadata {
 		methods[name] = &Function{
 			FunctionID:     functionID,
 			handleMetadata: methodMetadata,

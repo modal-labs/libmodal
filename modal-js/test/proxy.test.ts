@@ -7,7 +7,9 @@ test("CreateSandboxWithProxy", async () => {
   });
   const image = tc.images.fromRegistry("alpine:3.21");
 
-  const proxy = await tc.proxies.fromName("libmodal-test-proxy");
+  const proxy = await tc.proxies.fromName("libmodal-test-proxy", {
+    environment: "libmodal",
+  });
   expect(proxy.proxyId).toBeTruthy();
   expect(proxy.proxyId).toMatch(/^pr-/);
 
