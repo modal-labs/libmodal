@@ -254,7 +254,7 @@ func authTokenInterceptor() grpc.UnaryClientInterceptor {
 	) error {
 		// Skip auth token for AuthTokenGet requests to prevent it from getting stuck
 		if method != "/modal.client.ModalClient/AuthTokenGet" {
-			// IntializeClient() should have been called to create the authTokenManager.
+			// InitializeClient() should have been called to create the authTokenManager.
 			// Some of our tests don't call InitializeClient(), so we need to create the authTokenManager here for testing purposes.
 			if authTokenManager == nil {
 				authTokenManager = NewAuthTokenManager(client)
