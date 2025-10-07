@@ -3,7 +3,6 @@ package test
 import (
 	"context"
 	"reflect"
-	"strings"
 	"testing"
 	"time"
 
@@ -103,59 +102,36 @@ func TestFunctionCallDateTimeRoundtrip(t *testing.T) {
 	g.Expect(ok).Should(gomega.BeTrue())
 	t.Logf("Python repr: %s", reprResult)
 
-	// Analyze what Python received
-	if strings.Contains(reprResult, "datetime.datetime") {
-		// Success! Python received it as a datetime
-		g.Expect(reprResult).Should(gomega.ContainSubstring("datetime.datetime"))
-		g.Expect(reprResult).Should(gomega.ContainSubstring("2024"))
-		t.Logf("✅ SUCCESS: Go time.Time was received as Python datetime.datetime")
+	g.Expect(reprResult).Should(gomega.ContainSubstring("datetime.datetime"))
+	g.Expect(reprResult).Should(gomega.ContainSubstring("2024"))
+	t.Logf("✅ SUCCESS: Go time.Time was received as Python datetime.datetime")
 
-		// Verify the roundtrip - we should get back a time.Time
-		receivedTime, ok := identityResult.(time.Time)
-		g.Expect(ok).Should(gomega.BeTrue())
+	// Verify the roundtrip - we should get back a time.Time
+	receivedTime, ok := identityResult.(time.Time)
+	g.Expect(ok).Should(gomega.BeTrue())
 
-		// Check precision
-		timeDiff := testTime.Sub(receivedTime)
-		if timeDiff < 0 {
-			timeDiff = -timeDiff
-		}
-		t.Logf("Original time: %v", testTime)
-		t.Logf("Received time: %v", receivedTime)
-		t.Logf("Time difference after roundtrip: %v (%v nanoseconds)", timeDiff, timeDiff.Nanoseconds())
-
-		// Python's datetime has microsecond precision (not nanosecond)
-		// CBOR encodes time.Time with TimeRFC3339Nano (nanosecond precision)
-		// Python decodes to datetime (rounds to nearest microsecond)
-		// When Python re-encodes, we get back microsecond precision
-		// So we should expect to lose sub-microsecond precision (< 1000 ns)
-		//
-		// Our test uses 123456789 nanoseconds = 123.456789 milliseconds
-		// Python will round to 123456 microseconds = 123.456 milliseconds
-		// So we should lose exactly 789 nanoseconds
-		g.Expect(timeDiff).Should(gomega.BeNumerically("<", time.Microsecond))
-
-		// Verify the times are equal when truncated to microseconds
-		g.Expect(receivedTime.Truncate(time.Microsecond)).Should(gomega.Equal(testTime.Truncate(time.Microsecond)))
-
-	} else {
-		// Check if it's a Unix timestamp (integer)
-		if unixTime, ok := identityResult.(uint64); ok {
-			expectedUnix := uint64(testTime.Unix())
-			g.Expect(unixTime).Should(gomega.Equal(expectedUnix))
-			t.Logf("⚠️  Python received Go time.Time as Unix timestamp: %s", reprResult)
-			t.Logf("This means CBOR time tags are NOT being used by the Go client")
-			t.Logf("✅ Unix timestamp roundtrip successful: %d", unixTime)
-		} else if unixTime, ok := identityResult.(int64); ok {
-			expectedUnix := testTime.Unix()
-			g.Expect(unixTime).Should(gomega.Equal(expectedUnix))
-			t.Logf("⚠️  Python received Go time.Time as Unix timestamp: %s", reprResult)
-			t.Logf("This means CBOR time tags are NOT being used by the Go client")
-			t.Logf("✅ Unix timestamp roundtrip successful: %d", unixTime)
-		} else {
-			t.Logf("❓ Unexpected Python representation: %s", reprResult)
-			t.Logf("Identity result: %+v (type: %T)", identityResult, identityResult)
-		}
+	// Check precision
+	timeDiff := testTime.Sub(receivedTime)
+	if timeDiff < 0 {
+		timeDiff = -timeDiff
 	}
+	t.Logf("Original time: %v", testTime)
+	t.Logf("Received time: %v", receivedTime)
+	t.Logf("Time difference after roundtrip: %v (%v nanoseconds)", timeDiff, timeDiff.Nanoseconds())
+
+	// Python's datetime has microsecond precision (not nanosecond)
+	// CBOR encodes time.Time with TimeRFC3339Nano (nanosecond precision)
+	// Python decodes to datetime (rounds to nearest microsecond)
+	// When Python re-encodes, we get back microsecond precision
+	// So we should expect to lose sub-microsecond precision (< 1000 ns)
+	//
+	// Our test uses 123456789 nanoseconds = 123.456789 milliseconds
+	// Python will round to 123456 microseconds = 123.456 milliseconds
+	// So we should lose exactly 789 nanoseconds
+	g.Expect(timeDiff).Should(gomega.BeNumerically("<", time.Microsecond))
+
+	// Verify the times are equal when truncated to microseconds
+	g.Expect(receivedTime.Truncate(time.Microsecond)).Should(gomega.Equal(testTime.Truncate(time.Microsecond)))
 }
 
 func TestFunctionCallLargeInput(t *testing.T) {
