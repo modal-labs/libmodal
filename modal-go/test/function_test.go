@@ -43,7 +43,7 @@ func TestFunctionCallPreCborVersionError(t *testing.T) {
 	// Represent Python kwargs.
 	_, err = function.Remote(ctx, nil, map[string]any{"s": "hello"})
 	g.Expect(err).Should(gomega.HaveOccurred())
-	g.Expect(err.Error()).Should(gomega.ContainSubstring("please redeploy the remote function using modal >= 1.2"))
+	g.Expect(err.Error()).Should(gomega.ContainSubstring("please redeploy it using Modal Python SDK version >= 1.2"))
 }
 
 func TestFunctionCallGoMap(t *testing.T) {

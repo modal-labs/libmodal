@@ -193,6 +193,6 @@ test("FunctionCallPreCborVersionError", async () => {
   // Represent Python kwargs.
   const promise = function_.remote([], { s: "hello" });
   await expect(promise).rejects.toThrowError(
-    /The remote Function needs to be deployed using modal>=1\.2 to be called from libmodal/,
+    /please redeploy it using Modal Python SDK version >= 1.2/,
   );
 });
