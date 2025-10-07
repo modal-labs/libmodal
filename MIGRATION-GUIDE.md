@@ -22,18 +22,18 @@ Brief example of using the new API:
 ```ts
 import { ModalClient } from "modal";
 
-const mc = new ModalClient();
+const client = new ModalClient();
 
-const app = await mc.apps.fromName("libmodal-example", { createIfMissing: true });
-const image = mc.images.fromRegistry("alpine:3.21");
-const volume = await mc.volumes.fromName("libmodal-example-volume", { createIfMissing: true });
+const app = await client.apps.fromName("libmodal-example", { createIfMissing: true });
+const image = client.images.fromRegistry("alpine:3.21");
+const volume = await client.volumes.fromName("libmodal-example-volume", { createIfMissing: true });
 
-const sb = await mc.sandboxes.create(app, image, { volumes: { "/mnt/volume": volume } });
+const sb = await client.sandboxes.create(app, image, { volumes: { "/mnt/volume": volume } });
 const p = await sb.exec(["cat", "/mnt/volume/message.txt"]);
 console.log(`Message: ${await p.stdout.readText()}`);
 await sb.terminate();
 
-const echo = await mc.functions.fromName("libmodal-example", "echo");
+const echo = await client.functions.fromName("libmodal-example", "echo");
 console.log(await echo.remote(["Hello world!"]));
 ```
 
