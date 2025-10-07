@@ -108,7 +108,11 @@ func (m *AuthTokenManager) backgroundRefresh(ctx context.Context) {
 		if _, err := m.FetchToken(ctx); err != nil {
 			log.Printf("Failed to refresh auth token: %v", err)
 			// Sleep for 5 seconds before trying again on failure
-			time.Sleep(5 * time.Second)
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(5 * time.Second):
+			}
 		}
 	}
 }
