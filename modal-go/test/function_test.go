@@ -32,7 +32,7 @@ func TestFunctionCall(t *testing.T) {
 	g.Expect(result).Should(gomega.Equal("output: hello"))
 }
 
-func TestFunctionCallOldVersionError(t *testing.T) {
+func TestFunctionCallPreCborVersionError(t *testing.T) {
 	// test that calling a pre 1.2 function raises an error
 	t.Parallel()
 	g := gomega.NewWithT(t)
@@ -61,17 +61,17 @@ func TestFunctionCallGoMap(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	// "Explode" result into two parts, assuming it's a slice/array of length 2.
 	resultSlice, ok := result.([]any)
-	g.Expect(ok).Should(gomega.BeTrue(), "result should be a []any")
-	g.Expect(len(resultSlice)).Should(gomega.Equal(2), "result should have two elements")
+	g.Expect(ok).Should(gomega.BeTrue())
+	g.Expect(len(resultSlice)).Should(gomega.Equal(2))
 
 	// Assert and type the first element as string
 	identityResult := resultSlice[0]
 	// Use custom comparison for deep equality ignoring concrete types (e.g. map[string]interface{} vs map[string]any)
-	g.Expect(compareFlexible(identityResult, inputArg)).Should(gomega.BeTrue(), "identityResult should deeply equal inputArg (ignoring concrete map types)")
+	g.Expect(compareFlexible(identityResult, inputArg)).Should(gomega.BeTrue())
 
 	reprResult, ok := resultSlice[1].(string)
-	g.Expect(ok).Should(gomega.BeTrue(), "first element should be a string")
-	g.Expect(reprResult).Should(gomega.Equal(`{'s': 'hello'}`), "first element should equal the Python repr {'s': 'hello'}")
+	g.Expect(ok).Should(gomega.BeTrue())
+	g.Expect(reprResult).Should(gomega.Equal(`{'s': 'hello'}`))
 
 }
 
@@ -90,8 +90,8 @@ func TestFunctionCallDateTimeRoundtrip(t *testing.T) {
 
 	// Parse the result - identity_with_repr returns [input, repr(input)]
 	resultSlice, ok := result.([]any)
-	g.Expect(ok).Should(gomega.BeTrue(), "result should be a []any")
-	g.Expect(len(resultSlice)).Should(gomega.Equal(2), "result should have two elements")
+	g.Expect(ok).Should(gomega.BeTrue())
+	g.Expect(len(resultSlice)).Should(gomega.Equal(2))
 
 	// Check what we got back (should be the original time, potentially with precision loss)
 	identityResult := resultSlice[0]
@@ -100,7 +100,7 @@ func TestFunctionCallDateTimeRoundtrip(t *testing.T) {
 
 	// Check the Python representation
 	reprResult, ok := resultSlice[1].(string)
-	g.Expect(ok).Should(gomega.BeTrue(), "repr result should be a string")
+	g.Expect(ok).Should(gomega.BeTrue())
 	t.Logf("Python repr: %s", reprResult)
 
 	// Analyze what Python received
@@ -112,7 +112,7 @@ func TestFunctionCallDateTimeRoundtrip(t *testing.T) {
 
 		// Verify the roundtrip - we should get back a time.Time
 		receivedTime, ok := identityResult.(time.Time)
-		g.Expect(ok).Should(gomega.BeTrue(), "identity result should be a time.Time after roundtrip")
+		g.Expect(ok).Should(gomega.BeTrue())
 
 		// Check precision
 		timeDiff := testTime.Sub(receivedTime)
@@ -132,24 +132,22 @@ func TestFunctionCallDateTimeRoundtrip(t *testing.T) {
 		// Our test uses 123456789 nanoseconds = 123.456789 milliseconds
 		// Python will round to 123456 microseconds = 123.456 milliseconds
 		// So we should lose exactly 789 nanoseconds
-		g.Expect(timeDiff).Should(gomega.BeNumerically("<", time.Microsecond),
-			"time difference should be less than 1 microsecond (sub-microsecond precision loss), got %v", timeDiff)
+		g.Expect(timeDiff).Should(gomega.BeNumerically("<", time.Microsecond))
 
 		// Verify the times are equal when truncated to microseconds
-		g.Expect(receivedTime.Truncate(time.Microsecond)).Should(gomega.Equal(testTime.Truncate(time.Microsecond)),
-			"times should be equal when truncated to microseconds")
+		g.Expect(receivedTime.Truncate(time.Microsecond)).Should(gomega.Equal(testTime.Truncate(time.Microsecond)))
 
 	} else {
 		// Check if it's a Unix timestamp (integer)
 		if unixTime, ok := identityResult.(uint64); ok {
 			expectedUnix := uint64(testTime.Unix())
-			g.Expect(unixTime).Should(gomega.Equal(expectedUnix), "Unix timestamp should match")
+			g.Expect(unixTime).Should(gomega.Equal(expectedUnix))
 			t.Logf("⚠️  Python received Go time.Time as Unix timestamp: %s", reprResult)
 			t.Logf("This means CBOR time tags are NOT being used by the Go client")
 			t.Logf("✅ Unix timestamp roundtrip successful: %d", unixTime)
 		} else if unixTime, ok := identityResult.(int64); ok {
 			expectedUnix := testTime.Unix()
-			g.Expect(unixTime).Should(gomega.Equal(expectedUnix), "Unix timestamp should match")
+			g.Expect(unixTime).Should(gomega.Equal(expectedUnix))
 			t.Logf("⚠️  Python received Go time.Time as Unix timestamp: %s", reprResult)
 			t.Logf("This means CBOR time tags are NOT being used by the Go client")
 			t.Logf("✅ Unix timestamp roundtrip successful: %d", unixTime)
@@ -350,12 +348,6 @@ func compareFlexible(a, b interface{}) bool {
 	if av.Kind() == reflect.Map && bv.Kind() == reflect.Map {
 		return compareMaps(a, b)
 	}
-
-	// If types are exactly the same, use reflect.DeepEqual
-	if reflect.TypeOf(a) == reflect.TypeOf(b) {
-		return reflect.DeepEqual(a, b)
-	}
-
 	// For other types, fall back to reflect.DeepEqual
 	return reflect.DeepEqual(a, b)
 }

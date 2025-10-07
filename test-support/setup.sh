@@ -39,7 +39,7 @@ modal secret create --force libmodal-anthropic-secret \
 
 # deploy an app using an older version of Modal that's unsupported by libmodal
 uv venv modal_1_1
-uv pip install --python modal_1_1 "modal<=1.2"
+uv pip install --python modal_1_1 "modal<1.2"
 modal_1_1/bin/modal deploy test_support_1_1.py
 
 echo

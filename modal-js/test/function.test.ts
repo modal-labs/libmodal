@@ -204,7 +204,7 @@ test("FunctionGetWebUrlOnNonWebFunction", async () => {
   expect(await function_.getWebUrl()).toBeUndefined();
 });
 
-test("FunctionCallOldVersionError", async () => {
+test("FunctionCallPreCborVersionError", async () => {
   // test that calling a pre 1.2 function raises an error
   const function_ = await tc.functions.fromName(
     "test-support-1-1",

@@ -158,8 +158,6 @@ export class InputPlaneInvocation implements Invocation {
     const functionPutInputsItem = FunctionPutInputsItem.create({
       idx: 0,
       input,
-      r2Failed: false,
-      r2ThroughputBytesS: 0,
     });
     const ipClient = client.ipClient(inputPlaneUrl);
     // Single input sync invocation
