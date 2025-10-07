@@ -67,8 +67,6 @@ export class AuthTokenManager {
       const refreshTime = this.tokenExpiry - REFRESH_WINDOW;
       const delay = Math.max(0, refreshTime - now) * 1000;
 
-      console.log(`Refreshing token in ${Math.floor(delay / 1000)} seconds`);
-
       // Sleep until it's time to refresh
       await new Promise<void>((resolve) => {
         this.timeoutId = setTimeout(resolve, delay);
