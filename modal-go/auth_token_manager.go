@@ -107,8 +107,8 @@ func (m *AuthTokenManager) backgroundRefresh(ctx context.Context) {
 		// Refresh the token
 		if _, err := m.FetchToken(ctx); err != nil {
 			log.Printf("Failed to refresh auth token: %v", err)
-			// Stop the background refresh goroutine on failure to fetch token
-			return
+      // Sleep for 5 seconds before trying again on failure
+			time.Sleep(5 * time.Second)
 		}
 	}
 }

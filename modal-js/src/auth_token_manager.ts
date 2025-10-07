@@ -84,8 +84,8 @@ export class AuthTokenManager {
         await this.fetchToken();
       } catch (error) {
         console.error("Failed to refresh auth token:", error);
-        // Stop the background refresh loop on failure
-        return;
+        // Sleep for 5 seconds before trying again on failure
+        await new Promise((resolve) => setTimeout(resolve, 5000));
       }
     }
   }
