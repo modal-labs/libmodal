@@ -129,3 +129,13 @@ test("FunctionGetWebUrlOnNonWebFunction", async () => {
   );
   expect(await function_.getWebUrl()).toBeUndefined();
 });
+
+test("FunctionFromNameWithDotNotation", async () => {
+  const promise = tc.functions.fromName(
+    "libmodal-test-support",
+    "MyClass.myMethod",
+  );
+  await expect(promise).rejects.toThrowError(
+    `Cannot retrieve Cls methods using 'functions.fromName()'. Use:\n  const cls = await client.cls.fromName("libmodal-test-support", "MyClass");\n  const instance = await cls.instance();\n  const m = instance.method("myMethod");`,
+  );
+});
