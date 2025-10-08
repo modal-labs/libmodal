@@ -22,7 +22,7 @@ func main() {
 
 	image := mc.Images.FromRegistry("alpine/curl:8.14.1", nil)
 
-	proxy, err := mc.Proxies.FromName(ctx, "libmodal-test-proxy", nil)
+	proxy, err := mc.Proxies.FromName(ctx, "libmodal-test-proxy", &modal.ProxyFromNameParams{Environment: "libmodal"})
 	if err != nil {
 		log.Fatalf("Failed to get Proxy: %v", err)
 	}

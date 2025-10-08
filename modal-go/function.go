@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fxamacker/cbor/v2"
 	pickle "github.com/kisielk/og-rek"
 	pb "github.com/modal-labs/libmodal/modal-go/proto/modal_proto"
 	"google.golang.org/grpc/codes"
@@ -56,10 +57,8 @@ type FunctionUpdateAutoscalerParams struct {
 
 // Function references a deployed Modal Function.
 type Function struct {
-	FunctionID    string
-	MethodName    *string // used for class methods
-	inputPlaneURL string  // if empty, use control plane
-	webURL        string  // web URL if this Function is a web endpoint
+	FunctionID     string
+	handleMetadata *pb.FunctionHandleMetadata
 
 	client *Client
 }
@@ -96,23 +95,12 @@ func (s *functionServiceImpl) FromName(ctx context.Context, appName string, name
 		return nil, err
 	}
 
-	var inputPlaneURL string
-	var webURL string
-	if meta := resp.GetHandleMetadata(); meta != nil {
-		if url := meta.GetInputPlaneUrl(); url != "" {
-			inputPlaneURL = url
-		}
-		webURL = meta.GetWebUrl()
-	}
-	return &Function{
-		FunctionID:    resp.GetFunctionId(),
-		inputPlaneURL: inputPlaneURL,
-		webURL:        webURL,
-		client:        s.client,
-	}, nil
+	handleMetadata := resp.GetHandleMetadata()
+	return &Function{FunctionID: resp.GetFunctionId(), handleMetadata: handleMetadata, client: s.client}, nil
 }
 
 // pickleSerialize serializes Go data types to the Python pickle format.
+// NOTE: This is only used by Queue operations. Function calls use CBOR only.
 func pickleSerialize(v any) (bytes.Buffer, error) {
 	var inputBuffer bytes.Buffer
 
@@ -126,6 +114,7 @@ func pickleSerialize(v any) (bytes.Buffer, error) {
 }
 
 // pickleDeserialize deserializes from Python pickle into Go basic types.
+// NOTE: This is only used by Queue operations. Function calls use CBOR only.
 func pickleDeserialize(buffer []byte) (any, error) {
 	decoder := pickle.NewDecoder(bytes.NewReader(buffer))
 	result, err := decoder.Decode()
@@ -135,16 +124,75 @@ func pickleDeserialize(buffer []byte) (any, error) {
 	return result, nil
 }
 
+// cborEncoder is configured with time tags enabled so that time.Time values
+// are represented as datetime objects in Python. Uses TimeRFC3339Nano to preserve
+// nanosecond precision (Python datetime has microsecond precision).
+//
+// Both options are required:
+//   - Time: TimeRFC3339Nano - specifies the format (RFC3339 with nanosecond precision)
+//   - TimeTag: EncTagRequired - wraps the time in CBOR tag 0, signaling it's a datetime
+//     Without the tag, Python would receive it as a plain string, not a datetime object.
+var cborEncoder, _ = cbor.EncOptions{
+	Time:    cbor.TimeRFC3339Nano,
+	TimeTag: cbor.EncTagRequired,
+}.EncMode()
+
+// cborSerialize serializes Go data types to the CBOR format.
+// Uses CBOR time tags so that time.Time values are represented as
+// datetime objects in Python.
+func cborSerialize(v any) ([]byte, error) {
+	data, err := cborEncoder.Marshal(v)
+	if err != nil {
+		return nil, fmt.Errorf("error encoding CBOR data: %w", err)
+	}
+	return data, nil
+}
+
+// cborDeserialize deserializes from CBOR into Go basic types.
+func cborDeserialize(buffer []byte) (any, error) {
+	var result any
+	err := cbor.Unmarshal(buffer, &result)
+	if err != nil {
+		return nil, fmt.Errorf("error decoding CBOR data: %w", err)
+	}
+	return result, nil
+}
+
 // createInput serializes inputs, makes a function call and returns its ID
 func (f *Function) createInput(ctx context.Context, args []any, kwargs map[string]any) (*pb.FunctionInput, error) {
-	payload, err := pickleSerialize(pickle.Tuple{args, kwargs})
+
+	// Check supported input formats and require CBOR
+	supportedInputFormats := f.getSupportedInputFormats()
+	cborSupported := false
+	for _, format := range supportedInputFormats {
+		if format == pb.DataFormat_DATA_FORMAT_CBOR {
+			cborSupported = true
+			break
+		}
+	}
+
+	// Error if CBOR is not supported
+	if !cborSupported {
+		return nil, fmt.Errorf("the deployed Function does not support libmodal - please redeploy it using Modal Python SDK version >= 1.2")
+	}
+
+	// Use CBOR encoding
+	// Ensure args and kwargs are not nil to match expected behavior
+	cborArgs := args
+	if cborArgs == nil {
+		cborArgs = []any{}
+	}
+	cborKwargs := kwargs
+	if cborKwargs == nil {
+		cborKwargs = map[string]any{}
+	}
+	argsBytes, err := cborSerialize([]any{cborArgs, cborKwargs})
 	if err != nil {
 		return nil, err
 	}
-
-	argsBytes := payload.Bytes()
+	dataFormat := pb.DataFormat_DATA_FORMAT_CBOR
 	var argsBlobID *string
-	if payload.Len() > maxObjectSizeBytes {
+	if len(argsBytes) > maxObjectSizeBytes {
 		blobID, err := blobUpload(ctx, f.client.cpClient, argsBytes)
 		if err != nil {
 			return nil, err
@@ -152,13 +200,49 @@ func (f *Function) createInput(ctx context.Context, args []any, kwargs map[strin
 		argsBytes = nil
 		argsBlobID = &blobID
 	}
-
+	metadata, err := f.getHandleMetadata()
+	if err != nil {
+		return nil, err
+	}
+	methodName := metadata.GetUseMethodName() // this is empty if the function is not a cls method
 	return pb.FunctionInput_builder{
 		Args:       argsBytes,
 		ArgsBlobId: argsBlobID,
-		DataFormat: pb.DataFormat_DATA_FORMAT_PICKLE,
-		MethodName: f.MethodName,
+		DataFormat: dataFormat,
+		MethodName: &methodName,
 	}.Build(), nil
+}
+
+// getHandleMetadata returns the function's handle metadata or an error if not set.
+func (f *Function) getHandleMetadata() (*pb.FunctionHandleMetadata, error) {
+	if f.handleMetadata == nil {
+		return nil, fmt.Errorf("unexpected error: function has not been hydrated")
+	}
+	return f.handleMetadata, nil
+}
+
+// getSupportedInputFormats returns the supported input formats for this function.
+// Returns an empty slice if metadata is not available.
+func (f *Function) getSupportedInputFormats() []pb.DataFormat {
+	metadata, err := f.getHandleMetadata()
+	if err != nil {
+		// Return empty slice if metadata is not available - this will cause CBOR validation to fail
+		return []pb.DataFormat{}
+	}
+	if len(metadata.GetSupportedInputFormats()) > 0 {
+		return metadata.GetSupportedInputFormats()
+	}
+	return []pb.DataFormat{}
+}
+
+// getWebURL returns the web URL for this function, if it's a web endpoint.
+// Returns empty string if metadata is not available or if not a web endpoint.
+func (f *Function) getWebURL() string {
+	metadata, err := f.getHandleMetadata()
+	if err != nil {
+		return ""
+	}
+	return metadata.GetWebUrl()
 }
 
 // Remote executes a single input on a remote Function.
@@ -191,8 +275,13 @@ func (f *Function) Remote(ctx context.Context, args []any, kwargs map[string]any
 
 // createRemoteInvocation creates an Invocation using either the input plane or control plane.
 func (f *Function) createRemoteInvocation(ctx context.Context, input *pb.FunctionInput) (invocation, error) {
-	if f.inputPlaneURL != "" {
-		ipClient, err := f.client.ipClient(f.inputPlaneURL)
+	metadata, err := f.getHandleMetadata()
+	if err != nil {
+		return nil, err
+	}
+	inputPlaneURL := metadata.GetInputPlaneUrl()
+	if inputPlaneURL != "" {
+		ipClient, err := f.client.ipClient(inputPlaneURL)
 		if err != nil {
 			return nil, err
 		}
@@ -258,7 +347,7 @@ func (f *Function) UpdateAutoscaler(ctx context.Context, params *FunctionUpdateA
 // GetWebURL returns the URL of a Function running as a web endpoint.
 // Returns empty string if this Function is not a web endpoint.
 func (f *Function) GetWebURL() string {
-	return f.webURL
+	return f.getWebURL()
 }
 
 // blobUpload uploads a blob to storage and returns its ID.

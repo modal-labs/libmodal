@@ -231,7 +231,8 @@ func processResult(ctx context.Context, client pb.ModalClientClient, result *pb.
 	default:
 		// In this case, `result.GetData()` may have a pickled user code exception with traceback
 		// from Python. We ignore this and only take the string representation.
-		return nil, RemoteError{result.GetException()}
+		exception := result.GetException()
+		return nil, RemoteError{exception}
 	}
 
 	return deserializeDataFormat(data, dataFormat)
@@ -259,8 +260,10 @@ func blobDownload(ctx context.Context, client pb.ModalClientClient, blobID strin
 
 func deserializeDataFormat(data []byte, dataFormat pb.DataFormat) (any, error) {
 	switch dataFormat {
+	case pb.DataFormat_DATA_FORMAT_CBOR:
+		return cborDeserialize(data)
 	case pb.DataFormat_DATA_FORMAT_PICKLE:
-		return pickleDeserialize(data)
+		return nil, fmt.Errorf("PICKLE output format is not supported - remote function must return CBOR format")
 	case pb.DataFormat_DATA_FORMAT_ASGI:
 		return nil, fmt.Errorf("ASGI data format is not supported in Go")
 	case pb.DataFormat_DATA_FORMAT_GENERATOR_DONE:

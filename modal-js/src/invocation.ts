@@ -12,7 +12,7 @@ import {
 } from "../proto/modal_proto/api";
 import { ModalGrpcClient, type ModalClient } from "./client";
 import { FunctionTimeoutError, InternalFailure, RemoteError } from "./errors";
-import { loads } from "./pickle";
+import { cborDecode } from "./serialization";
 
 // From: modal-client/modal/_utils/function_utils.py
 const outputsTimeout = 55 * 1000;
@@ -303,9 +303,13 @@ function deserializeDataFormat(
 
   switch (dataFormat) {
     case DataFormat.DATA_FORMAT_PICKLE:
-      return loads(data);
+      throw new Error(
+        "PICKLE output format is not supported - remote function must return CBOR format",
+      );
+    case DataFormat.DATA_FORMAT_CBOR:
+      return cborDecode(data);
     case DataFormat.DATA_FORMAT_ASGI:
-      throw new Error("ASGI data format is not supported in Go");
+      throw new Error("ASGI data format is not supported in modal-js");
     case DataFormat.DATA_FORMAT_GENERATOR_DONE:
       return GeneratorDone.decode(data);
     default:

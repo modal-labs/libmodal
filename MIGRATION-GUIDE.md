@@ -5,8 +5,10 @@ The libmodal SDKs went into beta with the version 0.5 release in October 2025. T
 The beta release includes breaking changes to improve SDK ergonomics and align with general SDK best practices. While adapting requires some code changes, we believe these improvements make Modal easier to use going forward.
 
 The main changes are:
+
 - The SDKs now expose a central Modal Client object as the main entry point for interacting with Modal resources.
 - The interface for working with Modal object instances (Functions, Sandboxes, Images, etc.) is largely the same as before, with some naming changes.
+- Calling deployed Functions and classes now uses a new protocol for payload serialization which requires the deployed apps to use the Modal Python SDK 1.2 or newer.
 - Internally removed the global client (and config/profile data in global scope), moving all that to the Client type.
 - Consistent parameter naming across both SDKs: all `Options` structs/interfaces renamed to `Params`.
 - Go-specific changes:
@@ -14,21 +16,34 @@ The main changes are:
   - All `Params` structs are now passed as pointers for consistency and to support optional parameters.
   - Field names follow Go casing conventions (e.g., `Id` → `ID`, `Url` → `URL`, `TokenId` → `TokenID`).
 
+## Calling deployed Modal Functions and classes
+
+Starting with this version, invoking remote Functions and class methods through `.remote()` and similar uses a new serialization protocol that requires the referenced modal Apps to be deployed using the Modal Python SDK 1.2 or newer. In addition, your deployed Apps need to be on the 2025.06 image builder version or newer (see https://modal.com/settings/image-config for more information) or have the `cbor2` Python package installed in their image.
+
+## API changes
+
 See below for a list of all changes in [JavaScript/TypeScript](#javascripttypescript) and [Go](#go). See also the updated examples in [JS](./modal-js/examples) and [Go](./modal-go/examples) for a sense of how the API has changed.
 
 ## JavaScript/TypeScript
 
 Brief example of using the new API:
+
 ```ts
 import { ModalClient } from "modal";
 
 const client = new ModalClient();
 
-const app = await client.apps.fromName("libmodal-example", { createIfMissing: true });
+const app = await client.apps.fromName("libmodal-example", {
+  createIfMissing: true,
+});
 const image = client.images.fromRegistry("alpine:3.21");
-const volume = await client.volumes.fromName("libmodal-example-volume", { createIfMissing: true });
+const volume = await client.volumes.fromName("libmodal-example-volume", {
+  createIfMissing: true,
+});
 
-const sb = await client.sandboxes.create(app, image, { volumes: { "/mnt/volume": volume } });
+const sb = await client.sandboxes.create(app, image, {
+  volumes: { "/mnt/volume": volume },
+});
 const p = await sb.exec(["cat", "/mnt/volume/message.txt"]);
 console.log(`Message: ${await p.stdout.readText()}`);
 await sb.terminate();
@@ -38,28 +53,34 @@ console.log(await echo.remote(["Hello world!"]));
 ```
 
 ### Client
+
 ```ts
-import { ModalClient } from "modal"
-const client = new ModalClient()
+import { ModalClient } from "modal";
+const client = new ModalClient();
 // or customized:
-const client = new ModalClient({ tokenId: "...", tokenSecret: "..." })
+const client = new ModalClient({ tokenId: "...", tokenSecret: "..." });
 ```
 
 - `initializeClient(...)` -> `new ModalClient(...)`
 
 ### App
+
 - `App.lookup(...)` -> `client.apps.fromName(...)`
 
 ### Cls
+
 - `Cls.lookup(...)` -> `client.cls.fromName(...)`
 
 ### Function
+
 - `Function_.lookup(...)` -> `client.functions.fromName(...)`
 
 ### FunctionCall
+
 - `FunctionCall.fromId(...)` -> `client.functionCalls.fromId(...)`
 
 ### Image
+
 - `app.imageFromRegistry(...)` -> `client.images.fromRegistry(...)`
 - `app.imageFromAwsEcr(...)` -> `client.images.fromAwsEcr(...)`
 - `app.imageFromGcpArtifactRegistry(...)` -> `client.images.fromGcpArtifactRegistry(...)`
@@ -70,29 +91,35 @@ const client = new ModalClient({ tokenId: "...", tokenSecret: "..." })
 - `Image.delete(...)` -> `client.images.delete(...)`
 
 ### Proxy
+
 - `Proxy.fromName(...)` -> `client.proxies.fromName(...)`
 
 ### Queue
+
 - `Queue.lookup(...)` -> `client.queues.fromName(...)`
 - `Queue.fromName(...)` -> `client.queues.fromName(...)`
 - `Queue.ephemeral(...)` -> `client.queues.ephemeral(...)`
 - `Queue.delete(...)` -> `client.queues.delete(...)`
 
 ### Sandbox
+
 - `app.createSandbox(image, { ... })` -> `client.sandboxes.create(app, image, { ... })`
 - `Sandbox.fromId(...)` -> `client.sandboxes.fromId(...)`
 - `Sandbox.fromName(...)` -> `client.sandboxes.fromName(...)`
 - `Sandbox.list(...)` -> `client.sandboxes.list(...)`
 
 ### Secret
+
 - `Secret.fromName(...)` -> `client.secrets.fromName(...)`
 - `Secret.fromObject(...)` -> `client.secrets.fromObject(...)`
 
 ### Volume
+
 - `Volume.fromName(...)` -> `client.volumes.fromName(...)`
 - `Volume.ephemeral(...)` -> `client.volumes.ephemeral(...)`
 
 ### Parameter Type Renames
+
 - `ClsOptions` -> `ClsWithOptionsParams`
 - `ClsConcurrencyOptions` -> `ClsWithConcurrencyParams`
 - `ClsBatchingOptions` -> `ClsWithBatchingParams`
@@ -121,6 +148,7 @@ const client = new ModalClient({ tokenId: "...", tokenSecret: "..." })
 ## Go
 
 Brief example of using the new API (with `err` handling omitted for brevity):
+
 ```go
 package main
 
@@ -156,6 +184,7 @@ func main() {
 ```
 
 ### General notes
+
 - Many methods now require `ctx context.Context` as the first parameter
 - Field renames in structs:
   - `TokenId` -> `TokenID`
@@ -173,6 +202,7 @@ func main() {
   - `BucketEndpointUrl` -> `BucketEndpointURL`
 
 ### Client
+
 ```go
 import "github.com/modal-labs/libmodal/modal-go"
 client, err := modal.NewClient()
@@ -186,12 +216,15 @@ client, err := modal.NewClientWithOptions(&modal.ClientParams{
 - `modal.InitializeClient(modal.ClientOptions{...})` -> `modal.NewClient()` or `modal.NewClientWithOptions(&modal.ClientParams{...})`
 
 ### App
+
 - `modal.AppLookup(ctx, "my-app", &modal.LookupOptions{...})` -> `client.Apps.FromName(ctx, "my-app", &modal.AppFromNameParams{...})`
 
 ### CloudBucketMount
+
 - `modal.NewCloudBucketMount(..., &modal.CloudBucketMountOptions{...})` -> `client.CloudBucketMounts.New(..., &modal.CloudBucketMountParams{...})`
 
 ### Cls
+
 - `modal.ClsLookup(ctx, ..., &modal.LookupOptions{...})` -> `client.Cls.FromName(ctx, ..., &modal.ClsFromNameParams{...})`
 
 #### Cls methods
@@ -202,22 +235,27 @@ client, err := modal.NewClientWithOptions(&modal.ClientParams{
 - `cls.WithBatching(modal.ClsBatchingOptions{...})` -> `cls.WithBatching(&modal.ClsWithBatchingParams{...})`
 
 ### Function
+
 - `modal.FunctionLookup(ctx, ..., &modal.LookupOptions{...})` -> `client.Functions.FromName(ctx, ..., &modal.FunctionFromNameParams{...})`
 
 #### Function methods
+
 - `function.Remote(...)` -> `function.Remote(ctx, ...)`
 - `function.Spawn(...)` -> `function.Spawn(ctx, ...)`
 - `function.GetCurrentStats()` -> `function.GetCurrentStats(ctx)`
 - `function.UpdateAutoscaler(modal.UpdateAutoscalerOptions{...})` -> `function.UpdateAutoscaler(ctx, &modal.FunctionUpdateAutoscalerParams{...})`
 
 ### FunctionCall
+
 - `modal.FunctionCallFromId(ctx, "call-id")` -> `client.FunctionCalls.FromID(ctx, "call-id")`
 
 #### FunctionCall methods
+
 - `functionCall.Get(&modal.FunctionCallGetOptions{...})` -> `functionCall.Get(ctx, &modal.FunctionCallGetParams{...})`
 - `functionCall.Cancel(&modal.FunctionCallCancelOptions{...})` -> `functionCall.Cancel(ctx, &modal.FunctionCallCancelParams{...})`
 
 ### Image
+
 - `app.ImageFromRegistry(..., &modal.ImageFromRegistryOptions{...})` -> `client.Images.FromRegistry(ctx, ..., &modal.ImageFromRegistryParams{...})`
 - `modal.NewImageFromRegistry(..., &modal.ImageFromRegistryOptions{...})` -> `client.Images.FromRegistry(ctx, ..., &modal.ImageFromRegistryParams{...})`
 - `modal.NewImageFromAwsEcr(..., secret)` -> `client.Images.FromAwsEcr(ctx, ..., secret)`
@@ -226,18 +264,22 @@ client, err := modal.NewClientWithOptions(&modal.ClientParams{
 - `modal.ImageDelete(ctx, ..., &modal.ImageDeleteOptions{...})` -> `client.Images.Delete(ctx, ..., &modal.ImageDeleteParams{...})`
 
 #### Image methods
+
 - `image.DockerfileCommands(..., &modal.ImageDockerfileCommandsOptions{...})` -> `image.DockerfileCommands(..., &modal.ImageDockerfileCommandsParams{...})`
 - `image.Build(app)` -> `image.Build(ctx, app)`
 
 ### Proxy
+
 - `modal.ProxyFromName(..., &modal.ProxyFromNameOptions{...})` -> `client.Proxies.FromName(..., &modal.ProxyFromNameParams{...})`
 
 ### Queue
+
 - `modal.QueueLookup(ctx, ..., &modal.LookupOptions{...})` -> `client.Queues.FromName(ctx, ..., &modal.QueueFromNameParams{...})`
 - `modal.QueueEphemeral(ctx, &modal.EphemeralOptions{...})` -> `client.Queues.Ephemeral(ctx, &modal.QueueEphemeralParams{...})`
 - `modal.QueueDelete(ctx, ..., &modal.DeleteOptions{...})` -> `client.Queues.Delete(ctx, ..., &modal.QueueDeleteParams{...})`
 
 #### Queue methods
+
 - `queue.Clear(&modal.QueueClearOptions{...})` -> `queue.Clear(ctx, &modal.QueueClearParams{...})`
 - `queue.Get(&modal.QueueGetOptions{...})` -> `queue.Get(ctx, &modal.QueueGetParams{...})`
 - `queue.GetMany(..., &modal.QueueGetOptions{...})` -> `queue.GetMany(ctx, ..., &modal.QueueGetManyParams{...})`
@@ -247,15 +289,18 @@ client, err := modal.NewClientWithOptions(&modal.ClientParams{
 - `queue.Iterate(&modal.QueueIterateOptions{...})` -> `queue.Iterate(ctx, &modal.QueueIterateParams{...})`
 
 ### Retries
+
 - `modal.NewRetries(..., &modal.RetriesOptions{...})` -> `modal.NewRetries(..., &modal.RetriesParams{...})`
 
 ### Sandbox
+
 - `app.CreateSandbox(image, &modal.SandboxOptions{...})` -> `client.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{...})`
 - `modal.SandboxFromId(ctx, "sandbox-id")` -> `client.Sandboxes.FromID(ctx, "sandbox-id")`
 - `modal.SandboxFromName(ctx, "app-name", "sandbox-name", &modal.SandboxFromNameOptions{...})` -> `client.Sandboxes.FromName(ctx, "app-name", "sandbox-name", &modal.SandboxFromNameParams{...})`
 - `modal.SandboxList(ctx, &modal.SandboxListOptions{...})` -> `client.Sandboxes.List(ctx, &modal.SandboxListParams{...})`
 
 #### Sandbox methods
+
 - `sandbox.Exec(..., modal.ExecOptions{...})` -> `sandbox.Exec(ctx, ..., &modal.SandboxExecParams{...})`
 - `sandbox.Open(...)` -> `sandbox.Open(ctx, ...)`
 - `sandbox.Terminate()` -> `sandbox.Terminate(ctx)`
@@ -267,14 +312,17 @@ client, err := modal.NewClientWithOptions(&modal.ClientParams{
 - `sandbox.GetTags()` -> `sandbox.GetTags(ctx)`
 
 ### Secret
+
 - `modal.SecretFromName(ctx, ..., &modal.SecretFromNameOptions{...})` -> `client.Secrets.FromName(ctx, ..., &modal.SecretFromNameParams{...})`
 - `modal.SecretFromMap(ctx, ..., &modal.SecretFromMapOptions{...})` -> `client.Secrets.FromMap(ctx, ..., &modal.SecretFromMapParams{...})`
 
 ### Volume
+
 - `modal.VolumeFromName(ctx, ..., &modal.VolumeFromNameOptions{...})` -> `client.Volumes.FromName(ctx, ..., &modal.VolumeFromNameParams{...})`
 - `modal.VolumeEphemeral(ctx, &modal.EphemeralOptions{...})` -> `client.Volumes.Ephemeral(ctx, &modal.VolumeEphemeralParams{...})`
 
 ### Parameter Type Renames
+
 - `ClientOptions` -> `ClientParams`
 - `CloudBucketMountOptions` -> `CloudBucketMountParams`
 - `ClsBatchingOptions` -> `ClsWithBatchingParams`

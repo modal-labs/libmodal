@@ -7,7 +7,9 @@ const app = await mc.apps.fromName("libmodal-example", {
 });
 const image = mc.images.fromRegistry("alpine/curl:8.14.1");
 
-const proxy = await mc.proxies.fromName("libmodal-test-proxy");
+const proxy = await mc.proxies.fromName("libmodal-test-proxy", {
+  environment: "libmodal",
+});
 console.log("Using Proxy with ID:", proxy.proxyId);
 
 const sb = await mc.sandboxes.create(app, image, {

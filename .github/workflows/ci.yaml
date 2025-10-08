@@ -23,7 +23,18 @@ jobs:
 
       - run: |
           uv python install
-          uv pip install modal ruff
+
+      - name: Build submodule client
+        working-directory: modal-client
+        run: |
+          uv venv
+          uv pip install -r requirements.dev.txt
+          uv pip install .
+          uv run inv protoc
+          uv run inv type-stubs
+
+      - name: Install submodule client
+        run: uv pip install ./modal-client
 
       - run: |
           ruff check test-support/
@@ -37,7 +48,7 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: us-east-1
-
+          MODAL_SYNC_ENTRYPOINT: 1
 
   js:
     name: modal-js build, lint, and test

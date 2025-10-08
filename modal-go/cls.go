@@ -67,11 +67,9 @@ type serviceOptions struct {
 // Cls represents a Modal class definition that can be instantiated with parameters.
 // It contains metadata about the class and its methods.
 type Cls struct {
-	serviceFunctionID string
-	schema            []*pb.ClassParameterSpec
-	methodNames       []string
-	inputPlaneURL     string // if empty, use control plane
-	serviceOptions    *serviceOptions
+	serviceFunctionID       string
+	serviceOptions          *serviceOptions
+	serviceFunctionMetadata *pb.FunctionHandleMetadata
 
 	client *Client
 }
@@ -89,8 +87,7 @@ func (s *clsServiceImpl) FromName(ctx context.Context, appName string, name stri
 	}
 
 	cls := Cls{
-		methodNames: []string{},
-		client:      s.client,
+		client: s.client,
 	}
 
 	// Find class service function metadata. Service functions are used to implement class methods,
@@ -114,33 +111,39 @@ func (s *clsServiceImpl) FromName(ctx context.Context, appName string, name stri
 	schema := parameterInfo.GetSchema()
 	if len(schema) > 0 && parameterInfo.GetFormat() != pb.ClassParameterInfo_PARAM_SERIALIZATION_FORMAT_PROTO {
 		return nil, fmt.Errorf("unsupported parameter format: %v", parameterInfo.GetFormat())
-	} else {
-		cls.schema = schema
 	}
 
 	cls.serviceFunctionID = serviceFunction.GetFunctionId()
-
-	// Check if we have method metadata on the class service function (v0.67+)
-	if serviceFunction.GetHandleMetadata().GetMethodHandleMetadata() != nil {
-		for methodName := range serviceFunction.GetHandleMetadata().GetMethodHandleMetadata() {
-			cls.methodNames = append(cls.methodNames, methodName)
-		}
-	} else {
-		// Legacy approach not supported
-		return nil, fmt.Errorf("Cls requires Modal deployments using client v0.67 or later")
-	}
-
-	if inputPlaneURL := serviceFunction.GetHandleMetadata().GetInputPlaneUrl(); inputPlaneURL != "" {
-		cls.inputPlaneURL = inputPlaneURL
-	}
+	cls.serviceFunctionMetadata = serviceFunction.GetHandleMetadata()
 
 	return &cls, nil
 }
 
+// getServiceFunctionMetadata returns the class's service function metadata or an error if not set.
+func (c *Cls) getServiceFunctionMetadata() (*pb.FunctionHandleMetadata, error) {
+	if c.serviceFunctionMetadata == nil {
+		return nil, fmt.Errorf("unexpected error: class has not been hydrated")
+	}
+	return c.serviceFunctionMetadata, nil
+}
+
+func (c *Cls) getSchema() ([]*pb.ClassParameterSpec, error) {
+	metadata, err := c.getServiceFunctionMetadata()
+	if err != nil {
+		return nil, err
+	}
+	return metadata.GetClassParameterInfo().GetSchema(), nil
+}
+
 // Instance creates a new instance of the class with the provided parameters.
 func (c *Cls) Instance(ctx context.Context, parameters map[string]any) (*ClsInstance, error) {
+	schema, err := c.getSchema()
+	if err != nil {
+		return nil, err
+	}
+
 	var functionID string
-	if len(c.schema) == 0 && !hasOptions(c.serviceOptions) {
+	if len(schema) == 0 && !hasOptions(c.serviceOptions) {
 		functionID = c.serviceFunctionID
 	} else {
 		opts := c.serviceOptions
@@ -154,13 +157,18 @@ func (c *Cls) Instance(ctx context.Context, parameters map[string]any) (*ClsInst
 		functionID = boundFunctionID
 	}
 
-	methods := make(map[string]*Function)
-	for _, name := range c.methodNames {
+	metadata, err := c.getServiceFunctionMetadata()
+	if err != nil {
+		return nil, err
+	}
+
+	methodHandleMetadata := metadata.GetMethodHandleMetadata()
+	methods := make(map[string]*Function, len(methodHandleMetadata))
+	for name, methodMetadata := range methodHandleMetadata {
 		methods[name] = &Function{
-			FunctionID:    functionID,
-			MethodName:    &name,
-			inputPlaneURL: c.inputPlaneURL,
-			client:        c.client,
+			FunctionID:     functionID,
+			handleMetadata: methodMetadata,
+			client:         c.client,
 		}
 	}
 	return &ClsInstance{methods: methods}, nil
@@ -203,12 +211,10 @@ func (c *Cls) WithOptions(params *ClsWithOptionsParams) *Cls {
 	})
 
 	return &Cls{
-		serviceFunctionID: c.serviceFunctionID,
-		schema:            c.schema,
-		methodNames:       c.methodNames,
-		inputPlaneURL:     c.inputPlaneURL,
-		serviceOptions:    merged,
-		client:            c.client,
+		serviceFunctionID:       c.serviceFunctionID,
+		serviceOptions:          merged,
+		serviceFunctionMetadata: c.serviceFunctionMetadata,
+		client:                  c.client,
 	}
 }
 
@@ -224,12 +230,10 @@ func (c *Cls) WithConcurrency(params *ClsWithConcurrencyParams) *Cls {
 	})
 
 	return &Cls{
-		serviceFunctionID: c.serviceFunctionID,
-		schema:            c.schema,
-		methodNames:       c.methodNames,
-		inputPlaneURL:     c.inputPlaneURL,
-		serviceOptions:    merged,
-		client:            c.client,
+		serviceFunctionID:       c.serviceFunctionID,
+		serviceOptions:          merged,
+		serviceFunctionMetadata: c.serviceFunctionMetadata,
+		client:                  c.client,
 	}
 }
 
@@ -245,12 +249,10 @@ func (c *Cls) WithBatching(params *ClsWithBatchingParams) *Cls {
 	})
 
 	return &Cls{
-		serviceFunctionID: c.serviceFunctionID,
-		schema:            c.schema,
-		methodNames:       c.methodNames,
-		inputPlaneURL:     c.inputPlaneURL,
-		serviceOptions:    merged,
-		client:            c.client,
+		serviceFunctionID:       c.serviceFunctionID,
+		serviceOptions:          merged,
+		serviceFunctionMetadata: c.serviceFunctionMetadata,
+		client:                  c.client,
 	}
 }
 
@@ -266,7 +268,12 @@ func (c *Cls) bindParameters(ctx context.Context, parameters map[string]any, opt
 		env:     nil, // nil'ing env just to clarify it's not needed anymore
 	})
 
-	serializedParams, err := encodeParameterSet(c.schema, parameters)
+	schema, err := c.getSchema()
+	if err != nil {
+		return "", err
+	}
+
+	serializedParams, err := encodeParameterSet(schema, parameters)
 	if err != nil {
 		return "", fmt.Errorf("failed to serialize parameters: %w", err)
 	}
@@ -282,7 +289,6 @@ func (c *Cls) bindParameters(ctx context.Context, parameters map[string]any, opt
 	if err != nil {
 		return "", fmt.Errorf("failed to bind parameters: %w", err)
 	}
-
 	return bindResp.GetBoundFunctionId(), nil
 }
 
