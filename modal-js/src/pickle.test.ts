@@ -48,7 +48,33 @@ const testCases = [
   { name: "BININT1_0", b64: "gARLAC4=", expected: 0 },
   { name: "BININT1_255", b64: "gARL/y4=", expected: 255 },
   { name: "BININT2_-32768", b64: "gASVBgAAAAAAAABKAID//y4=", expected: -32768 },
+  { name: "BININT2_-32767", b64: "gASVBgAAAAAAAABKAYD//y4=", expected: -32767 },
   { name: "BININT2_32767", b64: "gASVBAAAAAAAAABN/38u", expected: 32767 },
+  {
+    name: "BININT2_32768 (unsigned boundary)",
+    b64: "gASVBAAAAAAAAABNAIAu",
+    expected: 32768,
+  },
+  {
+    name: "BININT2_36636",
+    b64: "gASVBAAAAAAAAABNHI8u",
+    expected: 36636,
+  },
+  {
+    name: "BININT4_-36636",
+    b64: "gASVBgAAAAAAAABK5HD//y4=",
+    expected: -36636,
+  },
+  {
+    name: "BININT2_65535 (max unsigned 16-bit)",
+    b64: "gASVBAAAAAAAAABN//8u",
+    expected: 65535,
+  },
+  {
+    name: "BININT4_-65535",
+    b64: "gASVBgAAAAAAAABKAQD//y4=",
+    expected: -65535,
+  },
   {
     name: "BININT4_-2147483648",
     b64: "gASVBgAAAAAAAABKAAAAgC4=",
