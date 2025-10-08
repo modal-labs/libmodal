@@ -1,4 +1,4 @@
-# Modal JavaScript Library
+# Modal JavaScript SDK
 
 [![Build Status](https://github.com/modal-labs/libmodal/actions/workflows/ci.yaml/badge.svg?branch=main)](https://github.com/modal-labs/libmodal/actions?query=branch%3Amain)
 [![JS Reference Documentation](https://img.shields.io/badge/docs-reference-blue)](https://modal-labs.github.io/libmodal/)
