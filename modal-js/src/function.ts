@@ -48,6 +48,12 @@ export class FunctionService {
     name: string,
     params: FunctionFromNameParams = {},
   ): Promise<Function_> {
+    if (name.includes(".")) {
+      const [clsName, methodName] = name.split(".", 2);
+      throw new Error(
+        `Cannot retrieve Cls methods using 'functions.fromName()'. Use:\n  const cls = await client.cls.fromName("${appName}", "${clsName}");\n  const instance = await cls.instance();\n  const m = instance.method("${methodName}");`,
+      );
+    }
     try {
       const resp = await this.#client.cpClient.functionGet({
         appName,

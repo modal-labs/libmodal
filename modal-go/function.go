@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/fxamacker/cbor/v2"
@@ -72,6 +73,13 @@ type FunctionFromNameParams struct {
 func (s *functionServiceImpl) FromName(ctx context.Context, appName string, name string, params *FunctionFromNameParams) (*Function, error) {
 	if params == nil {
 		params = &FunctionFromNameParams{}
+	}
+
+	if strings.Contains(name, ".") {
+		parts := strings.SplitN(name, ".", 2)
+		clsName := parts[0]
+		methodName := parts[1]
+		return nil, fmt.Errorf("cannot retrieve Cls methods using Functions.FromName(). Use:\n  cls, _ := client.Cls.FromName(ctx, \"%s\", \"%s\", nil)\n  instance, _ := cls.Instance(ctx, nil)\n  m, _ := instance.Method(\"%s\")", appName, clsName, methodName)
 	}
 
 	resp, err := s.client.cpClient.FunctionGet(ctx, pb.FunctionGetRequest_builder{

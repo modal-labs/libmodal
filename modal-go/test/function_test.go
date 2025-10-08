@@ -307,6 +307,16 @@ func TestFunctionGetWebURL(t *testing.T) {
 	g.Expect(wef.GetWebURL()).To(gomega.Equal("https://endpoint.internal"))
 }
 
+func TestFunctionFromNameWithDotNotation(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+
+	_, err := tc.Functions.FromName(ctx, "libmodal-test-support", "MyClass.myMethod", nil)
+	g.Expect(err).Should(gomega.HaveOccurred())
+	g.Expect(err.Error()).To(gomega.Equal("cannot retrieve Cls methods using Functions.FromName(). Use:\n  cls, _ := client.Cls.FromName(ctx, \"libmodal-test-support\", \"MyClass\", nil)\n  instance, _ := cls.Instance(ctx, nil)\n  m, _ := instance.Method(\"myMethod\")"))
+}
+
 // compareFlexible compares two values with flexible type handling
 func compareFlexible(a, b interface{}) bool {
 	// Handle nil cases explicitly
