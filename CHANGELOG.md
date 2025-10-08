@@ -4,6 +4,10 @@ Both client libraries are pre-1.0, and they have separate versioning.
 
 ## Unreleased
 
+No unreleased changes.
+
+## modal-js/v0.3.25, modal-go/v0.0.25
+
 - Fixed a bug in modal-js related to unpickling objects from Python (Function calls, Queues, etc.), where integers between 32678 and 65535 were incorrectly decoded as signed integers.
 - Internal updates for how authentication tokens are handled for input plane clients.
 
