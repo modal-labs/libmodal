@@ -1,0 +1,25 @@
+[tools]
+node = "22"
+
+[tasks.protoc]
+run = "./scripts/gen-proto.sh"
+sources = ["../modal-client/modal_proto/*.proto"]
+outputs = "proto/**/*.ts"
+depends = [":bootstrap"]
+
+[tasks.bootstrap]
+description = "Bootstrap or update js dev"
+run = "npm i"
+outputs = ["package-lock.json"]
+sources = ["package.json"]
+
+[tasks.build]
+run = "npm run build"
+depends = [":bootstrap", ":protoc"]
+sources = ["src/**/*.ts"]
+outputs = ["dist/index.js"]
+
+[tasks.test]
+description = "Test js"
+run = "npm test"
+depends = [":build", "//:deploy-test-support"]
