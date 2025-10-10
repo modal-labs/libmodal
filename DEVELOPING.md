@@ -1,8 +1,8 @@
-# Developing `libmodal`
+# Contributing to the Modal JS and Go SDKs
 
 ## Development principles
 
-We aim to maintain identical behavior across languages:
+**We aim to maintain identical behavior across languages:**
 
 - When merging a feature or change into `main`, update it for all languages simultaneously, with tests.
 - Code structure should be similar between language folders.

@@ -1,6 +1,6 @@
-# Migration Guide for libmodal beta, v0.5.0
+# Migration Guide for the beta Modal SDKs for JS and Go, v0.5.0
 
-The libmodal SDKs went into beta with the version 0.5 release in October 2025. This release brings us closer to feature parity with the Python SDK (with notable exceptions like defining functions, Volume filesystem API, some Image building APIs, and Dicts not yet supported). It's a big step towards bringing JavaScript/TypeScript and Go to the same high level of developer experience and stability as the Python SDK.
+The Modal JS and Go SDKs went into beta with the version 0.5 release in October 2025. This release brings us closer to feature parity with the Python SDK (with notable exceptions like defining functions, Volume filesystem API, some Image building APIs, and Dicts not yet supported). It's a big step towards bringing JavaScript/TypeScript and Go to the same high level of developer experience and stability as the Python SDK.
 
 The beta release includes breaking changes to improve SDK ergonomics and align with general SDK best practices. While adapting requires some code changes, we believe these improvements make Modal easier to use going forward.
 
