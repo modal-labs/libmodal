@@ -1,8 +1,13 @@
 // Demonstrates how to get current statistics for a Modal Function.
 
-import { Function_ } from "modal";
+import { ModalClient } from "modal";
 
-const func = await Function_.lookup("libmodal-test-support", "echo_string");
+const modal = new ModalClient();
+
+const func = await modal.functions.fromName(
+  "libmodal-test-support",
+  "echo_string",
+);
 
 const stats = await func.getCurrentStats();
 

@@ -12,18 +12,22 @@ import (
 
 func main() {
 	ctx := context.Background()
-
-	echo, err := modal.FunctionLookup(ctx, "libmodal-test-support", "echo_string", nil)
+	mc, err := modal.NewClient()
 	if err != nil {
-		log.Fatalf("Failed to lookup Function: %v", err)
+		log.Fatalf("Failed to create client: %v", err)
 	}
 
-	fc, err := echo.Spawn(nil, map[string]any{"s": "Hello world!"})
+	echo, err := mc.Functions.FromName(ctx, "libmodal-test-support", "echo_string", nil)
+	if err != nil {
+		log.Fatalf("Failed to get Function: %v", err)
+	}
+
+	fc, err := echo.Spawn(ctx, nil, map[string]any{"s": "Hello world!"})
 	if err != nil {
 		log.Fatalf("Failed to spawn Function: %v", err)
 	}
 
-	ret, err := fc.Get(nil)
+	ret, err := fc.Get(ctx, nil)
 	if err != nil {
 		log.Fatalf("Failed to get Function results: %v", err)
 	}

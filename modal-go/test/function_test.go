@@ -2,7 +2,9 @@ package test
 
 import (
 	"context"
+	"reflect"
 	"testing"
+	"time"
 
 	modal "github.com/modal-labs/libmodal/modal-go"
 	pb "github.com/modal-labs/libmodal/modal-go/proto/modal_proto"
@@ -13,61 +15,184 @@ import (
 func TestFunctionCall(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
+	ctx := context.Background()
 
-	function, err := modal.FunctionLookup(context.Background(), "libmodal-test-support", "echo_string", nil)
+	function, err := tc.Functions.FromName(ctx, "libmodal-test-support", "echo_string", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	// Represent Python kwargs.
-	result, err := function.Remote(nil, map[string]any{"s": "hello"})
+	result, err := function.Remote(ctx, nil, map[string]any{"s": "hello"})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(result).Should(gomega.Equal("output: hello"))
 
 	// Try the same, but with args.
-	result, err = function.Remote([]any{"hello"}, nil)
+	result, err = function.Remote(ctx, []any{"hello"}, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(result).Should(gomega.Equal("output: hello"))
+}
+
+func TestFunctionCallPreCborVersionError(t *testing.T) {
+	// test that calling a pre 1.2 function raises an error
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+
+	function, err := tc.Functions.FromName(ctx, "test-support-1-1", "identity_with_repr", nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	// Represent Python kwargs.
+	_, err = function.Remote(ctx, nil, map[string]any{"s": "hello"})
+	g.Expect(err).Should(gomega.HaveOccurred())
+	g.Expect(err.Error()).Should(gomega.ContainSubstring("please redeploy it using Modal Python SDK version >= 1.2"))
+}
+
+func TestFunctionCallGoMap(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+	function, err := tc.Functions.FromName(ctx, "libmodal-test-support", "identity_with_repr", nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	// Represent Python kwargs.
+	inputArg := map[string]any{"s": "hello"}
+	result, err := function.Remote(ctx, []any{inputArg}, nil)
+	t.Log("result", result)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	// "Explode" result into two parts, assuming it's a slice/array of length 2.
+	resultSlice, ok := result.([]any)
+	g.Expect(ok).Should(gomega.BeTrue())
+	g.Expect(len(resultSlice)).Should(gomega.Equal(2))
+
+	// Assert and type the first element as string
+	identityResult := resultSlice[0]
+	// Use custom comparison for deep equality ignoring concrete types (e.g. map[string]interface{} vs map[string]any)
+	g.Expect(compareFlexible(identityResult, inputArg)).Should(gomega.BeTrue())
+
+	reprResult, ok := resultSlice[1].(string)
+	g.Expect(ok).Should(gomega.BeTrue())
+	g.Expect(reprResult).Should(gomega.Equal(`{'s': 'hello'}`))
+
+}
+
+func TestFunctionCallDateTimeRoundtrip(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	ctx := context.Background()
+	function, err := tc.Functions.FromName(ctx, "libmodal-test-support", "identity_with_repr", nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	// Test: Send a Go time.Time to Python and see how it's represented
+	testTime := time.Date(2024, 1, 15, 10, 30, 45, 123456789, time.UTC)
+	result, err := function.Remote(ctx, []any{testTime}, nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	// Parse the result - identity_with_repr returns [input, repr(input)]
+	resultSlice, ok := result.([]any)
+	g.Expect(ok).Should(gomega.BeTrue())
+	g.Expect(len(resultSlice)).Should(gomega.Equal(2))
+
+	// Check what we got back (should be the original time, potentially with precision loss)
+	identityResult := resultSlice[0]
+	t.Logf("Go sent: %s", testTime.String())
+	t.Logf("Go received back: %+v (type: %T)", identityResult, identityResult)
+
+	// Check the Python representation
+	reprResult, ok := resultSlice[1].(string)
+	g.Expect(ok).Should(gomega.BeTrue())
+	t.Logf("Python repr: %s", reprResult)
+
+	g.Expect(reprResult).Should(gomega.ContainSubstring("datetime.datetime"))
+	g.Expect(reprResult).Should(gomega.ContainSubstring("2024"))
+	t.Logf("✅ SUCCESS: Go time.Time was received as Python datetime.datetime")
+
+	// Verify the roundtrip - we should get back a time.Time
+	receivedTime, ok := identityResult.(time.Time)
+	g.Expect(ok).Should(gomega.BeTrue())
+
+	// Check precision
+	timeDiff := testTime.Sub(receivedTime)
+	if timeDiff < 0 {
+		timeDiff = -timeDiff
+	}
+	t.Logf("Original time: %v", testTime)
+	t.Logf("Received time: %v", receivedTime)
+	t.Logf("Time difference after roundtrip: %v (%v nanoseconds)", timeDiff, timeDiff.Nanoseconds())
+
+	// Python's datetime has microsecond precision (not nanosecond)
+	// CBOR encodes time.Time with TimeRFC3339Nano (nanosecond precision)
+	// Python decodes to datetime (rounds to nearest microsecond)
+	// When Python re-encodes, we get back microsecond precision
+	// So we should expect to lose sub-microsecond precision (< 1000 ns)
+	//
+	// Our test uses 123456789 nanoseconds = 123.456789 milliseconds
+	// Python will round to 123456 microseconds = 123.456 milliseconds
+	// So we should lose exactly 789 nanoseconds
+	g.Expect(timeDiff).Should(gomega.BeNumerically("<", time.Microsecond))
+
+	// Verify the times are equal when truncated to microseconds
+	g.Expect(receivedTime.Truncate(time.Microsecond)).Should(gomega.Equal(testTime.Truncate(time.Microsecond)))
 }
 
 func TestFunctionCallLargeInput(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
+	ctx := context.Background()
 
-	function, err := modal.FunctionLookup(context.Background(), "libmodal-test-support", "bytelength", nil)
+	function, err := tc.Functions.FromName(ctx, "libmodal-test-support", "bytelength", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	len := 3 * 1000 * 1000 // More than 2 MiB, offload to blob storage
 	input := make([]byte, len)
-	result, err := function.Remote([]any{input}, nil)
+	result, err := function.Remote(ctx, []any{input}, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(result).Should(gomega.Equal(int64(len)))
+	g.Expect(result).Should(gomega.Equal(uint64(len)))
 }
 
 func TestFunctionNotFound(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
+	ctx := context.Background()
 
-	_, err := modal.FunctionLookup(context.Background(), "libmodal-test-support", "not_a_real_function", nil)
+	_, err := tc.Functions.FromName(ctx, "libmodal-test-support", "not_a_real_function", nil)
 	g.Expect(err).Should(gomega.BeAssignableToTypeOf(modal.NotFoundError{}))
 }
 
 func TestFunctionCallInputPlane(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
+	ctx := context.Background()
 
-	function, err := modal.FunctionLookup(context.Background(), "libmodal-test-support", "input_plane", nil)
+	function, err := tc.Functions.FromName(ctx, "libmodal-test-support", "input_plane", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	// Try the same, but with args.
-	result, err := function.Remote([]any{"hello"}, nil)
+	result, err := function.Remote(ctx, []any{"hello"}, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(result).Should(gomega.Equal("output: hello"))
 }
 
 func TestFunctionGetCurrentStats(t *testing.T) {
+	t.Parallel()
 	g := gomega.NewWithT(t)
+	ctx := context.Background()
 
-	mock, cleanup := grpcmock.Install()
-	t.Cleanup(cleanup)
+	mock := grpcmock.NewMockClient()
+	defer func() {
+		g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
+	}()
+
+	grpcmock.HandleUnary(
+		mock, "/FunctionGet",
+		func(req *pb.FunctionGetRequest) (*pb.FunctionGetResponse, error) {
+			return pb.FunctionGetResponse_builder{
+				FunctionId: "fid-stats",
+			}.Build(), nil
+		},
+	)
+
+	f, err := mock.Functions.FromName(ctx, "test-app", "test-function", nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	grpcmock.HandleUnary(
 		mock, "/FunctionGetCurrentStats",
@@ -77,17 +202,32 @@ func TestFunctionGetCurrentStats(t *testing.T) {
 		},
 	)
 
-	f := &modal.Function{FunctionId: "fid-stats"}
-	stats, err := f.GetCurrentStats()
+	stats, err := f.GetCurrentStats(ctx)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(stats).To(gomega.Equal(&modal.FunctionStats{Backlog: 3, NumTotalRunners: 7}))
 }
 
 func TestFunctionUpdateAutoscaler(t *testing.T) {
+	t.Parallel()
 	g := gomega.NewWithT(t)
+	ctx := context.Background()
 
-	mock, cleanup := grpcmock.Install()
-	t.Cleanup(cleanup)
+	mock := grpcmock.NewMockClient()
+	defer func() {
+		g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
+	}()
+
+	grpcmock.HandleUnary(
+		mock, "/FunctionGet",
+		func(req *pb.FunctionGetRequest) (*pb.FunctionGetResponse, error) {
+			return pb.FunctionGetResponse_builder{
+				FunctionId: "fid-auto",
+			}.Build(), nil
+		},
+	)
+
+	f, err := mock.Functions.FromName(ctx, "test-app", "test-function", nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	grpcmock.HandleUnary(
 		mock, "/FunctionUpdateSchedulingParams",
@@ -102,9 +242,7 @@ func TestFunctionUpdateAutoscaler(t *testing.T) {
 		},
 	)
 
-	f := &modal.Function{FunctionId: "fid-auto"}
-
-	err := f.UpdateAutoscaler(modal.UpdateAutoscalerOptions{
+	err = f.UpdateAutoscaler(ctx, &modal.FunctionUpdateAutoscalerParams{
 		MinContainers:    ptrU32(1),
 		MaxContainers:    ptrU32(10),
 		BufferContainers: ptrU32(2),
@@ -121,7 +259,7 @@ func TestFunctionUpdateAutoscaler(t *testing.T) {
 		},
 	)
 
-	err = f.UpdateAutoscaler(modal.UpdateAutoscalerOptions{
+	err = f.UpdateAutoscaler(ctx, &modal.FunctionUpdateAutoscalerParams{
 		MinContainers: ptrU32(2),
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -130,14 +268,27 @@ func TestFunctionUpdateAutoscaler(t *testing.T) {
 func ptrU32(v uint32) *uint32 { return &v }
 
 func TestFunctionGetWebURL(t *testing.T) {
+	t.Parallel()
 	g := gomega.NewWithT(t)
+	ctx := context.Background()
 
-	f, err := modal.FunctionLookup(context.Background(), "libmodal-test-support", "echo_string", nil)
+	mock := grpcmock.NewMockClient()
+	defer func() {
+		g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
+	}()
+
+	grpcmock.HandleUnary(
+		mock, "FunctionGet",
+		func(req *pb.FunctionGetRequest) (*pb.FunctionGetResponse, error) {
+			return pb.FunctionGetResponse_builder{
+				FunctionId: "fid-normal",
+			}.Build(), nil
+		},
+	)
+
+	f, err := mock.Functions.FromName(ctx, "libmodal-test-support", "echo_string", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(f.GetWebURL()).To(gomega.Equal(""))
-
-	mock, cleanup := grpcmock.Install()
-	t.Cleanup(cleanup)
 
 	grpcmock.HandleUnary(
 		mock, "FunctionGet",
@@ -151,7 +302,80 @@ func TestFunctionGetWebURL(t *testing.T) {
 		},
 	)
 
-	wef, err := modal.FunctionLookup(context.Background(), "libmodal-test-support", "web_endpoint", nil)
+	wef, err := mock.Functions.FromName(ctx, "libmodal-test-support", "web_endpoint", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(wef.GetWebURL()).To(gomega.Equal("https://endpoint.internal"))
+}
+
+func TestFunctionFromNameWithDotNotation(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+
+	_, err := tc.Functions.FromName(ctx, "libmodal-test-support", "MyClass.myMethod", nil)
+	g.Expect(err).Should(gomega.HaveOccurred())
+	g.Expect(err.Error()).To(gomega.Equal("cannot retrieve Cls methods using Functions.FromName(). Use:\n  cls, _ := client.Cls.FromName(ctx, \"libmodal-test-support\", \"MyClass\", nil)\n  instance, _ := cls.Instance(ctx, nil)\n  m, _ := instance.Method(\"myMethod\")"))
+}
+
+// compareFlexible compares two values with flexible type handling
+func compareFlexible(a, b interface{}) bool {
+	// Handle nil cases explicitly
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+
+	// Handle map comparisons
+	av := reflect.ValueOf(a)
+	bv := reflect.ValueOf(b)
+
+	if av.Kind() == reflect.Map && bv.Kind() == reflect.Map {
+		return compareMaps(a, b)
+	}
+	// For other types, fall back to reflect.DeepEqual
+	return reflect.DeepEqual(a, b)
+}
+
+// compareMaps compares two maps with flexible key type handling
+func compareMaps(a, b interface{}) bool {
+	av := reflect.ValueOf(a)
+	bv := reflect.ValueOf(b)
+
+	if av.Kind() != reflect.Map || bv.Kind() != reflect.Map {
+		return false
+	}
+
+	if av.Len() != bv.Len() {
+		return false
+	}
+
+	for _, key := range av.MapKeys() {
+		aVal := av.MapIndex(key)
+
+		// Try to find the corresponding key in b
+		// Handle cases where key types might differ (string vs interface{})
+		var bVal reflect.Value
+		found := false
+
+		for _, bKey := range bv.MapKeys() {
+			if compareFlexible(key.Interface(), bKey.Interface()) {
+				bVal = bv.MapIndex(bKey)
+				found = true
+				break
+			}
+		}
+
+		if !found || !bVal.IsValid() {
+			return false
+		}
+
+		// Use flexible comparison for values
+		if !compareFlexible(aVal.Interface(), bVal.Interface()) {
+			return false
+		}
+	}
+
+	return true
 }

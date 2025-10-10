@@ -10,22 +10,30 @@ import (
 
 func main() {
 	ctx := context.Background()
-
-	app, err := modal.AppLookup(ctx, "libmodal-example", &modal.LookupOptions{CreateIfMissing: true})
+	mc, err := modal.NewClient()
 	if err != nil {
-		log.Fatalf("Failed to lookup or create App: %v", err)
+		log.Fatalf("Failed to create client: %v", err)
 	}
 
-	image := modal.NewImageFromRegistry("python:3.13-slim", nil)
+	app, err := mc.Apps.FromName(ctx, "libmodal-example", &modal.AppFromNameParams{CreateIfMissing: true})
+	if err != nil {
+		log.Fatalf("Failed to get or create App: %v", err)
+	}
 
-	sb, err := app.CreateSandbox(image, nil)
+	image := mc.Images.FromRegistry("python:3.13-slim", nil)
+
+	sb, err := mc.Sandboxes.Create(ctx, app, image, nil)
 	if err != nil {
 		log.Fatalf("Failed to create Sandbox: %v", err)
 	}
-	log.Println("Started Sandbox:", sb.SandboxId)
-	defer sb.Terminate()
+	log.Println("Started Sandbox:", sb.SandboxID)
+	defer func() {
+		if err := sb.Terminate(context.Background()); err != nil {
+			log.Fatalf("Failed to terminate Sandbox %s: %v", sb.SandboxID, err)
+		}
+	}()
 
-	p, err := sb.Exec(
+	p, err := sb.Exec(ctx,
 		[]string{
 			"python",
 			"-c",
@@ -38,10 +46,7 @@ for i in range(50000):
 	print(i)
 	print(i, file=sys.stderr)`,
 		},
-		modal.ExecOptions{
-			Stdout: modal.Pipe,
-			Stderr: modal.Pipe,
-		},
+		nil,
 	)
 	if err != nil {
 		log.Fatalf("Failed to execute command in Sandbox: %v", err)
@@ -57,19 +62,19 @@ for i in range(50000):
 	}
 
 	log.Printf("Got %d bytes stdout and %d bytes stderr\n", len(contentStdout), len(contentStderr))
-	returnCode, err := p.Wait()
+	returnCode, err := p.Wait(ctx)
 	if err != nil {
 		log.Fatalf("Failed to wait for process completion: %v", err)
 	}
 	log.Println("Return code:", returnCode)
 
-	secret, err := modal.SecretFromName(context.Background(), "libmodal-test-secret", &modal.SecretFromNameOptions{RequiredKeys: []string{"c"}})
+	secret, err := mc.Secrets.FromName(ctx, "libmodal-test-secret", &modal.SecretFromNameParams{RequiredKeys: []string{"c"}})
 	if err != nil {
 		log.Fatalf("Unable to get Secret: %v", err)
 	}
 
 	// Passing Secrets in a command
-	p, err = sb.Exec([]string{"printenv", "c"}, modal.ExecOptions{Stdout: modal.Pipe, Stderr: modal.Pipe, Secrets: []*modal.Secret{secret}})
+	p, err = sb.Exec(ctx, []string{"printenv", "c"}, &modal.SandboxExecParams{Secrets: []*modal.Secret{secret}})
 	if err != nil {
 		log.Fatalf("Faield to execute env command in Sandbox: %v", err)
 	}

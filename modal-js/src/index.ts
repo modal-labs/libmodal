@@ -1,17 +1,20 @@
 export {
   App,
+  AppService,
+  type AppFromNameParams,
   type DeleteOptions,
   type EphemeralOptions,
   type LookupOptions,
-  type SandboxCreateOptions,
 } from "./app";
-export { type ClientOptions, initializeClient } from "./client";
+export { type ClientOptions, initializeClient, close } from "./client";
 export {
   Cls,
   ClsInstance,
-  type ClsOptions,
-  type ClsConcurrencyOptions,
-  type ClsBatchingOptions,
+  ClsService,
+  type ClsFromNameParams,
+  type ClsWithOptionsParams,
+  type ClsWithConcurrencyParams,
+  type ClsWithBatchingParams,
 } from "./cls";
 export {
   FunctionTimeoutError,
@@ -26,39 +29,61 @@ export {
 } from "./errors";
 export {
   Function_,
+  FunctionService,
+  type FunctionFromNameParams,
   type FunctionStats,
-  type UpdateAutoscalerOptions,
+  type FunctionUpdateAutoscalerParams,
 } from "./function";
 export {
   FunctionCall,
-  type FunctionCallGetOptions,
-  type FunctionCallCancelOptions,
+  FunctionCallService,
+  type FunctionCallGetParams,
+  type FunctionCallCancelParams,
 } from "./function_call";
 export {
   Queue,
-  type QueueClearOptions,
-  type QueueGetOptions,
-  type QueueIterateOptions,
-  type QueueLenOptions,
-  type QueuePutOptions,
+  QueueService,
+  type QueueClearParams,
+  type QueueDeleteParams,
+  type QueueEphemeralParams,
+  type QueueFromNameParams,
+  type QueueGetParams,
+  type QueueIterateParams,
+  type QueueLenParams,
+  type QueuePutParams,
 } from "./queue";
 export {
   Image,
-  type ImageDeleteOptions,
-  type ImageDockerfileCommandsOptions,
+  ImageService,
+  type ImageDeleteParams,
+  type ImageDockerfileCommandsParams,
 } from "./image";
 export { Retries } from "./retries";
 export type {
-  ExecOptions,
+  SandboxExecParams,
+  SandboxFromNameParams,
   StdioBehavior,
   StreamMode,
   Tunnel,
-  SandboxListOptions,
+  SandboxListParams,
+  SandboxCreateParams,
 } from "./sandbox";
-export { ContainerProcess, Sandbox } from "./sandbox";
+export { ContainerProcess, Sandbox, SandboxService } from "./sandbox";
 export type { ModalReadStream, ModalWriteStream } from "./streams";
-export { Secret, type SecretFromNameOptions } from "./secret";
+export {
+  Secret,
+  SecretService,
+  type SecretFromNameParams,
+  type SecretFromObjectParams,
+} from "./secret";
 export { SandboxFile, type SandboxFileMode } from "./sandbox_filesystem";
-export { Volume, type VolumeFromNameOptions } from "./volume";
-export { Proxy, type ProxyFromNameOptions } from "./proxy";
+export {
+  Volume,
+  VolumeService,
+  type VolumeFromNameParams,
+  type VolumeEphemeralParams,
+} from "./volume";
+export { Proxy, ProxyService, type ProxyFromNameParams } from "./proxy";
 export { CloudBucketMount } from "./cloud_bucket_mount";
+export { ModalClient, type ModalClientParams } from "./client";
+export { type Profile } from "./config";

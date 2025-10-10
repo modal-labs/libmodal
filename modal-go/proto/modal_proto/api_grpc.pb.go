@@ -29,12 +29,14 @@ const (
 	ModalClient_AppGetLogs_FullMethodName                       = "/modal.client.ModalClient/AppGetLogs"
 	ModalClient_AppGetObjects_FullMethodName                    = "/modal.client.ModalClient/AppGetObjects"
 	ModalClient_AppGetOrCreate_FullMethodName                   = "/modal.client.ModalClient/AppGetOrCreate"
+	ModalClient_AppGetTags_FullMethodName                       = "/modal.client.ModalClient/AppGetTags"
 	ModalClient_AppHeartbeat_FullMethodName                     = "/modal.client.ModalClient/AppHeartbeat"
 	ModalClient_AppList_FullMethodName                          = "/modal.client.ModalClient/AppList"
 	ModalClient_AppLookup_FullMethodName                        = "/modal.client.ModalClient/AppLookup"
 	ModalClient_AppPublish_FullMethodName                       = "/modal.client.ModalClient/AppPublish"
 	ModalClient_AppRollback_FullMethodName                      = "/modal.client.ModalClient/AppRollback"
 	ModalClient_AppSetObjects_FullMethodName                    = "/modal.client.ModalClient/AppSetObjects"
+	ModalClient_AppSetTags_FullMethodName                       = "/modal.client.ModalClient/AppSetTags"
 	ModalClient_AppStop_FullMethodName                          = "/modal.client.ModalClient/AppStop"
 	ModalClient_AttemptAwait_FullMethodName                     = "/modal.client.ModalClient/AttemptAwait"
 	ModalClient_AttemptRetry_FullMethodName                     = "/modal.client.ModalClient/AttemptRetry"
@@ -81,6 +83,7 @@ const (
 	ModalClient_FlashContainerDeregister_FullMethodName         = "/modal.client.ModalClient/FlashContainerDeregister"
 	ModalClient_FlashContainerList_FullMethodName               = "/modal.client.ModalClient/FlashContainerList"
 	ModalClient_FlashContainerRegister_FullMethodName           = "/modal.client.ModalClient/FlashContainerRegister"
+	ModalClient_FlashSetTargetSlotsMetrics_FullMethodName       = "/modal.client.ModalClient/FlashSetTargetSlotsMetrics"
 	ModalClient_FunctionAsyncInvoke_FullMethodName              = "/modal.client.ModalClient/FunctionAsyncInvoke"
 	ModalClient_FunctionBindParams_FullMethodName               = "/modal.client.ModalClient/FunctionBindParams"
 	ModalClient_FunctionCallCancel_FullMethodName               = "/modal.client.ModalClient/FunctionCallCancel"
@@ -133,6 +136,7 @@ const (
 	ModalClient_QueuePut_FullMethodName                         = "/modal.client.ModalClient/QueuePut"
 	ModalClient_SandboxCreate_FullMethodName                    = "/modal.client.ModalClient/SandboxCreate"
 	ModalClient_SandboxCreateConnectToken_FullMethodName        = "/modal.client.ModalClient/SandboxCreateConnectToken"
+	ModalClient_SandboxGetCommandRouterAccess_FullMethodName    = "/modal.client.ModalClient/SandboxGetCommandRouterAccess"
 	ModalClient_SandboxGetFromName_FullMethodName               = "/modal.client.ModalClient/SandboxGetFromName"
 	ModalClient_SandboxGetLogs_FullMethodName                   = "/modal.client.ModalClient/SandboxGetLogs"
 	ModalClient_SandboxGetResourceUsage_FullMethodName          = "/modal.client.ModalClient/SandboxGetResourceUsage"
@@ -166,6 +170,7 @@ const (
 	ModalClient_TaskClusterHello_FullMethodName                 = "/modal.client.ModalClient/TaskClusterHello"
 	ModalClient_TaskCurrentInputs_FullMethodName                = "/modal.client.ModalClient/TaskCurrentInputs"
 	ModalClient_TaskGetAutoscalingMetrics_FullMethodName        = "/modal.client.ModalClient/TaskGetAutoscalingMetrics"
+	ModalClient_TaskGetCommandRouterAccess_FullMethodName       = "/modal.client.ModalClient/TaskGetCommandRouterAccess"
 	ModalClient_TaskList_FullMethodName                         = "/modal.client.ModalClient/TaskList"
 	ModalClient_TaskResult_FullMethodName                       = "/modal.client.ModalClient/TaskResult"
 	ModalClient_TokenFlowCreate_FullMethodName                  = "/modal.client.ModalClient/TokenFlowCreate"
@@ -189,6 +194,7 @@ const (
 	ModalClient_VolumeRemoveFile_FullMethodName                 = "/modal.client.ModalClient/VolumeRemoveFile"
 	ModalClient_VolumeRemoveFile2_FullMethodName                = "/modal.client.ModalClient/VolumeRemoveFile2"
 	ModalClient_VolumeRename_FullMethodName                     = "/modal.client.ModalClient/VolumeRename"
+	ModalClient_WorkspaceBillingReport_FullMethodName           = "/modal.client.ModalClient/WorkspaceBillingReport"
 	ModalClient_WorkspaceNameLookup_FullMethodName              = "/modal.client.ModalClient/WorkspaceNameLookup"
 )
 
@@ -206,12 +212,14 @@ type ModalClientClient interface {
 	AppGetLogs(ctx context.Context, in *AppGetLogsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[TaskLogsBatch], error)
 	AppGetObjects(ctx context.Context, in *AppGetObjectsRequest, opts ...grpc.CallOption) (*AppGetObjectsResponse, error)
 	AppGetOrCreate(ctx context.Context, in *AppGetOrCreateRequest, opts ...grpc.CallOption) (*AppGetOrCreateResponse, error)
+	AppGetTags(ctx context.Context, in *AppGetTagsRequest, opts ...grpc.CallOption) (*AppGetTagsResponse, error)
 	AppHeartbeat(ctx context.Context, in *AppHeartbeatRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	AppList(ctx context.Context, in *AppListRequest, opts ...grpc.CallOption) (*AppListResponse, error)
 	AppLookup(ctx context.Context, in *AppLookupRequest, opts ...grpc.CallOption) (*AppLookupResponse, error)
 	AppPublish(ctx context.Context, in *AppPublishRequest, opts ...grpc.CallOption) (*AppPublishResponse, error)
 	AppRollback(ctx context.Context, in *AppRollbackRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	AppSetObjects(ctx context.Context, in *AppSetObjectsRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	AppSetTags(ctx context.Context, in *AppSetTagsRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	AppStop(ctx context.Context, in *AppStopRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	// Input Plane
 	AttemptAwait(ctx context.Context, in *AttemptAwaitRequest, opts ...grpc.CallOption) (*AttemptAwaitResponse, error)
@@ -269,6 +277,7 @@ type ModalClientClient interface {
 	FlashContainerDeregister(ctx context.Context, in *FlashContainerDeregisterRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	FlashContainerList(ctx context.Context, in *FlashContainerListRequest, opts ...grpc.CallOption) (*FlashContainerListResponse, error)
 	FlashContainerRegister(ctx context.Context, in *FlashContainerRegisterRequest, opts ...grpc.CallOption) (*FlashContainerRegisterResponse, error)
+	FlashSetTargetSlotsMetrics(ctx context.Context, in *FlashSetTargetSlotsMetricsRequest, opts ...grpc.CallOption) (*FlashSetTargetSlotsMetricsResponse, error)
 	// Functions
 	FunctionAsyncInvoke(ctx context.Context, in *FunctionAsyncInvokeRequest, opts ...grpc.CallOption) (*FunctionAsyncInvokeResponse, error)
 	FunctionBindParams(ctx context.Context, in *FunctionBindParamsRequest, opts ...grpc.CallOption) (*FunctionBindParamsResponse, error)
@@ -329,6 +338,7 @@ type ModalClientClient interface {
 	// Sandboxes
 	SandboxCreate(ctx context.Context, in *SandboxCreateRequest, opts ...grpc.CallOption) (*SandboxCreateResponse, error)
 	SandboxCreateConnectToken(ctx context.Context, in *SandboxCreateConnectTokenRequest, opts ...grpc.CallOption) (*SandboxCreateConnectTokenResponse, error)
+	SandboxGetCommandRouterAccess(ctx context.Context, in *SandboxGetCommandRouterAccessRequest, opts ...grpc.CallOption) (*SandboxGetCommandRouterAccessResponse, error)
 	SandboxGetFromName(ctx context.Context, in *SandboxGetFromNameRequest, opts ...grpc.CallOption) (*SandboxGetFromNameResponse, error)
 	SandboxGetLogs(ctx context.Context, in *SandboxGetLogsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[TaskLogsBatch], error)
 	SandboxGetResourceUsage(ctx context.Context, in *SandboxGetResourceUsageRequest, opts ...grpc.CallOption) (*SandboxGetResourceUsageResponse, error)
@@ -365,6 +375,7 @@ type ModalClientClient interface {
 	TaskClusterHello(ctx context.Context, in *TaskClusterHelloRequest, opts ...grpc.CallOption) (*TaskClusterHelloResponse, error)
 	TaskCurrentInputs(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*TaskCurrentInputsResponse, error)
 	TaskGetAutoscalingMetrics(ctx context.Context, in *TaskGetAutoscalingMetricsRequest, opts ...grpc.CallOption) (*TaskGetAutoscalingMetricsResponse, error)
+	TaskGetCommandRouterAccess(ctx context.Context, in *TaskGetCommandRouterAccessRequest, opts ...grpc.CallOption) (*TaskGetCommandRouterAccessResponse, error)
 	TaskList(ctx context.Context, in *TaskListRequest, opts ...grpc.CallOption) (*TaskListResponse, error)
 	TaskResult(ctx context.Context, in *TaskResultRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	// Tokens (web auth flow)
@@ -392,6 +403,7 @@ type ModalClientClient interface {
 	VolumeRemoveFile2(ctx context.Context, in *VolumeRemoveFile2Request, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	VolumeRename(ctx context.Context, in *VolumeRenameRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	// Workspaces
+	WorkspaceBillingReport(ctx context.Context, in *WorkspaceBillingReportRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[WorkspaceBillingReportItem], error)
 	WorkspaceNameLookup(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*WorkspaceNameLookupResponse, error)
 }
 
@@ -502,6 +514,16 @@ func (c *modalClientClient) AppGetOrCreate(ctx context.Context, in *AppGetOrCrea
 	return out, nil
 }
 
+func (c *modalClientClient) AppGetTags(ctx context.Context, in *AppGetTagsRequest, opts ...grpc.CallOption) (*AppGetTagsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AppGetTagsResponse)
+	err := c.cc.Invoke(ctx, ModalClient_AppGetTags_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *modalClientClient) AppHeartbeat(ctx context.Context, in *AppHeartbeatRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(emptypb.Empty)
@@ -556,6 +578,16 @@ func (c *modalClientClient) AppSetObjects(ctx context.Context, in *AppSetObjects
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(emptypb.Empty)
 	err := c.cc.Invoke(ctx, ModalClient_AppSetObjects_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *modalClientClient) AppSetTags(ctx context.Context, in *AppSetTagsRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, ModalClient_AppSetTags_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1043,6 +1075,16 @@ func (c *modalClientClient) FlashContainerRegister(ctx context.Context, in *Flas
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(FlashContainerRegisterResponse)
 	err := c.cc.Invoke(ctx, ModalClient_FlashContainerRegister_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *modalClientClient) FlashSetTargetSlotsMetrics(ctx context.Context, in *FlashSetTargetSlotsMetricsRequest, opts ...grpc.CallOption) (*FlashSetTargetSlotsMetricsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(FlashSetTargetSlotsMetricsResponse)
+	err := c.cc.Invoke(ctx, ModalClient_FlashSetTargetSlotsMetrics_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1596,6 +1638,16 @@ func (c *modalClientClient) SandboxCreateConnectToken(ctx context.Context, in *S
 	return out, nil
 }
 
+func (c *modalClientClient) SandboxGetCommandRouterAccess(ctx context.Context, in *SandboxGetCommandRouterAccessRequest, opts ...grpc.CallOption) (*SandboxGetCommandRouterAccessResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SandboxGetCommandRouterAccessResponse)
+	err := c.cc.Invoke(ctx, ModalClient_SandboxGetCommandRouterAccess_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *modalClientClient) SandboxGetFromName(ctx context.Context, in *SandboxGetFromNameRequest, opts ...grpc.CallOption) (*SandboxGetFromNameResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(SandboxGetFromNameResponse)
@@ -1944,6 +1996,16 @@ func (c *modalClientClient) TaskGetAutoscalingMetrics(ctx context.Context, in *T
 	return out, nil
 }
 
+func (c *modalClientClient) TaskGetCommandRouterAccess(ctx context.Context, in *TaskGetCommandRouterAccessRequest, opts ...grpc.CallOption) (*TaskGetCommandRouterAccessResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(TaskGetCommandRouterAccessResponse)
+	err := c.cc.Invoke(ctx, ModalClient_TaskGetCommandRouterAccess_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *modalClientClient) TaskList(ctx context.Context, in *TaskListRequest, opts ...grpc.CallOption) (*TaskListResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(TaskListResponse)
@@ -2192,6 +2254,25 @@ func (c *modalClientClient) VolumeRename(ctx context.Context, in *VolumeRenameRe
 	return out, nil
 }
 
+func (c *modalClientClient) WorkspaceBillingReport(ctx context.Context, in *WorkspaceBillingReportRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[WorkspaceBillingReportItem], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &ModalClient_ServiceDesc.Streams[11], ModalClient_WorkspaceBillingReport_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[WorkspaceBillingReportRequest, WorkspaceBillingReportItem]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type ModalClient_WorkspaceBillingReportClient = grpc.ServerStreamingClient[WorkspaceBillingReportItem]
+
 func (c *modalClientClient) WorkspaceNameLookup(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*WorkspaceNameLookupResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(WorkspaceNameLookupResponse)
@@ -2216,12 +2297,14 @@ type ModalClientServer interface {
 	AppGetLogs(*AppGetLogsRequest, grpc.ServerStreamingServer[TaskLogsBatch]) error
 	AppGetObjects(context.Context, *AppGetObjectsRequest) (*AppGetObjectsResponse, error)
 	AppGetOrCreate(context.Context, *AppGetOrCreateRequest) (*AppGetOrCreateResponse, error)
+	AppGetTags(context.Context, *AppGetTagsRequest) (*AppGetTagsResponse, error)
 	AppHeartbeat(context.Context, *AppHeartbeatRequest) (*emptypb.Empty, error)
 	AppList(context.Context, *AppListRequest) (*AppListResponse, error)
 	AppLookup(context.Context, *AppLookupRequest) (*AppLookupResponse, error)
 	AppPublish(context.Context, *AppPublishRequest) (*AppPublishResponse, error)
 	AppRollback(context.Context, *AppRollbackRequest) (*emptypb.Empty, error)
 	AppSetObjects(context.Context, *AppSetObjectsRequest) (*emptypb.Empty, error)
+	AppSetTags(context.Context, *AppSetTagsRequest) (*emptypb.Empty, error)
 	AppStop(context.Context, *AppStopRequest) (*emptypb.Empty, error)
 	// Input Plane
 	AttemptAwait(context.Context, *AttemptAwaitRequest) (*AttemptAwaitResponse, error)
@@ -2279,6 +2362,7 @@ type ModalClientServer interface {
 	FlashContainerDeregister(context.Context, *FlashContainerDeregisterRequest) (*emptypb.Empty, error)
 	FlashContainerList(context.Context, *FlashContainerListRequest) (*FlashContainerListResponse, error)
 	FlashContainerRegister(context.Context, *FlashContainerRegisterRequest) (*FlashContainerRegisterResponse, error)
+	FlashSetTargetSlotsMetrics(context.Context, *FlashSetTargetSlotsMetricsRequest) (*FlashSetTargetSlotsMetricsResponse, error)
 	// Functions
 	FunctionAsyncInvoke(context.Context, *FunctionAsyncInvokeRequest) (*FunctionAsyncInvokeResponse, error)
 	FunctionBindParams(context.Context, *FunctionBindParamsRequest) (*FunctionBindParamsResponse, error)
@@ -2339,6 +2423,7 @@ type ModalClientServer interface {
 	// Sandboxes
 	SandboxCreate(context.Context, *SandboxCreateRequest) (*SandboxCreateResponse, error)
 	SandboxCreateConnectToken(context.Context, *SandboxCreateConnectTokenRequest) (*SandboxCreateConnectTokenResponse, error)
+	SandboxGetCommandRouterAccess(context.Context, *SandboxGetCommandRouterAccessRequest) (*SandboxGetCommandRouterAccessResponse, error)
 	SandboxGetFromName(context.Context, *SandboxGetFromNameRequest) (*SandboxGetFromNameResponse, error)
 	SandboxGetLogs(*SandboxGetLogsRequest, grpc.ServerStreamingServer[TaskLogsBatch]) error
 	SandboxGetResourceUsage(context.Context, *SandboxGetResourceUsageRequest) (*SandboxGetResourceUsageResponse, error)
@@ -2375,6 +2460,7 @@ type ModalClientServer interface {
 	TaskClusterHello(context.Context, *TaskClusterHelloRequest) (*TaskClusterHelloResponse, error)
 	TaskCurrentInputs(context.Context, *emptypb.Empty) (*TaskCurrentInputsResponse, error)
 	TaskGetAutoscalingMetrics(context.Context, *TaskGetAutoscalingMetricsRequest) (*TaskGetAutoscalingMetricsResponse, error)
+	TaskGetCommandRouterAccess(context.Context, *TaskGetCommandRouterAccessRequest) (*TaskGetCommandRouterAccessResponse, error)
 	TaskList(context.Context, *TaskListRequest) (*TaskListResponse, error)
 	TaskResult(context.Context, *TaskResultRequest) (*emptypb.Empty, error)
 	// Tokens (web auth flow)
@@ -2402,6 +2488,7 @@ type ModalClientServer interface {
 	VolumeRemoveFile2(context.Context, *VolumeRemoveFile2Request) (*emptypb.Empty, error)
 	VolumeRename(context.Context, *VolumeRenameRequest) (*emptypb.Empty, error)
 	// Workspaces
+	WorkspaceBillingReport(*WorkspaceBillingReportRequest, grpc.ServerStreamingServer[WorkspaceBillingReportItem]) error
 	WorkspaceNameLookup(context.Context, *emptypb.Empty) (*WorkspaceNameLookupResponse, error)
 	mustEmbedUnimplementedModalClientServer()
 }
@@ -2440,6 +2527,9 @@ func (UnimplementedModalClientServer) AppGetObjects(context.Context, *AppGetObje
 func (UnimplementedModalClientServer) AppGetOrCreate(context.Context, *AppGetOrCreateRequest) (*AppGetOrCreateResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AppGetOrCreate not implemented")
 }
+func (UnimplementedModalClientServer) AppGetTags(context.Context, *AppGetTagsRequest) (*AppGetTagsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AppGetTags not implemented")
+}
 func (UnimplementedModalClientServer) AppHeartbeat(context.Context, *AppHeartbeatRequest) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AppHeartbeat not implemented")
 }
@@ -2457,6 +2547,9 @@ func (UnimplementedModalClientServer) AppRollback(context.Context, *AppRollbackR
 }
 func (UnimplementedModalClientServer) AppSetObjects(context.Context, *AppSetObjectsRequest) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AppSetObjects not implemented")
+}
+func (UnimplementedModalClientServer) AppSetTags(context.Context, *AppSetTagsRequest) (*emptypb.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AppSetTags not implemented")
 }
 func (UnimplementedModalClientServer) AppStop(context.Context, *AppStopRequest) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AppStop not implemented")
@@ -2595,6 +2688,9 @@ func (UnimplementedModalClientServer) FlashContainerList(context.Context, *Flash
 }
 func (UnimplementedModalClientServer) FlashContainerRegister(context.Context, *FlashContainerRegisterRequest) (*FlashContainerRegisterResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method FlashContainerRegister not implemented")
+}
+func (UnimplementedModalClientServer) FlashSetTargetSlotsMetrics(context.Context, *FlashSetTargetSlotsMetricsRequest) (*FlashSetTargetSlotsMetricsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method FlashSetTargetSlotsMetrics not implemented")
 }
 func (UnimplementedModalClientServer) FunctionAsyncInvoke(context.Context, *FunctionAsyncInvokeRequest) (*FunctionAsyncInvokeResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method FunctionAsyncInvoke not implemented")
@@ -2752,6 +2848,9 @@ func (UnimplementedModalClientServer) SandboxCreate(context.Context, *SandboxCre
 func (UnimplementedModalClientServer) SandboxCreateConnectToken(context.Context, *SandboxCreateConnectTokenRequest) (*SandboxCreateConnectTokenResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SandboxCreateConnectToken not implemented")
 }
+func (UnimplementedModalClientServer) SandboxGetCommandRouterAccess(context.Context, *SandboxGetCommandRouterAccessRequest) (*SandboxGetCommandRouterAccessResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SandboxGetCommandRouterAccess not implemented")
+}
 func (UnimplementedModalClientServer) SandboxGetFromName(context.Context, *SandboxGetFromNameRequest) (*SandboxGetFromNameResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SandboxGetFromName not implemented")
 }
@@ -2851,6 +2950,9 @@ func (UnimplementedModalClientServer) TaskCurrentInputs(context.Context, *emptyp
 func (UnimplementedModalClientServer) TaskGetAutoscalingMetrics(context.Context, *TaskGetAutoscalingMetricsRequest) (*TaskGetAutoscalingMetricsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method TaskGetAutoscalingMetrics not implemented")
 }
+func (UnimplementedModalClientServer) TaskGetCommandRouterAccess(context.Context, *TaskGetCommandRouterAccessRequest) (*TaskGetCommandRouterAccessResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method TaskGetCommandRouterAccess not implemented")
+}
 func (UnimplementedModalClientServer) TaskList(context.Context, *TaskListRequest) (*TaskListResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method TaskList not implemented")
 }
@@ -2919,6 +3021,9 @@ func (UnimplementedModalClientServer) VolumeRemoveFile2(context.Context, *Volume
 }
 func (UnimplementedModalClientServer) VolumeRename(context.Context, *VolumeRenameRequest) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method VolumeRename not implemented")
+}
+func (UnimplementedModalClientServer) WorkspaceBillingReport(*WorkspaceBillingReportRequest, grpc.ServerStreamingServer[WorkspaceBillingReportItem]) error {
+	return status.Errorf(codes.Unimplemented, "method WorkspaceBillingReport not implemented")
 }
 func (UnimplementedModalClientServer) WorkspaceNameLookup(context.Context, *emptypb.Empty) (*WorkspaceNameLookupResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method WorkspaceNameLookup not implemented")
@@ -3099,6 +3204,24 @@ func _ModalClient_AppGetOrCreate_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ModalClient_AppGetTags_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AppGetTagsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ModalClientServer).AppGetTags(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ModalClient_AppGetTags_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ModalClientServer).AppGetTags(ctx, req.(*AppGetTagsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _ModalClient_AppHeartbeat_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(AppHeartbeatRequest)
 	if err := dec(in); err != nil {
@@ -3203,6 +3326,24 @@ func _ModalClient_AppSetObjects_Handler(srv interface{}, ctx context.Context, de
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ModalClientServer).AppSetObjects(ctx, req.(*AppSetObjectsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ModalClient_AppSetTags_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AppSetTagsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ModalClientServer).AppSetTags(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ModalClient_AppSetTags_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ModalClientServer).AppSetTags(ctx, req.(*AppSetTagsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -4010,6 +4151,24 @@ func _ModalClient_FlashContainerRegister_Handler(srv interface{}, ctx context.Co
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ModalClientServer).FlashContainerRegister(ctx, req.(*FlashContainerRegisterRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ModalClient_FlashSetTargetSlotsMetrics_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(FlashSetTargetSlotsMetricsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ModalClientServer).FlashSetTargetSlotsMetrics(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ModalClient_FlashSetTargetSlotsMetrics_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ModalClientServer).FlashSetTargetSlotsMetrics(ctx, req.(*FlashSetTargetSlotsMetricsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -4929,6 +5088,24 @@ func _ModalClient_SandboxCreateConnectToken_Handler(srv interface{}, ctx context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ModalClient_SandboxGetCommandRouterAccess_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SandboxGetCommandRouterAccessRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ModalClientServer).SandboxGetCommandRouterAccess(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ModalClient_SandboxGetCommandRouterAccess_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ModalClientServer).SandboxGetCommandRouterAccess(ctx, req.(*SandboxGetCommandRouterAccessRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _ModalClient_SandboxGetFromName_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(SandboxGetFromNameRequest)
 	if err := dec(in); err != nil {
@@ -5509,6 +5686,24 @@ func _ModalClient_TaskGetAutoscalingMetrics_Handler(srv interface{}, ctx context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ModalClient_TaskGetCommandRouterAccess_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TaskGetCommandRouterAccessRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ModalClientServer).TaskGetCommandRouterAccess(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ModalClient_TaskGetCommandRouterAccess_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ModalClientServer).TaskGetCommandRouterAccess(ctx, req.(*TaskGetCommandRouterAccessRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _ModalClient_TaskList_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(TaskListRequest)
 	if err := dec(in); err != nil {
@@ -5909,6 +6104,17 @@ func _ModalClient_VolumeRename_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ModalClient_WorkspaceBillingReport_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(WorkspaceBillingReportRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(ModalClientServer).WorkspaceBillingReport(m, &grpc.GenericServerStream[WorkspaceBillingReportRequest, WorkspaceBillingReportItem]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type ModalClient_WorkspaceBillingReportServer = grpc.ServerStreamingServer[WorkspaceBillingReportItem]
+
 func _ModalClient_WorkspaceNameLookup_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(emptypb.Empty)
 	if err := dec(in); err != nil {
@@ -5967,6 +6173,10 @@ var ModalClient_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _ModalClient_AppGetOrCreate_Handler,
 		},
 		{
+			MethodName: "AppGetTags",
+			Handler:    _ModalClient_AppGetTags_Handler,
+		},
+		{
 			MethodName: "AppHeartbeat",
 			Handler:    _ModalClient_AppHeartbeat_Handler,
 		},
@@ -5989,6 +6199,10 @@ var ModalClient_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "AppSetObjects",
 			Handler:    _ModalClient_AppSetObjects_Handler,
+		},
+		{
+			MethodName: "AppSetTags",
+			Handler:    _ModalClient_AppSetTags_Handler,
 		},
 		{
 			MethodName: "AppStop",
@@ -6161,6 +6375,10 @@ var ModalClient_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "FlashContainerRegister",
 			Handler:    _ModalClient_FlashContainerRegister_Handler,
+		},
+		{
+			MethodName: "FlashSetTargetSlotsMetrics",
+			Handler:    _ModalClient_FlashSetTargetSlotsMetrics_Handler,
 		},
 		{
 			MethodName: "FunctionAsyncInvoke",
@@ -6359,6 +6577,10 @@ var ModalClient_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _ModalClient_SandboxCreateConnectToken_Handler,
 		},
 		{
+			MethodName: "SandboxGetCommandRouterAccess",
+			Handler:    _ModalClient_SandboxGetCommandRouterAccess_Handler,
+		},
+		{
 			MethodName: "SandboxGetFromName",
 			Handler:    _ModalClient_SandboxGetFromName_Handler,
 		},
@@ -6481,6 +6703,10 @@ var ModalClient_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "TaskGetAutoscalingMetrics",
 			Handler:    _ModalClient_TaskGetAutoscalingMetrics_Handler,
+		},
+		{
+			MethodName: "TaskGetCommandRouterAccess",
+			Handler:    _ModalClient_TaskGetCommandRouterAccess_Handler,
 		},
 		{
 			MethodName: "TaskList",
@@ -6625,6 +6851,11 @@ var ModalClient_ServiceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "VolumeListFiles2",
 			Handler:       _ModalClient_VolumeListFiles2_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "WorkspaceBillingReport",
+			Handler:       _ModalClient_WorkspaceBillingReport_Handler,
 			ServerStreams: true,
 		},
 	},

@@ -4,7 +4,17 @@ Both client libraries are pre-1.0, and they have separate versioning.
 
 ## Unreleased
 
-No unreleased changes.
+The first beta release of the Modal SDKs for JS and Go (graduating from alpha). See the [Migration Guide](./MIGRATION-GUIDE.md) for a detailed list of breaking changes.
+
+- The SDKs now expose a central Modal Client object as the main entry point for interacting with Modal resources.
+- The interface for working with Modal object instances (Functions, Sandboxes, Images, etc.) is largely the same as before, with some naming changes.
+- Calling deployed Functions and classes now uses a new protocol for payload serialization which requires the deployed apps to use the Modal Python SDK 1.2 or newer.
+- Internally removed the global client (and config/profile data in global scope), moving all that to the Client type.
+- Consistent parameter naming across both SDKs: all `Options` structs/interfaces renamed to `Params`.
+- Go-specific changes:
+  - Changed how we do context passing, so contexts now only affect the current operation and are not used for lifecycle management of the created resources.
+  - All `Params` structs are now passed as pointers for consistency and to support optional parameters.
+  - Field names follow Go casing conventions (e.g., `Id` → `ID`, `Url` → `URL`, `TokenId` → `TokenID`).
 
 ## modal-js/v0.3.25, modal-go/v0.0.25
 

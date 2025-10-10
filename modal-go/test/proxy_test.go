@@ -1,4 +1,3 @@
-//nolint:staticcheck // SA1019 We need to use deprecated API for testing
 package test
 
 import (
@@ -13,29 +12,29 @@ import (
 func TestCreateSandboxWithProxy(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
+	ctx := context.Background()
 
-	app, err := modal.AppLookup(context.Background(), "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	image, err := app.ImageFromRegistry("alpine:3.21", nil)
-	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	image := tc.Images.FromRegistry("alpine:3.21", nil)
 
-	proxy, err := modal.ProxyFromName(context.Background(), "libmodal-test-proxy", nil)
+	proxy, err := tc.Proxies.FromName(ctx, "libmodal-test-proxy", &modal.ProxyFromNameParams{Environment: "libmodal"})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(proxy.ProxyId).ShouldNot(gomega.BeEmpty())
-	g.Expect(strings.HasPrefix(proxy.ProxyId, "pr-")).To(gomega.BeTrue())
+	g.Expect(proxy.ProxyID).ShouldNot(gomega.BeEmpty())
+	g.Expect(strings.HasPrefix(proxy.ProxyID, "pr-")).To(gomega.BeTrue())
 
-	sb, err := app.CreateSandbox(image, &modal.SandboxOptions{
+	sb, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
 		Proxy:   proxy,
 		Command: []string{"echo", "hello, Sandbox with Proxy"},
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(sb.SandboxId).ShouldNot(gomega.BeEmpty())
+	g.Expect(sb.SandboxID).ShouldNot(gomega.BeEmpty())
 
-	err = sb.Terminate()
+	err = sb.Terminate(ctx)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	exitcode, err := sb.Wait()
+	exitcode, err := sb.Wait(ctx)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(exitcode).To(gomega.Equal(137))
 }
@@ -43,8 +42,9 @@ func TestCreateSandboxWithProxy(t *testing.T) {
 func TestProxyNotFound(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
+	ctx := context.Background()
 
-	_, err := modal.ProxyFromName(context.Background(), "non-existent-proxy-name", nil)
+	_, err := tc.Proxies.FromName(ctx, "non-existent-proxy-name", nil)
 	g.Expect(err).Should(gomega.HaveOccurred())
 	g.Expect(err.Error()).To(gomega.ContainSubstring("Proxy 'non-existent-proxy-name' not found"))
 }

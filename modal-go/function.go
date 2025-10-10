@@ -11,13 +11,22 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
+	"github.com/fxamacker/cbor/v2"
 	pickle "github.com/kisielk/og-rek"
 	pb "github.com/modal-labs/libmodal/modal-go/proto/modal_proto"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
+
+// FunctionService provides Function related operations.
+type FunctionService interface {
+	FromName(ctx context.Context, appName string, name string, params *FunctionFromNameParams) (*Function, error)
+}
+
+type functionServiceImpl struct{ client *Client }
 
 // From: modal/_utils/blob_utils.py
 const maxObjectSizeBytes int = 2 * 1024 * 1024 // 2 MiB
@@ -38,8 +47,8 @@ type FunctionStats struct {
 	NumTotalRunners int
 }
 
-// UpdateAutoscalerOptions contains options for overriding a Function's autoscaler behavior.
-type UpdateAutoscalerOptions struct {
+// FunctionUpdateAutoscalerParams contains options for overriding a Function's autoscaler behavior.
+type FunctionUpdateAutoscalerParams struct {
 	MinContainers    *uint32
 	MaxContainers    *uint32
 	BufferContainers *uint32
@@ -48,23 +57,35 @@ type UpdateAutoscalerOptions struct {
 
 // Function references a deployed Modal Function.
 type Function struct {
-	FunctionId    string
-	MethodName    *string // used for class methods
-	inputPlaneUrl string  // if empty, use control plane
-	webURL        string  // web URL if this Function is a web endpoint
-	ctx           context.Context
+	FunctionID     string
+	handleMetadata *pb.FunctionHandleMetadata
+
+	client *Client
 }
 
-// FunctionLookup looks up an existing Function.
-func FunctionLookup(ctx context.Context, appName string, name string, options *LookupOptions) (*Function, error) {
-	if options == nil {
-		options = &LookupOptions{}
+// FunctionFromNameParams are options for client.Functions.FromName.
+type FunctionFromNameParams struct {
+	Environment     string
+	CreateIfMissing bool
+}
+
+// FromName references a Function from a deployed App by its name.
+func (s *functionServiceImpl) FromName(ctx context.Context, appName string, name string, params *FunctionFromNameParams) (*Function, error) {
+	if params == nil {
+		params = &FunctionFromNameParams{}
 	}
 
-	resp, err := client.FunctionGet(ctx, pb.FunctionGetRequest_builder{
+	if strings.Contains(name, ".") {
+		parts := strings.SplitN(name, ".", 2)
+		clsName := parts[0]
+		methodName := parts[1]
+		return nil, fmt.Errorf("cannot retrieve Cls methods using Functions.FromName(). Use:\n  cls, _ := client.Cls.FromName(ctx, \"%s\", \"%s\", nil)\n  instance, _ := cls.Instance(ctx, nil)\n  m, _ := instance.Method(\"%s\")", appName, clsName, methodName)
+	}
+
+	resp, err := s.client.cpClient.FunctionGet(ctx, pb.FunctionGetRequest_builder{
 		AppName:         appName,
 		ObjectTag:       name,
-		EnvironmentName: environmentName(options.Environment),
+		EnvironmentName: environmentName(params.Environment, s.client.profile),
 	}.Build())
 
 	if status, ok := status.FromError(err); ok && status.Code() == codes.NotFound {
@@ -74,18 +95,12 @@ func FunctionLookup(ctx context.Context, appName string, name string, options *L
 		return nil, err
 	}
 
-	var inputPlaneUrl string
-	var webURL string
-	if meta := resp.GetHandleMetadata(); meta != nil {
-		if url := meta.GetInputPlaneUrl(); url != "" {
-			inputPlaneUrl = url
-		}
-		webURL = meta.GetWebUrl()
-	}
-	return &Function{FunctionId: resp.GetFunctionId(), inputPlaneUrl: inputPlaneUrl, webURL: webURL, ctx: ctx}, nil
+	handleMetadata := resp.GetHandleMetadata()
+	return &Function{FunctionID: resp.GetFunctionId(), handleMetadata: handleMetadata, client: s.client}, nil
 }
 
 // pickleSerialize serializes Go data types to the Python pickle format.
+// NOTE: This is only used by Queue operations. Function calls use CBOR only.
 func pickleSerialize(v any) (bytes.Buffer, error) {
 	var inputBuffer bytes.Buffer
 
@@ -99,6 +114,7 @@ func pickleSerialize(v any) (bytes.Buffer, error) {
 }
 
 // pickleDeserialize deserializes from Python pickle into Go basic types.
+// NOTE: This is only used by Queue operations. Function calls use CBOR only.
 func pickleDeserialize(buffer []byte) (any, error) {
 	decoder := pickle.NewDecoder(bytes.NewReader(buffer))
 	result, err := decoder.Decode()
@@ -108,51 +124,146 @@ func pickleDeserialize(buffer []byte) (any, error) {
 	return result, nil
 }
 
+// cborEncoder is configured with time tags enabled so that time.Time values
+// are represented as datetime objects in Python. Uses TimeRFC3339Nano to preserve
+// nanosecond precision (Python datetime has microsecond precision).
+//
+// Both options are required:
+//   - Time: TimeRFC3339Nano - specifies the format (RFC3339 with nanosecond precision)
+//   - TimeTag: EncTagRequired - wraps the time in CBOR tag 0, signaling it's a datetime
+//     Without the tag, Python would receive it as a plain string, not a datetime object.
+var cborEncoder, _ = cbor.EncOptions{
+	Time:    cbor.TimeRFC3339Nano,
+	TimeTag: cbor.EncTagRequired,
+}.EncMode()
+
+// cborSerialize serializes Go data types to the CBOR format.
+// Uses CBOR time tags so that time.Time values are represented as
+// datetime objects in Python.
+func cborSerialize(v any) ([]byte, error) {
+	data, err := cborEncoder.Marshal(v)
+	if err != nil {
+		return nil, fmt.Errorf("error encoding CBOR data: %w", err)
+	}
+	return data, nil
+}
+
+// cborDeserialize deserializes from CBOR into Go basic types.
+func cborDeserialize(buffer []byte) (any, error) {
+	var result any
+	err := cbor.Unmarshal(buffer, &result)
+	if err != nil {
+		return nil, fmt.Errorf("error decoding CBOR data: %w", err)
+	}
+	return result, nil
+}
+
 // createInput serializes inputs, makes a function call and returns its ID
-func (f *Function) createInput(args []any, kwargs map[string]any) (*pb.FunctionInput, error) {
-	payload, err := pickleSerialize(pickle.Tuple{args, kwargs})
+func (f *Function) createInput(ctx context.Context, args []any, kwargs map[string]any) (*pb.FunctionInput, error) {
+
+	// Check supported input formats and require CBOR
+	supportedInputFormats := f.getSupportedInputFormats()
+	cborSupported := false
+	for _, format := range supportedInputFormats {
+		if format == pb.DataFormat_DATA_FORMAT_CBOR {
+			cborSupported = true
+			break
+		}
+	}
+
+	// Error if CBOR is not supported
+	if !cborSupported {
+		return nil, fmt.Errorf("the deployed Function does not support libmodal - please redeploy it using Modal Python SDK version >= 1.2")
+	}
+
+	// Use CBOR encoding
+	// Ensure args and kwargs are not nil to match expected behavior
+	cborArgs := args
+	if cborArgs == nil {
+		cborArgs = []any{}
+	}
+	cborKwargs := kwargs
+	if cborKwargs == nil {
+		cborKwargs = map[string]any{}
+	}
+	argsBytes, err := cborSerialize([]any{cborArgs, cborKwargs})
 	if err != nil {
 		return nil, err
 	}
-
-	argsBytes := payload.Bytes()
-	var argsBlobId *string
-	if payload.Len() > maxObjectSizeBytes {
-		blobId, err := blobUpload(f.ctx, argsBytes)
+	dataFormat := pb.DataFormat_DATA_FORMAT_CBOR
+	var argsBlobID *string
+	if len(argsBytes) > maxObjectSizeBytes {
+		blobID, err := blobUpload(ctx, f.client.cpClient, argsBytes)
 		if err != nil {
 			return nil, err
 		}
 		argsBytes = nil
-		argsBlobId = &blobId
+		argsBlobID = &blobID
 	}
-
-	return pb.FunctionInput_builder{
-		Args:       argsBytes,
-		ArgsBlobId: argsBlobId,
-		DataFormat: pb.DataFormat_DATA_FORMAT_PICKLE,
-		MethodName: f.MethodName,
-	}.Build(), nil
-}
-
-// Remote executes a single input on a remote Function.
-func (f *Function) Remote(args []any, kwargs map[string]any) (any, error) {
-	input, err := f.createInput(args, kwargs)
+	metadata, err := f.getHandleMetadata()
 	if err != nil {
 		return nil, err
 	}
-	invocation, err := f.createRemoteInvocation(input)
+	methodName := metadata.GetUseMethodName() // this is empty if the function is not a cls method
+	return pb.FunctionInput_builder{
+		Args:       argsBytes,
+		ArgsBlobId: argsBlobID,
+		DataFormat: dataFormat,
+		MethodName: &methodName,
+	}.Build(), nil
+}
+
+// getHandleMetadata returns the function's handle metadata or an error if not set.
+func (f *Function) getHandleMetadata() (*pb.FunctionHandleMetadata, error) {
+	if f.handleMetadata == nil {
+		return nil, fmt.Errorf("unexpected error: function has not been hydrated")
+	}
+	return f.handleMetadata, nil
+}
+
+// getSupportedInputFormats returns the supported input formats for this function.
+// Returns an empty slice if metadata is not available.
+func (f *Function) getSupportedInputFormats() []pb.DataFormat {
+	metadata, err := f.getHandleMetadata()
+	if err != nil {
+		// Return empty slice if metadata is not available - this will cause CBOR validation to fail
+		return []pb.DataFormat{}
+	}
+	if len(metadata.GetSupportedInputFormats()) > 0 {
+		return metadata.GetSupportedInputFormats()
+	}
+	return []pb.DataFormat{}
+}
+
+// getWebURL returns the web URL for this function, if it's a web endpoint.
+// Returns empty string if metadata is not available or if not a web endpoint.
+func (f *Function) getWebURL() string {
+	metadata, err := f.getHandleMetadata()
+	if err != nil {
+		return ""
+	}
+	return metadata.GetWebUrl()
+}
+
+// Remote executes a single input on a remote Function.
+func (f *Function) Remote(ctx context.Context, args []any, kwargs map[string]any) (any, error) {
+	input, err := f.createInput(ctx, args, kwargs)
+	if err != nil {
+		return nil, err
+	}
+	invocation, err := f.createRemoteInvocation(ctx, input)
 	if err != nil {
 		return nil, err
 	}
 	// TODO(ryan): Add tests for retries.
 	retryCount := uint32(0)
 	for {
-		output, err := invocation.awaitOutput(nil)
+		output, err := invocation.awaitOutput(ctx, nil)
 		if err == nil {
 			return output, nil
 		}
 		if errors.As(err, &InternalFailure{}) && retryCount <= maxSystemRetries {
-			if retryErr := invocation.retry(retryCount); retryErr != nil {
+			if retryErr := invocation.retry(ctx, retryCount); retryErr != nil {
 				return nil, retryErr
 			}
 			retryCount++
@@ -163,34 +274,43 @@ func (f *Function) Remote(args []any, kwargs map[string]any) (any, error) {
 }
 
 // createRemoteInvocation creates an Invocation using either the input plane or control plane.
-func (f *Function) createRemoteInvocation(input *pb.FunctionInput) (invocation, error) {
-	if f.inputPlaneUrl != "" {
-		return createInputPlaneInvocation(f.ctx, f.inputPlaneUrl, f.FunctionId, input)
-	}
-	return createControlPlaneInvocation(f.ctx, f.FunctionId, input, pb.FunctionCallInvocationType_FUNCTION_CALL_INVOCATION_TYPE_SYNC)
-}
-
-// Spawn starts running a single input on a remote Function.
-func (f *Function) Spawn(args []any, kwargs map[string]any) (*FunctionCall, error) {
-	input, err := f.createInput(args, kwargs)
+func (f *Function) createRemoteInvocation(ctx context.Context, input *pb.FunctionInput) (invocation, error) {
+	metadata, err := f.getHandleMetadata()
 	if err != nil {
 		return nil, err
 	}
-	invocation, err := createControlPlaneInvocation(f.ctx, f.FunctionId, input, pb.FunctionCallInvocationType_FUNCTION_CALL_INVOCATION_TYPE_SYNC)
+	inputPlaneURL := metadata.GetInputPlaneUrl()
+	if inputPlaneURL != "" {
+		ipClient, err := f.client.ipClient(inputPlaneURL)
+		if err != nil {
+			return nil, err
+		}
+		return createInputPlaneInvocation(ctx, ipClient, f.FunctionID, input)
+	}
+	return createControlPlaneInvocation(ctx, f.client.cpClient, f.FunctionID, input, pb.FunctionCallInvocationType_FUNCTION_CALL_INVOCATION_TYPE_SYNC)
+}
+
+// Spawn starts running a single input on a remote Function.
+func (f *Function) Spawn(ctx context.Context, args []any, kwargs map[string]any) (*FunctionCall, error) {
+	input, err := f.createInput(ctx, args, kwargs)
+	if err != nil {
+		return nil, err
+	}
+	invocation, err := createControlPlaneInvocation(ctx, f.client.cpClient, f.FunctionID, input, pb.FunctionCallInvocationType_FUNCTION_CALL_INVOCATION_TYPE_SYNC)
 	if err != nil {
 		return nil, err
 	}
 	functionCall := FunctionCall{
-		FunctionCallId: invocation.FunctionCallId,
-		ctx:            f.ctx,
+		FunctionCallID: invocation.FunctionCallID,
+		client:         f.client,
 	}
 	return &functionCall, nil
 }
 
 // GetCurrentStats returns a FunctionStats object with statistics about the Function.
-func (f *Function) GetCurrentStats() (*FunctionStats, error) {
-	resp, err := client.FunctionGetCurrentStats(f.ctx, pb.FunctionGetCurrentStatsRequest_builder{
-		FunctionId: f.FunctionId,
+func (f *Function) GetCurrentStats(ctx context.Context) (*FunctionStats, error) {
+	resp, err := f.client.cpClient.FunctionGetCurrentStats(ctx, pb.FunctionGetCurrentStatsRequest_builder{
+		FunctionId: f.FunctionID,
 	}.Build())
 	if err != nil {
 		return nil, err
@@ -203,16 +323,20 @@ func (f *Function) GetCurrentStats() (*FunctionStats, error) {
 }
 
 // UpdateAutoscaler overrides the current autoscaler behavior for this Function.
-func (f *Function) UpdateAutoscaler(opts UpdateAutoscalerOptions) error {
+func (f *Function) UpdateAutoscaler(ctx context.Context, params *FunctionUpdateAutoscalerParams) error {
+	if params == nil {
+		params = &FunctionUpdateAutoscalerParams{}
+	}
+
 	settings := pb.AutoscalerSettings_builder{
-		MinContainers:    opts.MinContainers,
-		MaxContainers:    opts.MaxContainers,
-		BufferContainers: opts.BufferContainers,
-		ScaledownWindow:  opts.ScaledownWindow,
+		MinContainers:    params.MinContainers,
+		MaxContainers:    params.MaxContainers,
+		BufferContainers: params.BufferContainers,
+		ScaledownWindow:  params.ScaledownWindow,
 	}.Build()
 
-	_, err := client.FunctionUpdateSchedulingParams(f.ctx, pb.FunctionUpdateSchedulingParamsRequest_builder{
-		FunctionId:           f.FunctionId,
+	_, err := f.client.cpClient.FunctionUpdateSchedulingParams(ctx, pb.FunctionUpdateSchedulingParamsRequest_builder{
+		FunctionId:           f.FunctionID,
 		WarmPoolSizeOverride: 0, // Deprecated field, always set to 0
 		Settings:             settings,
 	}.Build())
@@ -223,11 +347,11 @@ func (f *Function) UpdateAutoscaler(opts UpdateAutoscalerOptions) error {
 // GetWebURL returns the URL of a Function running as a web endpoint.
 // Returns empty string if this Function is not a web endpoint.
 func (f *Function) GetWebURL() string {
-	return f.webURL
+	return f.getWebURL()
 }
 
 // blobUpload uploads a blob to storage and returns its ID.
-func blobUpload(ctx context.Context, data []byte) (string, error) {
+func blobUpload(ctx context.Context, client pb.ModalClientClient, data []byte) (string, error) {
 	md5sum := md5.Sum(data)
 	sha256sum := sha256.Sum256(data)
 	contentMd5 := base64.StdEncoding.EncodeToString(md5sum[:])

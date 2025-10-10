@@ -7,9 +7,21 @@ import {
   PTYInfo_PTYType,
   ContainerExecRequest,
   SandboxTagsGetResponse,
+  SandboxCreateRequest,
+  NetworkAccess,
+  NetworkAccess_NetworkAccessType,
+  VolumeMount,
+  CloudBucketMount as CloudBucketMountProto,
+  SchedulerPlacement,
+  TunnelType,
+  PortSpec,
 } from "../proto/modal_proto/api";
-import { client, isRetryableGrpc } from "./client";
-import { environmentName } from "./config";
+import {
+  getDefaultClient,
+  type ModalClient,
+  isRetryableGrpc,
+  ModalGrpcClient,
+} from "./client";
 import {
   runFilesystemExec,
   SandboxFile,
@@ -22,9 +34,20 @@ import {
   toModalReadStream,
   toModalWriteStream,
 } from "./streams";
-import { type Secret, mergeEnvAndSecrets } from "./secret";
-import { InvalidError, NotFoundError, SandboxTimeoutError } from "./errors";
+import { type Secret, mergeEnvIntoSecrets } from "./secret";
+import {
+  InvalidError,
+  NotFoundError,
+  SandboxTimeoutError,
+  AlreadyExistsError,
+} from "./errors";
 import { Image } from "./image";
+import type { Volume } from "./volume";
+import type { Proxy } from "./proxy";
+import type { CloudBucketMount } from "./cloud_bucket_mount";
+import { cloudBucketMountToProto } from "./cloud_bucket_mount";
+import type { App } from "./app";
+import { parseGpuConfig } from "./app";
 
 /**
  * Stdin is always present, but this option allow you to drop stdout or stderr
@@ -41,8 +64,353 @@ export type StdioBehavior = "pipe" | "ignore";
  */
 export type StreamMode = "text" | "binary";
 
-/** Options for `Sandbox.list()`. */
-export type SandboxListOptions = {
+/** Optional parameters for `client.sandboxes.create()`. */
+export type SandboxCreateParams = {
+  /** Reservation of physical CPU cores for the Sandbox, can be fractional. */
+  cpu?: number;
+
+  /** Reservation of memory in MiB. */
+  memory?: number;
+
+  /** GPU reservation for the Sandbox (e.g. "A100", "T4:2", "A100-80GB:4"). */
+  gpu?: string;
+
+  /** Timeout of the Sandbox container, defaults to 10 minutes. */
+  timeout?: number;
+
+  /** The amount of time in milliseconds that a sandbox can be idle before being terminated. */
+  idleTimeout?: number;
+
+  /** Working directory of the Sandbox. */
+  workdir?: string;
+
+  /**
+   * Sequence of program arguments for the main process.
+   * Default behavior is to sleep indefinitely until timeout or termination.
+   */
+  command?: string[]; // default is ["sleep", "48h"]
+
+  /** Environment variables to set in the Sandbox. */
+  env?: Record<string, string>;
+
+  /** Secrets to inject into the Sandbox as environment variables. */
+  secrets?: Secret[];
+
+  /** Mount points for Modal Volumes. */
+  volumes?: Record<string, Volume>;
+
+  /** Mount points for cloud buckets. */
+  cloudBucketMounts?: Record<string, CloudBucketMount>;
+
+  /** Enable a PTY for the Sandbox. */
+  pty?: boolean;
+
+  /** List of ports to tunnel into the Sandbox. Encrypted ports are tunneled with TLS. */
+  encryptedPorts?: number[];
+
+  /** List of encrypted ports to tunnel into the Sandbox, using HTTP/2. */
+  h2Ports?: number[];
+
+  /** List of ports to tunnel into the Sandbox without encryption. */
+  unencryptedPorts?: number[];
+
+  /** Whether to block all network access from the Sandbox. */
+  blockNetwork?: boolean;
+
+  /** List of CIDRs the Sandbox is allowed to access. If None, all CIDRs are allowed. Cannot be used with blockNetwork. */
+  cidrAllowlist?: string[];
+
+  /** Cloud provider to run the Sandbox on. */
+  cloud?: string;
+
+  /** Region(s) to run the Sandbox on. */
+  regions?: string[];
+
+  /** Enable verbose logging. */
+  verbose?: boolean;
+
+  /** Reference to a Modal Proxy to use in front of this Sandbox. */
+  proxy?: Proxy;
+
+  /** Optional name for the Sandbox. Unique within an App. */
+  name?: string;
+};
+
+export async function buildSandboxCreateRequestProto(
+  appId: string,
+  imageId: string,
+  params: SandboxCreateParams = {},
+): Promise<SandboxCreateRequest> {
+  const gpuConfig = parseGpuConfig(params.gpu);
+
+  // The gRPC API only accepts a whole number of seconds.
+  if (params.timeout && params.timeout % 1000 !== 0) {
+    throw new Error(
+      `timeout must be a multiple of 1000ms, got ${params.timeout}`,
+    );
+  }
+  if (params.idleTimeout && params.idleTimeout % 1000 !== 0) {
+    throw new Error(
+      `idleTimeout must be a multiple of 1000ms, got ${params.idleTimeout}`,
+    );
+  }
+
+  if (params.workdir && !params.workdir.startsWith("/")) {
+    throw new Error(`workdir must be an absolute path, got: ${params.workdir}`);
+  }
+
+  const volumeMounts: VolumeMount[] = params.volumes
+    ? Object.entries(params.volumes).map(([mountPath, volume]) => ({
+        volumeId: volume.volumeId,
+        mountPath,
+        allowBackgroundCommits: true,
+        readOnly: volume.isReadOnly,
+      }))
+    : [];
+
+  const cloudBucketMounts: CloudBucketMountProto[] = params.cloudBucketMounts
+    ? Object.entries(params.cloudBucketMounts).map(([mountPath, mount]) =>
+        cloudBucketMountToProto(mount, mountPath),
+      )
+    : [];
+
+  const openPorts: PortSpec[] = [];
+  if (params.encryptedPorts) {
+    openPorts.push(
+      ...params.encryptedPorts.map((port) => ({
+        port,
+        unencrypted: false,
+      })),
+    );
+  }
+  if (params.h2Ports) {
+    openPorts.push(
+      ...params.h2Ports.map((port) => ({
+        port,
+        unencrypted: false,
+        tunnelType: TunnelType.TUNNEL_TYPE_H2,
+      })),
+    );
+  }
+  if (params.unencryptedPorts) {
+    openPorts.push(
+      ...params.unencryptedPorts.map((port) => ({
+        port,
+        unencrypted: true,
+      })),
+    );
+  }
+
+  const secretIds = (params.secrets || []).map((secret) => secret.secretId);
+
+  let networkAccess: NetworkAccess;
+  if (params.blockNetwork) {
+    if (params.cidrAllowlist) {
+      throw new Error(
+        "cidrAllowlist cannot be used when blockNetwork is enabled",
+      );
+    }
+    networkAccess = {
+      networkAccessType: NetworkAccess_NetworkAccessType.BLOCKED,
+      allowedCidrs: [],
+    };
+  } else if (params.cidrAllowlist) {
+    networkAccess = {
+      networkAccessType: NetworkAccess_NetworkAccessType.ALLOWLIST,
+      allowedCidrs: params.cidrAllowlist,
+    };
+  } else {
+    networkAccess = {
+      networkAccessType: NetworkAccess_NetworkAccessType.OPEN,
+      allowedCidrs: [],
+    };
+  }
+
+  const schedulerPlacement = SchedulerPlacement.create({
+    regions: params.regions ?? [],
+  });
+
+  let ptyInfo: PTYInfo | undefined;
+  if (params.pty) {
+    ptyInfo = defaultSandboxPTYInfo();
+  }
+
+  return SandboxCreateRequest.create({
+    appId,
+    definition: {
+      // Sleep default is implicit in image builder version <=2024.10
+      entrypointArgs: params.command ?? ["sleep", "48h"],
+      imageId,
+      timeoutSecs: params.timeout != undefined ? params.timeout / 1000 : 600,
+      idleTimeoutSecs:
+        params.idleTimeout != undefined ? params.idleTimeout / 1000 : undefined,
+      workdir: params.workdir ?? undefined,
+      networkAccess,
+      resources: {
+        // https://modal.com/docs/guide/resources
+        milliCpu: Math.round(1000 * (params.cpu ?? 0.125)),
+        memoryMb: params.memory ?? 128,
+        gpuConfig,
+      },
+      volumeMounts,
+      cloudBucketMounts,
+      ptyInfo,
+      secretIds,
+      openPorts: openPorts.length > 0 ? { ports: openPorts } : undefined,
+      cloudProviderStr: params.cloud ?? "",
+      schedulerPlacement,
+      verbose: params.verbose ?? false,
+      proxyId: params.proxy?.proxyId,
+      name: params.name,
+    },
+  });
+}
+
+/**
+ * Service for managing Sandboxes.
+ */
+export class SandboxService {
+  readonly #client: ModalClient;
+  constructor(client: ModalClient) {
+    this.#client = client;
+  }
+
+  /**
+   * Create a new Sandbox in the App with the specified Image and options.
+   */
+  async create(
+    app: App,
+    image: Image,
+    params: SandboxCreateParams = {},
+  ): Promise<Sandbox> {
+    await image.build(app);
+
+    const mergedSecrets = await mergeEnvIntoSecrets(
+      this.#client,
+      params.env,
+      params.secrets,
+    );
+    const mergedParams = {
+      ...params,
+      secrets: mergedSecrets,
+      env: undefined, // setting env to undefined just to clarify it's not needed anymore
+    };
+
+    const createReq = await buildSandboxCreateRequestProto(
+      app.appId,
+      image.imageId,
+      mergedParams,
+    );
+    let createResp;
+    try {
+      createResp = await this.#client.cpClient.sandboxCreate(createReq);
+    } catch (err) {
+      if (err instanceof ClientError && err.code === Status.ALREADY_EXISTS) {
+        throw new AlreadyExistsError(err.details || err.message);
+      }
+      throw err;
+    }
+
+    return new Sandbox(this.#client, createResp.sandboxId);
+  }
+
+  /** Returns a running Sandbox object from an ID.
+   *
+   * @returns Sandbox with ID
+   */
+  async fromId(sandboxId: string): Promise<Sandbox> {
+    try {
+      await this.#client.cpClient.sandboxWait({
+        sandboxId,
+        timeout: 0,
+      });
+    } catch (err) {
+      if (err instanceof ClientError && err.code === Status.NOT_FOUND)
+        throw new NotFoundError(`Sandbox with id: '${sandboxId}' not found`);
+      throw err;
+    }
+
+    return new Sandbox(this.#client, sandboxId);
+  }
+
+  /** Get a running Sandbox by name from a deployed App.
+   *
+   * Raises a NotFoundError if no running Sandbox is found with the given name.
+   * A Sandbox's name is the `name` argument passed to `sandboxes.create()`.
+   *
+   * @param appName - Name of the deployed App
+   * @param name - Name of the Sandbox
+   * @param params - Optional parameters for getting the Sandbox
+   * @returns Promise that resolves to a Sandbox
+   */
+  async fromName(
+    appName: string,
+    name: string,
+    params?: SandboxFromNameParams,
+  ): Promise<Sandbox> {
+    try {
+      const resp = await this.#client.cpClient.sandboxGetFromName({
+        sandboxName: name,
+        appName,
+        environmentName: this.#client.environmentName(params?.environment),
+      });
+      return new Sandbox(this.#client, resp.sandboxId);
+    } catch (err) {
+      if (err instanceof ClientError && err.code === Status.NOT_FOUND)
+        throw new NotFoundError(
+          `Sandbox with name '${name}' not found in App '${appName}'`,
+        );
+      throw err;
+    }
+  }
+
+  /**
+   * List all Sandboxes for the current Environment or App ID (if specified).
+   * If tags are specified, only Sandboxes that have at least those tags are returned.
+   */
+  async *list(
+    params: SandboxListParams = {},
+  ): AsyncGenerator<Sandbox, void, unknown> {
+    const env = this.#client.environmentName(params.environment);
+    const tagsList = params.tags
+      ? Object.entries(params.tags).map(([tagName, tagValue]) => ({
+          tagName,
+          tagValue,
+        }))
+      : [];
+
+    let beforeTimestamp: number | undefined = undefined;
+    while (true) {
+      try {
+        const resp = await this.#client.cpClient.sandboxList({
+          appId: params.appId,
+          beforeTimestamp,
+          environmentName: env,
+          includeFinished: false,
+          tags: tagsList,
+        });
+        if (!resp.sandboxes || resp.sandboxes.length === 0) {
+          return;
+        }
+        for (const info of resp.sandboxes) {
+          yield new Sandbox(this.#client, info.id);
+        }
+        beforeTimestamp = resp.sandboxes[resp.sandboxes.length - 1].createdAt;
+      } catch (err) {
+        if (
+          err instanceof ClientError &&
+          err.code === Status.INVALID_ARGUMENT
+        ) {
+          throw new InvalidError(err.details || err.message);
+        }
+        throw err;
+      }
+    }
+  }
+}
+
+/** Optional parameters for `client.sandboxes.list()`. */
+export type SandboxListParams = {
   /** Filter Sandboxes for a specific App. */
   appId?: string;
   /** Only return Sandboxes that include all specified tags. */
@@ -51,8 +419,13 @@ export type SandboxListOptions = {
   environment?: string;
 };
 
-/** Options to configure a `Sandbox.exec()` operation. */
-export type ExecOptions = {
+/** Optional parameters for `client.sandboxes.fromName()`. */
+export type SandboxFromNameParams = {
+  environment?: string;
+};
+
+/** Optional parameters for `Sandbox.exec()`. */
+export type SandboxExecParams = {
   /** Specifies text or binary encoding for input and output streams. */
   mode?: StreamMode;
   /** Whether to pipe or ignore standard output. */
@@ -122,24 +495,20 @@ export function defaultSandboxPTYInfo(): PTYInfo {
 export async function buildContainerExecRequestProto(
   taskId: string,
   command: string[],
-  options?: ExecOptions,
+  params?: SandboxExecParams,
 ): Promise<ContainerExecRequest> {
-  const mergedSecrets = await mergeEnvAndSecrets(
-    options?.env,
-    options?.secrets,
-  );
-  const secretIds = mergedSecrets.map((secret) => secret.secretId);
+  const secretIds = (params?.secrets || []).map((secret) => secret.secretId);
 
   let ptyInfo: PTYInfo | undefined;
-  if (options?.pty) {
+  if (params?.pty) {
     ptyInfo = defaultSandboxPTYInfo();
   }
 
   return ContainerExecRequest.create({
     taskId,
     command,
-    workdir: options?.workdir,
-    timeoutSecs: options?.timeout ? options.timeout / 1000 : 0,
+    workdir: params?.workdir,
+    timeoutSecs: params?.timeout ? params.timeout / 1000 : 0,
     secretIds,
     ptyInfo,
   });
@@ -147,6 +516,7 @@ export async function buildContainerExecRequestProto(
 
 /** Sandboxes are secure, isolated containers in Modal that boot in seconds. */
 export class Sandbox {
+  readonly #client: ModalClient;
   readonly sandboxId: string;
   stdin: ModalWriteStream<string>;
   stdout: ModalReadStream<string>;
@@ -156,18 +526,27 @@ export class Sandbox {
   #tunnels: Record<number, Tunnel> | undefined;
 
   /** @ignore */
-  constructor(sandboxId: string) {
+  constructor(client: ModalClient, sandboxId: string) {
+    this.#client = client;
     this.sandboxId = sandboxId;
 
-    this.stdin = toModalWriteStream(inputStreamSb(sandboxId));
+    this.stdin = toModalWriteStream(inputStreamSb(client.cpClient, sandboxId));
     this.stdout = toModalReadStream(
       streamConsumingIter(
-        outputStreamSb(sandboxId, FileDescriptor.FILE_DESCRIPTOR_STDOUT),
+        outputStreamSb(
+          client.cpClient,
+          sandboxId,
+          FileDescriptor.FILE_DESCRIPTOR_STDOUT,
+        ),
       ).pipeThrough(new TextDecoderStream()),
     );
     this.stderr = toModalReadStream(
       streamConsumingIter(
-        outputStreamSb(sandboxId, FileDescriptor.FILE_DESCRIPTOR_STDERR),
+        outputStreamSb(
+          client.cpClient,
+          sandboxId,
+          FileDescriptor.FILE_DESCRIPTOR_STDERR,
+        ),
       ).pipeThrough(new TextDecoderStream()),
     );
   }
@@ -179,8 +558,8 @@ export class Sandbox {
       tagValue,
     }));
     try {
-      await client.sandboxTagsSet({
-        environmentName: environmentName(),
+      await this.#client.cpClient.sandboxTagsSet({
+        environmentName: this.#client.environmentName(),
         sandboxId: this.sandboxId,
         tags: tagsList,
       });
@@ -196,7 +575,9 @@ export class Sandbox {
   async getTags(): Promise<Record<string, string>> {
     let resp: SandboxTagsGetResponse;
     try {
-      resp = await client.sandboxTagsGet({ sandboxId: this.sandboxId });
+      resp = await this.#client.cpClient.sandboxTagsGet({
+        sandboxId: this.sandboxId,
+      });
     } catch (err) {
       if (err instanceof ClientError && err.code === Status.INVALID_ARGUMENT) {
         throw new InvalidError(err.details || err.message);
@@ -211,54 +592,24 @@ export class Sandbox {
     return tags;
   }
 
-  /** Returns a running Sandbox object from an ID.
-   *
-   * @returns Sandbox with ID
+  /**
+   * @deprecated Use `client.sandboxes.fromId()` instead.
    */
   static async fromId(sandboxId: string): Promise<Sandbox> {
-    try {
-      await client.sandboxWait({
-        sandboxId,
-        timeout: 0,
-      });
-    } catch (err) {
-      if (err instanceof ClientError && err.code === Status.NOT_FOUND)
-        throw new NotFoundError(`Sandbox with id: '${sandboxId}' not found`);
-      throw err;
-    }
-
-    return new Sandbox(sandboxId);
+    return getDefaultClient().sandboxes.fromId(sandboxId);
   }
 
-  /** Get a running Sandbox by name from a deployed App.
-   *
-   * Raises a NotFoundError if no running Sandbox is found with the given name.
-   * A Sandbox's name is the `name` argument passed to `App.createSandbox`.
-   *
-   * @param appName - Name of the deployed App
-   * @param name - Name of the Sandbox
-   * @param environment - Optional override for the environment
-   * @returns Promise that resolves to a Sandbox
+  /**
+   * @deprecated Use `client.sandboxes.fromName()` instead.
    */
   static async fromName(
     appName: string,
     name: string,
     environment?: string,
   ): Promise<Sandbox> {
-    try {
-      const resp = await client.sandboxGetFromName({
-        sandboxName: name,
-        appName,
-        environmentName: environmentName(environment),
-      });
-      return new Sandbox(resp.sandboxId);
-    } catch (err) {
-      if (err instanceof ClientError && err.code === Status.NOT_FOUND)
-        throw new NotFoundError(
-          `Sandbox with name '${name}' not found in App '${appName}'`,
-        );
-      throw err;
-    }
+    return getDefaultClient().sandboxes.fromName(appName, name, {
+      environment,
+    });
   }
 
   /**
@@ -269,7 +620,7 @@ export class Sandbox {
    */
   async open(path: string, mode: SandboxFileMode = "r"): Promise<SandboxFile> {
     const taskId = await this.#getTaskId();
-    const resp = await runFilesystemExec({
+    const resp = await runFilesystemExec(this.#client.cpClient, {
       fileOpenRequest: {
         path,
         mode,
@@ -278,43 +629,49 @@ export class Sandbox {
     });
     // For Open request, the file descriptor is always set
     const fileDescriptor = resp.response.fileDescriptor as string;
-    return new SandboxFile(fileDescriptor, taskId);
+    return new SandboxFile(this.#client, fileDescriptor, taskId);
   }
 
   async exec(
     command: string[],
-    options?: ExecOptions & { mode?: "text" },
+    params?: SandboxExecParams & { mode?: "text" },
   ): Promise<ContainerProcess<string>>;
 
   async exec(
     command: string[],
-    options: ExecOptions & { mode: "binary" },
+    params: SandboxExecParams & { mode: "binary" },
   ): Promise<ContainerProcess<Uint8Array>>;
 
   async exec(
     command: string[],
-    options?: {
-      mode?: StreamMode;
-      stdout?: StdioBehavior;
-      stderr?: StdioBehavior;
-      workdir?: string;
-      timeout?: number;
-      env?: Record<string, string>;
-      secrets?: Secret[];
-      pty?: boolean;
-    },
+    params?: SandboxExecParams,
   ): Promise<ContainerProcess> {
     const taskId = await this.#getTaskId();
 
-    const req = await buildContainerExecRequestProto(taskId, command, options);
-    const resp = await client.containerExec(req);
+    const mergedSecrets = await mergeEnvIntoSecrets(
+      this.#client,
+      params?.env,
+      params?.secrets,
+    );
+    const mergedParams = {
+      ...params,
+      secrets: mergedSecrets,
+      env: undefined, // setting env to undefined just to clarify it's not needed anymore
+    };
 
-    return new ContainerProcess(resp.execId, options);
+    const req = await buildContainerExecRequestProto(
+      taskId,
+      command,
+      mergedParams,
+    );
+    const resp = await this.#client.cpClient.containerExec(req);
+
+    return new ContainerProcess(this.#client, resp.execId, params);
   }
 
   async #getTaskId(): Promise<string> {
     if (this.#taskId === undefined) {
-      const resp = await client.sandboxGetTaskId({
+      const resp = await this.#client.cpClient.sandboxGetTaskId({
         sandboxId: this.sandboxId,
       });
       if (!resp.taskId) {
@@ -333,13 +690,13 @@ export class Sandbox {
   }
 
   async terminate(): Promise<void> {
-    await client.sandboxTerminate({ sandboxId: this.sandboxId });
+    await this.#client.cpClient.sandboxTerminate({ sandboxId: this.sandboxId });
     this.#taskId = undefined; // Reset task ID after termination
   }
 
   async wait(): Promise<number> {
     while (true) {
-      const resp = await client.sandboxWait({
+      const resp = await this.#client.cpClient.sandboxWait({
         sandboxId: this.sandboxId,
         timeout: 10,
       });
@@ -360,7 +717,7 @@ export class Sandbox {
       return this.#tunnels;
     }
 
-    const resp = await client.sandboxGetTunnels({
+    const resp = await this.#client.cpClient.sandboxGetTunnels({
       sandboxId: this.sandboxId,
       timeout: timeout / 1000, // Convert to seconds
     });
@@ -393,7 +750,7 @@ export class Sandbox {
    * @returns Promise that resolves to an Image
    */
   async snapshotFilesystem(timeout = 55000): Promise<Image> {
-    const resp = await client.sandboxSnapshotFs({
+    const resp = await this.#client.cpClient.sandboxSnapshotFs({
       sandboxId: this.sandboxId,
       timeout: timeout / 1000,
     });
@@ -410,7 +767,7 @@ export class Sandbox {
       throw new Error("Sandbox snapshot response missing `imageId`");
     }
 
-    return new Image(resp.imageId, "");
+    return new Image(this.#client, resp.imageId, "");
   }
 
   /**
@@ -419,7 +776,7 @@ export class Sandbox {
    * Returns `null` if the Sandbox is still running, else returns the exit code.
    */
   async poll(): Promise<number | null> {
-    const resp = await client.sandboxWait({
+    const resp = await this.#client.cpClient.sandboxWait({
       sandboxId: this.sandboxId,
       timeout: 0,
     });
@@ -428,47 +785,12 @@ export class Sandbox {
   }
 
   /**
-   * List all Sandboxes for the current Environment or App ID (if specified).
-   * If tags are specified, only Sandboxes that have at least those tags are returned.
+   * @deprecated Use `client.sandboxes.list()` instead.
    */
   static async *list(
-    options: SandboxListOptions = {},
+    params: SandboxListParams = {},
   ): AsyncGenerator<Sandbox, void, unknown> {
-    const env = environmentName(options.environment);
-    const tagsList = options.tags
-      ? Object.entries(options.tags).map(([tagName, tagValue]) => ({
-          tagName,
-          tagValue,
-        }))
-      : [];
-
-    let beforeTimestamp: number | undefined = undefined;
-    while (true) {
-      try {
-        const resp = await client.sandboxList({
-          appId: options.appId,
-          beforeTimestamp,
-          environmentName: env,
-          includeFinished: false,
-          tags: tagsList,
-        });
-        if (!resp.sandboxes || resp.sandboxes.length === 0) {
-          return;
-        }
-        for (const info of resp.sandboxes) {
-          yield new Sandbox(info.id);
-        }
-        beforeTimestamp = resp.sandboxes[resp.sandboxes.length - 1].createdAt;
-      } catch (err) {
-        if (
-          err instanceof ClientError &&
-          err.code === Status.INVALID_ARGUMENT
-        ) {
-          throw new InvalidError(err.details || err.message);
-        }
-        throw err;
-      }
-    }
+    yield* getDefaultClient().sandboxes.list(params);
   }
 
   static #getReturnCode(result: GenericResult | undefined): number | null {
@@ -498,19 +820,25 @@ export class ContainerProcess<R extends string | Uint8Array = any> {
   stderr: ModalReadStream<R>;
   returncode: number | null = null;
 
+  readonly #client: ModalClient;
   readonly #execId: string;
 
-  constructor(execId: string, options?: ExecOptions) {
-    const mode = options?.mode ?? "text";
-    const stdout = options?.stdout ?? "pipe";
-    const stderr = options?.stderr ?? "pipe";
+  constructor(client: ModalClient, execId: string, params?: SandboxExecParams) {
+    this.#client = client;
+    const mode = params?.mode ?? "text";
+    const stdout = params?.stdout ?? "pipe";
+    const stderr = params?.stderr ?? "pipe";
 
     this.#execId = execId;
 
-    this.stdin = toModalWriteStream(inputStreamCp<R>(execId));
+    this.stdin = toModalWriteStream(inputStreamCp<R>(client.cpClient, execId));
 
     let stdoutStream = streamConsumingIter(
-      outputStreamCp(execId, FileDescriptor.FILE_DESCRIPTOR_STDOUT),
+      outputStreamCp(
+        client.cpClient,
+        execId,
+        FileDescriptor.FILE_DESCRIPTOR_STDOUT,
+      ),
     );
     if (stdout === "ignore") {
       stdoutStream.cancel();
@@ -518,7 +846,11 @@ export class ContainerProcess<R extends string | Uint8Array = any> {
     }
 
     let stderrStream = streamConsumingIter(
-      outputStreamCp(execId, FileDescriptor.FILE_DESCRIPTOR_STDERR),
+      outputStreamCp(
+        client.cpClient,
+        execId,
+        FileDescriptor.FILE_DESCRIPTOR_STDERR,
+      ),
     );
     if (stderr === "ignore") {
       stderrStream.cancel();
@@ -541,7 +873,7 @@ export class ContainerProcess<R extends string | Uint8Array = any> {
   /** Wait for process completion and return the exit code. */
   async wait(): Promise<number> {
     while (true) {
-      const resp = await client.containerExecWait({
+      const resp = await this.#client.cpClient.containerExecWait({
         execId: this.#execId,
         timeout: 55,
       });
@@ -554,6 +886,7 @@ export class ContainerProcess<R extends string | Uint8Array = any> {
 
 // Like _StreamReader with object_type == "sandbox".
 async function* outputStreamSb(
+  cpClient: ModalGrpcClient,
   sandboxId: string,
   fileDescriptor: FileDescriptor,
 ): AsyncIterable<Uint8Array> {
@@ -562,7 +895,7 @@ async function* outputStreamSb(
   let retries = 10;
   while (!completed) {
     try {
-      const outputIterator = client.sandboxGetLogs({
+      const outputIterator = cpClient.sandboxGetLogs({
         sandboxId,
         fileDescriptor,
         timeout: 55,
@@ -585,6 +918,7 @@ async function* outputStreamSb(
 
 // Like _StreamReader with object_type == "container_process".
 async function* outputStreamCp(
+  cpClient: ModalGrpcClient,
   execId: string,
   fileDescriptor: FileDescriptor,
 ): AsyncIterable<Uint8Array> {
@@ -593,7 +927,7 @@ async function* outputStreamCp(
   let retries = 10;
   while (!completed) {
     try {
-      const outputIterator = client.containerExecGetOutput({
+      const outputIterator = cpClient.containerExecGetOutput({
         execId,
         fileDescriptor,
         timeout: 55,
@@ -617,11 +951,14 @@ async function* outputStreamCp(
   }
 }
 
-function inputStreamSb(sandboxId: string): WritableStream<string> {
+function inputStreamSb(
+  cpClient: ModalGrpcClient,
+  sandboxId: string,
+): WritableStream<string> {
   let index = 1;
   return new WritableStream<string>({
     async write(chunk) {
-      await client.sandboxStdinWrite({
+      await cpClient.sandboxStdinWrite({
         sandboxId,
         input: encodeIfString(chunk),
         index,
@@ -629,7 +966,7 @@ function inputStreamSb(sandboxId: string): WritableStream<string> {
       index++;
     },
     async close() {
-      await client.sandboxStdinWrite({
+      await cpClient.sandboxStdinWrite({
         sandboxId,
         index,
         eof: true,
@@ -639,12 +976,13 @@ function inputStreamSb(sandboxId: string): WritableStream<string> {
 }
 
 function inputStreamCp<R extends string | Uint8Array>(
+  cpClient: ModalGrpcClient,
   execId: string,
 ): WritableStream<R> {
   let messageIndex = 1;
   return new WritableStream<R>({
     async write(chunk) {
-      await client.containerExecPutInput({
+      await cpClient.containerExecPutInput({
         execId,
         input: {
           message: encodeIfString(chunk),
@@ -654,7 +992,7 @@ function inputStreamCp<R extends string | Uint8Array>(
       messageIndex++;
     },
     async close() {
-      await client.containerExecPutInput({
+      await cpClient.containerExecPutInput({
         execId,
         input: {
           messageIndex,

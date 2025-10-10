@@ -5,65 +5,23 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"time"
 
 	pb "github.com/modal-labs/libmodal/modal-go/proto/modal_proto"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
+// AppService provides App related operations.
+type AppService interface {
+	FromName(ctx context.Context, name string, params *AppFromNameParams) (*App, error)
+}
+
+type appServiceImpl struct{ client *Client }
+
 // App references a deployed Modal App.
 type App struct {
-	AppId string
+	AppID string
 	Name  string
-	ctx   context.Context
-}
-
-// LookupOptions are options for finding deployed Modal objects.
-type LookupOptions struct {
-	Environment     string
-	CreateIfMissing bool
-}
-
-// DeleteOptions are options for deleting a named object.
-type DeleteOptions struct {
-	Environment string // Environment to delete the object from.
-}
-
-// EphemeralOptions are options for creating a temporary, nameless object.
-type EphemeralOptions struct {
-	Environment string // Environment to create the object in.
-}
-
-// SandboxOptions are options for creating a Modal Sandbox.
-type SandboxOptions struct {
-	CPU               float64                      // CPU request in physical cores.
-	Memory            int                          // Memory request in MiB.
-	GPU               string                       // GPU reservation for the Sandbox (e.g. "A100", "T4:2", "A100-80GB:4").
-	Timeout           time.Duration                // Maximum lifetime for the Sandbox.
-	IdleTimeout       time.Duration                // The amount of time that a Sandbox can be idle before being terminated.
-	Workdir           string                       // Working directory of the Sandbox.
-	Command           []string                     // Command to run in the Sandbox on startup.
-	Env               map[string]string            // Environment variables to set in the Sandbox.
-	Secrets           []*Secret                    // Secrets to inject into the Sandbox as environment variables.
-	Volumes           map[string]*Volume           // Mount points for Volumes.
-	CloudBucketMounts map[string]*CloudBucketMount // Mount points for cloud buckets.
-	PTY               bool                         // Enable a PTY for the Sandbox.
-	EncryptedPorts    []int                        // List of encrypted ports to tunnel into the Sandbox, with TLS encryption.
-	H2Ports           []int                        // List of encrypted ports to tunnel into the Sandbox, using HTTP/2.
-	UnencryptedPorts  []int                        // List of ports to tunnel into the Sandbox without encryption.
-	BlockNetwork      bool                         // Whether to block all network access from the Sandbox.
-	CIDRAllowlist     []string                     // List of CIDRs the Sandbox is allowed to access. Cannot be used with BlockNetwork.
-	Cloud             string                       // Cloud provider to run the Sandbox on.
-	Regions           []string                     // Region(s) to run the Sandbox on.
-	Verbose           bool                         // Enable verbose logging.
-	Proxy             *Proxy                       // Reference to a Modal Proxy to use in front of this Sandbox.
-	Name              string                       // Optional name for the Sandbox. Unique within an App.
-}
-
-// ImageFromRegistryOptions are options for creating an Image from a registry.
-type ImageFromRegistryOptions struct {
-	Secret *Secret // Secret for private registry authentication.
 }
 
 // parseGPUConfig parses a GPU configuration string into a GPUConfig object.
@@ -94,20 +52,26 @@ func parseGPUConfig(gpu string) (*pb.GPUConfig, error) {
 	}.Build(), nil
 }
 
-// AppLookup looks up an existing App, or creates an empty one.
-func AppLookup(ctx context.Context, name string, options *LookupOptions) (*App, error) {
-	if options == nil {
-		options = &LookupOptions{}
+// AppFromNameParams are options for client.Apps.FromName.
+type AppFromNameParams struct {
+	Environment     string
+	CreateIfMissing bool
+}
+
+// FromName references an App with a given name, creating a new App if necessary.
+func (s *appServiceImpl) FromName(ctx context.Context, name string, params *AppFromNameParams) (*App, error) {
+	if params == nil {
+		params = &AppFromNameParams{}
 	}
 
 	creationType := pb.ObjectCreationType_OBJECT_CREATION_TYPE_UNSPECIFIED
-	if options.CreateIfMissing {
+	if params.CreateIfMissing {
 		creationType = pb.ObjectCreationType_OBJECT_CREATION_TYPE_CREATE_IF_MISSING
 	}
 
-	resp, err := client.AppGetOrCreate(ctx, pb.AppGetOrCreateRequest_builder{
+	resp, err := s.client.cpClient.AppGetOrCreate(ctx, pb.AppGetOrCreateRequest_builder{
 		AppName:            name,
-		EnvironmentName:    environmentName(options.Environment),
+		EnvironmentName:    environmentName(params.Environment, s.client.profile),
 		ObjectCreationType: creationType,
 	}.Build())
 
@@ -118,210 +82,5 @@ func AppLookup(ctx context.Context, name string, options *LookupOptions) (*App, 
 		return nil, err
 	}
 
-	return &App{AppId: resp.GetAppId(), Name: name, ctx: ctx}, nil
-}
-
-// buildSandboxCreateRequestProto builds a SandboxCreateRequest proto from options.
-func buildSandboxCreateRequestProto(appId, imageId string, options SandboxOptions, envSecret *Secret) (*pb.SandboxCreateRequest, error) {
-	gpuConfig, err := parseGPUConfig(options.GPU)
-	if err != nil {
-		return nil, err
-	}
-
-	if options.Workdir != "" && !strings.HasPrefix(options.Workdir, "/") {
-		return nil, fmt.Errorf("the Workdir value must be an absolute path, got: %s", options.Workdir)
-	}
-
-	var volumeMounts []*pb.VolumeMount
-	if options.Volumes != nil {
-		volumeMounts = make([]*pb.VolumeMount, 0, len(options.Volumes))
-		for mountPath, volume := range options.Volumes {
-			volumeMounts = append(volumeMounts, pb.VolumeMount_builder{
-				VolumeId:               volume.VolumeId,
-				MountPath:              mountPath,
-				AllowBackgroundCommits: true,
-				ReadOnly:               volume.IsReadOnly(),
-			}.Build())
-		}
-	}
-
-	var cloudBucketMounts []*pb.CloudBucketMount
-	if options.CloudBucketMounts != nil {
-		cloudBucketMounts = make([]*pb.CloudBucketMount, 0, len(options.CloudBucketMounts))
-		for mountPath, mount := range options.CloudBucketMounts {
-			proto, err := mount.toProto(mountPath)
-			if err != nil {
-				return nil, err
-			}
-			cloudBucketMounts = append(cloudBucketMounts, proto)
-		}
-	}
-
-	var ptyInfo *pb.PTYInfo
-	if options.PTY {
-		ptyInfo = defaultSandboxPTYInfo()
-	}
-
-	var openPorts []*pb.PortSpec
-	for _, port := range options.EncryptedPorts {
-		openPorts = append(openPorts, pb.PortSpec_builder{
-			Port:        uint32(port),
-			Unencrypted: false,
-		}.Build())
-	}
-	for _, port := range options.H2Ports {
-		openPorts = append(openPorts, pb.PortSpec_builder{
-			Port:        uint32(port),
-			Unencrypted: false,
-			TunnelType:  pb.TunnelType_TUNNEL_TYPE_H2.Enum(),
-		}.Build())
-	}
-	for _, port := range options.UnencryptedPorts {
-		openPorts = append(openPorts, pb.PortSpec_builder{
-			Port:        uint32(port),
-			Unencrypted: true,
-		}.Build())
-	}
-
-	var portSpecs *pb.PortSpecs
-	if len(openPorts) > 0 {
-		portSpecs = pb.PortSpecs_builder{
-			Ports: openPorts,
-		}.Build()
-	}
-
-	secretIds := []string{}
-	for _, secret := range options.Secrets {
-		if secret != nil {
-			secretIds = append(secretIds, secret.SecretId)
-		}
-	}
-	if (len(options.Env) > 0) != (envSecret != nil) {
-		return nil, fmt.Errorf("internal error: Env and envSecret must both be provided or neither be provided")
-	}
-	if envSecret != nil {
-		secretIds = append(secretIds, envSecret.SecretId)
-	}
-
-	var networkAccess *pb.NetworkAccess
-	if options.BlockNetwork {
-		if len(options.CIDRAllowlist) > 0 {
-			return nil, fmt.Errorf("CIDRAllowlist cannot be used when BlockNetwork is enabled")
-		}
-		networkAccess = pb.NetworkAccess_builder{
-			NetworkAccessType: pb.NetworkAccess_BLOCKED,
-			AllowedCidrs:      []string{},
-		}.Build()
-	} else if len(options.CIDRAllowlist) > 0 {
-		networkAccess = pb.NetworkAccess_builder{
-			NetworkAccessType: pb.NetworkAccess_ALLOWLIST,
-			AllowedCidrs:      options.CIDRAllowlist,
-		}.Build()
-	} else {
-		networkAccess = pb.NetworkAccess_builder{
-			NetworkAccessType: pb.NetworkAccess_OPEN,
-			AllowedCidrs:      []string{},
-		}.Build()
-	}
-
-	schedulerPlacement := pb.SchedulerPlacement_builder{Regions: options.Regions}.Build()
-
-	var proxyId *string
-	if options.Proxy != nil {
-		proxyId = &options.Proxy.ProxyId
-	}
-
-	var workdir *string
-	if options.Workdir != "" {
-		workdir = &options.Workdir
-	}
-
-	var idleTimeoutSecs *uint32
-	if options.IdleTimeout != 0 {
-		v := uint32(options.IdleTimeout.Seconds())
-		idleTimeoutSecs = &v
-	}
-
-	return pb.SandboxCreateRequest_builder{
-		AppId: appId,
-		Definition: pb.Sandbox_builder{
-			EntrypointArgs:  options.Command,
-			ImageId:         imageId,
-			SecretIds:       secretIds,
-			TimeoutSecs:     uint32(options.Timeout.Seconds()),
-			IdleTimeoutSecs: idleTimeoutSecs,
-			Workdir:         workdir,
-			NetworkAccess:   networkAccess,
-			Resources: pb.Resources_builder{
-				MilliCpu:  uint32(1000 * options.CPU),
-				MemoryMb:  uint32(options.Memory),
-				GpuConfig: gpuConfig,
-			}.Build(),
-			VolumeMounts:       volumeMounts,
-			CloudBucketMounts:  cloudBucketMounts,
-			PtyInfo:            ptyInfo,
-			OpenPorts:          portSpecs,
-			CloudProviderStr:   options.Cloud,
-			SchedulerPlacement: schedulerPlacement,
-			Verbose:            options.Verbose,
-			ProxyId:            proxyId,
-			Name:               &options.Name,
-		}.Build(),
-	}.Build(), nil
-}
-
-// CreateSandbox creates a new Sandbox in the App with the specified Image and options.
-func (app *App) CreateSandbox(image *Image, options *SandboxOptions) (*Sandbox, error) {
-	if options == nil {
-		options = &SandboxOptions{}
-	}
-
-	image, err := image.Build(app)
-	if err != nil {
-		return nil, err
-	}
-
-	var envSecret *Secret
-	if len(options.Env) > 0 {
-		envSecret, err = SecretFromMap(app.ctx, options.Env, nil)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	req, err := buildSandboxCreateRequestProto(app.AppId, image.ImageId, *options, envSecret)
-	if err != nil {
-		return nil, err
-	}
-
-	createResp, err := client.SandboxCreate(app.ctx, req)
-	if err != nil {
-		if status, ok := status.FromError(err); ok && status.Code() == codes.AlreadyExists {
-			return nil, AlreadyExistsError{Exception: status.Message()}
-		}
-		return nil, err
-	}
-
-	return newSandbox(app.ctx, createResp.GetSandboxId()), nil
-}
-
-// ImageFromRegistry creates an Image from a registry tag.
-//
-// Deprecated: ImageFromRegistry is deprecated, use modal.NewImageFromRegistry instead
-func (app *App) ImageFromRegistry(tag string, options *ImageFromRegistryOptions) (*Image, error) {
-	return NewImageFromRegistry(tag, options).Build(app)
-}
-
-// ImageFromAwsEcr creates an Image from an AWS ECR tag.
-//
-// Deprecated: ImageFromAwsEcr is deprecated, use modal.NewImageFromAwsEcr instead
-func (app *App) ImageFromAwsEcr(tag string, secret *Secret) (*Image, error) {
-	return NewImageFromAwsEcr(tag, secret).Build(app)
-}
-
-// ImageFromGcpArtifactRegistry creates an Image from a GCP Artifact Registry tag.
-//
-// Deprecated: ImageFromGcpArtifactRegistry is deprecated, use modal.NewImageFromGcpArtifactRegistry instead
-func (app *App) ImageFromGcpArtifactRegistry(tag string, secret *Secret) (*Image, error) {
-	return NewImageFromGcpArtifactRegistry(tag, secret).Build(app)
+	return &App{AppID: resp.GetAppId(), Name: name}, nil
 }

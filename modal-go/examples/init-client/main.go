@@ -14,23 +14,26 @@ import (
 func main() {
 	ctx := context.Background()
 
-	modal_id := os.Getenv("CUSTOM_MODAL_ID")
-	if modal_id == "" {
+	modalID := os.Getenv("CUSTOM_MODAL_ID")
+	if modalID == "" {
 		log.Fatal("CUSTOM_MODAL_ID environment variable not set")
 	}
-	modal_secret := os.Getenv("CUSTOM_MODAL_SECRET")
-	if modal_secret == "" {
+	modalSecret := os.Getenv("CUSTOM_MODAL_SECRET")
+	if modalSecret == "" {
 		log.Fatal("CUSTOM_MODAL_SECRET environment variable not set")
 	}
 
-	modal.InitializeClient(modal.ClientOptions{
-		TokenId:     modal_id,
-		TokenSecret: modal_secret,
+	mc, err := modal.NewClientWithOptions(&modal.ClientParams{
+		TokenID:     modalID,
+		TokenSecret: modalSecret,
 	})
-
-	echo, err := modal.FunctionLookup(ctx, "libmodal-test-support", "echo_string", nil)
 	if err != nil {
-		log.Fatalf("Failed to lookup Function: %v", err)
+		log.Fatalf("Failed to create client: %v", err)
+	}
+
+	echo, err := mc.Functions.FromName(ctx, "libmodal-test-support", "echo_string", nil)
+	if err != nil {
+		log.Fatalf("Failed to get Function: %v", err)
 	}
 	fmt.Printf("%#v\n", echo)
 }

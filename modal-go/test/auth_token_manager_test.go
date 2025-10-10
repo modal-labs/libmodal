@@ -67,15 +67,17 @@ func TestAuthTokenManager_InitialFetch(t *testing.T) {
 	mockClient.setAuthToken(token)
 
 	manager := modal.NewAuthTokenManager(mockClient)
-	manager.Start(context.Background())
+	err := manager.Start(context.Background())
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	defer manager.Stop()
 
-	first_token, first_err := manager.GetToken(context.Background())
-	g.Expect(first_err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(first_token).Should(gomega.Equal(token))
+	firstToken, firstErr := manager.GetToken(context.Background())
+	g.Expect(firstErr).ShouldNot(gomega.HaveOccurred())
+	g.Expect(firstToken).Should(gomega.Equal(token))
 
-	second_token, second_err := manager.GetToken(context.Background())
-	g.Expect(second_err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(second_token).Should(gomega.Equal(token))
+	secondToken, secondErr := manager.GetToken(context.Background())
+	g.Expect(secondErr).ShouldNot(gomega.HaveOccurred())
+	g.Expect(secondToken).Should(gomega.Equal(token))
 }
 
 func TestAuthTokenManager_IsExpired(t *testing.T) {
@@ -109,6 +111,7 @@ func TestAuthTokenManager_RefreshExpiredToken(t *testing.T) {
 	// Start the background refresh goroutine
 	err := manager.Start(context.Background())
 	g.Expect(err).ToNot(gomega.HaveOccurred())
+	defer manager.Stop()
 
 	// Wait for background goroutine to refresh the token
 	g.Eventually(func() string {
@@ -132,6 +135,7 @@ func TestAuthTokenManager_RefreshNearExpiryToken(t *testing.T) {
 	// Start the background refresh goroutine
 	err := manager.Start(context.Background())
 	g.Expect(err).ToNot(gomega.HaveOccurred())
+	defer manager.Stop()
 
 	// Wait for background goroutine to refresh the token
 	g.Eventually(func() string {
@@ -148,5 +152,43 @@ func TestAuthTokenManager_GetToken_ExpiredToken(t *testing.T) {
 
 	_, err := manager.GetToken(context.Background())
 	g.Expect(err).Should(gomega.HaveOccurred())
+}
 
+func TestClient_Close(t *testing.T) {
+	g := gomega.NewWithT(t)
+
+	mockClient := newMockAuthClient()
+	token := createTestJWT(time.Now().Unix() + 3600)
+	mockClient.setAuthToken(token)
+
+	client, err := modal.NewClientWithOptions(&modal.ClientParams{
+		ControlPlaneClient: mockClient,
+	})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	client.Close()
+}
+
+func TestClient_MultipleInstancesSeparateManagers(t *testing.T) {
+	g := gomega.NewWithT(t)
+
+	mockClient1 := newMockAuthClient()
+	token1 := createTestJWT(time.Now().Unix() + 3600)
+	mockClient1.setAuthToken(token1)
+
+	mockClient2 := newMockAuthClient()
+	token2 := createTestJWT(time.Now().Unix() + 3600)
+	mockClient2.setAuthToken(token2)
+
+	client1, err1 := modal.NewClientWithOptions(&modal.ClientParams{
+		ControlPlaneClient: mockClient1,
+	})
+	g.Expect(err1).ShouldNot(gomega.HaveOccurred())
+	defer client1.Close()
+
+	client2, err2 := modal.NewClientWithOptions(&modal.ClientParams{
+		ControlPlaneClient: mockClient2,
+	})
+	g.Expect(err2).ShouldNot(gomega.HaveOccurred())
+	defer client2.Close()
 }

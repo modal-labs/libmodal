@@ -4,87 +4,50 @@ import {
   ClassParameterSet,
   ClassParameterSpec,
   ClassParameterValue,
+  FunctionHandleMetadata,
   FunctionOptions,
   FunctionRetryPolicy,
   ParameterType,
   VolumeMount,
 } from "../proto/modal_proto/api";
-import type { LookupOptions } from "./app";
 import { NotFoundError } from "./errors";
-import { client } from "./client";
-import { environmentName } from "./config";
+import { getDefaultClient, type ModalClient } from "./client";
 import { Function_ } from "./function";
 import { parseGpuConfig } from "./app";
 import type { Secret } from "./secret";
-import { mergeEnvAndSecrets } from "./secret";
+import { mergeEnvIntoSecrets } from "./secret";
 import { Retries, parseRetries } from "./retries";
 import type { Volume } from "./volume";
 
-export type ClsOptions = {
-  cpu?: number;
-  memory?: number;
-  gpu?: string;
-  env?: Record<string, string>;
-  secrets?: Secret[];
-  volumes?: Record<string, Volume>;
-  retries?: number | Retries;
-  maxContainers?: number;
-  bufferContainers?: number;
-  scaledownWindow?: number; // in milliseconds
-  timeout?: number; // in milliseconds
+/** Optional parameters for `client.cls.fromName()`. */
+export type ClsFromNameParams = {
+  environment?: string;
+  createIfMissing?: boolean;
 };
 
-export type ClsConcurrencyOptions = {
-  maxInputs: number;
-  targetInputs?: number;
-};
-
-export type ClsBatchingOptions = {
-  maxBatchSize: number;
-  waitMs: number;
-};
-
-type ServiceOptions = ClsOptions & {
-  maxConcurrentInputs?: number;
-  targetConcurrentInputs?: number;
-  batchMaxSize?: number;
-  batchWaitMs?: number;
-};
-
-/** Represents a deployed Modal Cls. */
-export class Cls {
-  #serviceFunctionId: string;
-  #schema: ClassParameterSpec[];
-  #methodNames: string[];
-  #inputPlaneUrl?: string;
-  #options?: ServiceOptions;
-
-  /** @ignore */
-  constructor(
-    serviceFunctionId: string,
-    schema: ClassParameterSpec[],
-    methodNames: string[],
-    inputPlaneUrl?: string,
-    options?: ServiceOptions,
-  ) {
-    this.#serviceFunctionId = serviceFunctionId;
-    this.#schema = schema;
-    this.#methodNames = methodNames;
-    this.#inputPlaneUrl = inputPlaneUrl;
-    this.#options = options;
+/**
+ * Service for managing Cls.
+ */
+export class ClsService {
+  readonly #client: ModalClient;
+  constructor(client: ModalClient) {
+    this.#client = client;
   }
 
-  static async lookup(
+  /**
+   * Reference a Cls from a deployed App by its name.
+   */
+  async fromName(
     appName: string,
     name: string,
-    options: LookupOptions = {},
+    params: ClsFromNameParams = {},
   ): Promise<Cls> {
     try {
       const serviceFunctionName = `${name}.*`;
-      const serviceFunction = await client.functionGet({
+      const serviceFunction = await this.#client.cpClient.functionGet({
         appName,
         objectTag: serviceFunctionName,
-        environmentName: environmentName(options.environment),
+        environmentName: this.#client.environmentName(params.environment),
       });
 
       const parameterInfo = serviceFunction.handleMetadata?.classParameterInfo;
@@ -99,22 +62,10 @@ export class Cls {
         );
       }
 
-      let methodNames: string[];
-      if (serviceFunction.handleMetadata?.methodHandleMetadata) {
-        methodNames = Object.keys(
-          serviceFunction.handleMetadata.methodHandleMetadata,
-        );
-      } else {
-        // Legacy approach not supported
-        throw new Error(
-          "Cls requires Modal deployments using client v0.67 or later.",
-        );
-      }
       return new Cls(
+        this.#client,
         serviceFunction.functionId,
-        schema,
-        methodNames,
-        serviceFunction.handleMetadata?.inputPlaneUrl,
+        serviceFunction.handleMetadata!,
         undefined,
       );
     } catch (err) {
@@ -123,69 +74,149 @@ export class Cls {
       throw err;
     }
   }
+}
+
+export type ClsWithOptionsParams = {
+  cpu?: number;
+  memory?: number;
+  gpu?: string;
+  env?: Record<string, string>;
+  secrets?: Secret[];
+  volumes?: Record<string, Volume>;
+  retries?: number | Retries;
+  maxContainers?: number;
+  bufferContainers?: number;
+  scaledownWindow?: number; // in milliseconds
+  timeout?: number; // in milliseconds
+};
+
+export type ClsWithConcurrencyParams = {
+  maxInputs: number;
+  targetInputs?: number;
+};
+
+export type ClsWithBatchingParams = {
+  maxBatchSize: number;
+  waitMs: number;
+};
+
+type ServiceOptions = ClsWithOptionsParams & {
+  maxConcurrentInputs?: number;
+  targetConcurrentInputs?: number;
+  batchMaxSize?: number;
+  batchWaitMs?: number;
+};
+
+/** Represents a deployed Modal Cls. */
+export class Cls {
+  #client: ModalClient;
+  #serviceFunctionId: string;
+  #serviceFunctionMetadata: FunctionHandleMetadata;
+  #serviceOptions?: ServiceOptions;
+
+  /** @ignore */
+  constructor(
+    client: ModalClient,
+    serviceFunctionId: string,
+    serviceFunctionMetadata: FunctionHandleMetadata,
+    options?: ServiceOptions,
+  ) {
+    this.#client = client;
+    this.#serviceFunctionId = serviceFunctionId;
+    this.#serviceFunctionMetadata = serviceFunctionMetadata;
+    this.#serviceOptions = options;
+  }
+
+  get #schema(): ClassParameterSpec[] {
+    return this.#serviceFunctionMetadata.classParameterInfo?.schema ?? [];
+  }
+
+  /**
+   * @deprecated Use `client.cls.fromName()` instead.
+   */
+  static async lookup(
+    appName: string,
+    name: string,
+    params: ClsFromNameParams = {},
+  ): Promise<Cls> {
+    return getDefaultClient().cls.fromName(appName, name, params);
+  }
 
   /** Create a new instance of the Cls with parameters and/or runtime options. */
-  async instance(params: Record<string, any> = {}): Promise<ClsInstance> {
+  async instance(parameters: Record<string, any> = {}): Promise<ClsInstance> {
     let functionId: string;
-    if (this.#schema.length === 0 && this.#options === undefined) {
+    if (this.#schema.length === 0 && this.#serviceOptions === undefined) {
       functionId = this.#serviceFunctionId;
     } else {
-      functionId = await this.#bindParameters(params);
+      functionId = await this.#bindParameters(parameters);
     }
+
     const methods = new Map<string, Function_>();
-    for (const name of this.#methodNames) {
-      methods.set(name, new Function_(functionId, name, this.#inputPlaneUrl));
+    for (const [name, methodMetadata] of Object.entries(
+      this.#serviceFunctionMetadata.methodHandleMetadata,
+    )) {
+      methods.set(
+        name,
+        new Function_(this.#client, functionId, name, methodMetadata),
+      );
     }
     return new ClsInstance(methods);
   }
 
   /** Override the static Function configuration at runtime. */
-  withOptions(options: ClsOptions): Cls {
-    const merged = mergeServiceOptions(this.#options, options);
+  withOptions(options: ClsWithOptionsParams): Cls {
+    const merged = mergeServiceOptions(this.#serviceOptions, options);
     return new Cls(
+      this.#client,
       this.#serviceFunctionId,
-      this.#schema,
-      this.#methodNames,
-      this.#inputPlaneUrl,
+      this.#serviceFunctionMetadata,
       merged,
     );
   }
 
   /** Create an instance of the Cls with input concurrency enabled or overridden with new values. */
-  withConcurrency(options: ClsConcurrencyOptions): Cls {
-    const merged = mergeServiceOptions(this.#options, {
-      maxConcurrentInputs: options.maxInputs,
-      targetConcurrentInputs: options.targetInputs,
+  withConcurrency(params: ClsWithConcurrencyParams): Cls {
+    const merged = mergeServiceOptions(this.#serviceOptions, {
+      maxConcurrentInputs: params.maxInputs,
+      targetConcurrentInputs: params.targetInputs,
     });
     return new Cls(
+      this.#client,
       this.#serviceFunctionId,
-      this.#schema,
-      this.#methodNames,
-      this.#inputPlaneUrl,
+      this.#serviceFunctionMetadata,
       merged,
     );
   }
 
   /** Create an instance of the Cls with dynamic batching enabled or overridden with new values. */
-  withBatching(options: ClsBatchingOptions): Cls {
-    const merged = mergeServiceOptions(this.#options, {
-      batchMaxSize: options.maxBatchSize,
-      batchWaitMs: options.waitMs,
+  withBatching(params: ClsWithBatchingParams): Cls {
+    const merged = mergeServiceOptions(this.#serviceOptions, {
+      batchMaxSize: params.maxBatchSize,
+      batchWaitMs: params.waitMs,
     });
     return new Cls(
+      this.#client,
       this.#serviceFunctionId,
-      this.#schema,
-      this.#methodNames,
-      this.#inputPlaneUrl,
+      this.#serviceFunctionMetadata,
       merged,
     );
   }
 
   /** Bind parameters to the Cls function. */
-  async #bindParameters(params: Record<string, any>): Promise<string> {
-    const serializedParams = encodeParameterSet(this.#schema, params);
-    const functionOptions = await buildFunctionOptionsProto(this.#options);
-    const bindResp = await client.functionBindParams({
+  async #bindParameters(parameters: Record<string, any>): Promise<string> {
+    const mergedSecrets = await mergeEnvIntoSecrets(
+      this.#client,
+      this.#serviceOptions?.env,
+      this.#serviceOptions?.secrets,
+    );
+    const mergedOptions = mergeServiceOptions(this.#serviceOptions, {
+      secrets: mergedSecrets,
+      env: undefined, // setting env to undefined just to clarify it's not needed anymore
+    });
+
+    const serializedParams = encodeParameterSet(this.#schema, parameters);
+    const functionOptions = await buildFunctionOptionsProto(mergedOptions);
+    const bindResp = await this.#client.cpClient.functionBindParams({
       functionId: this.#serviceFunctionId,
       serializedParams,
       functionOptions,
@@ -235,8 +266,7 @@ async function buildFunctionOptionsProto(
         }
       : undefined;
 
-  const mergedSecrets = await mergeEnvAndSecrets(o.env, o.secrets);
-  const secretIds = mergedSecrets.map((s) => s.secretId);
+  const secretIds = (o.secrets || []).map((s) => s.secretId);
 
   const volumeMounts: VolumeMount[] = o.volumes
     ? Object.entries(o.volumes).map(([mountPath, volume]) => ({

@@ -1,8 +1,10 @@
 // This example calls a Modal Cls defined in `libmodal_test_support.py`.
 
-import { Cls } from "modal";
+import { ModalClient } from "modal";
 
-const cls = await Cls.lookup("libmodal-test-support", "EchoCls");
+const modal = new ModalClient();
+
+const cls = await modal.cls.fromName("libmodal-test-support", "EchoCls");
 const instance = await cls.instance();
 const method = instance.method("echo_string");
 

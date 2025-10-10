@@ -10,28 +10,37 @@ import (
 
 func main() {
 	ctx := context.Background()
-
-	app, err := modal.AppLookup(ctx, "libmodal-example", &modal.LookupOptions{CreateIfMissing: true})
+	mc, err := modal.NewClient()
 	if err != nil {
-		log.Fatalf("Failed to lookup or create App: %v", err)
+		log.Fatalf("Failed to create client: %v", err)
 	}
 
-	secret, err := modal.SecretFromName(ctx, "libmodal-aws-ecr-test", &modal.SecretFromNameOptions{
+	app, err := mc.Apps.FromName(ctx, "libmodal-example", &modal.AppFromNameParams{CreateIfMissing: true})
+	if err != nil {
+		log.Fatalf("Failed to get or create App: %v", err)
+	}
+
+	secret, err := mc.Secrets.FromName(ctx, "libmodal-aws-ecr-test", &modal.SecretFromNameParams{
 		RequiredKeys: []string{"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"},
 	})
 	if err != nil {
 		log.Fatalf("Failed to get Secret: %v", err)
 	}
 
-	image := modal.NewImageFromAwsEcr("459781239556.dkr.ecr.us-east-1.amazonaws.com/ecr-private-registry-test-7522615:python", secret)
+	image := mc.Images.FromAwsEcr("459781239556.dkr.ecr.us-east-1.amazonaws.com/ecr-private-registry-test-7522615:python", secret)
 
-	sb, err := app.CreateSandbox(image, &modal.SandboxOptions{
+	sb, err := mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
 		Command: []string{"python", "-c", `import sys; sys.stdout.write(sys.stdin.read())`},
 	})
 	if err != nil {
 		log.Fatalf("Failed to create Sandbox: %v", err)
 	}
-	log.Printf("Sandbox: %s\n", sb.SandboxId)
+	log.Printf("Sandbox: %s\n", sb.SandboxID)
+	defer func() {
+		if err := sb.Terminate(context.Background()); err != nil {
+			log.Fatalf("Failed to terminate Sandbox %s: %v", sb.SandboxID, err)
+		}
+	}()
 
 	_, err = sb.Stdin.Write([]byte("this is input that should be mirrored by the Python one-liner"))
 	if err != nil {

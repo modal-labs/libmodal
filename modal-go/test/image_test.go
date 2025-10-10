@@ -14,37 +14,35 @@ import (
 func TestImageFromId(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
-
 	ctx := context.Background()
 
-	app, err := modal.AppLookup(ctx, "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	image, err := modal.NewImageFromRegistry("alpine:3.21", nil).Build(app)
+	image, err := tc.Images.FromRegistry("alpine:3.21", nil).Build(ctx, app)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	imageFromId, err := modal.NewImageFromId(ctx, image.ImageId)
+	imageFromID, err := tc.Images.FromID(ctx, image.ImageID)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(imageFromId.ImageId).Should(gomega.Equal(image.ImageId))
+	g.Expect(imageFromID.ImageID).Should(gomega.Equal(image.ImageID))
 
-	_, err = modal.NewImageFromId(ctx, "im-nonexistent")
+	_, err = tc.Images.FromID(ctx, "im-nonexistent")
 	g.Expect(err).Should(gomega.HaveOccurred())
 }
 
-//nolint:staticcheck
 func TestImageFromRegistry(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
+	ctx := context.Background()
 
-	app, err := modal.AppLookup(context.Background(), "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	image, err := app.ImageFromRegistry("alpine:3.21", nil)
+	image, err := tc.Images.FromRegistry("alpine:3.21", nil).Build(ctx, app)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(image.ImageId).Should(gomega.HavePrefix("im-"))
+	g.Expect(image.ImageID).Should(gomega.HavePrefix("im-"))
 }
 
-//nolint:staticcheck
 func TestImageFromRegistryWithSecret(t *testing.T) {
 	// GCP Artifact Registry also supports auth using username and password, if the username is "_json_key"
 	// and the password is the service account JSON blob. See:
@@ -53,202 +51,136 @@ func TestImageFromRegistryWithSecret(t *testing.T) {
 
 	t.Parallel()
 	g := gomega.NewWithT(t)
+	ctx := context.Background()
 
-	app, err := modal.AppLookup(context.Background(), "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	secret, err := modal.SecretFromName(context.Background(), "libmodal-gcp-artifact-registry-test", &modal.SecretFromNameOptions{
+	secret, err := tc.Secrets.FromName(ctx, "libmodal-gcp-artifact-registry-test", &modal.SecretFromNameParams{
 		RequiredKeys: []string{"REGISTRY_USERNAME", "REGISTRY_PASSWORD"},
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	image, err := app.ImageFromRegistry("us-east1-docker.pkg.dev/modal-prod-367916/private-repo-test/my-image", &modal.ImageFromRegistryOptions{
+	image, err := tc.Images.FromRegistry("us-east1-docker.pkg.dev/modal-prod-367916/private-repo-test/my-image", &modal.ImageFromRegistryParams{
 		Secret: secret,
-	})
+	}).Build(ctx, app)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(image.ImageId).Should(gomega.HavePrefix("im-"))
+	g.Expect(image.ImageID).Should(gomega.HavePrefix("im-"))
 }
 
-//nolint:staticcheck
 func TestImageFromAwsEcr(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
+	ctx := context.Background()
 
-	app, err := modal.AppLookup(context.Background(), "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	secret, err := modal.SecretFromName(context.Background(), "libmodal-aws-ecr-test", &modal.SecretFromNameOptions{
+	secret, err := tc.Secrets.FromName(ctx, "libmodal-aws-ecr-test", &modal.SecretFromNameParams{
 		RequiredKeys: []string{"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"},
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	image, err := app.ImageFromAwsEcr("459781239556.dkr.ecr.us-east-1.amazonaws.com/ecr-private-registry-test-7522615:python", secret)
+	image, err := tc.Images.FromAwsEcr("459781239556.dkr.ecr.us-east-1.amazonaws.com/ecr-private-registry-test-7522615:python", secret).Build(ctx, app)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(image.ImageId).Should(gomega.HavePrefix("im-"))
+	g.Expect(image.ImageID).Should(gomega.HavePrefix("im-"))
 }
 
-//nolint:staticcheck
 func TestImageFromGcpArtifactRegistry(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
+	ctx := context.Background()
 
-	app, err := modal.AppLookup(context.Background(), "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	secret, err := modal.SecretFromName(context.Background(), "libmodal-gcp-artifact-registry-test", &modal.SecretFromNameOptions{
+	secret, err := tc.Secrets.FromName(ctx, "libmodal-gcp-artifact-registry-test", &modal.SecretFromNameParams{
 		RequiredKeys: []string{"SERVICE_ACCOUNT_JSON"},
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	image, err := app.ImageFromGcpArtifactRegistry("us-east1-docker.pkg.dev/modal-prod-367916/private-repo-test/my-image", secret)
+	image, err := tc.Images.FromGcpArtifactRegistry("us-east1-docker.pkg.dev/modal-prod-367916/private-repo-test/my-image", secret).Build(ctx, app)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(image.ImageId).Should(gomega.HavePrefix("im-"))
+	g.Expect(image.ImageID).Should(gomega.HavePrefix("im-"))
 }
 
-func TestCreateOneSandboxTopLevelImageAPI(t *testing.T) {
+func TestCreateSandboxWithImage(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
-	app, err := modal.AppLookup(context.Background(), "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
+	ctx := context.Background()
+
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	image := modal.NewImageFromRegistry("alpine:3.21", nil)
-	g.Expect(image.ImageId).Should(gomega.BeEmpty())
+	image := tc.Images.FromRegistry("alpine:3.21", nil)
+	g.Expect(image.ImageID).Should(gomega.BeEmpty())
 
-	sb, err := app.CreateSandbox(image, nil)
+	sb, err := tc.Sandboxes.Create(ctx, app, image, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	defer sb.Terminate()
+	defer terminateSandbox(g, sb)
 
-	g.Expect(image.ImageId).Should(gomega.HavePrefix("im-"))
-}
-
-func TestCreateOneSandboxTopLevelImageAPISecret(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-	app, err := modal.AppLookup(context.Background(), "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
-	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-
-	secret, err := modal.SecretFromName(context.Background(), "libmodal-gcp-artifact-registry-test", &modal.SecretFromNameOptions{
-		RequiredKeys: []string{"REGISTRY_USERNAME", "REGISTRY_PASSWORD"},
-	})
-	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-
-	image := modal.NewImageFromRegistry("us-east1-docker.pkg.dev/modal-prod-367916/private-repo-test/my-image", &modal.ImageFromRegistryOptions{
-		Secret: secret,
-	})
-	g.Expect(image.ImageId).Should(gomega.BeEmpty())
-
-	sb, err := app.CreateSandbox(image, nil)
-	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	defer sb.Terminate()
-
-	g.Expect(image.ImageId).Should(gomega.HavePrefix("im-"))
-}
-
-func TestImageFromAwsEcrTopLevel(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	app, err := modal.AppLookup(context.Background(), "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
-	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-
-	secret, err := modal.SecretFromName(context.Background(), "libmodal-aws-ecr-test", &modal.SecretFromNameOptions{
-		RequiredKeys: []string{"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"},
-	})
-	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-
-	image := modal.NewImageFromAwsEcr("459781239556.dkr.ecr.us-east-1.amazonaws.com/ecr-private-registry-test-7522615:python", secret)
-	g.Expect(image.ImageId).Should(gomega.Equal(""))
-
-	sb, err := app.CreateSandbox(image, nil)
-	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	defer sb.Terminate()
-
-	g.Expect(image.ImageId).Should(gomega.HavePrefix("im-"))
-}
-
-func TestImageFromGcpEcrTopLevel(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	app, err := modal.AppLookup(context.Background(), "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
-	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-
-	secret, err := modal.SecretFromName(context.Background(), "libmodal-gcp-artifact-registry-test", &modal.SecretFromNameOptions{
-		RequiredKeys: []string{"SERVICE_ACCOUNT_JSON"},
-	})
-	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-
-	image := modal.NewImageFromGcpArtifactRegistry("us-east1-docker.pkg.dev/modal-prod-367916/private-repo-test/my-image", secret)
-	g.Expect(image.ImageId).Should(gomega.Equal(""))
-
-	sb, err := app.CreateSandbox(image, nil)
-	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	defer sb.Terminate()
-
-	g.Expect(image.ImageId).Should(gomega.HavePrefix("im-"))
+	g.Expect(image.ImageID).Should(gomega.HavePrefix("im-"))
 }
 
 func TestImageDelete(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
-
 	ctx := context.Background()
 
-	app, err := modal.AppLookup(ctx, "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	image, err := modal.NewImageFromRegistry("alpine:3.13", nil).Build(app)
+	image, err := tc.Images.FromRegistry("alpine:3.13", nil).Build(ctx, app)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(image.ImageId).Should(gomega.HavePrefix("im-"))
+	g.Expect(image.ImageID).Should(gomega.HavePrefix("im-"))
 
-	imageFromId, err := modal.NewImageFromId(ctx, image.ImageId)
+	imageFromID, err := tc.Images.FromID(ctx, image.ImageID)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(imageFromId.ImageId).Should(gomega.Equal(image.ImageId))
+	g.Expect(imageFromID.ImageID).Should(gomega.Equal(image.ImageID))
 
-	err = modal.ImageDelete(ctx, image.ImageId, nil)
+	err = tc.Images.Delete(ctx, image.ImageID, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	_, err = modal.NewImageFromId(ctx, image.ImageId)
+	_, err = tc.Images.FromID(ctx, image.ImageID)
 	g.Expect(err).Should(gomega.MatchError(gomega.MatchRegexp("Image .+ not found")))
 
-	newImage, err := modal.NewImageFromRegistry("alpine:3.13", nil).Build(app)
+	newImage, err := tc.Images.FromRegistry("alpine:3.13", nil).Build(ctx, app)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(newImage.ImageId).ShouldNot(gomega.Equal(image.ImageId))
+	g.Expect(newImage.ImageID).ShouldNot(gomega.Equal(image.ImageID))
 
-	_, err = modal.NewImageFromId(ctx, "im-nonexistent")
+	_, err = tc.Images.FromID(ctx, "im-nonexistent")
 	g.Expect(err).Should(gomega.MatchError(gomega.MatchRegexp("Image .+ not found")))
 }
 
 func TestDockerfileCommands(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
+	ctx := context.Background()
 
-	app, err := modal.AppLookup(context.Background(), "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	image := modal.NewImageFromRegistry("alpine:3.21", nil).DockerfileCommands(
+	image := tc.Images.FromRegistry("alpine:3.21", nil).DockerfileCommands(
 		[]string{"RUN echo hey > /root/hello.txt"},
 		nil,
 	)
 
-	sb, err := app.CreateSandbox(image, &modal.SandboxOptions{
+	sb, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
 		Command: []string{"cat", "/root/hello.txt"},
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	defer terminateSandbox(g, sb)
 
 	stdout, err := io.ReadAll(sb.Stdout)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(string(stdout)).Should(gomega.Equal("hey\n"))
-
-	err = sb.Terminate()
-	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 }
 
 func TestDockerfileCommandsEmptyArrayNoOp(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
-	image1 := modal.NewImageFromRegistry("alpine:3.21", nil)
+	image1 := tc.Images.FromRegistry("alpine:3.21", nil)
 	image2 := image1.DockerfileCommands([]string{}, nil)
 	g.Expect(image2).Should(gomega.BeIdenticalTo(image1))
 }
@@ -256,24 +188,25 @@ func TestDockerfileCommandsEmptyArrayNoOp(t *testing.T) {
 func TestDockerfileCommandsChaining(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
+	ctx := context.Background()
 
-	app, err := modal.AppLookup(context.Background(), "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	secret, err := modal.SecretFromMap(context.Background(), map[string]string{"SECRET": "hello"}, nil)
+	secret, err := tc.Secrets.FromMap(ctx, map[string]string{"SECRET": "hello"}, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	image := modal.NewImageFromRegistry("alpine:3.21", nil).
+	image := tc.Images.FromRegistry("alpine:3.21", nil).
 		DockerfileCommands([]string{"RUN echo ${SECRET:-unset} > /root/layer1.txt"}, nil).
-		DockerfileCommands([]string{"RUN echo ${SECRET:-unset} > /root/layer2.txt"}, &modal.ImageDockerfileCommandsOptions{
+		DockerfileCommands([]string{"RUN echo ${SECRET:-unset} > /root/layer2.txt"}, &modal.ImageDockerfileCommandsParams{
 			Secrets: []*modal.Secret{secret},
 		}).
 		DockerfileCommands([]string{"RUN echo ${SECRET:-unset} > /root/layer3.txt"}, nil).
-		DockerfileCommands([]string{"RUN echo ${SECRET:-unset} > /root/layer4.txt"}, &modal.ImageDockerfileCommandsOptions{
+		DockerfileCommands([]string{"RUN echo ${SECRET:-unset} > /root/layer4.txt"}, &modal.ImageDockerfileCommandsParams{
 			Env: map[string]string{"SECRET": "hello again"},
 		})
 
-	sb, err := app.CreateSandbox(image, &modal.SandboxOptions{
+	sb, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
 		Command: []string{
 			"cat",
 			"/root/layer1.txt",
@@ -283,36 +216,35 @@ func TestDockerfileCommandsChaining(t *testing.T) {
 		},
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	defer terminateSandbox(g, sb)
 
 	stdout, err := io.ReadAll(sb.Stdout)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(string(stdout)).Should(gomega.Equal("unset\nhello\nunset\nhello again\n"))
-
-	err = sb.Terminate()
-	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 }
 
 func TestDockerfileCommandsCopyCommandValidation(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
+	ctx := context.Background()
 
-	app, err := modal.AppLookup(context.Background(), "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	image := modal.NewImageFromRegistry("alpine:3.21", nil)
+	image := tc.Images.FromRegistry("alpine:3.21", nil)
 
 	validImage := image.DockerfileCommands(
 		[]string{"COPY --from=alpine:latest /etc/os-release /tmp/os-release"},
 		nil,
 	)
-	_, err = validImage.Build(app)
+	_, err = validImage.Build(ctx, app)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	invalidImage := image.DockerfileCommands(
 		[]string{"COPY ./file.txt /root/"},
 		nil,
 	)
-	_, err = invalidImage.Build(app)
+	_, err = invalidImage.Build(ctx, app)
 	g.Expect(err).Should(gomega.HaveOccurred())
 	g.Expect(err.Error()).Should(gomega.ContainSubstring("COPY commands that copy from local context are not yet supported"))
 
@@ -320,7 +252,7 @@ func TestDockerfileCommandsCopyCommandValidation(t *testing.T) {
 		[]string{"RUN echo 'COPY ./file.txt /root/'"},
 		nil,
 	)
-	_, err = runImage.Build(app)
+	_, err = runImage.Build(ctx, app)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	multiInvalidImage := image.DockerfileCommands(
@@ -331,16 +263,19 @@ func TestDockerfileCommandsCopyCommandValidation(t *testing.T) {
 		},
 		nil,
 	)
-	_, err = multiInvalidImage.Build(app)
+	_, err = multiInvalidImage.Build(ctx, app)
 	g.Expect(err).Should(gomega.HaveOccurred())
 	g.Expect(err.Error()).Should(gomega.ContainSubstring("COPY commands that copy from local context are not yet supported"))
 }
 
 func TestDockerfileCommandsWithOptions(t *testing.T) {
 	g := gomega.NewWithT(t)
+	ctx := context.Background()
 
-	mock, cleanup := grpcmock.Install()
-	t.Cleanup(cleanup)
+	mock := grpcmock.NewMockClient()
+	defer func() {
+		g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
+	}()
 
 	grpcmock.HandleUnary(
 		mock, "ImageGetOrCreate",
@@ -423,21 +358,21 @@ func TestDockerfileCommandsWithOptions(t *testing.T) {
 		},
 	)
 
-	app := &modal.App{AppId: "ap-test"}
-	secret := &modal.Secret{SecretId: "sc-test"}
+	app := &modal.App{AppID: "ap-test"}
+	secret := &modal.Secret{SecretID: "sc-test"}
 
-	builtImage, err := modal.NewImageFromRegistry("alpine:3.21", nil).
+	builtImage, err := mock.Images.FromRegistry("alpine:3.21", nil).
 		DockerfileCommands([]string{"RUN echo layer1"}, nil).
-		DockerfileCommands([]string{"RUN echo layer2"}, &modal.ImageDockerfileCommandsOptions{
+		DockerfileCommands([]string{"RUN echo layer2"}, &modal.ImageDockerfileCommandsParams{
 			Secrets:    []*modal.Secret{secret},
 			GPU:        "A100",
 			ForceBuild: true,
 		}).
-		DockerfileCommands([]string{"RUN echo layer3"}, &modal.ImageDockerfileCommandsOptions{
+		DockerfileCommands([]string{"RUN echo layer3"}, &modal.ImageDockerfileCommandsParams{
 			ForceBuild: true,
 		}).
-		Build(app)
+		Build(ctx, app)
 
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(builtImage.ImageId).To(gomega.Equal("im-layer3"))
+	g.Expect(builtImage.ImageID).To(gomega.Equal("im-layer3"))
 }

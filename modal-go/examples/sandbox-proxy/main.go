@@ -10,29 +10,38 @@ import (
 
 func main() {
 	ctx := context.Background()
-
-	app, err := modal.AppLookup(ctx, "libmodal-example", &modal.LookupOptions{CreateIfMissing: true})
+	mc, err := modal.NewClient()
 	if err != nil {
-		log.Fatalf("Failed to lookup or create App: %v", err)
+		log.Fatalf("Failed to create client: %v", err)
 	}
 
-	image := modal.NewImageFromRegistry("alpine/curl:8.14.1", nil)
+	app, err := mc.Apps.FromName(ctx, "libmodal-example", &modal.AppFromNameParams{CreateIfMissing: true})
+	if err != nil {
+		log.Fatalf("Failed to get or create App: %v", err)
+	}
 
-	proxy, err := modal.ProxyFromName(ctx, "libmodal-test-proxy", nil)
+	image := mc.Images.FromRegistry("alpine/curl:8.14.1", nil)
+
+	proxy, err := mc.Proxies.FromName(ctx, "libmodal-test-proxy", &modal.ProxyFromNameParams{Environment: "libmodal"})
 	if err != nil {
 		log.Fatalf("Failed to get Proxy: %v", err)
 	}
-	log.Printf("Using Proxy: %s", proxy.ProxyId)
+	log.Printf("Using Proxy: %s", proxy.ProxyID)
 
-	sb, err := app.CreateSandbox(image, &modal.SandboxOptions{
+	sb, err := mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
 		Proxy: proxy,
 	})
 	if err != nil {
 		log.Fatalf("Failed to create sandbox: %v", err)
 	}
-	log.Printf("Created sandbox with proxy: %s", sb.SandboxId)
+	log.Printf("Created sandbox with proxy: %s", sb.SandboxID)
+	defer func() {
+		if err := sb.Terminate(context.Background()); err != nil {
+			log.Fatalf("Failed to terminate Sandbox %s: %v", sb.SandboxID, err)
+		}
+	}()
 
-	p, err := sb.Exec([]string{"curl", "-s", "ifconfig.me"}, modal.ExecOptions{})
+	p, err := sb.Exec(ctx, []string{"curl", "-s", "ifconfig.me"}, nil)
 	if err != nil {
 		log.Fatalf("Failed to start IP fetch command: %v", err)
 	}
@@ -43,9 +52,4 @@ func main() {
 	}
 
 	log.Printf("External IP: %s", string(ip))
-
-	err = sb.Terminate()
-	if err != nil {
-		log.Fatalf("Failed to terminate Sandbox: %v", err)
-	}
 }

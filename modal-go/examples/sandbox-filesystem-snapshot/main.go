@@ -11,52 +11,66 @@ import (
 
 func main() {
 	ctx := context.Background()
-
-	app, err := modal.AppLookup(ctx, "libmodal-example", &modal.LookupOptions{CreateIfMissing: true})
+	mc, err := modal.NewClient()
 	if err != nil {
-		log.Fatalf("Failed to lookup App: %v", err)
+		log.Fatalf("Failed to create client: %v", err)
 	}
 
-	baseImage := modal.NewImageFromRegistry("alpine:3.21", nil)
+	app, err := mc.Apps.FromName(ctx, "libmodal-example", &modal.AppFromNameParams{CreateIfMissing: true})
+	if err != nil {
+		log.Fatalf("Failed to get or create App: %v", err)
+	}
 
-	sb, err := app.CreateSandbox(baseImage, &modal.SandboxOptions{})
+	baseImage := mc.Images.FromRegistry("alpine:3.21", nil)
+
+	sb, err := mc.Sandboxes.Create(ctx, app, baseImage, &modal.SandboxCreateParams{})
 	if err != nil {
 		log.Fatalf("Failed to create Sandbox: %v", err)
 	}
-	log.Printf("Started Sandbox: %s", sb.SandboxId)
+	log.Printf("Started Sandbox: %s", sb.SandboxID)
+	defer func() {
+		if err := sb.Terminate(context.Background()); err != nil {
+			log.Fatalf("Failed to terminate Sandbox %s: %v", sb.SandboxID, err)
+		}
+	}()
 
-	defer sb.Terminate()
-
-	_, err = sb.Exec([]string{"mkdir", "-p", "/app/data"}, modal.ExecOptions{})
+	_, err = sb.Exec(ctx, []string{"mkdir", "-p", "/app/data"}, nil)
 	if err != nil {
 		log.Fatalf("Failed to create directory: %v", err)
 	}
 
-	_, err = sb.Exec([]string{"sh", "-c", "echo 'This file was created in the first Sandbox' > /app/data/info.txt"}, modal.ExecOptions{})
+	_, err = sb.Exec(ctx, []string{"sh", "-c", "echo 'This file was created in the first Sandbox' > /app/data/info.txt"}, nil)
 	if err != nil {
 		log.Fatalf("Failed to create file: %v", err)
 	}
 	log.Printf("Created file in first Sandbox")
 
-	snapshotImage, err := sb.SnapshotFilesystem(55 * time.Second)
+	snapshotImage, err := sb.SnapshotFilesystem(ctx, 55*time.Second)
 	if err != nil {
 		log.Fatalf("Failed to snapshot filesystem: %v", err)
 	}
-	log.Printf("Filesystem snapshot created with Image ID: %s", snapshotImage.ImageId)
+	log.Printf("Filesystem snapshot created with Image ID: %s", snapshotImage.ImageID)
 
-	sb.Terminate()
+	err = sb.Terminate(ctx)
+	if err != nil {
+		log.Fatalf("Failed to terminate Sandbox %s: %v", sb.SandboxID, err)
+	}
 	log.Printf("Terminated first Sandbox")
 
 	// Create new Sandbox from snapshot Image
-	sb2, err := app.CreateSandbox(snapshotImage, nil)
+	sb2, err := mc.Sandboxes.Create(ctx, app, snapshotImage, nil)
 	if err != nil {
 		log.Fatalf("Failed to create Sandbox from snapshot: %v", err)
 	}
-	log.Printf("Started new Sandbox from snapshot: %s", sb2.SandboxId)
+	log.Printf("Started new Sandbox from snapshot: %s", sb2.SandboxID)
 
-	defer sb2.Terminate()
+	defer func() {
+		if err := sb2.Terminate(context.Background()); err != nil {
+			log.Fatalf("Failed to terminate Sandbox %s: %v", sb2.SandboxID, err)
+		}
+	}()
 
-	proc, err := sb2.Exec([]string{"cat", "/app/data/info.txt"}, modal.ExecOptions{})
+	proc, err := sb2.Exec(ctx, []string{"cat", "/app/data/info.txt"}, nil)
 	if err != nil {
 		log.Fatalf("Failed to exec cat command: %v", err)
 	}
@@ -66,6 +80,4 @@ func main() {
 		log.Fatalf("Failed to read output: %v", err)
 	}
 	log.Printf("File data read in second Sandbox: %s", string(content))
-
-	sb2.Terminate()
 }

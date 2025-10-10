@@ -1,11 +1,13 @@
-import { App } from "modal";
+import { tc } from "../test-support/test-client";
 import { expect, test, onTestFinished } from "vitest";
 
 test("snapshotFilesystem", async () => {
-  const app = await App.lookup("libmodal-test", { createIfMissing: true });
-  const image = await app.imageFromRegistry("alpine:3.21");
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
+  const image = tc.images.fromRegistry("alpine:3.21");
 
-  const sb = await app.createSandbox(image);
+  const sb = await tc.sandboxes.create(app, image);
   onTestFinished(async () => {
     await sb.terminate();
   });
@@ -20,7 +22,7 @@ test("snapshotFilesystem", async () => {
   await sb.terminate();
 
   // Create new sandbox from snapshot
-  const sb2 = await app.createSandbox(snapshotImage);
+  const sb2 = await tc.sandboxes.create(app, snapshotImage);
   onTestFinished(async () => {
     await sb2.terminate();
   });

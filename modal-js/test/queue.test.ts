@@ -1,15 +1,17 @@
+import { tc } from "../test-support/test-client";
 import { Queue, QueueEmptyError } from "modal";
 import { expect, onTestFinished, test, vi } from "vitest";
 import { ephemeralObjectHeartbeatSleep } from "../src/ephemeral";
+import { createMockModalClients } from "../test-support/grpc_mock";
 
 test("QueueInvalidName", async () => {
   for (const name of ["has space", "has/slash", "a".repeat(65)]) {
-    await expect(Queue.lookup(name)).rejects.toThrow();
+    await expect(tc.queues.fromName(name)).rejects.toThrow();
   }
 });
 
 test("QueueEphemeral", async () => {
-  const queue = await Queue.ephemeral();
+  const queue = await tc.queues.ephemeral();
   expect(queue.name).toBeUndefined();
   await queue.put(123);
   expect(await queue.len()).toBe(1);
@@ -18,7 +20,7 @@ test("QueueEphemeral", async () => {
 });
 
 test("QueueSuite1", async () => {
-  const queue = await Queue.ephemeral();
+  const queue = await tc.queues.ephemeral();
   expect(await queue.len()).toBe(0);
 
   await queue.put(123);
@@ -54,14 +56,14 @@ test("QueueSuite2", async () => {
     }
   };
 
-  const queue = await Queue.ephemeral();
+  const queue = await tc.queues.ephemeral();
   await Promise.all([producer(queue), consumer(queue)]);
   expect(results).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
   queue.closeEphemeral();
 });
 
 test("QueuePutAndGetMany", async () => {
-  const queue = await Queue.ephemeral();
+  const queue = await tc.queues.ephemeral();
   await queue.putMany([1, 2, 3]);
   expect(await queue.len()).toBe(3);
   expect(await queue.getMany(3)).toEqual([1, 2, 3]);
@@ -71,7 +73,7 @@ test("QueuePutAndGetMany", async () => {
 test("QueueNonBlocking", async () => {
   // Assuming the queue is available, these operations
   // Should succeed immediately.
-  const queue = await Queue.ephemeral();
+  const queue = await tc.queues.ephemeral();
   await queue.put(123, { timeout: 0 });
   expect(await queue.len()).toBe(1);
   expect(await queue.get({ timeout: 0 })).toBe(123);
@@ -81,26 +83,22 @@ test("QueueNonBlocking", async () => {
 test("QueueNonEphemeral", async () => {
   const queueName = `test-queue-${Date.now()}`;
 
-  const queue1 = await Queue.lookup(queueName, { createIfMissing: true });
+  const queue1 = await tc.queues.fromName(queueName, { createIfMissing: true });
   expect(queue1.name).toBe(queueName);
 
   onTestFinished(async () => {
-    await Queue.delete(queueName);
+    await tc.queues.delete(queueName);
     await expect(Queue.lookup(queueName)).rejects.toThrow(); // confirm deletion
   });
 
   await queue1.put("data");
 
-  const queue2 = await Queue.lookup(queueName);
+  const queue2 = await tc.queues.fromName(queueName);
   expect(await queue2.get()).toBe("data");
 });
 
 test("QueueEphemeralHeartbeatStopsAfterClose", async () => {
-  const { MockGrpc } = await import("../test-support/grpc_mock");
-  const mock = await MockGrpc.install();
-  onTestFinished(async () => {
-    await mock.uninstall();
-  });
+  const { mockClient: mc, mockCpClient: mock } = createMockModalClients();
 
   vi.useFakeTimers();
   onTestFinished(() => {
@@ -118,12 +116,13 @@ test("QueueEphemeralHeartbeatStopsAfterClose", async () => {
     return {};
   });
 
-  const { Queue } = await import("../src/queue");
-  const queue = await Queue.ephemeral();
+  const queue = await mc.queues.ephemeral();
 
   expect(heartbeatCount).toBe(1); // initial heartbeat
   queue.closeEphemeral();
 
   await vi.advanceTimersByTimeAsync(ephemeralObjectHeartbeatSleep * 3);
   expect(heartbeatCount).toBe(1);
+
+  mock.assertExhausted();
 });

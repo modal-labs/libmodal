@@ -1,5 +1,7 @@
-import { expect, onTestFinished, test } from "vitest";
+import { expect, test } from "vitest";
 import type { Secret, Volume } from "modal";
+import { createMockModalClients } from "../test-support/grpc_mock";
+import { Retries } from "modal";
 
 const _mockFunctionProto = {
   functionId: "fid",
@@ -10,18 +12,13 @@ const _mockFunctionProto = {
 };
 
 test("Cls.withOptions stacking", async () => {
-  const { MockGrpc } = await import("../test-support/grpc_mock");
-  const mock = await MockGrpc.install();
-  onTestFinished(async () => {
-    await mock.uninstall();
-  });
-  const { Cls } = await import("modal");
+  const { mockClient: mc, mockCpClient: mock } = createMockModalClients();
 
   mock.handleUnary("FunctionGet", (_: any) => {
     return _mockFunctionProto;
   });
 
-  const cls = await Cls.lookup("libmodal-test-support", "EchoCls");
+  const cls = await mc.cls.fromName("libmodal-test-support", "EchoCls");
 
   mock.handleUnary("FunctionBindParams", (req: any) => {
     expect(req).toMatchObject({ functionId: "fid" });
@@ -56,21 +53,18 @@ test("Cls.withOptions stacking", async () => {
 
   const instance = await optioned.instance();
   expect(instance).toBeTruthy();
+
+  mock.assertExhausted();
 });
 
 test("Cls.withConcurrency/withConcurrency/withBatching chaining", async () => {
-  const { MockGrpc } = await import("../test-support/grpc_mock");
-  const mock = await MockGrpc.install();
-  onTestFinished(async () => {
-    await mock.uninstall();
-  });
-  const { Cls } = await import("modal");
+  const { mockClient: mc, mockCpClient: mock } = createMockModalClients();
 
   mock.handleUnary("FunctionGet", (_: any) => {
     return _mockFunctionProto;
   });
 
-  const cls = await Cls.lookup("libmodal-test-support", "EchoCls");
+  const cls = await mc.cls.fromName("libmodal-test-support", "EchoCls");
 
   mock.handleUnary("FunctionBindParams", (req: any) => {
     expect(req).toMatchObject({ functionId: "fid" });
@@ -90,21 +84,18 @@ test("Cls.withConcurrency/withConcurrency/withBatching chaining", async () => {
 
   const instance = await chained.instance();
   expect(instance).toBeTruthy();
+
+  mock.assertExhausted();
 });
 
 test("Cls.withOptions retries", async () => {
-  const { MockGrpc } = await import("../test-support/grpc_mock");
-  const mock = await MockGrpc.install();
-  onTestFinished(async () => {
-    await mock.uninstall();
-  });
-  const { Cls, Retries } = await import("modal");
+  const { mockClient: mc, mockCpClient: mock } = createMockModalClients();
 
   mock.handleUnary("FunctionGet", (_: any) => {
     return _mockFunctionProto;
   });
 
-  const cls = await Cls.lookup("libmodal-test-support", "EchoCls");
+  const cls = await mc.cls.fromName("libmodal-test-support", "EchoCls");
 
   mock.handleUnary("FunctionBindParams", (req: any) => {
     const fo = req.functionOptions;
@@ -139,21 +130,18 @@ test("Cls.withOptions retries", async () => {
     maxDelayMs: 5000,
   });
   await cls.withOptions({ retries }).instance();
+
+  mock.assertExhausted();
 });
 
 test("Cls.withOptions invalid values", async () => {
-  const { MockGrpc } = await import("../test-support/grpc_mock");
-  const mock = await MockGrpc.install();
-  onTestFinished(async () => {
-    await mock.uninstall();
-  });
-  const { Cls } = await import("modal");
+  const { mockClient: mc, mockCpClient: mock } = createMockModalClients();
 
   mock.handleUnary("FunctionGet", (_: any) => {
     return _mockFunctionProto;
   });
 
-  const cls = await Cls.lookup("libmodal-test-support", "EchoCls");
+  const cls = await mc.cls.fromName("libmodal-test-support", "EchoCls");
   await expect(cls.withOptions({ timeout: 1500 }).instance()).rejects.toThrow(
     /timeout must be a multiple of 1000ms/,
   );
@@ -161,15 +149,12 @@ test("Cls.withOptions invalid values", async () => {
   await expect(
     cls.withOptions({ scaledownWindow: 2500 }).instance(),
   ).rejects.toThrow(/scaledownWindow must be a multiple of 1000ms/);
+
+  mock.assertExhausted();
 });
 
 test("withOptions({ secrets: [] }) binds and does not replace secrets", async () => {
-  const { MockGrpc } = await import("../test-support/grpc_mock");
-  const mock = await MockGrpc.install();
-  onTestFinished(async () => {
-    await mock.uninstall();
-  });
-  const { Cls } = await import("modal");
+  const { mockClient: mc, mockCpClient: mock } = createMockModalClients();
 
   mock.handleUnary("FunctionGet", (_: any) => {
     return _mockFunctionProto;
@@ -185,19 +170,15 @@ test("withOptions({ secrets: [] }) binds and does not replace secrets", async ()
     return { boundFunctionId: "fid-1", handleMetadata: {} };
   });
 
-  const cls = await Cls.lookup("libmodal-test-support", "EchoCls");
+  const cls = await mc.cls.fromName("libmodal-test-support", "EchoCls");
   const instance = await cls.withOptions({ secrets: [] }).instance();
   expect(instance).toBeTruthy();
+
+  mock.assertExhausted();
 });
 
 test("withOptions({ volumes: {} }) binds and does not replace volumes", async () => {
-  const { MockGrpc } = await import("../test-support/grpc_mock");
-  const mock = await MockGrpc.install();
-  onTestFinished(async () => {
-    await mock.uninstall();
-  });
-  const { Cls } = await import("modal");
-
+  const { mockClient: mc, mockCpClient: mock } = createMockModalClients();
   mock.handleUnary("FunctionGet", (_: any) => {
     return _mockFunctionProto;
   });
@@ -212,7 +193,9 @@ test("withOptions({ volumes: {} }) binds and does not replace volumes", async ()
     return { boundFunctionId: "fid-1", handleMetadata: {} };
   });
 
-  const cls = await Cls.lookup("libmodal-test-support", "EchoCls");
+  const cls = await mc.cls.fromName("libmodal-test-support", "EchoCls");
   const instance = await cls.withOptions({ volumes: {} }).instance();
   expect(instance).toBeTruthy();
+
+  mock.assertExhausted();
 });

@@ -1,6 +1,7 @@
 import { describe, test, expect, vi, beforeEach, afterEach } from "vitest";
 import jwt from "jsonwebtoken";
-import { AuthTokenManager } from "../src/client";
+import { ModalClient } from "../src/client";
+import { AuthTokenManager } from "../src/auth_token_manager";
 
 async function eventually(
   condition: () => boolean,
@@ -151,5 +152,45 @@ describe("AuthTokenManager", () => {
     await expect(manager.getToken()).rejects.toThrow(
       "No valid auth token available",
     );
+  });
+
+  test("TestAuthToken_StopCleansUpResources", async () => {
+    const now = Math.floor(Date.now() / 1000);
+    const token = createTestJWT(now + 3600);
+    mockClient.setAuthToken(token);
+
+    await manager.start();
+    expect(manager.getCurrentToken()).toBe(token);
+
+    manager.stop();
+
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  });
+});
+
+describe("ModalClient with AuthTokenManager", () => {
+  test("TestModalClient_CloseCleansUpAuthTokenManager", () => {
+    const mockCpClient = newMockAuthClient();
+    const client = new ModalClient({
+      cpClient: mockCpClient as any,
+    });
+
+    client.close();
+  });
+
+  test("TestModalClient_MultipleInstancesHaveSeparateManagers", () => {
+    const mockCpClient1 = newMockAuthClient();
+    const mockCpClient2 = newMockAuthClient();
+
+    const client1 = new ModalClient({
+      cpClient: mockCpClient1 as any,
+    });
+
+    const client2 = new ModalClient({
+      cpClient: mockCpClient2 as any,
+    });
+
+    client1.close();
+    client2.close();
   });
 });

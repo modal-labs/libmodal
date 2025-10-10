@@ -1,36 +1,35 @@
-import { client } from "./client";
-import { environmentName as configEnvironmentName } from "./config";
+import { getDefaultClient, type ModalClient } from "./client";
 import { ClientError, Status } from "nice-grpc";
 import { InvalidError, NotFoundError } from "./errors";
 import { ObjectCreationType } from "../proto/modal_proto/api";
 
-/** Options for `Secret.fromName()`. */
-export type SecretFromNameOptions = {
+/** Optional parameters for `client.secrets.fromName()`. */
+export type SecretFromNameParams = {
   environment?: string;
   requiredKeys?: string[];
 };
 
-/** Secrets provide a dictionary of environment variables for Images. */
-export class Secret {
-  readonly secretId: string;
-  readonly name?: string;
+/** Optional parameters for `client.secrets.fromObject()`. */
+export type SecretFromObjectParams = {
+  environment?: string;
+};
 
-  /** @ignore */
-  constructor(secretId: string, name?: string) {
-    this.secretId = secretId;
-    this.name = name;
+/**
+ * Service for managing Secrets.
+ */
+export class SecretService {
+  readonly #client: ModalClient;
+  constructor(client: ModalClient) {
+    this.#client = client;
   }
 
   /** Reference a Secret by its name. */
-  static async fromName(
-    name: string,
-    options?: SecretFromNameOptions,
-  ): Promise<Secret> {
+  async fromName(name: string, params?: SecretFromNameParams): Promise<Secret> {
     try {
-      const resp = await client.secretGetOrCreate({
+      const resp = await this.#client.cpClient.secretGetOrCreate({
         deploymentName: name,
-        environmentName: configEnvironmentName(options?.environment),
-        requiredKeys: options?.requiredKeys ?? [],
+        environmentName: this.#client.environmentName(params?.environment),
+        requiredKeys: params?.requiredKeys ?? [],
       });
       return new Secret(resp.secretId, name);
     } catch (err) {
@@ -47,9 +46,9 @@ export class Secret {
   }
 
   /** Create a Secret from a plain object of key-value pairs. */
-  static async fromObject(
+  async fromObject(
     entries: Record<string, string>,
-    options?: { environment?: string },
+    params?: SecretFromObjectParams,
   ): Promise<Secret> {
     for (const [, value] of Object.entries(entries)) {
       if (value == null || typeof value !== "string") {
@@ -61,10 +60,10 @@ export class Secret {
     }
 
     try {
-      const resp = await client.secretGetOrCreate({
+      const resp = await this.#client.cpClient.secretGetOrCreate({
         objectCreationType: ObjectCreationType.OBJECT_CREATION_TYPE_EPHEMERAL,
         envDict: entries as Record<string, string>,
-        environmentName: configEnvironmentName(options?.environment),
+        environmentName: this.#client.environmentName(params?.environment),
       });
       return new Secret(resp.secretId);
     } catch (err) {
@@ -79,13 +78,46 @@ export class Secret {
   }
 }
 
-export async function mergeEnvAndSecrets(
+/** Secrets provide a dictionary of environment variables for Images. */
+export class Secret {
+  readonly secretId: string;
+  readonly name?: string;
+
+  /** @ignore */
+  constructor(secretId: string, name?: string) {
+    this.secretId = secretId;
+    this.name = name;
+  }
+
+  /**
+   * @deprecated Use `client.secrets.fromName()` instead.
+   */
+  static async fromName(
+    name: string,
+    params?: SecretFromNameParams,
+  ): Promise<Secret> {
+    return getDefaultClient().secrets.fromName(name, params);
+  }
+
+  /**
+   * @deprecated Use `client.secrets.fromObject()` instead.
+   */
+  static async fromObject(
+    entries: Record<string, string>,
+    params?: SecretFromObjectParams,
+  ): Promise<Secret> {
+    return getDefaultClient().secrets.fromObject(entries, params);
+  }
+}
+
+export async function mergeEnvIntoSecrets(
+  client: ModalClient,
   env?: Record<string, string>,
   secrets?: Secret[],
 ): Promise<Secret[]> {
   const result = [...(secrets || [])];
   if (env && Object.keys(env).length > 0) {
-    result.push(await Secret.fromObject(env));
+    result.push(await client.secrets.fromObject(env));
   }
   return result;
 }

@@ -12,33 +12,41 @@ import (
 
 func main() {
 	ctx := context.Background()
-
-	app, err := modal.AppLookup(ctx, "libmodal-example", &modal.LookupOptions{CreateIfMissing: true})
+	mc, err := modal.NewClient()
 	if err != nil {
-		log.Fatalf("Failed to lookup or create App: %v", err)
+		log.Fatalf("Failed to create client: %v", err)
+	}
+
+	app, err := mc.Apps.FromName(ctx, "libmodal-example", &modal.AppFromNameParams{CreateIfMissing: true})
+	if err != nil {
+		log.Fatalf("Failed to get or create App: %v", err)
 	}
 
 	// With `.Build(app)`, we create an Image object on Modal that eagerly pulls
 	// from the registry.
-	image, err := modal.NewImageFromRegistry("alpine:3.21", nil).Build(app)
+	image, err := mc.Images.FromRegistry("alpine:3.21", nil).Build(ctx, app)
 	if err != nil {
 		log.Fatalf("Unable to build Image: %v", err)
 	}
-	log.Printf("Image has ID: %v", image.ImageId)
+	log.Printf("Image has ID: %v", image.ImageID)
 
 	// You can save the ImageId and create a new Image object that referes to it.
-	imageId := image.ImageId
-	image2, err := modal.NewImageFromId(ctx, imageId)
+	imageID := image.ImageID
+	image2, err := mc.Images.FromID(ctx, imageID)
 	if err != nil {
 		log.Fatalf("Unable to look up Image from ID: %v", err)
 	}
 
-	sb, err := app.CreateSandbox(image2, &modal.SandboxOptions{
+	sb, err := mc.Sandboxes.Create(ctx, app, image2, &modal.SandboxCreateParams{
 		Command: []string{"cat"},
 	})
-	defer sb.Terminate()
 	if err != nil {
 		log.Fatalf("Failed to create Sandbox: %v", err)
 	}
-	log.Printf("Sandbox: %s\n", sb.SandboxId)
+	defer func() {
+		if err := sb.Terminate(context.Background()); err != nil {
+			log.Fatalf("Failed to terminate Sandbox %s: %v", sb.SandboxID, err)
+		}
+	}()
+	log.Printf("Sandbox: %s\n", sb.SandboxID)
 }

@@ -10,27 +10,36 @@ import (
 
 func main() {
 	ctx := context.Background()
-
-	app, err := modal.AppLookup(ctx, "libmodal-example", &modal.LookupOptions{CreateIfMissing: true})
+	mc, err := modal.NewClient()
 	if err != nil {
-		log.Fatalf("Failed to lookup or create App: %v", err)
+		log.Fatalf("Failed to create client: %v", err)
 	}
 
-	image := modal.NewImageFromRegistry("alpine:3.21", nil)
+	app, err := mc.Apps.FromName(ctx, "libmodal-example", &modal.AppFromNameParams{CreateIfMissing: true})
+	if err != nil {
+		log.Fatalf("Failed to get or create App: %v", err)
+	}
 
-	sb, err := app.CreateSandbox(image, &modal.SandboxOptions{
+	image := mc.Images.FromRegistry("alpine:3.21", nil)
+
+	sb, err := mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
 		Command: []string{"cat"},
 	})
 	if err != nil {
 		log.Fatalf("Failed to create Sandbox: %v", err)
 	}
-	log.Printf("sandbox: %s\n", sb.SandboxId)
+	log.Printf("sandbox: %s\n", sb.SandboxID)
+	defer func() {
+		if err := sb.Terminate(context.Background()); err != nil {
+			log.Fatalf("Failed to terminate Sandbox %s: %v", sb.SandboxID, err)
+		}
+	}()
 
-	sbFromId, err := modal.SandboxFromId(ctx, sb.SandboxId)
+	sbFromID, err := mc.Sandboxes.FromID(ctx, sb.SandboxID)
 	if err != nil {
 		log.Fatalf("Failed to get Sandbox with ID: %v", err)
 	}
-	log.Printf("Queried Sandbox with ID: %v", sbFromId.SandboxId)
+	log.Printf("Queried Sandbox with ID: %v", sbFromID.SandboxID)
 
 	_, err = sb.Stdin.Write([]byte("this is input that should be mirrored by cat"))
 	if err != nil {

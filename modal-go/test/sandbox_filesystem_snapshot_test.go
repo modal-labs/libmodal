@@ -1,4 +1,3 @@
-//nolint:staticcheck // SA1019 We need to use deprecated API for testing
 package test
 
 import (
@@ -14,38 +13,38 @@ import (
 func TestSnapshotFilesystem(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
+	ctx := context.Background()
 
-	app, err := modal.AppLookup(context.Background(), "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	image, err := app.ImageFromRegistry("alpine:3.21", nil)
+	image := tc.Images.FromRegistry("alpine:3.21", nil)
+
+	sb, err := tc.Sandboxes.Create(ctx, app, image, nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	defer terminateSandbox(g, sb)
+
+	_, err = sb.Exec(ctx, []string{"sh", "-c", "echo -n 'test content' > /tmp/test.txt"}, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	sb, err := app.CreateSandbox(image, nil)
-	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	defer sb.Terminate()
-
-	_, err = sb.Exec([]string{"sh", "-c", "echo -n 'test content' > /tmp/test.txt"}, modal.ExecOptions{})
+	_, err = sb.Exec(ctx, []string{"mkdir", "-p", "/tmp/testdir"}, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	_, err = sb.Exec([]string{"mkdir", "-p", "/tmp/testdir"}, modal.ExecOptions{})
-	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-
-	snapshotImage, err := sb.SnapshotFilesystem(55 * time.Second)
+	snapshotImage, err := sb.SnapshotFilesystem(ctx, 55*time.Second)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(snapshotImage).ShouldNot(gomega.BeNil())
-	g.Expect(snapshotImage.ImageId).To(gomega.HavePrefix("im-"))
+	g.Expect(snapshotImage.ImageID).To(gomega.HavePrefix("im-"))
 
-	err = sb.Terminate()
+	err = sb.Terminate(ctx)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	// Create new Sandbox from snapshot
-	sb2, err := app.CreateSandbox(snapshotImage, nil)
+	sb2, err := tc.Sandboxes.Create(ctx, app, snapshotImage, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	defer sb2.Terminate()
+	defer terminateSandbox(g, sb2)
 
 	// Verify file exists in snapshot
-	proc, err := sb2.Exec([]string{"cat", "/tmp/test.txt"}, modal.ExecOptions{})
+	proc, err := sb2.Exec(ctx, []string{"cat", "/tmp/test.txt"}, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	output, err := io.ReadAll(proc.Stdout)
@@ -53,10 +52,10 @@ func TestSnapshotFilesystem(t *testing.T) {
 	g.Expect(string(output)).To(gomega.Equal("test content"))
 
 	// Verify directory exists in snapshot
-	dirCheck, err := sb2.Exec([]string{"test", "-d", "/tmp/testdir"}, modal.ExecOptions{})
+	dirCheck, err := sb2.Exec(ctx, []string{"test", "-d", "/tmp/testdir"}, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	exitCode, err := dirCheck.Wait()
+	exitCode, err := dirCheck.Wait(ctx)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(exitCode).To(gomega.Equal(0))
 }

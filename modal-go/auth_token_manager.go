@@ -15,9 +15,9 @@ import (
 
 const (
 	// Start refreshing this many seconds before the token expires
-	REFRESH_WINDOW = 5 * 60
+	RefreshWindow = 5 * 60
 	// If the token doesn't have an expiry field, default to current time plus this value (not expected).
-	DEFAULT_EXPIRY_OFFSET = 20 * 60
+	DefaultExpiryOffset = 20 * 60
 )
 
 type TokenAndExpiry struct {
@@ -25,7 +25,7 @@ type TokenAndExpiry struct {
 	expiry int64
 }
 
-// Manages authentication tokens using a goroutine, and refreshes the token REFRESH_WINDOW seconds before it expires.
+// AuthTokenManager manages authentication tokens using a goroutine, and refreshes the token REFRESH_WINDOW seconds before it expires.
 type AuthTokenManager struct {
 	client   pb.ModalClientClient
 	cancelFn context.CancelFunc
@@ -84,7 +84,7 @@ func (m *AuthTokenManager) backgroundRefresh(ctx context.Context) {
 	for {
 		data := m.tokenAndExpiry.Load().(TokenAndExpiry)
 		now := time.Now().Unix()
-		refreshTime := data.expiry - REFRESH_WINDOW
+		refreshTime := data.expiry - RefreshWindow
 
 		var delay time.Duration
 		if refreshTime > now {
@@ -135,7 +135,7 @@ func (m *AuthTokenManager) FetchToken(ctx context.Context) (string, error) {
 	} else {
 		log.Printf("x-modal-auth-token does not contain exp field")
 		// We'll use the token, and set the expiry to 20 min from now.
-		expiry = time.Now().Unix() + DEFAULT_EXPIRY_OFFSET
+		expiry = time.Now().Unix() + DefaultExpiryOffset
 	}
 
 	m.tokenAndExpiry.Store(TokenAndExpiry{

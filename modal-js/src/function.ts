@@ -5,14 +5,13 @@ import { createHash } from "node:crypto";
 import {
   DataFormat,
   FunctionCallInvocationType,
+  FunctionHandleMetadata,
   FunctionInput,
 } from "../proto/modal_proto/api";
-import type { LookupOptions } from "./app";
-import { client } from "./client";
+import { getDefaultClient, ModalGrpcClient, type ModalClient } from "./client";
 import { FunctionCall } from "./function_call";
-import { environmentName } from "./config";
-import { InternalFailure, NotFoundError } from "./errors";
-import { dumps } from "./pickle";
+import { InternalFailure, InvalidError, NotFoundError } from "./errors";
+import { cborEncode } from "./serialization";
 import { ClientError, Status } from "nice-grpc";
 import {
   ControlPlaneInvocation,
@@ -26,14 +25,63 @@ const maxObjectSizeBytes = 2 * 1024 * 1024; // 2 MiB
 // From: client/modal/_functions.py
 const maxSystemRetries = 8;
 
+/** Optional parameters for `client.functions.fromName()`. */
+export type FunctionFromNameParams = {
+  environment?: string;
+  createIfMissing?: boolean;
+};
+
+/**
+ * Service for managing Functions.
+ */
+export class FunctionService {
+  readonly #client: ModalClient;
+  constructor(client: ModalClient) {
+    this.#client = client;
+  }
+
+  /**
+   * Reference a Function by its name in an App.
+   */
+  async fromName(
+    appName: string,
+    name: string,
+    params: FunctionFromNameParams = {},
+  ): Promise<Function_> {
+    if (name.includes(".")) {
+      const [clsName, methodName] = name.split(".", 2);
+      throw new Error(
+        `Cannot retrieve Cls methods using 'functions.fromName()'. Use:\n  const cls = await client.cls.fromName("${appName}", "${clsName}");\n  const instance = await cls.instance();\n  const m = instance.method("${methodName}");`,
+      );
+    }
+    try {
+      const resp = await this.#client.cpClient.functionGet({
+        appName,
+        objectTag: name,
+        environmentName: this.#client.environmentName(params.environment),
+      });
+      return new Function_(
+        this.#client,
+        resp.functionId,
+        undefined,
+        resp.handleMetadata,
+      );
+    } catch (err) {
+      if (err instanceof ClientError && err.code === Status.NOT_FOUND)
+        throw new NotFoundError(`Function '${appName}/${name}' not found`);
+      throw err;
+    }
+  }
+}
+
 /** Simple data structure storing stats for a running Function. */
 export interface FunctionStats {
   backlog: number;
   numTotalRunners: number;
 }
 
-/** Options for overriding a Function's autoscaler behavior. */
-export interface UpdateAutoscalerOptions {
+/** Optional parameters for `Function_.updateAutoscaler()`. */
+export interface FunctionUpdateAutoscalerParams {
   minContainers?: number;
   maxContainers?: number;
   bufferContainers?: number;
@@ -44,44 +92,32 @@ export interface UpdateAutoscalerOptions {
 export class Function_ {
   readonly functionId: string;
   readonly methodName?: string;
-  #inputPlaneUrl?: string;
-  #webUrl?: string;
+  #client: ModalClient;
+  #handleMetadata?: FunctionHandleMetadata;
 
   /** @ignore */
   constructor(
+    client: ModalClient,
     functionId: string,
     methodName?: string,
-    inputPlaneUrl?: string,
-    webUrl?: string,
+    functionHandleMetadata?: FunctionHandleMetadata,
   ) {
     this.functionId = functionId;
     this.methodName = methodName;
-    this.#inputPlaneUrl = inputPlaneUrl;
-    this.#webUrl = webUrl;
+
+    this.#client = client;
+    this.#handleMetadata = functionHandleMetadata;
   }
 
+  /**
+   * @deprecated Use `client.functions.fromName()` instead.
+   */
   static async lookup(
     appName: string,
     name: string,
-    options: LookupOptions = {},
+    params: FunctionFromNameParams = {},
   ): Promise<Function_> {
-    try {
-      const resp = await client.functionGet({
-        appName,
-        objectTag: name,
-        environmentName: environmentName(options.environment),
-      });
-      return new Function_(
-        resp.functionId,
-        undefined,
-        resp.handleMetadata?.inputPlaneUrl,
-        resp.handleMetadata?.webUrl,
-      );
-    } catch (err) {
-      if (err instanceof ClientError && err.code === Status.NOT_FOUND)
-        throw new NotFoundError(`Function '${appName}/${name}' not found`);
-      throw err;
-    }
+    return await getDefaultClient().functions.fromName(appName, name, params);
   }
 
   // Execute a single input into a remote Function.
@@ -108,15 +144,17 @@ export class Function_ {
   }
 
   async #createRemoteInvocation(input: FunctionInput): Promise<Invocation> {
-    if (this.#inputPlaneUrl) {
+    if (this.#handleMetadata?.inputPlaneUrl) {
       return await InputPlaneInvocation.create(
-        this.#inputPlaneUrl,
+        this.#client,
+        this.#handleMetadata.inputPlaneUrl,
         this.functionId,
         input,
       );
     }
 
     return await ControlPlaneInvocation.create(
+      this.#client,
       this.functionId,
       input,
       FunctionCallInvocationType.FUNCTION_CALL_INVOCATION_TYPE_SYNC,
@@ -130,16 +168,17 @@ export class Function_ {
   ): Promise<FunctionCall> {
     const input = await this.#createInput(args, kwargs);
     const invocation = await ControlPlaneInvocation.create(
+      this.#client,
       this.functionId,
       input,
       FunctionCallInvocationType.FUNCTION_CALL_INVOCATION_TYPE_ASYNC,
     );
-    return new FunctionCall(invocation.functionCallId);
+    return new FunctionCall(this.#client, invocation.functionCallId);
   }
 
   // Returns statistics about the Function.
   async getCurrentStats(): Promise<FunctionStats> {
-    const resp = await client.functionGetCurrentStats(
+    const resp = await this.#client.cpClient.functionGetCurrentStats(
       { functionId: this.functionId },
       { timeout: 10000 },
     );
@@ -150,15 +189,17 @@ export class Function_ {
   }
 
   // Overrides the current autoscaler behavior for this Function.
-  async updateAutoscaler(options: UpdateAutoscalerOptions): Promise<void> {
-    await client.functionUpdateSchedulingParams({
+  async updateAutoscaler(
+    params: FunctionUpdateAutoscalerParams,
+  ): Promise<void> {
+    await this.#client.cpClient.functionUpdateSchedulingParams({
       functionId: this.functionId,
       warmPoolSizeOverride: 0, // Deprecated field, always set to 0
       settings: {
-        minContainers: options.minContainers,
-        maxContainers: options.maxContainers,
-        bufferContainers: options.bufferContainers,
-        scaledownWindow: options.scaledownWindow,
+        minContainers: params.minContainers,
+        maxContainers: params.maxContainers,
+        bufferContainers: params.bufferContainers,
+        scaledownWindow: params.scaledownWindow,
       },
     });
   }
@@ -168,35 +209,49 @@ export class Function_ {
    * @returns The web URL if this Function is a web endpoint, otherwise undefined
    */
   async getWebUrl(): Promise<string | undefined> {
-    return this.#webUrl || undefined;
+    return this.#handleMetadata?.webUrl || undefined;
   }
 
   async #createInput(
     args: any[] = [],
     kwargs: Record<string, any> = {},
   ): Promise<FunctionInput> {
-    const payload = dumps([args, kwargs]);
+    const supported_input_formats = this.#handleMetadata?.supportedInputFormats
+      ?.length
+      ? this.#handleMetadata.supportedInputFormats
+      : [DataFormat.DATA_FORMAT_PICKLE];
+    if (!supported_input_formats.includes(DataFormat.DATA_FORMAT_CBOR)) {
+      // the remote function isn't cbor compatible for inputs
+      // so we can error early
+      throw new InvalidError(
+        "the deployed Function does not support libmodal - please redeploy it using Modal Python SDK version >= 1.2",
+      );
+    }
+    const payload = cborEncode([args, kwargs]);
 
     let argsBlobId: string | undefined = undefined;
     if (payload.length > maxObjectSizeBytes) {
-      argsBlobId = await blobUpload(payload);
+      argsBlobId = await blobUpload(this.#client.cpClient, payload);
     }
 
     // Single input sync invocation
     return {
       args: argsBlobId ? undefined : payload,
       argsBlobId,
-      dataFormat: DataFormat.DATA_FORMAT_PICKLE,
+      dataFormat: DataFormat.DATA_FORMAT_CBOR,
       methodName: this.methodName,
       finalInput: false, // This field isn't specified in the Python client, so it defaults to false.
     };
   }
 }
 
-async function blobUpload(data: Uint8Array): Promise<string> {
+async function blobUpload(
+  cpClient: ModalGrpcClient,
+  data: Uint8Array,
+): Promise<string> {
   const contentMd5 = createHash("md5").update(data).digest("base64");
   const contentSha256 = createHash("sha256").update(data).digest("base64");
-  const resp = await client.blobCreate({
+  const resp = await cpClient.blobCreate({
     contentMd5,
     contentSha256Base64: contentSha256,
     contentLength: data.length,

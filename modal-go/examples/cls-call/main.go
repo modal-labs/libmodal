@@ -11,14 +11,17 @@ import (
 
 func main() {
 	ctx := context.Background()
-
-	// Lookup a deployed Cls.
-	cls, err := modal.ClsLookup(ctx, "libmodal-test-support", "EchoCls", nil)
+	mc, err := modal.NewClient()
 	if err != nil {
-		log.Fatalf("Failed to lookup Cls: %v", err)
+		log.Fatalf("Failed to create client: %v", err)
 	}
 
-	instance, err := cls.Instance(nil)
+	cls, err := mc.Cls.FromName(ctx, "libmodal-test-support", "EchoCls", nil)
+	if err != nil {
+		log.Fatalf("Failed to get Cls: %v", err)
+	}
+
+	instance, err := cls.Instance(ctx, nil)
 	if err != nil {
 		log.Fatalf("Failed to create Cls instance: %v", err)
 	}
@@ -29,14 +32,14 @@ func main() {
 	}
 
 	// Call the Cls function with args.
-	result, err := function.Remote([]any{"Hello world!"}, nil)
+	result, err := function.Remote(ctx, []any{"Hello world!"}, nil)
 	if err != nil {
 		log.Fatalf("Failed to call Cls method: %v", err)
 	}
 	log.Println("Response:", result)
 
 	// Call the Cls function with kwargs.
-	result, err = function.Remote(nil, map[string]any{"s": "Hello world!"})
+	result, err = function.Remote(ctx, nil, map[string]any{"s": "Hello world!"})
 	if err != nil {
 		log.Fatalf("Failed to call Cls method: %v", err)
 	}

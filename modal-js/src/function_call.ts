@@ -1,15 +1,32 @@
 // Manage existing Function Calls (look-ups, polling for output, cancellation).
 
-import { client } from "./client";
+import { getDefaultClient, type ModalClient } from "./client";
 import { ControlPlaneInvocation } from "./invocation";
 
-/** Options for `FunctionCall.get()`. */
-export type FunctionCallGetOptions = {
+/**
+ * Service for managing FunctionCalls.
+ */
+export class FunctionCallService {
+  readonly #client: ModalClient;
+  constructor(client: ModalClient) {
+    this.#client = client;
+  }
+
+  /**
+   * Create a new Function call from ID.
+   */
+  async fromId(functionCallId: string): Promise<FunctionCall> {
+    return new FunctionCall(this.#client, functionCallId);
+  }
+}
+
+/** Optional parameters for `FunctionCall.get()`. */
+export type FunctionCallGetParams = {
   timeout?: number; // in milliseconds
 };
 
-/** Options for `FunctionCall.cancel()`. */
-export type FunctionCallCancelOptions = {
+/** Optional parameters for `FunctionCall.cancel()`. */
+export type FunctionCallCancelParams = {
   terminateContainers?: boolean;
 };
 
@@ -20,31 +37,38 @@ export type FunctionCallCancelOptions = {
  */
 export class FunctionCall {
   readonly functionCallId: string;
+  #client?: ModalClient;
 
   /** @ignore */
-  constructor(functionCallId: string) {
+  constructor(client: ModalClient | undefined, functionCallId: string) {
+    this.#client = client;
     this.functionCallId = functionCallId;
   }
 
-  /** Create a new Function call from ID. */
-  fromId(functionCallId: string): FunctionCall {
-    return new FunctionCall(functionCallId);
+  /**
+   * @deprecated Use `client.functionCalls.fromId()` instead.
+   */
+  static fromId(functionCallId: string): FunctionCall {
+    return new FunctionCall(undefined, functionCallId);
   }
 
   /** Get the result of a Function call, optionally waiting with a timeout. */
-  async get(options: FunctionCallGetOptions = {}): Promise<any> {
-    const timeout = options.timeout;
+  async get(params: FunctionCallGetParams = {}): Promise<any> {
+    const timeout = params.timeout;
     const invocation = ControlPlaneInvocation.fromFunctionCallId(
+      this.#client || getDefaultClient(),
       this.functionCallId,
     );
     return invocation.awaitOutput(timeout);
   }
 
   /** Cancel a running Function call. */
-  async cancel(options: FunctionCallCancelOptions = {}) {
-    await client.functionCallCancel({
+  async cancel(params: FunctionCallCancelParams = {}) {
+    const cpClient = this.#client?.cpClient || getDefaultClient().cpClient;
+
+    await cpClient.functionCallCancel({
       functionCallId: this.functionCallId,
-      terminateContainers: options.terminateContainers,
+      terminateContainers: params.terminateContainers,
     });
   }
 }

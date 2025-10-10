@@ -14,7 +14,7 @@ func TestRetriesConstructor(t *testing.T) {
 	backoff := float32(2.0)
 	initial := 2 * time.Second
 	max := 5 * time.Second
-	r, err := modal.NewRetries(2, &modal.RetriesOptions{
+	r, err := modal.NewRetries(2, &modal.RetriesParams{
 		BackoffCoefficient: &backoff,
 		InitialDelay:       &initial,
 		MaxDelay:           &max,
@@ -33,7 +33,7 @@ func TestRetriesConstructor(t *testing.T) {
 	g.Expect(r.MaxDelay).To(gomega.Equal(60 * time.Second))
 
 	zeroDelay := 0 * time.Millisecond
-	r, err = modal.NewRetries(1, &modal.RetriesOptions{
+	r, err = modal.NewRetries(1, &modal.RetriesParams{
 		InitialDelay: &zeroDelay,
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -46,17 +46,17 @@ func TestRetriesConstructor(t *testing.T) {
 	g.Expect(err.Error()).Should(gomega.ContainSubstring("maxRetries"))
 
 	invalidBackoff := float32(0.9)
-	_, err = modal.NewRetries(0, &modal.RetriesOptions{BackoffCoefficient: &invalidBackoff})
+	_, err = modal.NewRetries(0, &modal.RetriesParams{BackoffCoefficient: &invalidBackoff})
 	g.Expect(err).Should(gomega.HaveOccurred())
 	g.Expect(err.Error()).Should(gomega.ContainSubstring("backoffCoefficient"))
 
 	invalidInitial := 61 * time.Second
-	_, err = modal.NewRetries(0, &modal.RetriesOptions{InitialDelay: &invalidInitial})
+	_, err = modal.NewRetries(0, &modal.RetriesParams{InitialDelay: &invalidInitial})
 	g.Expect(err).Should(gomega.HaveOccurred())
 	g.Expect(err.Error()).Should(gomega.ContainSubstring("initialDelay"))
 
 	invalidMax := 500 * time.Millisecond
-	_, err = modal.NewRetries(0, &modal.RetriesOptions{MaxDelay: &invalidMax})
+	_, err = modal.NewRetries(0, &modal.RetriesParams{MaxDelay: &invalidMax})
 	g.Expect(err).Should(gomega.HaveOccurred())
 	g.Expect(err.Error()).Should(gomega.ContainSubstring("maxDelay"))
 }

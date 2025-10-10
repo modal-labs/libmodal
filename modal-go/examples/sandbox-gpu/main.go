@@ -10,26 +10,34 @@ import (
 
 func main() {
 	ctx := context.Background()
-
-	app, err := modal.AppLookup(ctx, "libmodal-example", &modal.LookupOptions{CreateIfMissing: true})
+	mc, err := modal.NewClient()
 	if err != nil {
-		log.Fatalf("Failed to lookup or create App: %v", err)
+		log.Fatalf("Failed to create client: %v", err)
 	}
 
-	image := modal.NewImageFromRegistry("nvidia/cuda:12.4.0-devel-ubuntu22.04", nil)
+	app, err := mc.Apps.FromName(ctx, "libmodal-example", &modal.AppFromNameParams{CreateIfMissing: true})
+	if err != nil {
+		log.Fatalf("Failed to get or create App: %v", err)
+	}
 
-	sb, err := app.CreateSandbox(image, &modal.SandboxOptions{
+	image := mc.Images.FromRegistry("nvidia/cuda:12.4.0-devel-ubuntu22.04", nil)
+
+	sb, err := mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
 		GPU: "A10G",
 	})
 	if err != nil {
 		log.Fatalf("Failed to create Sandbox: %v", err)
 	}
-	log.Printf("Started Sandbox with A10G GPU: %s", sb.SandboxId)
-	defer sb.Terminate()
+	log.Printf("Started Sandbox with A10G GPU: %s", sb.SandboxID)
+	defer func() {
+		if err := sb.Terminate(context.Background()); err != nil {
+			log.Fatalf("Failed to terminate Sandbox %s: %v", sb.SandboxID, err)
+		}
+	}()
 
 	log.Println("Running `nvidia-smi` in Sandbox:")
 
-	p, err := sb.Exec([]string{"nvidia-smi"}, modal.ExecOptions{})
+	p, err := sb.Exec(ctx, []string{"nvidia-smi"}, nil)
 	if err != nil {
 		log.Fatalf("Failed to execute nvidia-smi in Sandbox: %v", err)
 	}

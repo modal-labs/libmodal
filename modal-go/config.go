@@ -14,17 +14,17 @@ import (
 
 // Profile holds a fully-resolved configuration ready for use by the client.
 type Profile struct {
-	ServerURL           string // e.g. https://api.modal.com:443
-	TokenId             string // optional (if InitializeClient is called)
-	TokenSecret         string // optional (if InitializeClient is called)
-	Environment         string // optional
-	ImageBuilderVersion string // optional
+	ServerURL           string
+	TokenID             string
+	TokenSecret         string
+	Environment         string
+	ImageBuilderVersion string
 }
 
 // rawProfile mirrors the TOML structure on disk.
 type rawProfile struct {
 	ServerURL           string `toml:"server_url"`
-	TokenId             string `toml:"token_id"`
+	TokenID             string `toml:"token_id"`
 	TokenSecret         string `toml:"token_secret"`
 	Environment         string `toml:"environment"`
 	ImageBuilderVersion string `toml:"image_builder_version"`
@@ -59,9 +59,9 @@ func readConfigFile() (config, error) {
 // the first profile in the configuration file with `active = true`.
 //
 // Returned Profile is ready for use; error describes what is missing.
-func getProfile(name string) Profile {
+func getProfile(name string, cfg config) Profile {
 	if name == "" {
-		for n, p := range defaultConfig {
+		for n, p := range cfg {
 			if p.Active {
 				name = n
 				break
@@ -71,19 +71,19 @@ func getProfile(name string) Profile {
 
 	var raw rawProfile
 	if name != "" {
-		raw = defaultConfig[name]
+		raw = cfg[name]
 	}
 
 	// Env-vars override file values.
 	serverURL := firstNonEmpty(os.Getenv("MODAL_SERVER_URL"), raw.ServerURL, "https://api.modal.com:443")
-	tokenId := firstNonEmpty(os.Getenv("MODAL_TOKEN_ID"), raw.TokenId)
+	tokenID := firstNonEmpty(os.Getenv("MODAL_TOKEN_ID"), raw.TokenID)
 	tokenSecret := firstNonEmpty(os.Getenv("MODAL_TOKEN_SECRET"), raw.TokenSecret)
 	environment := firstNonEmpty(os.Getenv("MODAL_ENVIRONMENT"), raw.Environment)
 	imageBuilderVersion := firstNonEmpty(os.Getenv("MODAL_IMAGE_BUILDER_VERSION"), raw.ImageBuilderVersion)
 
 	return Profile{
 		ServerURL:           serverURL,
-		TokenId:             tokenId,
+		TokenID:             tokenID,
 		TokenSecret:         tokenSecret,
 		Environment:         environment,
 		ImageBuilderVersion: imageBuilderVersion,
@@ -99,10 +99,10 @@ func firstNonEmpty(values ...string) string {
 	return ""
 }
 
-func environmentName(environment string) string {
-	return firstNonEmpty(environment, clientProfile.Environment)
+func environmentName(environment string, profile Profile) string {
+	return firstNonEmpty(environment, profile.Environment)
 }
 
-func imageBuilderVersion(version string) string {
-	return firstNonEmpty(version, clientProfile.ImageBuilderVersion, "2024.10")
+func imageBuilderVersion(version string, profile Profile) string {
+	return firstNonEmpty(version, profile.ImageBuilderVersion, "2024.10")
 }

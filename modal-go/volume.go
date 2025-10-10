@@ -9,35 +9,42 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// Volume represents a Modal Volume that provides persistent storage.
-type Volume struct {
-	VolumeId string
-	Name     string
-	readOnly bool
-	cancel   context.CancelFunc
-	ctx      context.Context
+// VolumeService provides Volume related operations.
+type VolumeService interface {
+	FromName(ctx context.Context, name string, params *VolumeFromNameParams) (*Volume, error)
+	Ephemeral(ctx context.Context, params *VolumeEphemeralParams) (*Volume, error)
 }
 
-// VolumeFromNameOptions are options for finding Modal Volumes.
-type VolumeFromNameOptions struct {
+type volumeServiceImpl struct{ client *Client }
+
+// Volume represents a Modal Volume that provides persistent storage.
+type Volume struct {
+	VolumeID        string
+	Name            string
+	readOnly        bool
+	cancelEphemeral context.CancelFunc
+}
+
+// VolumeFromNameParams are options for finding Modal Volumes.
+type VolumeFromNameParams struct {
 	Environment     string
 	CreateIfMissing bool
 }
 
-// VolumeFromName references a modal.Volume by its name.
-func VolumeFromName(ctx context.Context, name string, options *VolumeFromNameOptions) (*Volume, error) {
-	if options == nil {
-		options = &VolumeFromNameOptions{}
+// FromName references a Volume by its name.
+func (s *volumeServiceImpl) FromName(ctx context.Context, name string, params *VolumeFromNameParams) (*Volume, error) {
+	if params == nil {
+		params = &VolumeFromNameParams{}
 	}
 
 	creationType := pb.ObjectCreationType_OBJECT_CREATION_TYPE_UNSPECIFIED
-	if options.CreateIfMissing {
+	if params.CreateIfMissing {
 		creationType = pb.ObjectCreationType_OBJECT_CREATION_TYPE_CREATE_IF_MISSING
 	}
 
-	resp, err := client.VolumeGetOrCreate(ctx, pb.VolumeGetOrCreateRequest_builder{
+	resp, err := s.client.cpClient.VolumeGetOrCreate(ctx, pb.VolumeGetOrCreateRequest_builder{
 		DeploymentName:     name,
-		EnvironmentName:    environmentName(options.Environment),
+		EnvironmentName:    environmentName(params.Environment, s.client.profile),
 		ObjectCreationType: creationType,
 	}.Build())
 
@@ -48,17 +55,16 @@ func VolumeFromName(ctx context.Context, name string, options *VolumeFromNameOpt
 		return nil, err
 	}
 
-	return &Volume{VolumeId: resp.GetVolumeId(), Name: name, readOnly: false, cancel: nil, ctx: ctx}, nil
+	return &Volume{VolumeID: resp.GetVolumeId(), Name: name, readOnly: false, cancelEphemeral: nil}, nil
 }
 
 // ReadOnly configures Volume to mount as read-only.
 func (v *Volume) ReadOnly() *Volume {
 	return &Volume{
-		VolumeId: v.VolumeId,
-		Name:     v.Name,
-		readOnly: true,
-		cancel:   v.cancel,
-		ctx:      v.ctx,
+		VolumeID:        v.VolumeID,
+		Name:            v.Name,
+		readOnly:        true,
+		cancelEphemeral: v.cancelEphemeral,
 	}
 }
 
@@ -67,43 +73,47 @@ func (v *Volume) IsReadOnly() bool {
 	return v.readOnly
 }
 
-// VolumeEphemeral creates a nameless, temporary Volume, that persists until CloseEphemeral is called, or the process exits.
-func VolumeEphemeral(ctx context.Context, options *EphemeralOptions) (*Volume, error) {
-	if options == nil {
-		options = &EphemeralOptions{}
+// VolumeEphemeralParams are options for client.Volumes.Ephemeral.
+type VolumeEphemeralParams struct {
+	Environment string
+}
+
+// Ephemeral creates a nameless, temporary Volume, that persists until CloseEphemeral is called, or the process exits.
+func (s *volumeServiceImpl) Ephemeral(ctx context.Context, params *VolumeEphemeralParams) (*Volume, error) {
+	if params == nil {
+		params = &VolumeEphemeralParams{}
 	}
 
-	resp, err := client.VolumeGetOrCreate(ctx, pb.VolumeGetOrCreateRequest_builder{
+	resp, err := s.client.cpClient.VolumeGetOrCreate(ctx, pb.VolumeGetOrCreateRequest_builder{
 		ObjectCreationType: pb.ObjectCreationType_OBJECT_CREATION_TYPE_EPHEMERAL,
-		EnvironmentName:    environmentName(options.Environment),
+		EnvironmentName:    environmentName(params.Environment, s.client.profile),
 	}.Build())
 	if err != nil {
 		return nil, err
 	}
 
-	ephemeralCtx, cancel := context.WithCancel(ctx)
+	ephemeralCtx, cancel := context.WithCancel(context.Background())
 	startEphemeralHeartbeat(ephemeralCtx, func() error {
-		_, err := client.VolumeHeartbeat(ephemeralCtx, pb.VolumeHeartbeatRequest_builder{
+		_, err := s.client.cpClient.VolumeHeartbeat(ephemeralCtx, pb.VolumeHeartbeatRequest_builder{
 			VolumeId: resp.GetVolumeId(),
 		}.Build())
 		return err
 	})
 
 	return &Volume{
-		VolumeId: resp.GetVolumeId(),
-		readOnly: false,
-		cancel:   cancel,
-		ctx:      ephemeralCtx,
+		VolumeID:        resp.GetVolumeId(),
+		readOnly:        false,
+		cancelEphemeral: cancel,
 	}, nil
 }
 
 // CloseEphemeral deletes an ephemeral Volume, only used with VolumeEphemeral.
 func (v *Volume) CloseEphemeral() {
-	if v.cancel != nil {
-		v.cancel()
+	if v.cancelEphemeral != nil {
+		v.cancelEphemeral()
 	} else {
 		// We panic in this case because of invalid usage. In general, methods
 		// used with `defer` like CloseEphemeral should not return errors.
-		panic(fmt.Sprintf("Volume %s is not ephemeral", v.VolumeId))
+		panic(fmt.Sprintf("Volume %s is not ephemeral", v.VolumeID))
 	}
 }

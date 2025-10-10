@@ -6,58 +6,82 @@ import (
 	pb "github.com/modal-labs/libmodal/modal-go/proto/modal_proto"
 )
 
-// Secret represents a Modal Secret.
-type Secret struct {
-	SecretId string
-	Name     string
-
-	//lint:ignore U1000 may be used in future
-	ctx context.Context
+// SecretService provides Secret related operations.
+type SecretService interface {
+	FromName(ctx context.Context, name string, params *SecretFromNameParams) (*Secret, error)
+	FromMap(ctx context.Context, keyValuePairs map[string]string, params *SecretFromMapParams) (*Secret, error)
 }
 
-// SecretFromNameOptions are options for finding Modal Secrets.
-type SecretFromNameOptions struct {
+type secretServiceImpl struct{ client *Client }
+
+// Secret represents a Modal Secret.
+type Secret struct {
+	SecretID string
+	Name     string
+}
+
+// SecretFromNameParams are options for finding Modal Secrets.
+type SecretFromNameParams struct {
 	Environment  string
 	RequiredKeys []string
 }
 
-// SecretFromName references a modal.Secret by its name.
-func SecretFromName(ctx context.Context, name string, options *SecretFromNameOptions) (*Secret, error) {
-	if options == nil {
-		options = &SecretFromNameOptions{}
+// FromName references a Secret by its name.
+func (s *secretServiceImpl) FromName(ctx context.Context, name string, params *SecretFromNameParams) (*Secret, error) {
+	if params == nil {
+		params = &SecretFromNameParams{}
 	}
 
-	resp, err := client.SecretGetOrCreate(ctx, pb.SecretGetOrCreateRequest_builder{
+	resp, err := s.client.cpClient.SecretGetOrCreate(ctx, pb.SecretGetOrCreateRequest_builder{
 		DeploymentName:  name,
-		EnvironmentName: environmentName(options.Environment),
-		RequiredKeys:    options.RequiredKeys,
+		EnvironmentName: environmentName(params.Environment, s.client.profile),
+		RequiredKeys:    params.RequiredKeys,
 	}.Build())
 
 	if err != nil {
 		return nil, err
 	}
 
-	return &Secret{SecretId: resp.GetSecretId(), Name: name}, nil
+	return &Secret{SecretID: resp.GetSecretId(), Name: name}, nil
 }
 
-// SecretFromMapOptions are options for creating a Secret from a key/value map.
-type SecretFromMapOptions struct {
+// SecretFromMapParams are options for creating a Secret from a key/value map.
+type SecretFromMapParams struct {
 	Environment string
 }
 
-// SecretFromMap creates a Secret from a map of key-value pairs.
-func SecretFromMap(ctx context.Context, keyValuePairs map[string]string, options *SecretFromMapOptions) (*Secret, error) {
-	if options == nil {
-		options = &SecretFromMapOptions{}
+// FromMap creates a Secret from a map of key-value pairs.
+func (s *secretServiceImpl) FromMap(ctx context.Context, keyValuePairs map[string]string, params *SecretFromMapParams) (*Secret, error) {
+	if params == nil {
+		params = &SecretFromMapParams{}
 	}
 
-	resp, err := client.SecretGetOrCreate(ctx, pb.SecretGetOrCreateRequest_builder{
+	resp, err := s.client.cpClient.SecretGetOrCreate(ctx, pb.SecretGetOrCreateRequest_builder{
 		ObjectCreationType: pb.ObjectCreationType_OBJECT_CREATION_TYPE_EPHEMERAL,
 		EnvDict:            keyValuePairs,
-		EnvironmentName:    environmentName(options.Environment),
+		EnvironmentName:    environmentName(params.Environment, s.client.profile),
 	}.Build())
 	if err != nil {
 		return nil, err
 	}
-	return &Secret{SecretId: resp.GetSecretId()}, nil
+	return &Secret{SecretID: resp.GetSecretId()}, nil
+}
+
+// mergeEnvIntoSecrets merges environment variables into the secrets list.
+// If env contains values, it creates a new Secret from the env map and appends it to the existing secrets.
+func mergeEnvIntoSecrets(ctx context.Context, client *Client, env *map[string]string, secrets *[]*Secret) ([]*Secret, error) {
+	var result []*Secret
+	if secrets != nil {
+		result = append(result, *secrets...)
+	}
+
+	if env != nil && len(*env) > 0 {
+		envSecret, err := client.Secrets.FromMap(ctx, *env, nil)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, envSecret)
+	}
+
+	return result, nil
 }

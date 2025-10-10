@@ -12,25 +12,29 @@ import (
 func TestSecretFromName(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
-	secret, err := modal.SecretFromName(context.Background(), "libmodal-test-secret", nil)
+	ctx := context.Background()
+
+	secret, err := tc.Secrets.FromName(ctx, "libmodal-test-secret", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(secret.SecretId).Should(gomega.HavePrefix("st-"))
+	g.Expect(secret.SecretID).Should(gomega.HavePrefix("st-"))
 	g.Expect(secret.Name).To(gomega.Equal("libmodal-test-secret"))
 
-	_, err = modal.SecretFromName(context.Background(), "missing-secret", nil)
+	_, err = tc.Secrets.FromName(ctx, "missing-secret", nil)
 	g.Expect(err).Should(gomega.MatchError(gomega.ContainSubstring("Secret 'missing-secret' not found")))
 }
 
 func TestSecretFromNameWithRequiredKeys(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
-	secret, err := modal.SecretFromName(context.Background(), "libmodal-test-secret", &modal.SecretFromNameOptions{
+	ctx := context.Background()
+
+	secret, err := tc.Secrets.FromName(ctx, "libmodal-test-secret", &modal.SecretFromNameParams{
 		RequiredKeys: []string{"a", "b", "c"},
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(secret.SecretId).Should(gomega.HavePrefix("st-"))
+	g.Expect(secret.SecretID).Should(gomega.HavePrefix("st-"))
 
-	_, err = modal.SecretFromName(context.Background(), "libmodal-test-secret", &modal.SecretFromNameOptions{
+	_, err = tc.Secrets.FromName(ctx, "libmodal-test-secret", &modal.SecretFromNameParams{
 		RequiredKeys: []string{"a", "b", "c", "missing-key"},
 	})
 	g.Expect(err).Should(gomega.MatchError(gomega.ContainSubstring("Secret is missing key(s): missing-key")))
@@ -39,18 +43,18 @@ func TestSecretFromNameWithRequiredKeys(t *testing.T) {
 func TestSecretFromMap(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
+	ctx := context.Background()
 
-	app, err := modal.AppLookup(context.Background(), "libmodal-test", &modal.LookupOptions{CreateIfMissing: true})
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	image := modal.NewImageFromRegistry("alpine:3.21", nil)
-	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	image := tc.Images.FromRegistry("alpine:3.21", nil)
 
-	secret, err := modal.SecretFromMap(context.Background(), map[string]string{"key": "value"}, nil)
+	secret, err := tc.Secrets.FromMap(ctx, map[string]string{"key": "value"}, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(secret.SecretId).Should(gomega.HavePrefix("st-"))
+	g.Expect(secret.SecretID).Should(gomega.HavePrefix("st-"))
 
-	sb, err := app.CreateSandbox(image, &modal.SandboxOptions{Secrets: []*modal.Secret{secret}, Command: []string{"printenv", "key"}})
+	sb, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{Secrets: []*modal.Secret{secret}, Command: []string{"printenv", "key"}})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	output, err := io.ReadAll(sb.Stdout)

@@ -11,19 +11,23 @@ import (
 
 func main() {
 	ctx := context.Background()
-
-	echo, err := modal.FunctionLookup(ctx, "libmodal-test-support", "echo_string", nil)
+	mc, err := modal.NewClient()
 	if err != nil {
-		log.Fatalf("Failed to lookup Function: %v", err)
+		log.Fatalf("Failed to create client: %v", err)
 	}
 
-	ret, err := echo.Remote([]any{"Hello world!"}, nil)
+	echo, err := mc.Functions.FromName(ctx, "libmodal-test-support", "echo_string", nil)
+	if err != nil {
+		log.Fatalf("Failed to get Function: %v", err)
+	}
+
+	ret, err := echo.Remote(ctx, []any{"Hello world!"}, nil)
 	if err != nil {
 		log.Fatalf("Failed to call Function: %v", err)
 	}
 	log.Println("Response:", ret)
 
-	ret, err = echo.Remote(nil, map[string]any{"s": "Hello world!"})
+	ret, err = echo.Remote(ctx, nil, map[string]any{"s": "Hello world!"})
 	if err != nil {
 		log.Fatalf("Failed to call Function with kwargs: %v", err)
 	}

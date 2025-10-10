@@ -4,19 +4,85 @@ import {
   ObjectCreationType,
   QueueNextItemsRequest,
 } from "../proto/modal_proto/api";
-import type { DeleteOptions, EphemeralOptions, LookupOptions } from "./app";
-import { client } from "./client";
-import { environmentName } from "./config";
+import { getDefaultClient, type ModalClient } from "./client";
 import { InvalidError, QueueEmptyError, QueueFullError } from "./errors";
-import { dumps, loads } from "./pickle";
+import { dumps as pickleEncode, loads as pickleDecode } from "./pickle";
 import { ClientError, Status } from "nice-grpc";
 import { EphemeralHeartbeatManager } from "./ephemeral";
 
 const queueInitialPutBackoff = 100; // 100 milliseconds
 const queueDefaultPartitionTtl = 24 * 3600 * 1000; // 24 hours
 
-/** Options to configure a `Queue.clear()` operation. */
-export type QueueClearOptions = {
+/** Optional parameters for `client.queues.fromName()`. */
+export type QueueFromNameParams = {
+  environment?: string;
+  createIfMissing?: boolean;
+};
+
+/** Optional parameters for `client.queues.delete()`. */
+export type QueueDeleteParams = {
+  environment?: string;
+};
+
+/** Optional parameters for `client.queues.ephemeral()`. */
+export type QueueEphemeralParams = {
+  environment?: string;
+};
+
+/**
+ * Service for managing Queues.
+ */
+export class QueueService {
+  readonly #client: ModalClient;
+  constructor(client: ModalClient) {
+    this.#client = client;
+  }
+
+  /**
+   * Create a nameless, temporary Queue.
+   * You will need to call `closeEphemeral()` to delete the Queue.
+   */
+  async ephemeral(params: QueueEphemeralParams = {}): Promise<Queue> {
+    const resp = await this.#client.cpClient.queueGetOrCreate({
+      objectCreationType: ObjectCreationType.OBJECT_CREATION_TYPE_EPHEMERAL,
+      environmentName: this.#client.environmentName(params.environment),
+    });
+
+    const ephemeralHbManager = new EphemeralHeartbeatManager(() =>
+      this.#client.cpClient.queueHeartbeat({ queueId: resp.queueId }),
+    );
+
+    return new Queue(this.#client, resp.queueId, undefined, ephemeralHbManager);
+  }
+
+  /**
+   * Lookup a Queue by name.
+   */
+  async fromName(
+    name: string,
+    params: QueueFromNameParams = {},
+  ): Promise<Queue> {
+    const resp = await this.#client.cpClient.queueGetOrCreate({
+      deploymentName: name,
+      objectCreationType: params.createIfMissing
+        ? ObjectCreationType.OBJECT_CREATION_TYPE_CREATE_IF_MISSING
+        : undefined,
+      environmentName: this.#client.environmentName(params.environment),
+    });
+    return new Queue(this.#client, resp.queueId, name);
+  }
+
+  /**
+   * Delete a Queue by name.
+   */
+  async delete(name: string, params: QueueDeleteParams = {}): Promise<void> {
+    const queue = await this.fromName(name, params);
+    await this.#client.cpClient.queueDelete({ queueId: queue.queueId });
+  }
+}
+
+/** Optional parameters for `Queue.clear()`. */
+export type QueueClearParams = {
   /** Partition to clear, uses default partition if not set. */
   partition?: string;
 
@@ -24,8 +90,8 @@ export type QueueClearOptions = {
   all?: boolean;
 };
 
-/** Options to configure a `Queue.get()` or `Queue.getMany()` operation. */
-export type QueueGetOptions = {
+/** Optional parameters for `Queue.get()`. */
+export type QueueGetParams = {
   /** How long to wait if the Queue is empty (default: indefinite). */
   timeout?: number;
 
@@ -33,8 +99,11 @@ export type QueueGetOptions = {
   partition?: string;
 };
 
-/** Options to configure a `Queue.put()` or `Queue.putMany()` operation. */
-export type QueuePutOptions = {
+/** Optional parameters for `Queue.getMany()`. */
+export type QueueGetManyParams = QueueGetParams;
+
+/** Optional parameters for `Queue.put()`. */
+export type QueuePutParams = {
   /** How long to wait if the Queue is full (default: indefinite). */
   timeout?: number;
 
@@ -45,8 +114,11 @@ export type QueuePutOptions = {
   partitionTtl?: number;
 };
 
-/** Options to configure a `Queue.len()` operation. */
-export type QueueLenOptions = {
+/** Optional parameters for `Queue.putMany()`. */
+export type QueuePutManyParams = QueuePutParams;
+
+/** Optional parameters for `Queue.len()`. */
+export type QueueLenParams = {
   /** Partition to compute length, uses default partition if not set. */
   partition?: string;
 
@@ -54,8 +126,8 @@ export type QueueLenOptions = {
   total?: boolean;
 };
 
-/** Options to configure a `Queue.iterate()` operation. */
-export type QueueIterateOptions = {
+/** Optional parameters for `Queue.iterate()`. */
+export type QueueIterateParams = {
   /** How long to wait between successive items before exiting iteration (default: 0). */
   itemPollTimeout?: number;
 
@@ -67,16 +139,19 @@ export type QueueIterateOptions = {
  * Distributed, FIFO queue for data flow in Modal Apps.
  */
 export class Queue {
+  readonly #client: ModalClient;
   readonly queueId: string;
   readonly name?: string;
   readonly #ephemeralHbManager?: EphemeralHeartbeatManager;
 
   /** @ignore */
   constructor(
+    client: ModalClient,
     queueId: string,
     name?: string,
     ephemeralHbManager?: EphemeralHeartbeatManager,
   ) {
+    this.#client = client;
     this.queueId = queueId;
     this.name = name;
     this.#ephemeralHbManager = ephemeralHbManager;
@@ -96,23 +171,13 @@ export class Queue {
   }
 
   /**
-   * Create a nameless, temporary Queue.
-   * You will need to call `closeEphemeral()` to delete the Queue.
+   * @deprecated Use `client.queues.ephemeral()` instead.
    */
-  static async ephemeral(options: EphemeralOptions = {}): Promise<Queue> {
-    const resp = await client.queueGetOrCreate({
-      objectCreationType: ObjectCreationType.OBJECT_CREATION_TYPE_EPHEMERAL,
-      environmentName: environmentName(options.environment),
-    });
-
-    const ephemeralHbManager = new EphemeralHeartbeatManager(() =>
-      client.queueHeartbeat({ queueId: resp.queueId }),
-    );
-
-    return new Queue(resp.queueId, undefined, ephemeralHbManager);
+  static async ephemeral(params: QueueEphemeralParams = {}): Promise<Queue> {
+    return getDefaultClient().queues.ephemeral(params);
   }
 
-  /** Delete the ephemeral Queue. Only usable with `Queue.ephemeral()`. */
+  /** Delete the ephemeral Queue. Only usable with ephemeral Queues. */
   closeEphemeral(): void {
     if (this.#ephemeralHbManager) {
       this.#ephemeralHbManager.stop();
@@ -122,44 +187,38 @@ export class Queue {
   }
 
   /**
-   * Lookup a Queue by name.
+   * @deprecated Use `client.queues.fromName()` instead.
    */
   static async lookup(
     name: string,
-    options: LookupOptions = {},
+    options: QueueFromNameParams = {},
   ): Promise<Queue> {
-    const resp = await client.queueGetOrCreate({
-      deploymentName: name,
-      objectCreationType: options.createIfMissing
-        ? ObjectCreationType.OBJECT_CREATION_TYPE_CREATE_IF_MISSING
-        : undefined,
-      environmentName: environmentName(options.environment),
-    });
-    return new Queue(resp.queueId, name);
+    return getDefaultClient().queues.fromName(name, options);
   }
 
-  /** Delete a Queue by name. */
+  /**
+   * @deprecated Use `client.queues.delete()` instead.
+   */
   static async delete(
     name: string,
-    options: DeleteOptions = {},
+    options: QueueDeleteParams = {},
   ): Promise<void> {
-    const queue = await Queue.lookup(name, options);
-    await client.queueDelete({ queueId: queue.queueId });
+    return getDefaultClient().queues.delete(name, options);
   }
 
   /**
    * Remove all objects from a Queue partition.
    */
-  async clear(options: QueueClearOptions = {}): Promise<void> {
-    if (options.partition && options.all) {
+  async clear(params: QueueClearParams = {}): Promise<void> {
+    if (params.partition && params.all) {
       throw new InvalidError(
         "Partition must be null when requesting to clear all.",
       );
     }
-    await client.queueClear({
+    await this.#client.cpClient.queueClear({
       queueId: this.queueId,
-      partitionKey: Queue.#validatePartitionKey(options.partition),
-      allPartitions: options.all,
+      partitionKey: Queue.#validatePartitionKey(params.partition),
+      allPartitions: params.all,
     });
   }
 
@@ -173,14 +232,14 @@ export class Queue {
     }
 
     while (true) {
-      const response = await client.queueGet({
+      const response = await this.#client.cpClient.queueGet({
         queueId: this.queueId,
         partitionKey,
         timeout: pollTimeout / 1000,
         nValues: n,
       });
       if (response.values && response.values.length > 0) {
-        return response.values.map((value) => loads(value));
+        return response.values.map((value) => pickleDecode(value));
       }
       if (timeout !== undefined) {
         const remaining = timeout - (Date.now() - startTime);
@@ -200,8 +259,8 @@ export class Queue {
    * If `timeout` is set, raises `QueueEmptyError` if no items are available
    * within that timeout in milliseconds.
    */
-  async get(options: QueueGetOptions = {}): Promise<any | null> {
-    const values = await this.#get(1, options.partition, options.timeout);
+  async get(params: QueueGetParams = {}): Promise<any | null> {
+    const values = await this.#get(1, params.partition, params.timeout);
     return values[0]; // Must have length >= 1 if returned.
   }
 
@@ -212,8 +271,8 @@ export class Queue {
    * If `timeout` is set, raises `QueueEmptyError` if no items are available
    * within that timeout in milliseconds.
    */
-  async getMany(n: number, options: QueueGetOptions = {}): Promise<any[]> {
-    return await this.#get(n, options.partition, options.timeout);
+  async getMany(n: number, params: QueueGetManyParams = {}): Promise<any[]> {
+    return await this.#get(n, params.partition, params.timeout);
   }
 
   async #put(
@@ -222,14 +281,14 @@ export class Queue {
     partition?: string,
     partitionTtl?: number,
   ): Promise<void> {
-    const valuesEncoded = values.map((v) => dumps(v));
+    const valuesEncoded = values.map((v) => pickleEncode(v));
     const partitionKey = Queue.#validatePartitionKey(partition);
 
     let delay = queueInitialPutBackoff;
     const deadline = timeout ? Date.now() + timeout : undefined;
     while (true) {
       try {
-        await client.queuePut({
+        await this.#client.cpClient.queuePut({
           queueId: this.queueId,
           values: valuesEncoded,
           partitionKey,
@@ -262,13 +321,8 @@ export class Queue {
    * provided `timeout` is reached, or indefinitely if `timeout` is not set.
    * Raises `QueueFullError` if the Queue is still full after the timeout.
    */
-  async put(v: any, options: QueuePutOptions = {}): Promise<void> {
-    await this.#put(
-      [v],
-      options.timeout,
-      options.partition,
-      options.partitionTtl,
-    );
+  async put(v: any, params: QueuePutParams = {}): Promise<void> {
+    await this.#put([v], params.timeout, params.partition, params.partitionTtl);
   }
 
   /**
@@ -278,35 +332,35 @@ export class Queue {
    * provided `timeout` is reached, or indefinitely if `timeout` is not set.
    * Raises `QueueFullError` if the Queue is still full after the timeout.
    */
-  async putMany(values: any[], options: QueuePutOptions = {}): Promise<void> {
+  async putMany(values: any[], params: QueuePutManyParams = {}): Promise<void> {
     await this.#put(
       values,
-      options.timeout,
-      options.partition,
-      options.partitionTtl,
+      params.timeout,
+      params.partition,
+      params.partitionTtl,
     );
   }
 
   /** Return the number of objects in the Queue. */
-  async len(options: QueueLenOptions = {}): Promise<number> {
-    if (options.partition && options.total) {
+  async len(params: QueueLenParams = {}): Promise<number> {
+    if (params.partition && params.total) {
       throw new InvalidError(
         "Partition must be null when requesting total length.",
       );
     }
-    const resp = await client.queueLen({
+    const resp = await this.#client.cpClient.queueLen({
       queueId: this.queueId,
-      partitionKey: Queue.#validatePartitionKey(options.partition),
-      total: options.total,
+      partitionKey: Queue.#validatePartitionKey(params.partition),
+      total: params.total,
     });
     return resp.len;
   }
 
   /** Iterate through items in a Queue without mutation. */
   async *iterate(
-    options: QueueIterateOptions = {},
+    params: QueueIterateParams = {},
   ): AsyncGenerator<any, void, unknown> {
-    const { partition, itemPollTimeout = 0 } = options;
+    const { partition, itemPollTimeout = 0 } = params;
 
     let lastEntryId = undefined;
     const validatedPartitionKey = Queue.#validatePartitionKey(partition);
@@ -325,10 +379,10 @@ export class Queue {
         lastEntryId: lastEntryId || "",
       };
 
-      const response = await client.queueNextItems(request);
+      const response = await this.#client.cpClient.queueNextItems(request);
       if (response.items && response.items.length > 0) {
         for (const item of response.items) {
-          yield loads(item.value);
+          yield pickleDecode(item.value);
           lastEntryId = item.entryId;
         }
         fetchDeadline = Date.now() + itemPollTimeout;

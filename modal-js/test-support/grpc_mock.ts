@@ -1,46 +1,22 @@
-import { vi } from "vitest";
+import { ModalClient } from "../src/client";
 
-export class MockGrpc {
+export class MockGrpcClient {
   // Map of short RPC name -> FIFO queue of handlers
   private readonly methodHandlerQueues: Map<
     string,
     Array<(req: unknown) => unknown | Promise<unknown>>
   > = new Map();
 
-  static async install(): Promise<MockGrpc> {
-    const instance = new MockGrpc();
-    vi.resetModules();
-
-    const mockClient: Record<string, (req: unknown) => Promise<unknown>> =
-      new Proxy(
-        {},
-        {
-          get(_target, propKey) {
-            if (typeof propKey !== "string") return undefined;
-            return (req: unknown) => instance.dispatch(propKey, req);
-          },
-        },
-      );
-
-    vi.doMock("../src/client", async () => {
-      const actual = (await vi.importActual<any>("../src/client")) as Record<
-        string,
-        unknown
-      >;
-      return {
-        ...actual,
-        client: mockClient,
-      };
+  constructor() {
+    return new Proxy(this, {
+      get(target, propKey) {
+        if (typeof propKey === "string" && !(propKey in target)) {
+          return (actualRequest: unknown) =>
+            target.dispatch(propKey, actualRequest);
+        }
+        return (target as any)[propKey];
+      },
     });
-
-    return instance;
-  }
-
-  async uninstall(): Promise<void> {
-    this.assertExhausted();
-    vi.unmock("../src/client");
-    vi.resetModules();
-    this.methodHandlerQueues.clear();
   }
 
   private readonly dispatch = async (
@@ -79,6 +55,20 @@ export class MockGrpc {
       throw new Error(`Not all expected gRPC calls were made:\n${details}`);
     }
   }
+}
+
+export function createMockModalClients(): {
+  mockClient: ModalClient;
+  mockCpClient: MockGrpcClient;
+} {
+  const mockCpClient = new MockGrpcClient();
+  const mockClient = new ModalClient({
+    cpClient: mockCpClient as any,
+    tokenId: "test-token-id",
+    tokenSecret: "test-token-secret",
+  });
+
+  return { mockClient, mockCpClient };
 }
 
 function rpcToClientMethodName(name: string): string {

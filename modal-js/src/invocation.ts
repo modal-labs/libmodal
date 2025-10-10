@@ -9,11 +9,10 @@ import {
   GeneratorDone,
   GenericResult,
   GenericResult_GenericStatus,
-  ModalClientClient,
 } from "../proto/modal_proto/api";
-import { client, getOrCreateInputPlaneClient } from "./client";
+import { ModalGrpcClient, type ModalClient } from "./client";
 import { FunctionTimeoutError, InternalFailure, RemoteError } from "./errors";
-import { loads } from "./pickle";
+import { cborDecode } from "./serialization";
 
 // From: modal-client/modal/_utils/function_utils.py
 const outputsTimeout = 55 * 1000;
@@ -33,17 +32,20 @@ export interface Invocation {
  * Implementation of Invocation which sends inputs to the control plane.
  */
 export class ControlPlaneInvocation implements Invocation {
+  private readonly cpClient: ModalGrpcClient;
   readonly functionCallId: string;
   private readonly input?: FunctionInput;
   private readonly functionCallJwt?: string;
   private inputJwt?: string;
 
   private constructor(
+    cpClient: ModalGrpcClient,
     functionCallId: string,
     input?: FunctionInput,
     functionCallJwt?: string,
     inputJwt?: string,
   ) {
+    this.cpClient = cpClient;
     this.functionCallId = functionCallId;
     this.input = input;
     this.functionCallJwt = functionCallJwt;
@@ -51,6 +53,7 @@ export class ControlPlaneInvocation implements Invocation {
   }
 
   static async create(
+    client: ModalClient,
     functionId: string,
     input: FunctionInput,
     invocationType: FunctionCallInvocationType,
@@ -60,7 +63,7 @@ export class ControlPlaneInvocation implements Invocation {
       input,
     });
 
-    const functionMapResponse = await client.functionMap({
+    const functionMapResponse = await client.cpClient.functionMap({
       functionId,
       functionCallType: FunctionCallType.FUNCTION_CALL_TYPE_UNARY,
       functionCallInvocationType: invocationType,
@@ -68,6 +71,7 @@ export class ControlPlaneInvocation implements Invocation {
     });
 
     return new ControlPlaneInvocation(
+      client.cpClient,
       functionMapResponse.functionCallId,
       input,
       functionMapResponse.functionCallJwt,
@@ -75,12 +79,13 @@ export class ControlPlaneInvocation implements Invocation {
     );
   }
 
-  static fromFunctionCallId(functionCallId: string) {
-    return new ControlPlaneInvocation(functionCallId);
+  static fromFunctionCallId(client: ModalClient, functionCallId: string) {
+    return new ControlPlaneInvocation(client.cpClient, functionCallId);
   }
 
   async awaitOutput(timeout?: number): Promise<any> {
     return await pollFunctionOutput(
+      this.cpClient,
       (timeoutMillis: number) => this.#getOutput(timeoutMillis),
       timeout,
     );
@@ -89,7 +94,7 @@ export class ControlPlaneInvocation implements Invocation {
   async #getOutput(
     timeoutMillis: number,
   ): Promise<FunctionGetOutputsItem | undefined> {
-    const response = await client.functionGetOutputs({
+    const response = await this.cpClient.functionGetOutputs({
       functionCallId: this.functionCallId,
       maxValues: 1,
       timeout: timeoutMillis / 1000, // Backend needs seconds
@@ -112,7 +117,7 @@ export class ControlPlaneInvocation implements Invocation {
       retryCount,
     };
 
-    const functionRetryResponse = await client.functionRetryInputs({
+    const functionRetryResponse = await this.cpClient.functionRetryInputs({
       functionCallJwt: this.functionCallJwt,
       inputs: [retryItem],
     });
@@ -124,24 +129,28 @@ export class ControlPlaneInvocation implements Invocation {
  * Implementation of Invocation which sends inputs to the input plane.
  */
 export class InputPlaneInvocation implements Invocation {
-  private readonly client: ModalClientClient;
+  private readonly cpClient: ModalGrpcClient;
+  private readonly ipClient: ModalGrpcClient;
   private readonly functionId: string;
   private readonly input: FunctionPutInputsItem;
   private attemptToken: string;
 
   constructor(
-    client: ModalClientClient,
+    cpClient: ModalGrpcClient,
+    ipClient: ModalGrpcClient,
     functionId: string,
     input: FunctionPutInputsItem,
     attemptToken: string,
   ) {
-    this.client = client;
+    this.cpClient = cpClient;
+    this.ipClient = ipClient;
     this.functionId = functionId;
     this.input = input;
     this.attemptToken = attemptToken;
   }
 
   static async create(
+    client: ModalClient,
     inputPlaneUrl: string,
     functionId: string,
     input: FunctionInput,
@@ -150,14 +159,15 @@ export class InputPlaneInvocation implements Invocation {
       idx: 0,
       input,
     });
-    const client = getOrCreateInputPlaneClient(inputPlaneUrl);
+    const ipClient = client.ipClient(inputPlaneUrl);
     // Single input sync invocation
-    const attemptStartResponse = await client.attemptStart({
+    const attemptStartResponse = await ipClient.attemptStart({
       functionId,
       input: functionPutInputsItem,
     });
     return new InputPlaneInvocation(
-      client,
+      client.cpClient,
+      ipClient,
       functionId,
       functionPutInputsItem,
       attemptStartResponse.attemptToken,
@@ -166,6 +176,7 @@ export class InputPlaneInvocation implements Invocation {
 
   async awaitOutput(timeout?: number): Promise<any> {
     return await pollFunctionOutput(
+      this.cpClient,
       (timeoutMillis: number) => this.#getOutput(timeoutMillis),
       timeout,
     );
@@ -174,7 +185,7 @@ export class InputPlaneInvocation implements Invocation {
   async #getOutput(
     timeoutMillis: number,
   ): Promise<FunctionGetOutputsItem | undefined> {
-    const response = await this.client.attemptAwait({
+    const response = await this.ipClient.attemptAwait({
       attemptToken: this.attemptToken,
       requestedAt: timeNowSeconds(),
       timeoutSecs: timeoutMillis / 1000,
@@ -183,7 +194,7 @@ export class InputPlaneInvocation implements Invocation {
   }
 
   async retry(_retryCount: number): Promise<void> {
-    const attemptRetryResponse = await this.client.attemptRetry({
+    const attemptRetryResponse = await this.ipClient.attemptRetry({
       functionId: this.functionId,
       input: this.input,
       attemptToken: this.attemptToken,
@@ -210,6 +221,7 @@ type GetOutput = (
  * value is greater than 55 seconds.
  */
 async function pollFunctionOutput(
+  cpClient: ModalGrpcClient,
   getOutput: GetOutput,
   timeout?: number, // in milliseconds
 ): Promise<any> {
@@ -222,7 +234,7 @@ async function pollFunctionOutput(
   while (true) {
     const output = await getOutput(pollTimeout);
     if (output) {
-      return await processResult(output.result, output.dataFormat);
+      return await processResult(cpClient, output.result, output.dataFormat);
     }
 
     if (timeout !== undefined) {
@@ -237,6 +249,7 @@ async function pollFunctionOutput(
 }
 
 async function processResult(
+  cpClient: ModalGrpcClient,
   result: GenericResult | undefined,
   dataFormat: DataFormat,
 ): Promise<unknown> {
@@ -248,7 +261,7 @@ async function processResult(
   if (result.data !== undefined) {
     data = result.data;
   } else if (result.dataBlobId) {
-    data = await blobDownload(result.dataBlobId);
+    data = await blobDownload(cpClient, result.dataBlobId);
   }
 
   switch (result.status) {
@@ -267,8 +280,11 @@ async function processResult(
   return deserializeDataFormat(data, dataFormat);
 }
 
-async function blobDownload(blobId: string): Promise<Uint8Array> {
-  const resp = await client.blobGet({ blobId });
+async function blobDownload(
+  cpClient: ModalGrpcClient,
+  blobId: string,
+): Promise<Uint8Array> {
+  const resp = await cpClient.blobGet({ blobId });
   const s3resp = await fetch(resp.downloadUrl);
   if (!s3resp.ok) {
     throw new Error(`Failed to download blob: ${s3resp.statusText}`);
@@ -287,9 +303,13 @@ function deserializeDataFormat(
 
   switch (dataFormat) {
     case DataFormat.DATA_FORMAT_PICKLE:
-      return loads(data);
+      throw new Error(
+        "PICKLE output format is not supported - remote function must return CBOR format",
+      );
+    case DataFormat.DATA_FORMAT_CBOR:
+      return cborDecode(data);
     case DataFormat.DATA_FORMAT_ASGI:
-      throw new Error("ASGI data format is not supported in Go");
+      throw new Error("ASGI data format is not supported in modal-js");
     case DataFormat.DATA_FORMAT_GENERATOR_DONE:
       return GeneratorDone.decode(data);
     default:

@@ -11,28 +11,37 @@ import (
 
 func main() {
 	ctx := context.Background()
-
-	app, err := modal.AppLookup(ctx, "libmodal-example", &modal.LookupOptions{CreateIfMissing: true})
+	mc, err := modal.NewClient()
 	if err != nil {
-		log.Fatalf("Failed to lookup or create App: %v", err)
+		log.Fatalf("Failed to create client: %v", err)
 	}
 
-	image := modal.NewImageFromRegistry("alpine:3.21", nil)
+	app, err := mc.Apps.FromName(ctx, "libmodal-example", &modal.AppFromNameParams{CreateIfMissing: true})
+	if err != nil {
+		log.Fatalf("Failed to get or create App: %v", err)
+	}
+
+	image := mc.Images.FromRegistry("alpine:3.21", nil)
 
 	sandboxName := "libmodal-example-named-sandbox"
 
-	sb, err := app.CreateSandbox(image, &modal.SandboxOptions{
+	sb, err := mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
 		Name:    sandboxName,
 		Command: []string{"cat"},
 	})
 	if err != nil {
 		log.Fatalf("Failed to create Sandbox: %v", err)
 	}
+	defer func() {
+		if err := sb.Terminate(context.Background()); err != nil {
+			log.Fatalf("Failed to terminate Sandbox %s: %v", sb.SandboxID, err)
+		}
+	}()
 
 	fmt.Printf("Created Sandbox with name: %s\n", sandboxName)
-	fmt.Printf("Sandbox ID: %s\n", sb.SandboxId)
+	fmt.Printf("Sandbox ID: %s\n", sb.SandboxID)
 
-	_, err = app.CreateSandbox(image, &modal.SandboxOptions{
+	_, err = mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
 		Name:    sandboxName,
 		Command: []string{"cat"},
 	})
@@ -44,11 +53,11 @@ func main() {
 		}
 	}
 
-	sbFromName, err := modal.SandboxFromName(ctx, "libmodal-example", sandboxName, nil)
+	sbFromName, err := mc.Sandboxes.FromName(ctx, "libmodal-example", sandboxName, nil)
 	if err != nil {
 		log.Fatalf("Failed to get Sandbox by name: %v", err)
 	}
-	fmt.Printf("Retrieved the same Sandbox from name: %s\n", sbFromName.SandboxId)
+	fmt.Printf("Retrieved the same Sandbox from name: %s\n", sbFromName.SandboxID)
 
 	_, err = sbFromName.Stdin.Write([]byte("hello, named Sandbox"))
 	if err != nil {
@@ -65,10 +74,4 @@ func main() {
 		log.Fatalf("Failed to read output from Sandbox stdout: %v", err)
 	}
 	fmt.Printf("%s\n", output)
-
-	err = sb.Terminate()
-	if err != nil {
-		log.Fatalf("Failed to terminate Sandbox: %v", err)
-	}
-	fmt.Println("Sandbox terminated")
 }

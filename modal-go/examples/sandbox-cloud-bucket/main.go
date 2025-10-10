@@ -10,21 +10,25 @@ import (
 
 func main() {
 	ctx := context.Background()
-
-	app, err := modal.AppLookup(ctx, "libmodal-example", &modal.LookupOptions{CreateIfMissing: true})
+	mc, err := modal.NewClient()
 	if err != nil {
-		log.Fatalf("Failed to lookup or create App: %v", err)
+		log.Fatalf("Failed to create client: %v", err)
 	}
 
-	image := modal.NewImageFromRegistry("alpine:3.21", nil)
-
-	secret, err := modal.SecretFromName(ctx, "libmodal-aws-bucket-secret", nil)
+	app, err := mc.Apps.FromName(ctx, "libmodal-example", &modal.AppFromNameParams{CreateIfMissing: true})
 	if err != nil {
-		log.Fatalf("Failed to lookup Secret: %v", err)
+		log.Fatalf("Failed to get or create App: %v", err)
+	}
+
+	image := mc.Images.FromRegistry("alpine:3.21", nil)
+
+	secret, err := mc.Secrets.FromName(ctx, "libmodal-aws-bucket-secret", nil)
+	if err != nil {
+		log.Fatalf("Failed to get Secret: %v", err)
 	}
 
 	keyPrefix := "data/"
-	cloudBucketMount, err := modal.NewCloudBucketMount("my-s3-bucket", &modal.CloudBucketMountOptions{
+	cloudBucketMount, err := mc.CloudBucketMounts.New("my-s3-bucket", &modal.CloudBucketMountParams{
 		Secret:    secret,
 		KeyPrefix: &keyPrefix,
 		ReadOnly:  true,
@@ -33,7 +37,7 @@ func main() {
 		log.Fatalf("Failed to create Cloud Bucket Mount: %v", err)
 	}
 
-	sb, err := app.CreateSandbox(image, &modal.SandboxOptions{
+	sb, err := mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
 		Command: []string{"sh", "-c", "ls -la /mnt/s3-bucket"},
 		CloudBucketMounts: map[string]*modal.CloudBucketMount{
 			"/mnt/s3-bucket": cloudBucketMount,
@@ -42,8 +46,13 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create Sandbox: %v", err)
 	}
+	defer func() {
+		if err := sb.Terminate(context.Background()); err != nil {
+			log.Fatalf("Failed to terminate Sandbox %s: %v", sb.SandboxID, err)
+		}
+	}()
 
-	log.Printf("S3 Sandbox: %s", sb.SandboxId)
+	log.Printf("S3 Sandbox: %s", sb.SandboxID)
 
 	output, err := io.ReadAll(sb.Stdout)
 	if err != nil {
@@ -51,8 +60,4 @@ func main() {
 	}
 
 	log.Printf("Sandbox directory listing of /mnt/s3-bucket:\n%s", string(output))
-
-	if err := sb.Terminate(); err != nil {
-		log.Printf("Failed to terminate Sandbox: %v", err)
-	}
 }
