@@ -1,6 +1,6 @@
 {
   "name": "modal",
-  "version": "0.3.24",
+  "version": "0.3.25",
   "description": "Modal client library for JavaScript",
   "license": "Apache-2.0",
   "homepage": "https://modal.com/docs",
@@ -47,11 +47,13 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.28.0",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^22.15.2",
     "eslint": "^9.28.0",
     "globals": "^16.2.0",
     "grpc-tools": "^1.13.0",
     "http-server": "^14.1.1",
+    "jsonwebtoken": "^9.0.2",
     "p-queue": "^8.1.0",
     "prettier": "^3.5.3",
     "ts-proto": "^2.7.0",

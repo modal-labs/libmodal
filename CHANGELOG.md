@@ -16,6 +16,11 @@ The first libmodal beta release (graduating from alpha). See the [Migration Guid
   - All `Params` structs are now passed as pointers for consistency and to support optional parameters.
   - Field names follow Go casing conventions (e.g., `Id` → `ID`, `Url` → `URL`, `TokenId` → `TokenID`).
 
+## modal-js/v0.3.25, modal-go/v0.0.25
+
+- Fixed a bug in modal-js related to unpickling objects from Python (Function calls, Queues, etc.), where integers between 32678 and 65535 were incorrectly decoded as signed integers.
+- Internal updates for how authentication tokens are handled for input plane clients.
+
 ## modal-js/v0.3.24, modal-go/v0.0.24
 
 - Added `env` parameters to several methods, as a convenience for passing environment variables into Sandboxes, etc.

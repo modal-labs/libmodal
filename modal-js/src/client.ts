@@ -23,6 +23,7 @@ import { VolumeService } from "./volume";
 
 import { ClientType, ModalClientDefinition } from "../proto/modal_proto/api";
 import { getProfile, type Profile } from "./config";
+import { AuthTokenManager } from "./auth_token_manager";
 
 export interface ModalClientParams {
   tokenId?: string;
@@ -57,7 +58,7 @@ export class ModalClient {
   readonly profile: Profile;
 
   private ipClients: Map<string, ModalGrpcClient>;
-  private authToken?: string;
+  private authTokenManager: AuthTokenManager | null = null;
 
   constructor(params?: ModalClientParams) {
     const baseProfile = getProfile(process.env["MODAL_PROFILE"]);
@@ -104,6 +105,13 @@ export class ModalClient {
     return newClient;
   }
 
+  close(): void {
+    if (this.authTokenManager) {
+      this.authTokenManager.stop();
+      this.authTokenManager = null;
+    }
+  }
+
   private createClient(profile: Profile): ModalGrpcClient {
     // Channels don't do anything until you send a request on them.
     // Ref: https://github.com/modal-labs/modal-client/blob/main/modal/_utils/grpc_utils.py
@@ -120,10 +128,12 @@ export class ModalClient {
   }
 
   private authMiddleware(profile: Profile): ClientMiddleware {
-    // workaround for TypeScript failing to infer the type of this with .bind(this)
-    const getAuthToken = () => this.authToken;
-    const setAuthToken = (token: string) => {
-      this.authToken = token;
+    const getOrCreateAuthTokenManager = () => {
+      if (!this.authTokenManager) {
+        this.authTokenManager = new AuthTokenManager(this.cpClient);
+        this.authTokenManager.start();
+      }
+      return this.authTokenManager;
     };
 
     return async function* authMiddleware<Request, Response>(
@@ -145,30 +155,17 @@ export class ModalClient {
       options.metadata.set("x-modal-client-version", "1.0.0"); // CLIENT VERSION: Behaves like this Python SDK version
       options.metadata.set("x-modal-token-id", tokenId);
       options.metadata.set("x-modal-token-secret", tokenSecret);
-      const authToken = getAuthToken();
-      if (authToken) {
-        options.metadata.set("x-modal-auth-token", authToken);
+
+      // Skip auth token for AuthTokenGet requests to prevent it from getting stuck
+      if (call.method.path !== "/modal.client.ModalClient/AuthTokenGet") {
+        const tokenManager = getOrCreateAuthTokenManager();
+        // getToken() will automatically wait if initial fetch is in progress
+        const token = await tokenManager.getToken();
+        if (token) {
+          options.metadata.set("x-modal-auth-token", token);
+        }
       }
 
-      // We receive an auth token from the control plane on our first request. We then include that auth token in every
-      // subsequent request to both the control plane and the input plane. The python server returns it in the trailers,
-      // the worker returns it in the headers.
-      const prevOnHeader = options.onHeader;
-      options.onHeader = (header) => {
-        const token = header.get("x-modal-auth-token");
-        if (token) {
-          setAuthToken(token);
-        }
-        prevOnHeader?.(header);
-      };
-      const prevOnTrailer = options.onTrailer;
-      options.onTrailer = (trailer) => {
-        const token = trailer.get("x-modal-auth-token");
-        if (token) {
-          setAuthToken(token);
-        }
-        prevOnTrailer?.(trailer);
-      };
       return yield* call.next(call.request, options);
     };
   }
@@ -372,4 +369,14 @@ export function initializeClient(options: ClientOptions) {
     environment: options.environment,
   };
   defaultClient = new ModalClient(defaultClientOptions);
+}
+
+/**
+ * Stops the auth token refresh.
+ * @deprecated Use `modalClient.close()` instead.
+ */
+export function close() {
+  if (defaultClient) {
+    defaultClient.close();
+  }
 }

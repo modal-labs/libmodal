@@ -161,7 +161,7 @@ function encodeValue(val: any, w: Writer, proto: Protocol) {
       if (val >= 0 && val <= 0xff) {
         w.byte(Op.BININT1);
         w.byte(val);
-      } else if (val >= -0x8000 && val <= 0x7fff) {
+      } else if (val >= 0 && val <= 0xffff) {
         w.byte(Op.BININT2);
         w.byte(val & 0xff);
         w.byte((val >> 8) & 0xff);
@@ -319,7 +319,7 @@ export function loads(buf: Uint8Array): any {
         const lo = r.byte(),
           hi = r.byte();
         const n = (hi << 8) | lo;
-        push(n & 0x8000 ? n - 0x10000 : n);
+        push(n);
         break;
       }
       case Op.BININT4: {

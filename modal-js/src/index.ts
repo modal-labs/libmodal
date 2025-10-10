@@ -6,7 +6,7 @@ export {
   type EphemeralOptions,
   type LookupOptions,
 } from "./app";
-export { type ClientOptions, initializeClient } from "./client";
+export { type ClientOptions, initializeClient, close } from "./client";
 export {
   Cls,
   ClsInstance,

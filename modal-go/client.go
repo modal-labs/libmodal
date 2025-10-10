@@ -38,12 +38,12 @@ type Client struct {
 	Secrets           SecretService
 	Volumes           VolumeService
 
-	config    config
-	profile   Profile
-	cpClient  pb.ModalClientClient            // control plane client
-	ipClients map[string]pb.ModalClientClient // input plane clients
-	authToken string
-	mu        sync.RWMutex
+	config           config
+	profile          Profile
+	cpClient         pb.ModalClientClient            // control plane client
+	ipClients        map[string]pb.ModalClientClient // input plane clients
+	authTokenManager *AuthTokenManager
+	mu               sync.RWMutex
 }
 
 // NewClient generates a new client with the default profile configuration read from environment variables and ~/.modal.toml.
@@ -105,6 +105,11 @@ func NewClientWithOptions(params *ClientParams) (*Client, error) {
 		return nil, fmt.Errorf("failed to create control plane client: %w", err)
 	}
 
+	c.authTokenManager = NewAuthTokenManager(c.cpClient)
+	if err := c.authTokenManager.Start(context.Background()); err != nil {
+		return nil, fmt.Errorf("failed to start auth token manager: %w", err)
+	}
+
 	c.Apps = &appServiceImpl{client: c}
 	c.CloudBucketMounts = &cloudBucketMountServiceImpl{client: c}
 	c.Cls = &clsServiceImpl{client: c}
@@ -145,6 +150,11 @@ func (c *Client) ipClient(serverURL string) (pb.ModalClientClient, error) {
 	}
 	c.ipClients[serverURL] = client
 	return client, nil
+}
+
+// Close stops the background auth token refresh.
+func (c *Client) Close() {
+	c.authTokenManager.Stop()
 }
 
 // timeoutCallOption carries a per-RPC absolute timeout.
@@ -281,9 +291,8 @@ func headerInjectorStreamInterceptor(profile Profile) grpc.StreamClientIntercept
 	}
 }
 
-// authTokenInterceptor handles sending and receiving the "x-modal-auth-token" header.
-// We receive an auth token from the control plane on our first request. We then include that auth token in every
-// subsequent request to both the control plane and the input plane.
+// authTokenInterceptor handles proactive auth token management.
+// Injects auth tokens into outgoing requests.
 func authTokenInterceptor(c *Client) grpc.UnaryClientInterceptor {
 	return func(
 		ctx context.Context,
@@ -293,29 +302,15 @@ func authTokenInterceptor(c *Client) grpc.UnaryClientInterceptor {
 		inv grpc.UnaryInvoker,
 		opts ...grpc.CallOption,
 	) error {
-		var headers, trailers metadata.MD
-		// Add authToken to outgoing context if it's set
-		c.mu.RLock()
-		authToken := c.authToken
-		c.mu.RUnlock()
-		if authToken != "" {
-			ctx = metadata.AppendToOutgoingContext(ctx, "x-modal-auth-token", authToken)
+		// Skip auth token for AuthTokenGet requests to prevent it from getting stuck
+		if method != "/modal.client.ModalClient/AuthTokenGet" {
+			token, err := c.authTokenManager.GetToken(ctx)
+			if err != nil || token == "" {
+				return fmt.Errorf("failed to get auth token: %w", err)
+			}
+			ctx = metadata.AppendToOutgoingContext(ctx, "x-modal-auth-token", token)
 		}
-		opts = append(opts, grpc.Header(&headers), grpc.Trailer(&trailers))
-		err := inv(ctx, method, req, reply, cc, opts...)
-		// If we're talking to the control plane, and no auth token was sent, it will return one.
-		// The python server returns it in the trailers, the worker returns it in the headers.
-		if val, ok := headers["x-modal-auth-token"]; ok {
-			c.mu.Lock()
-			c.authToken = val[0]
-			c.mu.Unlock()
-		} else if val, ok := trailers["x-modal-auth-token"]; ok {
-			c.mu.Lock()
-			c.authToken = val[0]
-			c.mu.Unlock()
-		}
-
-		return err
+		return inv(ctx, method, req, reply, cc, opts...)
 	}
 }
 

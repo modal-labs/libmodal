@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
 
@@ -33,6 +35,19 @@ func NewMockClient() *MockClient {
 	}
 
 	conn := &mockClientConn{mock: mc}
+
+	expiry := time.Now().Add(1 * time.Hour).Unix()
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"exp": expiry,
+		"iat": time.Now().Unix(),
+	})
+	tokenString, _ := token.SignedString([]byte("mock-test-secret"))
+
+	HandleUnary(mc, "AuthTokenGet", func(req *pb.AuthTokenGetRequest) (*pb.AuthTokenGetResponse, error) {
+		return pb.AuthTokenGetResponse_builder{
+			Token: tokenString,
+		}.Build(), nil
+	})
 
 	modalClient, err := modal.NewClientWithOptions(&modal.ClientParams{
 		TokenID:            "test-token-id",
