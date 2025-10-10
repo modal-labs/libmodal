@@ -11,9 +11,9 @@ if (!modalSecret) {
   throw new Error("CUSTOM_MODAL_SECRET environment variable not set");
 }
 
-const mc = new ModalClient({ tokenId: modalId, tokenSecret: modalSecret });
+const modal = new ModalClient({ tokenId: modalId, tokenSecret: modalSecret });
 
-const echo = await mc.functions.fromName(
+const echo = await modal.functions.fromName(
   "libmodal-test-support",
   "echo_string",
 );

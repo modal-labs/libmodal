@@ -31,24 +31,24 @@ Brief example of using the new API:
 ```ts
 import { ModalClient } from "modal";
 
-const client = new ModalClient();
+const modal = new ModalClient();
 
-const app = await client.apps.fromName("libmodal-example", {
+const app = await modal.apps.fromName("libmodal-example", {
   createIfMissing: true,
 });
-const image = client.images.fromRegistry("alpine:3.21");
-const volume = await client.volumes.fromName("libmodal-example-volume", {
+const image = modal.images.fromRegistry("alpine:3.21");
+const volume = await modal.volumes.fromName("libmodal-example-volume", {
   createIfMissing: true,
 });
 
-const sb = await client.sandboxes.create(app, image, {
+const sb = await modal.sandboxes.create(app, image, {
   volumes: { "/mnt/volume": volume },
 });
 const p = await sb.exec(["cat", "/mnt/volume/message.txt"]);
 console.log(`Message: ${await p.stdout.readText()}`);
 await sb.terminate();
 
-const echo = await client.functions.fromName("libmodal-example", "echo");
+const echo = await modal.functions.fromName("libmodal-example", "echo");
 console.log(await echo.remote(["Hello world!"]));
 ```
 
@@ -65,58 +65,58 @@ const client = new ModalClient({ tokenId: "...", tokenSecret: "..." });
 
 ### App
 
-- `App.lookup(...)` -> `client.apps.fromName(...)`
+- `App.lookup(...)` -> `modal.apps.fromName(...)`
 
 ### Cls
 
-- `Cls.lookup(...)` -> `client.cls.fromName(...)`
+- `Cls.lookup(...)` -> `modal.cls.fromName(...)`
 
 ### Function
 
-- `Function_.lookup(...)` -> `client.functions.fromName(...)`
+- `Function_.lookup(...)` -> `modal.functions.fromName(...)`
 
 ### FunctionCall
 
-- `FunctionCall.fromId(...)` -> `client.functionCalls.fromId(...)`
+- `FunctionCall.fromId(...)` -> `modal.functionCalls.fromId(...)`
 
 ### Image
 
-- `app.imageFromRegistry(...)` -> `client.images.fromRegistry(...)`
-- `app.imageFromAwsEcr(...)` -> `client.images.fromAwsEcr(...)`
-- `app.imageFromGcpArtifactRegistry(...)` -> `client.images.fromGcpArtifactRegistry(...)`
-- `Image.fromRegistry(...)` -> `client.images.fromRegistry(...)`
-- `Image.fromAwsEcr(...)` -> `client.images.fromAwsEcr(...)`
-- `Image.fromGcpArtifactRegistry(...)` -> `client.images.fromGcpArtifactRegistry(...)`
-- `Image.fromId(...)` -> `client.images.fromId(...)`
-- `Image.delete(...)` -> `client.images.delete(...)`
+- `app.imageFromRegistry(...)` -> `modal.images.fromRegistry(...)`
+- `app.imageFromAwsEcr(...)` -> `modal.images.fromAwsEcr(...)`
+- `app.imageFromGcpArtifactRegistry(...)` -> `modal.images.fromGcpArtifactRegistry(...)`
+- `Image.fromRegistry(...)` -> `modal.images.fromRegistry(...)`
+- `Image.fromAwsEcr(...)` -> `modal.images.fromAwsEcr(...)`
+- `Image.fromGcpArtifactRegistry(...)` -> `modal.images.fromGcpArtifactRegistry(...)`
+- `Image.fromId(...)` -> `modal.images.fromId(...)`
+- `Image.delete(...)` -> `modal.images.delete(...)`
 
 ### Proxy
 
-- `Proxy.fromName(...)` -> `client.proxies.fromName(...)`
+- `Proxy.fromName(...)` -> `modal.proxies.fromName(...)`
 
 ### Queue
 
-- `Queue.lookup(...)` -> `client.queues.fromName(...)`
-- `Queue.fromName(...)` -> `client.queues.fromName(...)`
-- `Queue.ephemeral(...)` -> `client.queues.ephemeral(...)`
-- `Queue.delete(...)` -> `client.queues.delete(...)`
+- `Queue.lookup(...)` -> `modal.queues.fromName(...)`
+- `Queue.fromName(...)` -> `modal.queues.fromName(...)`
+- `Queue.ephemeral(...)` -> `modal.queues.ephemeral(...)`
+- `Queue.delete(...)` -> `modal.queues.delete(...)`
 
 ### Sandbox
 
-- `app.createSandbox(image, { ... })` -> `client.sandboxes.create(app, image, { ... })`
-- `Sandbox.fromId(...)` -> `client.sandboxes.fromId(...)`
-- `Sandbox.fromName(...)` -> `client.sandboxes.fromName(...)`
-- `Sandbox.list(...)` -> `client.sandboxes.list(...)`
+- `app.createSandbox(image, { ... })` -> `modal.sandboxes.create(app, image, { ... })`
+- `Sandbox.fromId(...)` -> `modal.sandboxes.fromId(...)`
+- `Sandbox.fromName(...)` -> `modal.sandboxes.fromName(...)`
+- `Sandbox.list(...)` -> `modal.sandboxes.list(...)`
 
 ### Secret
 
-- `Secret.fromName(...)` -> `client.secrets.fromName(...)`
-- `Secret.fromObject(...)` -> `client.secrets.fromObject(...)`
+- `Secret.fromName(...)` -> `modal.secrets.fromName(...)`
+- `Secret.fromObject(...)` -> `modal.secrets.fromObject(...)`
 
 ### Volume
 
-- `Volume.fromName(...)` -> `client.volumes.fromName(...)`
-- `Volume.ephemeral(...)` -> `client.volumes.ephemeral(...)`
+- `Volume.fromName(...)` -> `modal.volumes.fromName(...)`
+- `Volume.ephemeral(...)` -> `modal.volumes.ephemeral(...)`
 
 ### Parameter Type Renames
 
@@ -163,13 +163,13 @@ import (
 func main() {
 	ctx := context.Background()
 
-	client, _ := modal.NewClient()
+	mc, _ := modal.NewClient()
 
-	app, _ := client.Apps.FromName(ctx, "libmodal-example", &modal.AppFromNameParams{CreateIfMissing: true})
-	image := client.Images.FromRegistry("alpine:3.21", nil)
-	volume, _ := client.Volumes.FromName(ctx, "libmodal-example-volume", &modal.VolumeFromNameParams{CreateIfMissing: true})
+	app, _ := mc.Apps.FromName(ctx, "libmodal-example", &modal.AppFromNameParams{CreateIfMissing: true})
+	image := mc.Images.FromRegistry("alpine:3.21", nil)
+	volume, _ := mc.Volumes.FromName(ctx, "libmodal-example-volume", &modal.VolumeFromNameParams{CreateIfMissing: true})
 
-	sb, _ := client.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
+	sb, _ := mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
 		Volumes: map[string]*modal.Volume{"/mnt/volume": volume},
 	})
 	defer sb.Terminate(context.Background())
@@ -177,7 +177,7 @@ func main() {
 	stdout, _ := io.ReadAll(p.Stdout)
 	fmt.Printf("Message: %s\n", stdout)
 
-	echo, _ := client.Functions.FromName(ctx, "libmodal-example", "echo", nil)
+	echo, _ := mc.Functions.FromName(ctx, "libmodal-example", "echo", nil)
 	result, _ := echo.Remote(ctx, []any{"Hello world!"}, nil)
 	fmt.Println(result)
 }
@@ -217,15 +217,15 @@ client, err := modal.NewClientWithOptions(&modal.ClientParams{
 
 ### App
 
-- `modal.AppLookup(ctx, "my-app", &modal.LookupOptions{...})` -> `client.Apps.FromName(ctx, "my-app", &modal.AppFromNameParams{...})`
+- `modal.AppLookup(ctx, "my-app", &modal.LookupOptions{...})` -> `mc.Apps.FromName(ctx, "my-app", &modal.AppFromNameParams{...})`
 
 ### CloudBucketMount
 
-- `modal.NewCloudBucketMount(..., &modal.CloudBucketMountOptions{...})` -> `client.CloudBucketMounts.New(..., &modal.CloudBucketMountParams{...})`
+- `modal.NewCloudBucketMount(..., &modal.CloudBucketMountOptions{...})` -> `mc.CloudBucketMounts.New(..., &modal.CloudBucketMountParams{...})`
 
 ### Cls
 
-- `modal.ClsLookup(ctx, ..., &modal.LookupOptions{...})` -> `client.Cls.FromName(ctx, ..., &modal.ClsFromNameParams{...})`
+- `modal.ClsLookup(ctx, ..., &modal.LookupOptions{...})` -> `mc.Cls.FromName(ctx, ..., &modal.ClsFromNameParams{...})`
 
 #### Cls methods
 
@@ -236,7 +236,7 @@ client, err := modal.NewClientWithOptions(&modal.ClientParams{
 
 ### Function
 
-- `modal.FunctionLookup(ctx, ..., &modal.LookupOptions{...})` -> `client.Functions.FromName(ctx, ..., &modal.FunctionFromNameParams{...})`
+- `modal.FunctionLookup(ctx, ..., &modal.LookupOptions{...})` -> `mc.Functions.FromName(ctx, ..., &modal.FunctionFromNameParams{...})`
 
 #### Function methods
 
@@ -247,7 +247,7 @@ client, err := modal.NewClientWithOptions(&modal.ClientParams{
 
 ### FunctionCall
 
-- `modal.FunctionCallFromId(ctx, "call-id")` -> `client.FunctionCalls.FromID(ctx, "call-id")`
+- `modal.FunctionCallFromId(ctx, "call-id")` -> `mc.FunctionCalls.FromID(ctx, "call-id")`
 
 #### FunctionCall methods
 
@@ -256,12 +256,12 @@ client, err := modal.NewClientWithOptions(&modal.ClientParams{
 
 ### Image
 
-- `app.ImageFromRegistry(..., &modal.ImageFromRegistryOptions{...})` -> `client.Images.FromRegistry(ctx, ..., &modal.ImageFromRegistryParams{...})`
-- `modal.NewImageFromRegistry(..., &modal.ImageFromRegistryOptions{...})` -> `client.Images.FromRegistry(ctx, ..., &modal.ImageFromRegistryParams{...})`
-- `modal.NewImageFromAwsEcr(..., secret)` -> `client.Images.FromAwsEcr(ctx, ..., secret)`
-- `modal.NewImageFromGcpArtifactRegistry(..., secret)` -> `client.Images.FromGcpArtifactRegistry(ctx, ..., secret)`
-- `modal.NewImageFromId(ctx, ...)` -> `client.Images.FromID(ctx, ...)`
-- `modal.ImageDelete(ctx, ..., &modal.ImageDeleteOptions{...})` -> `client.Images.Delete(ctx, ..., &modal.ImageDeleteParams{...})`
+- `app.ImageFromRegistry(..., &modal.ImageFromRegistryOptions{...})` -> `mc.Images.FromRegistry(ctx, ..., &modal.ImageFromRegistryParams{...})`
+- `modal.NewImageFromRegistry(..., &modal.ImageFromRegistryOptions{...})` -> `mc.Images.FromRegistry(ctx, ..., &modal.ImageFromRegistryParams{...})`
+- `modal.NewImageFromAwsEcr(..., secret)` -> `mc.Images.FromAwsEcr(ctx, ..., secret)`
+- `modal.NewImageFromGcpArtifactRegistry(..., secret)` -> `mc.Images.FromGcpArtifactRegistry(ctx, ..., secret)`
+- `modal.NewImageFromId(ctx, ...)` -> `mc.Images.FromID(ctx, ...)`
+- `modal.ImageDelete(ctx, ..., &modal.ImageDeleteOptions{...})` -> `mc.Images.Delete(ctx, ..., &modal.ImageDeleteParams{...})`
 
 #### Image methods
 
@@ -270,13 +270,13 @@ client, err := modal.NewClientWithOptions(&modal.ClientParams{
 
 ### Proxy
 
-- `modal.ProxyFromName(..., &modal.ProxyFromNameOptions{...})` -> `client.Proxies.FromName(..., &modal.ProxyFromNameParams{...})`
+- `modal.ProxyFromName(..., &modal.ProxyFromNameOptions{...})` -> `mc.Proxies.FromName(..., &modal.ProxyFromNameParams{...})`
 
 ### Queue
 
-- `modal.QueueLookup(ctx, ..., &modal.LookupOptions{...})` -> `client.Queues.FromName(ctx, ..., &modal.QueueFromNameParams{...})`
-- `modal.QueueEphemeral(ctx, &modal.EphemeralOptions{...})` -> `client.Queues.Ephemeral(ctx, &modal.QueueEphemeralParams{...})`
-- `modal.QueueDelete(ctx, ..., &modal.DeleteOptions{...})` -> `client.Queues.Delete(ctx, ..., &modal.QueueDeleteParams{...})`
+- `modal.QueueLookup(ctx, ..., &modal.LookupOptions{...})` -> `mc.Queues.FromName(ctx, ..., &modal.QueueFromNameParams{...})`
+- `modal.QueueEphemeral(ctx, &modal.EphemeralOptions{...})` -> `mc.Queues.Ephemeral(ctx, &modal.QueueEphemeralParams{...})`
+- `modal.QueueDelete(ctx, ..., &modal.DeleteOptions{...})` -> `mc.Queues.Delete(ctx, ..., &modal.QueueDeleteParams{...})`
 
 #### Queue methods
 
@@ -294,10 +294,10 @@ client, err := modal.NewClientWithOptions(&modal.ClientParams{
 
 ### Sandbox
 
-- `app.CreateSandbox(image, &modal.SandboxOptions{...})` -> `client.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{...})`
-- `modal.SandboxFromId(ctx, "sandbox-id")` -> `client.Sandboxes.FromID(ctx, "sandbox-id")`
-- `modal.SandboxFromName(ctx, "app-name", "sandbox-name", &modal.SandboxFromNameOptions{...})` -> `client.Sandboxes.FromName(ctx, "app-name", "sandbox-name", &modal.SandboxFromNameParams{...})`
-- `modal.SandboxList(ctx, &modal.SandboxListOptions{...})` -> `client.Sandboxes.List(ctx, &modal.SandboxListParams{...})`
+- `app.CreateSandbox(image, &modal.SandboxOptions{...})` -> `mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{...})`
+- `modal.SandboxFromId(ctx, "sandbox-id")` -> `mc.Sandboxes.FromID(ctx, "sandbox-id")`
+- `modal.SandboxFromName(ctx, "app-name", "sandbox-name", &modal.SandboxFromNameOptions{...})` -> `mc.Sandboxes.FromName(ctx, "app-name", "sandbox-name", &modal.SandboxFromNameParams{...})`
+- `modal.SandboxList(ctx, &modal.SandboxListOptions{...})` -> `mc.Sandboxes.List(ctx, &modal.SandboxListParams{...})`
 
 #### Sandbox methods
 
@@ -313,13 +313,13 @@ client, err := modal.NewClientWithOptions(&modal.ClientParams{
 
 ### Secret
 
-- `modal.SecretFromName(ctx, ..., &modal.SecretFromNameOptions{...})` -> `client.Secrets.FromName(ctx, ..., &modal.SecretFromNameParams{...})`
-- `modal.SecretFromMap(ctx, ..., &modal.SecretFromMapOptions{...})` -> `client.Secrets.FromMap(ctx, ..., &modal.SecretFromMapParams{...})`
+- `modal.SecretFromName(ctx, ..., &modal.SecretFromNameOptions{...})` -> `mc.Secrets.FromName(ctx, ..., &modal.SecretFromNameParams{...})`
+- `modal.SecretFromMap(ctx, ..., &modal.SecretFromMapOptions{...})` -> `mc.Secrets.FromMap(ctx, ..., &modal.SecretFromMapParams{...})`
 
 ### Volume
 
-- `modal.VolumeFromName(ctx, ..., &modal.VolumeFromNameOptions{...})` -> `client.Volumes.FromName(ctx, ..., &modal.VolumeFromNameParams{...})`
-- `modal.VolumeEphemeral(ctx, &modal.EphemeralOptions{...})` -> `client.Volumes.Ephemeral(ctx, &modal.VolumeEphemeralParams{...})`
+- `modal.VolumeFromName(ctx, ..., &modal.VolumeFromNameOptions{...})` -> `mc.Volumes.FromName(ctx, ..., &modal.VolumeFromNameParams{...})`
+- `modal.VolumeEphemeral(ctx, &modal.EphemeralOptions{...})` -> `mc.Volumes.Ephemeral(ctx, &modal.VolumeEphemeralParams{...})`
 
 ### Parameter Type Renames
 

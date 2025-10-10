@@ -1,23 +1,23 @@
 import { ModalClient } from "modal";
 
-const mc = new ModalClient();
+const modal = new ModalClient();
 
-const app = await mc.apps.fromName("libmodal-example", {
+const app = await modal.apps.fromName("libmodal-example", {
   createIfMissing: true,
 });
 
-const image = mc.images
+const image = modal.images
   .fromRegistry("alpine:3.21")
   .dockerfileCommands(["RUN apk add --no-cache curl=$CURL_VERSION"], {
     secrets: [
-      await mc.secrets.fromObject({
+      await modal.secrets.fromObject({
         CURL_VERSION: "8.12.1-r1",
       }),
     ],
   })
   .dockerfileCommands(["ENV SERVER=ipconfig.me"]);
 
-const sb = await mc.sandboxes.create(app, image, {
+const sb = await modal.sandboxes.create(app, image, {
   command: ["sh", "-c", "curl -Ls $SERVER"],
 });
 console.log("Created Sandbox with ID:", sb.sandboxId);

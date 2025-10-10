@@ -1,18 +1,18 @@
 import { ModalClient } from "modal";
 
-const mc = new ModalClient();
+const modal = new ModalClient();
 
-const app = await mc.apps.fromName("libmodal-example", {
+const app = await modal.apps.fromName("libmodal-example", {
   createIfMissing: true,
 });
-const image = mc.images.fromRegistry("alpine/curl:8.14.1");
+const image = modal.images.fromRegistry("alpine/curl:8.14.1");
 
-const proxy = await mc.proxies.fromName("libmodal-test-proxy", {
+const proxy = await modal.proxies.fromName("libmodal-test-proxy", {
   environment: "libmodal",
 });
 console.log("Using Proxy with ID:", proxy.proxyId);
 
-const sb = await mc.sandboxes.create(app, image, {
+const sb = await modal.sandboxes.create(app, image, {
   proxy,
 });
 console.log("Created Sandbox with Proxy:", sb.sandboxId);

@@ -1,13 +1,13 @@
 import { ModalClient } from "modal";
 
-const mc = new ModalClient();
+const modal = new ModalClient();
 
-const app = await mc.apps.fromName("libmodal-example", {
+const app = await modal.apps.fromName("libmodal-example", {
   createIfMissing: true,
 });
-const image = mc.images.fromRegistry("nvidia/cuda:12.4.0-devel-ubuntu22.04");
+const image = modal.images.fromRegistry("nvidia/cuda:12.4.0-devel-ubuntu22.04");
 
-const sb = await mc.sandboxes.create(app, image, { gpu: "A10G" });
+const sb = await modal.sandboxes.create(app, image, { gpu: "A10G" });
 console.log("Started Sandbox with A10G GPU:", sb.sandboxId);
 
 try {

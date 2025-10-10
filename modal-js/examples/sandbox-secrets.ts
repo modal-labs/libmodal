@@ -1,21 +1,21 @@
 import { ModalClient } from "modal";
 
-const mc = new ModalClient();
+const modal = new ModalClient();
 
-const app = await mc.apps.fromName("libmodal-example", {
+const app = await modal.apps.fromName("libmodal-example", {
   createIfMissing: true,
 });
-const image = mc.images.fromRegistry("alpine:3.21");
+const image = modal.images.fromRegistry("alpine:3.21");
 
-const secret = await mc.secrets.fromName("libmodal-test-secret", {
+const secret = await modal.secrets.fromName("libmodal-test-secret", {
   requiredKeys: ["c"],
 });
 
-const ephemeralSecret = await mc.secrets.fromObject({
+const ephemeralSecret = await modal.secrets.fromObject({
   d: "123",
 });
 
-const sandbox = await mc.sandboxes.create(app, image, {
+const sandbox = await modal.sandboxes.create(app, image, {
   command: ["sh", "-lc", "printenv | grep -E '^c|d='"],
   secrets: [secret, ephemeralSecret],
 });

@@ -3,9 +3,9 @@
 
 import { ModalClient } from "modal";
 
-const mc = new ModalClient();
+const modal = new ModalClient();
 
-const cls = await mc.cls.fromName(
+const cls = await modal.cls.fromName(
   "libmodal-test-support",
   "EchoClsParametrized",
 );
@@ -14,7 +14,9 @@ const method = instance.method("echo_env_var");
 
 const instanceWithOptions = await cls
   .withOptions({
-    secrets: [await mc.secrets.fromObject({ SECRET_MESSAGE: "hello, Secret" })],
+    secrets: [
+      await modal.secrets.fromObject({ SECRET_MESSAGE: "hello, Secret" }),
+    ],
   })
   .withConcurrency({ maxInputs: 1 })
   .instance();
