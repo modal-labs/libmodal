@@ -32,7 +32,8 @@
     "format:check": "prettier --check .",
     "lint": "eslint",
     "prepare": "scripts/gen-proto.sh",
-    "test": "vitest",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "version": "npm run check && git add -A && git commit -m \"modal-js/v$npm_package_version\"",
     "prepublishOnly": "npm run build && git push",
     "postpublish": "git tag modal-js/v$npm_package_version && git push --tags"
