@@ -1,13 +1,13 @@
 import { ModalClient } from "modal";
 
-const mc = new ModalClient();
+const modal = new ModalClient();
 
-const app = await mc.apps.fromName("libmodal-example", {
+const app = await modal.apps.fromName("libmodal-example", {
   createIfMissing: true,
 });
-const baseImage = mc.images.fromRegistry("alpine:3.21");
+const baseImage = modal.images.fromRegistry("alpine:3.21");
 
-const sb = await mc.sandboxes.create(app, baseImage);
+const sb = await modal.sandboxes.create(app, baseImage);
 console.log("Started Sandbox:", sb.sandboxId);
 
 await sb.exec(["mkdir", "-p", "/app/data"]);
@@ -28,7 +28,7 @@ await sb.terminate();
 console.log("Terminated first Sandbox");
 
 // Create new Sandbox from the snapshot Image
-const sb2 = await mc.sandboxes.create(app, snapshotImage);
+const sb2 = await modal.sandboxes.create(app, snapshotImage);
 console.log("\nStarted new Sandbox from snapshot:", sb2.sandboxId);
 
 const proc = await sb2.exec(["cat", "/app/data/info.txt"]);

@@ -2,9 +2,9 @@
 
 import { ModalClient } from "modal";
 
-const mc = new ModalClient();
+const modal = new ModalClient();
 
-const func = await mc.functions.fromName(
+const func = await modal.functions.fromName(
   "libmodal-test-support",
   "echo_string",
 );

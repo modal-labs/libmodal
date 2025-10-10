@@ -1,17 +1,17 @@
 import { ModalClient } from "modal";
 
-const mc = new ModalClient();
+const modal = new ModalClient();
 
-const app = await mc.apps.fromName("libmodal-example", {
+const app = await modal.apps.fromName("libmodal-example", {
   createIfMissing: true,
 });
-const image = mc.images.fromRegistry("alpine:3.21");
+const image = modal.images.fromRegistry("alpine:3.21");
 
-const volume = await mc.volumes.fromName("libmodal-example-volume", {
+const volume = await modal.volumes.fromName("libmodal-example-volume", {
   createIfMissing: true,
 });
 
-const writerSandbox = await mc.sandboxes.create(app, image, {
+const writerSandbox = await modal.sandboxes.create(app, image, {
   command: [
     "sh",
     "-c",
@@ -24,7 +24,7 @@ console.log("Writer Sandbox:", writerSandbox.sandboxId);
 await writerSandbox.wait();
 console.log("Writer finished");
 
-const readerSandbox = await mc.sandboxes.create(app, image, {
+const readerSandbox = await modal.sandboxes.create(app, image, {
   volumes: { "/mnt/volume": volume.readOnly() },
 });
 console.log("Reader Sandbox:", readerSandbox.sandboxId);

@@ -10,14 +10,14 @@ import { ModalClient } from "modal";
  * - Close file handles
  */
 
-const mc = new ModalClient();
+const modal = new ModalClient();
 
-const app = await mc.apps.fromName("libmodal-example", {
+const app = await modal.apps.fromName("libmodal-example", {
   createIfMissing: true,
 });
-const image = mc.images.fromRegistry("alpine:3.21");
+const image = modal.images.fromRegistry("alpine:3.21");
 
-const sb = await mc.sandboxes.create(app, image);
+const sb = await modal.sandboxes.create(app, image);
 console.log("Started Sandbox:", sb.sandboxId);
 
 try {

@@ -1,14 +1,14 @@
 import { ModalClient } from "modal";
 
-const mc = new ModalClient();
+const modal = new ModalClient();
 
-const app = await mc.apps.fromName("libmodal-example", {
+const app = await modal.apps.fromName("libmodal-example", {
   createIfMissing: true,
 });
 
 // Create a Sandbox with Python's built-in HTTP server
-const image = mc.images.fromRegistry("python:3.12-alpine");
-const sandbox = await mc.sandboxes.create(app, image, {
+const image = modal.images.fromRegistry("python:3.12-alpine");
+const sandbox = await modal.sandboxes.create(app, image, {
   command: ["python3", "-m", "http.server", "8000"],
   encryptedPorts: [8000],
   timeout: 60000, // 1 minute

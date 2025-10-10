@@ -1,14 +1,14 @@
 import { ModalClient } from "modal";
 
-const mc = new ModalClient();
+const modal = new ModalClient();
 
-const app = await mc.apps.fromName("libmodal-example", {
+const app = await modal.apps.fromName("libmodal-example", {
   createIfMissing: true,
 });
-const image = mc.images.fromRegistry("alpine:3.21");
+const image = modal.images.fromRegistry("alpine:3.21");
 
 // Create a Sandbox that waits for input, then exits with code 42
-const sandbox = await mc.sandboxes.create(app, image, {
+const sandbox = await modal.sandboxes.create(app, image, {
   command: ["sh", "-c", "read line; exit 42"],
 });
 
