@@ -7,6 +7,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"os"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"sync"
@@ -22,6 +23,21 @@ import (
 
 	pb "github.com/modal-labs/libmodal/modal-go/proto/modal_proto"
 )
+
+var LibModalVersion = "dev"
+
+func getLibModalVersion() string {
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		return "modal-go/" + LibModalVersion
+	}
+	for _, dep := range info.Deps {
+		if dep.Path == "github.com/modal-labs/libmodal/modal-go" {
+			return "modal-go/" + dep.Version
+		}
+	}
+	return "modal-go/" + LibModalVersion
+}
 
 // Client exposes services for interacting with Modal resources.
 // You should not instantiate it directly, and instead use [NewClient]/[NewClientWithOptions].
@@ -248,6 +264,7 @@ func injectRequiredHeaders(ctx context.Context, profile Profile) (context.Contex
 		ctx,
 		"x-modal-client-type", clientType,
 		"x-modal-client-version", "1.0.0", // CLIENT VERSION: Behaves like this Python SDK version
+		"x-modal-libmodal-version", getLibModalVersion(),
 		"x-modal-token-id", profile.TokenID,
 		"x-modal-token-secret", profile.TokenSecret,
 	), nil
