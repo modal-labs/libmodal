@@ -114,6 +114,10 @@ export class ModalClient {
     }
   }
 
+  version(): string {
+    return __MODAL_SDK_VERSION__;
+  }
+
   private createClient(profile: Profile): ModalGrpcClient {
     // Channels don't do anything until you send a request on them.
     // Ref: https://github.com/modal-labs/modal-client/blob/main/modal/_utils/grpc_utils.py

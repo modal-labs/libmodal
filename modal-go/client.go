@@ -24,19 +24,19 @@ import (
 	pb "github.com/modal-labs/libmodal/modal-go/proto/modal_proto"
 )
 
-var LibModalVersion = "dev"
+var ModalSDKVersion = "dev"
 
-func getLibModalVersion() string {
+func readSDKVersion() string {
 	info, ok := debug.ReadBuildInfo()
 	if !ok {
-		return "modal-go/" + LibModalVersion
+		return "modal-go/" + ModalSDKVersion
 	}
 	for _, dep := range info.Deps {
 		if dep.Path == "github.com/modal-labs/libmodal/modal-go" {
 			return "modal-go/" + dep.Version
 		}
 	}
-	return "modal-go/" + LibModalVersion
+	return "modal-go/" + ModalSDKVersion
 }
 
 // Client exposes services for interacting with Modal resources.
@@ -56,6 +56,7 @@ type Client struct {
 
 	config           config
 	profile          Profile
+	sdkVersion       string
 	cpClient         pb.ModalClientClient            // control plane client
 	ipClients        map[string]pb.ModalClientClient // input plane clients
 	authTokenManager *AuthTokenManager
@@ -106,9 +107,10 @@ func NewClientWithOptions(params *ClientParams) (*Client, error) {
 	}
 
 	c := &Client{
-		config:    cfg,
-		profile:   profile,
-		ipClients: make(map[string]pb.ModalClientClient),
+		config:     cfg,
+		profile:    profile,
+		sdkVersion: readSDKVersion(),
+		ipClients:  make(map[string]pb.ModalClientClient),
 	}
 
 	var err error
@@ -171,6 +173,11 @@ func (c *Client) ipClient(serverURL string) (pb.ModalClientClient, error) {
 // Close stops the background auth token refresh.
 func (c *Client) Close() {
 	c.authTokenManager.Stop()
+}
+
+// Version returns the SDK version.
+func (c *Client) Version() string {
+	return c.sdkVersion
 }
 
 // timeoutCallOption carries a per-RPC absolute timeout.
@@ -238,13 +245,13 @@ func newClient(profile Profile, c *Client) (*grpc.ClientConn, pb.ModalClientClie
 			grpc.MaxCallSendMsgSize(maxMessageSize),
 		),
 		grpc.WithChainUnaryInterceptor(
-			headerInjectorUnaryInterceptor(profile),
+			headerInjectorUnaryInterceptor(profile, c.sdkVersion),
 			authTokenInterceptor(c),
 			retryInterceptor(),
 			timeoutInterceptor(),
 		),
 		grpc.WithChainStreamInterceptor(
-			headerInjectorStreamInterceptor(profile),
+			headerInjectorStreamInterceptor(profile, c.sdkVersion),
 		),
 	)
 	if err != nil {
@@ -254,7 +261,7 @@ func newClient(profile Profile, c *Client) (*grpc.ClientConn, pb.ModalClientClie
 }
 
 // injectRequiredHeaders adds required headers to the context.
-func injectRequiredHeaders(ctx context.Context, profile Profile) (context.Context, error) {
+func injectRequiredHeaders(ctx context.Context, profile Profile, sdkVersion string) (context.Context, error) {
 	if profile.TokenID == "" || profile.TokenSecret == "" {
 		return nil, fmt.Errorf("missing token_id or token_secret, please set in .modal.toml, environment variables, or via NewClientWithOptions()")
 	}
@@ -264,14 +271,14 @@ func injectRequiredHeaders(ctx context.Context, profile Profile) (context.Contex
 		ctx,
 		"x-modal-client-type", clientType,
 		"x-modal-client-version", "1.0.0", // CLIENT VERSION: Behaves like this Python SDK version
-		"x-modal-libmodal-version", getLibModalVersion(),
+		"x-modal-libmodal-version", sdkVersion,
 		"x-modal-token-id", profile.TokenID,
 		"x-modal-token-secret", profile.TokenSecret,
 	), nil
 }
 
 // headerInjectorUnaryInterceptor adds required headers to outgoing unary RPCs.
-func headerInjectorUnaryInterceptor(profile Profile) grpc.UnaryClientInterceptor {
+func headerInjectorUnaryInterceptor(profile Profile, sdkVersion string) grpc.UnaryClientInterceptor {
 	return func(
 		ctx context.Context,
 		method string,
@@ -281,7 +288,7 @@ func headerInjectorUnaryInterceptor(profile Profile) grpc.UnaryClientInterceptor
 		opts ...grpc.CallOption,
 	) error {
 		var err error
-		ctx, err = injectRequiredHeaders(ctx, profile)
+		ctx, err = injectRequiredHeaders(ctx, profile, sdkVersion)
 		if err != nil {
 			return err
 		}
@@ -290,7 +297,7 @@ func headerInjectorUnaryInterceptor(profile Profile) grpc.UnaryClientInterceptor
 }
 
 // headerInjectorStreamInterceptor adds required headers to outgoing streaming RPCs.
-func headerInjectorStreamInterceptor(profile Profile) grpc.StreamClientInterceptor {
+func headerInjectorStreamInterceptor(profile Profile, sdkVersion string) grpc.StreamClientInterceptor {
 	return func(
 		ctx context.Context,
 		desc *grpc.StreamDesc,
@@ -300,7 +307,7 @@ func headerInjectorStreamInterceptor(profile Profile) grpc.StreamClientIntercept
 		opts ...grpc.CallOption,
 	) (grpc.ClientStream, error) {
 		var err error
-		ctx, err = injectRequiredHeaders(ctx, profile)
+		ctx, err = injectRequiredHeaders(ctx, profile, sdkVersion)
 		if err != nil {
 			return nil, err
 		}
