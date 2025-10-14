@@ -29,14 +29,14 @@ var ModalSDKVersion = "dev"
 func readSDKVersion() string {
 	info, ok := debug.ReadBuildInfo()
 	if !ok {
-		return "modal-go/" + ModalSDKVersion
+		return ModalSDKVersion
 	}
 	for _, dep := range info.Deps {
 		if dep.Path == "github.com/modal-labs/libmodal/modal-go" {
-			return "modal-go/" + dep.Version
+			return dep.Version
 		}
 	}
-	return "modal-go/" + ModalSDKVersion
+	return ModalSDKVersion
 }
 
 // Client exposes services for interacting with Modal resources.
@@ -271,7 +271,7 @@ func injectRequiredHeaders(ctx context.Context, profile Profile, sdkVersion stri
 		ctx,
 		"x-modal-client-type", clientType,
 		"x-modal-client-version", "1.0.0", // CLIENT VERSION: Behaves like this Python SDK version
-		"x-modal-libmodal-version", sdkVersion,
+		"x-modal-libmodal-version", "modal-go/"+sdkVersion,
 		"x-modal-token-id", profile.TokenID,
 		"x-modal-token-secret", profile.TokenSecret,
 	), nil

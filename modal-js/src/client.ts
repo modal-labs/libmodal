@@ -158,7 +158,10 @@ export class ModalClient {
         String(ClientType.CLIENT_TYPE_LIBMODAL_JS),
       );
       options.metadata.set("x-modal-client-version", "1.0.0"); // CLIENT VERSION: Behaves like this Python SDK version
-      options.metadata.set("x-modal-libmodal-version", getSDKVersion());
+      options.metadata.set(
+        "x-modal-libmodal-version",
+        `modal-js/${getSDKVersion()}`,
+      );
       options.metadata.set("x-modal-token-id", tokenId);
       options.metadata.set("x-modal-token-secret", tokenSecret);
 

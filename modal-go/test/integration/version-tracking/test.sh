@@ -7,7 +7,7 @@ go build -o test-app .
 
 output=$(./test-app)
 
-expected="modal-go/v0.0.99"
+expected="v0.0.99"
 
 if [ "$output" = "$expected" ]; then
 	rm -f test-app

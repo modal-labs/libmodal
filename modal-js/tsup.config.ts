@@ -7,6 +7,6 @@ export default defineConfig({
   dts: true,
   clean: true,
   define: {
-    __MODAL_SDK_VERSION__: JSON.stringify(`modal-js/${packageJson.version}`),
+    __MODAL_SDK_VERSION__: JSON.stringify(packageJson.version), // also set in vitest.config.ts
   },
 });

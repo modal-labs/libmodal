@@ -15,6 +15,6 @@ export default defineConfig({
     },
   },
   define: {
-    __MODAL_SDK_VERSION__: JSON.stringify(`modal-js/${packageJson.version}`),
+    __MODAL_SDK_VERSION__: JSON.stringify(packageJson.version), // also set in tsup.config.ts
   },
 });
