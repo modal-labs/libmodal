@@ -24,8 +24,7 @@ import { VolumeService } from "./volume";
 import { ClientType, ModalClientDefinition } from "../proto/modal_proto/api";
 import { getProfile, type Profile } from "./config";
 import { AuthTokenManager } from "./auth_token_manager";
-
-declare const __MODAL_SDK_VERSION__: string;
+import { getSDKVersion } from "./version";
 
 export interface ModalClientParams {
   tokenId?: string;
@@ -115,7 +114,7 @@ export class ModalClient {
   }
 
   version(): string {
-    return __MODAL_SDK_VERSION__;
+    return getSDKVersion();
   }
 
   private createClient(profile: Profile): ModalGrpcClient {
@@ -159,7 +158,7 @@ export class ModalClient {
         String(ClientType.CLIENT_TYPE_LIBMODAL_JS),
       );
       options.metadata.set("x-modal-client-version", "1.0.0"); // CLIENT VERSION: Behaves like this Python SDK version
-      options.metadata.set("x-modal-libmodal-version", __MODAL_SDK_VERSION__);
+      options.metadata.set("x-modal-libmodal-version", getSDKVersion());
       options.metadata.set("x-modal-token-id", tokenId);
       options.metadata.set("x-modal-token-secret", tokenSecret);
 
