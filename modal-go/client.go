@@ -24,20 +24,18 @@ import (
 	pb "github.com/modal-labs/libmodal/modal-go/proto/modal_proto"
 )
 
-var modalSDKVersion = "dev"
+var sdkVersion = sync.OnceValue(func() string {
+	const mod = "github.com/modal-labs/libmodal/modal-go"
 
-func readSDKVersion() string {
-	info, ok := debug.ReadBuildInfo()
-	if !ok {
-		return modalSDKVersion
-	}
-	for _, dep := range info.Deps {
-		if dep.Path == "github.com/modal-labs/libmodal/modal-go" {
-			return dep.Version
+	if info, ok := debug.ReadBuildInfo(); ok {
+		for _, dep := range info.Deps {
+			if dep.Path == mod {
+				return dep.Version
+			}
 		}
 	}
-	return modalSDKVersion
-}
+	return "dev"
+})
 
 // Client exposes services for interacting with Modal resources.
 // You should not instantiate it directly, and instead use [NewClient]/[NewClientWithOptions].
@@ -109,7 +107,7 @@ func NewClientWithOptions(params *ClientParams) (*Client, error) {
 	c := &Client{
 		config:     cfg,
 		profile:    profile,
-		sdkVersion: readSDKVersion(),
+		sdkVersion: sdkVersion(),
 		ipClients:  make(map[string]pb.ModalClientClient),
 	}
 
