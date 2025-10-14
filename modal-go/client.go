@@ -24,19 +24,19 @@ import (
 	pb "github.com/modal-labs/libmodal/modal-go/proto/modal_proto"
 )
 
-var ModalSDKVersion = "dev"
+var modalSDKVersion = "dev"
 
 func readSDKVersion() string {
 	info, ok := debug.ReadBuildInfo()
 	if !ok {
-		return ModalSDKVersion
+		return modalSDKVersion
 	}
 	for _, dep := range info.Deps {
 		if dep.Path == "github.com/modal-labs/libmodal/modal-go" {
 			return dep.Version
 		}
 	}
-	return ModalSDKVersion
+	return modalSDKVersion
 }
 
 // Client exposes services for interacting with Modal resources.
