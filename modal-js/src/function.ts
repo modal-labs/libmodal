@@ -32,7 +32,13 @@ export type FunctionFromNameParams = {
 };
 
 /**
- * Service for managing Functions.
+ * Service for managing {@link Function_ Function}s.
+ *
+ * Normally only ever accessed via the client as:
+ * ```typescript
+ * const modal = new ModalClient();
+ * const function = await modal.functions.fromName("my-app", "my-function");
+ * ```
  */
 export class FunctionService {
   readonly #client: ModalClient;
@@ -41,7 +47,7 @@ export class FunctionService {
   }
 
   /**
-   * Reference a Function by its name in an App.
+   * Reference a {@link Function_ Function} by its name in an App.
    */
   async fromName(
     appName: string,
@@ -74,13 +80,13 @@ export class FunctionService {
   }
 }
 
-/** Simple data structure storing stats for a running Function. */
+/** Simple data structure storing stats for a running {@link Function_ Function}. */
 export interface FunctionStats {
   backlog: number;
   numTotalRunners: number;
 }
 
-/** Optional parameters for `Function_.updateAutoscaler()`. */
+/** Optional parameters for {@link Function_#updateAutoscaler Function_.updateAutoscaler()}. */
 export interface FunctionUpdateAutoscalerParams {
   minContainers?: number;
   maxContainers?: number;

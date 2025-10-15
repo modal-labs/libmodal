@@ -42,6 +42,24 @@ export type ModalGrpcClient = Client<
   TimeoutOptions & RetryOptions
 >;
 
+/**
+ * The main client for interacting with Modal's cloud infrastructure.
+ *
+ * ModalClient provides access to all Modal services through service properties.
+ * Create a client instance and use its service properties to manage {@link App}s,
+ * {@link Function_ Function}s, * {@link Sandbox}es, and other Modal resources.
+ *
+ * @example
+ * ```typescript
+ * import { ModalClient } from "modal";
+ *
+ * const modal = new ModalClient();
+ *
+ * const app = await modal.apps.fromName("my-app");
+ * const image = modal.images.fromRegistry("python:3.13");
+ * const sandbox = await modal.sandboxes.create(app, image);
+ * ```
+ */
 export class ModalClient {
   readonly apps: AppService;
   readonly cls: ClsService;
@@ -360,7 +378,7 @@ export const client = new Proxy({} as ModalGrpcClient, {
 });
 
 /**
- * @deprecated Use `new ModalClient()` instead.
+ * @deprecated Use {@link ModalClient `new ModalClient()`} instead.
  */
 export type ClientOptions = {
   tokenId: string;
@@ -369,7 +387,7 @@ export type ClientOptions = {
 };
 
 /**
- * @deprecated Use `new ModalClient()` instead.
+ * @deprecated Use {@link ModalClient `new ModalClient()`} instead.
  */
 export function initializeClient(options: ClientOptions) {
   defaultClientOptions = {
@@ -382,7 +400,7 @@ export function initializeClient(options: ClientOptions) {
 
 /**
  * Stops the auth token refresh.
- * @deprecated Use `modalClient.close()` instead.
+ * @deprecated Use {@link ModalClient#close modalClient.close()} instead.
  */
 export function close() {
   if (defaultClient) {
