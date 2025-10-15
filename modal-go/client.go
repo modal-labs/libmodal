@@ -34,7 +34,7 @@ var sdkVersion = sync.OnceValue(func() string {
 			}
 		}
 	}
-	return "dev"
+	return "v0.0.0"
 })
 
 // Client exposes services for interacting with Modal resources.
