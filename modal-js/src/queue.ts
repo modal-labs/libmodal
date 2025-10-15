@@ -13,24 +13,30 @@ import { EphemeralHeartbeatManager } from "./ephemeral";
 const queueInitialPutBackoff = 100; // 100 milliseconds
 const queueDefaultPartitionTtl = 24 * 3600 * 1000; // 24 hours
 
-/** Optional parameters for `client.queues.fromName()`. */
+/** Optional parameters for {@link QueueService#fromName client.queues.fromName()}. */
 export type QueueFromNameParams = {
   environment?: string;
   createIfMissing?: boolean;
 };
 
-/** Optional parameters for `client.queues.delete()`. */
+/** Optional parameters for {@link QueueService#delete client.queues.delete()}. */
 export type QueueDeleteParams = {
   environment?: string;
 };
 
-/** Optional parameters for `client.queues.ephemeral()`. */
+/** Optional parameters for {@link QueueService#ephemeral client.queues.ephemeral()}. */
 export type QueueEphemeralParams = {
   environment?: string;
 };
 
 /**
- * Service for managing Queues.
+ * Service for managing {@link Queue}s.
+ *
+ * Normally only ever accessed via the client as:
+ * ```typescript
+ * const modal = new ModalClient();
+ * const queue = await modal.queues.fromName("my-queue");
+ * ```
  */
 export class QueueService {
   readonly #client: ModalClient;
@@ -39,8 +45,8 @@ export class QueueService {
   }
 
   /**
-   * Create a nameless, temporary Queue.
-   * You will need to call `closeEphemeral()` to delete the Queue.
+   * Create a nameless, temporary {@link Queue}.
+   * You will need to call {@link Queue#closeEphemeral Queue.closeEphemeral()} to delete the Queue.
    */
   async ephemeral(params: QueueEphemeralParams = {}): Promise<Queue> {
     const resp = await this.#client.cpClient.queueGetOrCreate({
@@ -56,7 +62,7 @@ export class QueueService {
   }
 
   /**
-   * Lookup a Queue by name.
+   * Reference a {@link Queue} by name.
    */
   async fromName(
     name: string,
@@ -73,7 +79,7 @@ export class QueueService {
   }
 
   /**
-   * Delete a Queue by name.
+   * Delete a {@link Queue} by name.
    */
   async delete(name: string, params: QueueDeleteParams = {}): Promise<void> {
     const queue = await this.fromName(name, params);
@@ -81,7 +87,7 @@ export class QueueService {
   }
 }
 
-/** Optional parameters for `Queue.clear()`. */
+/** Optional parameters for {@link Queue#clear Queue.clear()}. */
 export type QueueClearParams = {
   /** Partition to clear, uses default partition if not set. */
   partition?: string;
@@ -90,7 +96,7 @@ export type QueueClearParams = {
   all?: boolean;
 };
 
-/** Optional parameters for `Queue.get()`. */
+/** Optional parameters for {@link Queue#get Queue.get()}. */
 export type QueueGetParams = {
   /** How long to wait if the Queue is empty (default: indefinite). */
   timeout?: number;
@@ -99,10 +105,10 @@ export type QueueGetParams = {
   partition?: string;
 };
 
-/** Optional parameters for `Queue.getMany()`. */
+/** Optional parameters for {@link Queue#getMany Queue.getMany()}. */
 export type QueueGetManyParams = QueueGetParams;
 
-/** Optional parameters for `Queue.put()`. */
+/** Optional parameters for {@link Queue#put Queue.put()}. */
 export type QueuePutParams = {
   /** How long to wait if the Queue is full (default: indefinite). */
   timeout?: number;
@@ -114,10 +120,10 @@ export type QueuePutParams = {
   partitionTtl?: number;
 };
 
-/** Optional parameters for `Queue.putMany()`. */
+/** Optional parameters for {@link Queue#putMany Queue.putMany()}. */
 export type QueuePutManyParams = QueuePutParams;
 
-/** Optional parameters for `Queue.len()`. */
+/** Optional parameters for {@link Queue#len Queue.len()}. */
 export type QueueLenParams = {
   /** Partition to compute length, uses default partition if not set. */
   partition?: string;
@@ -126,7 +132,7 @@ export type QueueLenParams = {
   total?: boolean;
 };
 
-/** Optional parameters for `Queue.iterate()`. */
+/** Optional parameters for {@link Queue#iterate Queue.iterate()}. */
 export type QueueIterateParams = {
   /** How long to wait between successive items before exiting iteration (default: 0). */
   itemPollTimeout?: number;
@@ -136,7 +142,7 @@ export type QueueIterateParams = {
 };
 
 /**
- * Distributed, FIFO queue for data flow in Modal Apps.
+ * Distributed, FIFO queue for data flow in Modal {@link App Apps}.
  */
 export class Queue {
   readonly #client: ModalClient;
@@ -171,7 +177,7 @@ export class Queue {
   }
 
   /**
-   * @deprecated Use `client.queues.ephemeral()` instead.
+   * @deprecated Use {@link QueueService#ephemeral client.queues.ephemeral()} instead.
    */
   static async ephemeral(params: QueueEphemeralParams = {}): Promise<Queue> {
     return getDefaultClient().queues.ephemeral(params);
@@ -187,7 +193,7 @@ export class Queue {
   }
 
   /**
-   * @deprecated Use `client.queues.fromName()` instead.
+   * @deprecated Use {@link QueueService#fromName client.queues.fromName()} instead.
    */
   static async lookup(
     name: string,
@@ -197,7 +203,7 @@ export class Queue {
   }
 
   /**
-   * @deprecated Use `client.queues.delete()` instead.
+   * @deprecated Use {@link QueueService#delete client.queues.delete()} instead.
    */
   static async delete(
     name: string,
@@ -319,7 +325,7 @@ export class Queue {
    *
    * If the Queue is full, this will retry with exponential backoff until the
    * provided `timeout` is reached, or indefinitely if `timeout` is not set.
-   * Raises `QueueFullError` if the Queue is still full after the timeout.
+   * Raises {@link QueueFullError} if the Queue is still full after the timeout.
    */
   async put(v: any, params: QueuePutParams = {}): Promise<void> {
     await this.#put([v], params.timeout, params.partition, params.partitionTtl);
@@ -330,7 +336,7 @@ export class Queue {
    *
    * If the Queue is full, this will retry with exponential backoff until the
    * provided `timeout` is reached, or indefinitely if `timeout` is not set.
-   * Raises `QueueFullError` if the Queue is still full after the timeout.
+   * Raises {@link QueueFullError} if the Queue is still full after the timeout.
    */
   async putMany(values: any[], params: QueuePutManyParams = {}): Promise<void> {
     await this.#put(

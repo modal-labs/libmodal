@@ -4,7 +4,14 @@ import { getDefaultClient, type ModalClient } from "./client";
 import { ControlPlaneInvocation } from "./invocation";
 
 /**
- * Service for managing FunctionCalls.
+ * Service for managing {@link FunctionCall}s.
+ *
+ * Normally only ever accessed via the client as:
+ *
+ * ```typescript
+ * const modal = new ModalClient();
+ * const functionCall = await modal.functionCalls.fromId("123");
+ * ```
  */
 export class FunctionCallService {
   readonly #client: ModalClient;
@@ -13,27 +20,27 @@ export class FunctionCallService {
   }
 
   /**
-   * Create a new Function call from ID.
+   * Create a new {@link FunctionCall} from ID.
    */
   async fromId(functionCallId: string): Promise<FunctionCall> {
     return new FunctionCall(this.#client, functionCallId);
   }
 }
 
-/** Optional parameters for `FunctionCall.get()`. */
+/** Optional parameters for {@link FunctionCall#get FunctionCall.get()}. */
 export type FunctionCallGetParams = {
   timeout?: number; // in milliseconds
 };
 
-/** Optional parameters for `FunctionCall.cancel()`. */
+/** Optional parameters for {@link FunctionCall#cancel FunctionCall.cancel()}. */
 export type FunctionCallCancelParams = {
   terminateContainers?: boolean;
 };
 
 /**
- * Represents a Modal FunctionCall. Function Calls are Function invocations with
- * a given input. They can be consumed asynchronously (see `get()`) or cancelled
- * (see `cancel()`).
+ * Represents a Modal FunctionCall. FunctionCalls are {@link Function_ Function} invocations with
+ * a given input. They can be consumed asynchronously (see {@link FunctionCall#get FunctionCall.get()}) or cancelled
+ * (see {@link FunctionCall#cancel FunctionCall.cancel()}).
  */
 export class FunctionCall {
   readonly functionCallId: string;
@@ -46,13 +53,13 @@ export class FunctionCall {
   }
 
   /**
-   * @deprecated Use `client.functionCalls.fromId()` instead.
+   * @deprecated Use {@link FunctionCallService#fromId client.functionCalls.fromId()} instead.
    */
   static fromId(functionCallId: string): FunctionCall {
     return new FunctionCall(undefined, functionCallId);
   }
 
-  /** Get the result of a Function call, optionally waiting with a timeout. */
+  /** Get the result of a FunctionCall, optionally waiting with a timeout. */
   async get(params: FunctionCallGetParams = {}): Promise<any> {
     const timeout = params.timeout;
     const invocation = ControlPlaneInvocation.fromFunctionCallId(
@@ -62,7 +69,7 @@ export class FunctionCall {
     return invocation.awaitOutput(timeout);
   }
 
-  /** Cancel a running Function call. */
+  /** Cancel a running FunctionCall. */
   async cancel(params: FunctionCallCancelParams = {}) {
     const cpClient = this.#client?.cpClient || getDefaultClient().cpClient;
 

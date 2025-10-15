@@ -8,7 +8,13 @@ import { Secret } from "./secret";
 import { GPUConfig } from "../proto/modal_proto/api";
 
 /**
- * Service for managing Apps.
+ * Service for managing {@link App}s.
+ *
+ * Normally only ever accessed via the client as:
+ * ```typescript
+ * const modal = new ModalClient();
+ * const app = await modal.apps.fromName("my-app");
+ * ```
  */
 export class AppService {
   readonly #client: ModalClient;
@@ -17,7 +23,7 @@ export class AppService {
   }
 
   /**
-   * Referencea deployed App by name, or create if it does not exist.
+   * Reference a deployed {@link App} by name, or create if it does not exist.
    */
   async fromName(name: string, params: AppFromNameParams = {}): Promise<App> {
     try {
@@ -37,7 +43,7 @@ export class AppService {
   }
 }
 
-/** Optional parameters for `client.apps.fromName()`. */
+/** Optional parameters for {@link AppService#fromName client.apps.fromName()}. */
 export type AppFromNameParams = {
   environment?: string;
   createIfMissing?: boolean;
@@ -102,14 +108,14 @@ export class App {
   }
 
   /**
-   * @deprecated Use `client.apps.fromName()` instead.
+   * @deprecated Use {@link AppService#fromName client.apps.fromName()} instead.
    */
   static async lookup(name: string, options: LookupOptions = {}): Promise<App> {
     return getDefaultClient().apps.fromName(name, options);
   }
 
   /**
-   * @deprecated Use `client.sandboxes.create()` instead.
+   * @deprecated Use {@link SandboxService#create client.sandboxes.create()} instead.
    */
   async createSandbox(
     image: Image,
@@ -119,21 +125,21 @@ export class App {
   }
 
   /**
-   * @deprecated Use `client.images.fromRegistry()` instead.
+   * @deprecated Use {@link ImageService#fromRegistry client.images.fromRegistry()} instead.
    */
   async imageFromRegistry(tag: string, secret?: Secret): Promise<Image> {
     return getDefaultClient().images.fromRegistry(tag, secret).build(this);
   }
 
   /**
-   * @deprecated Use `client.images.fromAwsEcr()` instead.
+   * @deprecated Use {@link ImageService#fromAwsEcr client.images.fromAwsEcr()} instead.
    */
   async imageFromAwsEcr(tag: string, secret: Secret): Promise<Image> {
     return getDefaultClient().images.fromAwsEcr(tag, secret).build(this);
   }
 
   /**
-   * @deprecated Use `client.images.fromGcpArtifactRegistry()` instead.
+   * @deprecated Use {@link ImageService#fromGcpArtifactRegistry client.images.fromGcpArtifactRegistry()} instead.
    */
   async imageFromGcpArtifactRegistry(
     tag: string,

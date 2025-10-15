@@ -64,7 +64,7 @@ export type StdioBehavior = "pipe" | "ignore";
  */
 export type StreamMode = "text" | "binary";
 
-/** Optional parameters for `client.sandboxes.create()`. */
+/** Optional parameters for {@link SandboxService#create client.sandboxes.create()}. */
 export type SandboxCreateParams = {
   /** Reservation of physical CPU cores for the Sandbox, can be fractional. */
   cpu?: number;
@@ -93,13 +93,13 @@ export type SandboxCreateParams = {
   /** Environment variables to set in the Sandbox. */
   env?: Record<string, string>;
 
-  /** Secrets to inject into the Sandbox as environment variables. */
+  /** {@link Secret}s to inject into the Sandbox as environment variables. */
   secrets?: Secret[];
 
-  /** Mount points for Modal Volumes. */
+  /** Mount points for Modal {@link Volume}s. */
   volumes?: Record<string, Volume>;
 
-  /** Mount points for cloud buckets. */
+  /** Mount points for {@link CloudBucketMount}s. */
   cloudBucketMounts?: Record<string, CloudBucketMount>;
 
   /** Enable a PTY for the Sandbox. */
@@ -129,7 +129,7 @@ export type SandboxCreateParams = {
   /** Enable verbose logging. */
   verbose?: boolean;
 
-  /** Reference to a Modal Proxy to use in front of this Sandbox. */
+  /** Reference to a Modal {@link Proxy} to use in front of this Sandbox. */
   proxy?: Proxy;
 
   /** Optional name for the Sandbox. Unique within an App. */
@@ -267,7 +267,13 @@ export async function buildSandboxCreateRequestProto(
 }
 
 /**
- * Service for managing Sandboxes.
+ * Service for managing {@link Sandbox}es.
+ *
+ * Normally only ever accessed via the client as:
+ * ```typescript
+ * const modal = new ModalClient();
+ * const sandbox = await modal.sandboxes.create(app, image);
+ * ```
  */
 export class SandboxService {
   readonly #client: ModalClient;
@@ -276,7 +282,7 @@ export class SandboxService {
   }
 
   /**
-   * Create a new Sandbox in the App with the specified Image and options.
+   * Create a new {@link Sandbox} in the {@link App} with the specified {@link Image} and options.
    */
   async create(
     app: App,
@@ -314,7 +320,7 @@ export class SandboxService {
     return new Sandbox(this.#client, createResp.sandboxId);
   }
 
-  /** Returns a running Sandbox object from an ID.
+  /** Returns a running {@link Sandbox} object from an ID.
    *
    * @returns Sandbox with ID
    */
@@ -333,10 +339,10 @@ export class SandboxService {
     return new Sandbox(this.#client, sandboxId);
   }
 
-  /** Get a running Sandbox by name from a deployed App.
+  /** Get a running {@link Sandbox} by name from a deployed {@link App}.
    *
-   * Raises a NotFoundError if no running Sandbox is found with the given name.
-   * A Sandbox's name is the `name` argument passed to `sandboxes.create()`.
+   * Raises a {@link NotFoundError} if no running Sandbox is found with the given name.
+   * A Sandbox's name is the `name` argument passed to {@link SandboxService#create sandboxes.create()}.
    *
    * @param appName - Name of the deployed App
    * @param name - Name of the Sandbox
@@ -365,7 +371,7 @@ export class SandboxService {
   }
 
   /**
-   * List all Sandboxes for the current Environment or App ID (if specified).
+   * List all {@link Sandbox}es for the current Environment or App ID (if specified).
    * If tags are specified, only Sandboxes that have at least those tags are returned.
    */
   async *list(
@@ -409,9 +415,9 @@ export class SandboxService {
   }
 }
 
-/** Optional parameters for `client.sandboxes.list()`. */
+/** Optional parameters for {@link SandboxService#list client.sandboxes.list()}. */
 export type SandboxListParams = {
-  /** Filter Sandboxes for a specific App. */
+  /** Filter Sandboxes for a specific {@link App}. */
   appId?: string;
   /** Only return Sandboxes that include all specified tags. */
   tags?: Record<string, string>;
@@ -419,12 +425,12 @@ export type SandboxListParams = {
   environment?: string;
 };
 
-/** Optional parameters for `client.sandboxes.fromName()`. */
+/** Optional parameters for {@link SandboxService#fromName client.sandboxes.fromName()}. */
 export type SandboxFromNameParams = {
   environment?: string;
 };
 
-/** Optional parameters for `Sandbox.exec()`. */
+/** Optional parameters for {@link Sandbox#exec Sandbox.exec()}. */
 export type SandboxExecParams = {
   /** Specifies text or binary encoding for input and output streams. */
   mode?: StreamMode;
@@ -438,13 +444,13 @@ export type SandboxExecParams = {
   timeout?: number;
   /** Environment variables to set for the command. */
   env?: Record<string, string>;
-  /** Secrets to inject as environment variables for the commmand.*/
+  /** {@link Secret}s to inject as environment variables for the commmand.*/
   secrets?: Secret[];
   /** Enable a PTY for the command. */
   pty?: boolean;
 };
 
-/** A port forwarded from within a running Modal Sandbox. */
+/** A port forwarded from within a running Modal {@link Sandbox}. */
 export class Tunnel {
   /** @ignore */
   constructor(
@@ -551,7 +557,7 @@ export class Sandbox {
     );
   }
 
-  /** Set tags (key-value pairs) on the Sandbox. Tags can be used to filter results in `Sandbox.list`. */
+  /** Set tags (key-value pairs) on the Sandbox. Tags can be used to filter results in {@link SandboxService#list Sandbox.list}. */
   async setTags(tags: Record<string, string>): Promise<void> {
     const tagsList = Object.entries(tags).map(([tagName, tagValue]) => ({
       tagName,
@@ -593,14 +599,14 @@ export class Sandbox {
   }
 
   /**
-   * @deprecated Use `client.sandboxes.fromId()` instead.
+   * @deprecated Use {@link SandboxService#fromId client.sandboxes.fromId()} instead.
    */
   static async fromId(sandboxId: string): Promise<Sandbox> {
     return getDefaultClient().sandboxes.fromId(sandboxId);
   }
 
   /**
-   * @deprecated Use `client.sandboxes.fromName()` instead.
+   * @deprecated Use {@link SandboxService#fromName client.sandboxes.fromName()} instead.
    */
   static async fromName(
     appName: string,
@@ -616,7 +622,7 @@ export class Sandbox {
    * Open a file in the Sandbox filesystem.
    * @param path - Path to the file to open
    * @param mode - File open mode (r, w, a, r+, w+, a+)
-   * @returns Promise that resolves to a SandboxFile
+   * @returns Promise that resolves to a {@link SandboxFile}
    */
   async open(path: string, mode: SandboxFileMode = "r"): Promise<SandboxFile> {
     const taskId = await this.#getTaskId();
@@ -706,11 +712,11 @@ export class Sandbox {
     }
   }
 
-  /** Get Tunnel metadata for the Sandbox.
+  /** Get {@link Tunnel} metadata for the Sandbox.
    *
-   * Raises `SandboxTimeoutError` if the tunnels are not available after the timeout.
+   * Raises {@link SandboxTimeoutError} if the tunnels are not available after the timeout.
    *
-   * @returns A dictionary of Tunnel objects which are keyed by the container port.
+   * @returns A dictionary of {@link Tunnel} objects which are keyed by the container port.
    */
   async tunnels(timeout = 50000): Promise<Record<number, Tunnel>> {
     if (this.#tunnels) {
@@ -744,10 +750,10 @@ export class Sandbox {
   /**
    * Snapshot the filesystem of the Sandbox.
    *
-   * Returns an `Image` object which can be used to spawn a new Sandbox with the same filesystem.
+   * Returns an {@link Image} object which can be used to spawn a new Sandbox with the same filesystem.
    *
    * @param timeout - Timeout for the snapshot operation in milliseconds
-   * @returns Promise that resolves to an Image
+   * @returns Promise that resolves to an {@link Image}
    */
   async snapshotFilesystem(timeout = 55000): Promise<Image> {
     const resp = await this.#client.cpClient.sandboxSnapshotFs({
@@ -785,7 +791,7 @@ export class Sandbox {
   }
 
   /**
-   * @deprecated Use `client.sandboxes.list()` instead.
+   * @deprecated Use {@link SandboxService#list client.sandboxes.list()} instead.
    */
   static async *list(
     params: SandboxListParams = {},

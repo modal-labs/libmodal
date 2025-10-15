@@ -14,7 +14,13 @@ import { Status } from "nice-grpc";
 import { NotFoundError, InvalidError } from "./errors";
 
 /**
- * Service for managing Images.
+ * Service for managing {@link Image}s.
+ *
+ * Normally only ever accessed via the client as:
+ * ```typescript
+ * const modal = new ModalClient();
+ * const image = await modal.images.fromRegistry("alpine");
+ * ```
  */
 export class ImageService {
   readonly #client: ModalClient;
@@ -23,7 +29,7 @@ export class ImageService {
   }
 
   /**
-   * Creates an Image from an Image ID
+   * Creates an {@link Image} from an Image ID
    *
    * @param imageId - Image ID.
    */
@@ -45,7 +51,7 @@ export class ImageService {
   }
 
   /**
-   * Creates an Image from a raw registry tag, optionally using a Secret for authentication.
+   * Creates an {@link Image} from a raw registry tag, optionally using a {@link Secret} for authentication.
    *
    * @param tag - The registry tag for the Image.
    * @param secret - Optional. A Secret containing credentials for registry authentication.
@@ -67,7 +73,7 @@ export class ImageService {
   }
 
   /**
-   * Creates an Image from a raw registry tag, optionally using a Secret for authentication.
+   * Creates an {@link Image} from a raw registry tag, optionally using a {@link Secret} for authentication.
    *
    * @param tag - The registry tag for the Image.
    * @param secret - A Secret containing credentials for registry authentication.
@@ -89,7 +95,7 @@ export class ImageService {
   }
 
   /**
-   * Creates an Image from a raw registry tag, optionally using a Secret for authentication.
+   * Creates an {@link Image} from a raw registry tag, optionally using a {@link Secret} for authentication.
    *
    * @param tag - The registry tag for the Image.
    * @param secret - A Secret containing credentials for registry authentication.
@@ -111,7 +117,7 @@ export class ImageService {
   }
 
   /**
-   * Delete an Image by ID. Warning: This removes an *entire Image*, and cannot be undone.
+   * Delete an {@link Image} by ID. Warning: This removes an *entire Image*, and cannot be undone.
    */
   async delete(imageId: string, _: ImageDeleteParams = {}): Promise<void> {
     const image = await this.fromId(imageId);
@@ -119,15 +125,15 @@ export class ImageService {
   }
 }
 
-/** Optional parameters for `client.images.delete()`. */
+/** Optional parameters for {@link ImageService#delete client.images.delete()}. */
 export type ImageDeleteParams = Record<never, never>;
 
-/** Optional parameters for `Image.dockerfileCommands()`. */
+/** Optional parameters for {@link Image#dockerfileCommands Image.dockerfileCommands()}. */
 export type ImageDockerfileCommandsParams = {
   /** Environment variables to set in the build environment. */
   env?: Record<string, string>;
 
-  /** Secrets that will be made available as environment variables to this layer's build environment. */
+  /** {@link Secret}s that will be made available as environment variables to this layer's build environment. */
   secrets?: Secret[];
 
   /** GPU reservation for this layer's build environment (e.g. "A100", "T4:2", "A100-80GB:4"). */
@@ -146,7 +152,7 @@ type Layer = {
   forceBuild?: boolean;
 };
 
-/** A container image, used for starting Sandboxes. */
+/** A container image, used for starting {@link Sandbox}es. */
 export class Image {
   #client: ModalClient;
   #imageId: string;
@@ -181,28 +187,28 @@ export class Image {
   }
 
   /**
-   * @deprecated Use `client.images.fromId()` instead.
+   * @deprecated Use {@link ImageService#fromId client.images.fromId()} instead.
    */
   static async fromId(imageId: string): Promise<Image> {
     return getDefaultClient().images.fromId(imageId);
   }
 
   /**
-   * @deprecated Use `client.images.fromRegistry()` instead.
+   * @deprecated Use {@link ImageService#fromRegistry client.images.fromRegistry()} instead.
    */
   static fromRegistry(tag: string, secret?: Secret): Image {
     return getDefaultClient().images.fromRegistry(tag, secret);
   }
 
   /**
-   * @deprecated Use `client.images.fromAwsEcr()` instead.
+   * @deprecated Use {@link ImageService#fromAwsEcr client.images.fromAwsEcr()} instead.
    */
   static fromAwsEcr(tag: string, secret: Secret): Image {
     return getDefaultClient().images.fromAwsEcr(tag, secret);
   }
 
   /**
-   * @deprecated Use `client.images.fromGcpArtifactRegistry()` instead.
+   * @deprecated Use {@link ImageService#fromGcpArtifactRegistry client.images.fromGcpArtifactRegistry()} instead.
    */
   static fromGcpArtifactRegistry(tag: string, secret: Secret): Image {
     return getDefaultClient().images.fromGcpArtifactRegistry(tag, secret);
@@ -363,7 +369,7 @@ export class Image {
   }
 
   /**
-   * @deprecated Use `client.images.delete()` instead.
+   * @deprecated Use {@link ImageService#delete client.images.delete()} instead.
    */
   static async delete(
     imageId: string,

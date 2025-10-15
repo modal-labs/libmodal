@@ -10,7 +10,7 @@ import { SandboxFilesystemError } from "./errors";
 export type SandboxFileMode = "r" | "w" | "a" | "r+" | "w+" | "a+";
 
 /**
- * SandboxFile represents an open file in the Sandbox filesystem.
+ * SandboxFile represents an open file in the {@link Sandbox} filesystem.
  * Provides read/write operations similar to Node.js `fsPromises.FileHandle`.
  */
 export class SandboxFile {
