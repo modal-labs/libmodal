@@ -3,7 +3,7 @@ import { ClientError, Status } from "nice-grpc";
 import { NotFoundError } from "./errors";
 
 /**
- * Service for managing Proxies.
+ * Service for managing {@link Proxy Proxies}.
  */
 export class ProxyService {
   readonly #client: ModalClient;
@@ -12,7 +12,13 @@ export class ProxyService {
   }
 
   /**
-   * Reference a Proxy by its name.
+   * Reference a {@link Proxy} by its name.
+   *
+   * Normally only ever accessed via the client as:
+   * ```typescript
+   * const modal = new ModalClient();
+   * const proxy = await modal.proxies.fromName("my-proxy");
+   * ```
    */
   async fromName(name: string, params?: ProxyFromNameParams): Promise<Proxy> {
     try {
@@ -32,7 +38,7 @@ export class ProxyService {
   }
 }
 
-/** Optional parameters for `client.proxies.fromName()`. */
+/** Optional parameters for {@link ProxyService#fromName client.proxies.fromName()}. */
 export type ProxyFromNameParams = {
   environment?: string;
 };
@@ -47,7 +53,7 @@ export class Proxy {
   }
 
   /**
-   * @deprecated Use `client.proxies.fromName()` instead.
+   * @deprecated Use {@link ProxyService#fromName client.proxies.fromName()} instead.
    */
   static async fromName(
     name: string,

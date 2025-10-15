@@ -4,19 +4,25 @@ import { ClientError, Status } from "nice-grpc";
 import { NotFoundError, InvalidError } from "./errors";
 import { EphemeralHeartbeatManager } from "./ephemeral";
 
-/** Optional parameters for `client.volumes.fromName()`. */
+/** Optional parameters for {@link VolumeService#fromName client.volumes.fromName()}. */
 export type VolumeFromNameParams = {
   environment?: string;
   createIfMissing?: boolean;
 };
 
-/** Optional parameters for `client.volumes.ephemeral()`. */
+/** Optional parameters for {@link VolumeService#ephemeral client.volumes.ephemeral()}. */
 export type VolumeEphemeralParams = {
   environment?: string;
 };
 
 /**
- * Service for managing Volumes.
+ * Service for managing {@link Volume}s.
+ *
+ * Normally only ever accessed via the client as:
+ * ```typescript
+ * const modal = new ModalClient();
+ * const volume = await modal.volumes.fromName("my-volume");
+ * ```
  */
 export class VolumeService {
   readonly #client: ModalClient;
@@ -25,7 +31,7 @@ export class VolumeService {
   }
 
   /**
-   * Reference a Volume by its name.
+   * Reference a {@link Volume} by its name.
    */
   async fromName(name: string, params?: VolumeFromNameParams): Promise<Volume> {
     try {
@@ -45,7 +51,7 @@ export class VolumeService {
   }
 
   /**
-   * Create a nameless, temporary Volume.
+   * Create a nameless, temporary {@link Volume}.
    * It persists until closeEphemeral() is called, or the process exits.
    */
   async ephemeral(params: VolumeEphemeralParams = {}): Promise<Volume> {
@@ -62,7 +68,7 @@ export class VolumeService {
   }
 }
 
-/** Volumes provide persistent storage that can be mounted in Modal Functions. */
+/** Volumes provide persistent storage that can be mounted in Modal {@link Function_ Function}s. */
 export class Volume {
   readonly volumeId: string;
   readonly name?: string;
@@ -83,7 +89,7 @@ export class Volume {
   }
 
   /**
-   * @deprecated Use `client.volumes.fromName()` instead.
+   * @deprecated Use {@link VolumeService#fromName client.volumes.fromName()} instead.
    */
   static async fromName(
     name: string,
@@ -102,7 +108,7 @@ export class Volume {
   }
 
   /**
-   * @deprecated Use `client.volumes.ephemeral()` instead.
+   * @deprecated Use {@link VolumeService#ephemeral client.volumes.ephemeral()} instead.
    */
   static async ephemeral(options: VolumeEphemeralParams = {}): Promise<Volume> {
     return getDefaultClient().volumes.ephemeral(options);

@@ -3,19 +3,25 @@ import { ClientError, Status } from "nice-grpc";
 import { InvalidError, NotFoundError } from "./errors";
 import { ObjectCreationType } from "../proto/modal_proto/api";
 
-/** Optional parameters for `client.secrets.fromName()`. */
+/** Optional parameters for {@link SecretService#fromName client.secrets.fromName()}. */
 export type SecretFromNameParams = {
   environment?: string;
   requiredKeys?: string[];
 };
 
-/** Optional parameters for `client.secrets.fromObject()`. */
+/** Optional parameters for {@link SecretService#fromObject client.secrets.fromObject()}. */
 export type SecretFromObjectParams = {
   environment?: string;
 };
 
 /**
- * Service for managing Secrets.
+ * Service for managing {@link Secret Secrets}.
+ *
+ * Normally only ever accessed via the client as:
+ * ```typescript
+ * const modal = new ModalClient();
+ * const secret = await modal.secrets.fromName("my-secret");
+ * ```
  */
 export class SecretService {
   readonly #client: ModalClient;
@@ -23,7 +29,7 @@ export class SecretService {
     this.#client = client;
   }
 
-  /** Reference a Secret by its name. */
+  /** Reference a {@link Secret} by its name. */
   async fromName(name: string, params?: SecretFromNameParams): Promise<Secret> {
     try {
       const resp = await this.#client.cpClient.secretGetOrCreate({
@@ -45,7 +51,7 @@ export class SecretService {
     }
   }
 
-  /** Create a Secret from a plain object of key-value pairs. */
+  /** Create a {@link Secret} from a plain object of key-value pairs. */
   async fromObject(
     entries: Record<string, string>,
     params?: SecretFromObjectParams,
@@ -78,7 +84,7 @@ export class SecretService {
   }
 }
 
-/** Secrets provide a dictionary of environment variables for Images. */
+/** Secrets provide a dictionary of environment variables for {@link Image}s. */
 export class Secret {
   readonly secretId: string;
   readonly name?: string;
@@ -90,7 +96,7 @@ export class Secret {
   }
 
   /**
-   * @deprecated Use `client.secrets.fromName()` instead.
+   * @deprecated Use {@link SecretService#fromName client.secrets.fromName()} instead.
    */
   static async fromName(
     name: string,
@@ -100,7 +106,7 @@ export class Secret {
   }
 
   /**
-   * @deprecated Use `client.secrets.fromObject()` instead.
+   * @deprecated Use {@link SecretService#fromObject client.secrets.fromObject()} instead.
    */
   static async fromObject(
     entries: Record<string, string>,

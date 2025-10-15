@@ -19,14 +19,20 @@ import { mergeEnvIntoSecrets } from "./secret";
 import { Retries, parseRetries } from "./retries";
 import type { Volume } from "./volume";
 
-/** Optional parameters for `client.cls.fromName()`. */
+/** Optional parameters for {@link ClsService#fromName client.cls.fromName()}. */
 export type ClsFromNameParams = {
   environment?: string;
   createIfMissing?: boolean;
 };
 
 /**
- * Service for managing Cls.
+ * Service for managing {@link Cls}.
+ *
+ * Normally only ever accessed via the client as:
+ * ```typescript
+ * const modal = new ModalClient();
+ * const cls = await modal.cls.fromName("my-app", "MyCls");
+ * ```
  */
 export class ClsService {
   readonly #client: ModalClient;
@@ -35,7 +41,7 @@ export class ClsService {
   }
 
   /**
-   * Reference a Cls from a deployed App by its name.
+   * Reference a {@link Cls} from a deployed {@link App} by its name.
    */
   async fromName(
     appName: string,
@@ -132,7 +138,7 @@ export class Cls {
   }
 
   /**
-   * @deprecated Use `client.cls.fromName()` instead.
+   * @deprecated Use {@link ClsService#fromName client.cls.fromName()} instead.
    */
   static async lookup(
     appName: string,
@@ -373,7 +379,7 @@ function encodeParameter(
   return paramValue;
 }
 
-/** Represents an instance of a deployed Modal Cls, optionally with parameters. */
+/** Represents an instance of a deployed Modal {@link Cls}, optionally with parameters. */
 export class ClsInstance {
   #methods: Map<string, Function_>;
 
