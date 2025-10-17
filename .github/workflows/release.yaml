@@ -10,6 +10,14 @@ on:
         - patch
         - minor
         - major
+      release_type:
+        description: 'Release type'
+        required: true
+        type: choice
+        options:
+        - stable
+        - dev
+        default: stable
 
 jobs:
   open-pr-for-release:
@@ -52,7 +60,7 @@ jobs:
     - name: Switch to ci-release and make release commits
       run: |
         git switch -c ci-release
-        python ci/release.py version ${{ inputs.update }}
+        python ci/release.py version ${{ inputs.update }} ${{ inputs.release_type == 'dev' && '--dev' || '' }}
         git push origin ci-release --force
 
     - name: Create Pull Request
