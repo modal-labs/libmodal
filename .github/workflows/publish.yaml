@@ -9,7 +9,9 @@ jobs:
   publish:
     runs-on: ubuntu-24.04
     if: startsWith(github.event.head_commit.message, '[RELEASE] Prepare release for')
+    environment: publish
     permissions:
+      id-token: write  # Required for OIDC for trusted provider: https://docs.npmjs.com/trusted-publishers#github-actions-configuration
       contents: write
 
     steps:
@@ -40,5 +42,3 @@ jobs:
     - name: Publish and push tags
       run: |
         python ci/release.py publish
-      env:
-        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
