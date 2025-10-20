@@ -160,16 +160,14 @@ def publish(args):
         print(f"  - Create and push git tags: {js_tag}, {go_tag}")
         return
 
-    run_cli(["git", "push"])
+    run_cli(["git", "tag", js_tag])
+    run_cli(["git", "tag", go_tag])
+    run_cli(["git", "push", "--tags"])
 
     if args.dev:
         run_cli(["npm", "publish", "--tag", "next"], cwd="modal-js")
     else:
         run_cli(["npm", "publish"], cwd="modal-js")
-
-    run_cli(["git", "tag", js_tag])
-    run_cli(["git", "tag", go_tag])
-    run_cli(["git", "push", "--tags"])
 
     run_cli(["curl", f"https://proxy.golang.org/github.com/modal-labs/libmodal/modal-go/@v/v{version}.info"])
 
