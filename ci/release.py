@@ -144,8 +144,6 @@ def update_version(args):
 
 def publish(args):
     """Publish both modal-js and modal-go"""
-    check_git_clean()
-
     version = get_current_js_version()
     git_tags = [f"{version}", f"modal-js/v{version}", f"modal-go/v{version}"]
 
