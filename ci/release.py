@@ -152,12 +152,12 @@ def publish(args):
 
     if args.dry_run:
         print("\nDRY RUN: Would execute the following operations:")
-        print("  - git push (push version commit)")
+        print("- git push (push version commit)")
+        print(f"- Create and push git tags: {js_tag}, {go_tag}")
         if args.dev:
-            print("  - npm publish --tag next (in modal-js/)")
+            print("- npm publish --tag next (in modal-js/)")
         else:
-            print("  - npm publish (in modal-js/)")
-        print(f"  - Create and push git tags: {js_tag}, {go_tag}")
+            print("- npm publish (in modal-js/)")
         return
 
     run_cli(["git", "push"])
