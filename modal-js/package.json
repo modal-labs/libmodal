@@ -34,9 +34,8 @@
     "prepare": "scripts/gen-proto.sh",
     "test": "vitest run",
     "test:watch": "vitest",
-    "version": "npm run check && git add -A && git commit -m \"modal-js/v$npm_package_version\"",
-    "prepublishOnly": "npm run build && git push",
-    "postpublish": "git tag modal-js/v$npm_package_version && git push --tags"
+    "version": "npm run check",
+    "prepublishOnly": "npm run build"
   },
   "dependencies": {
     "cbor-x": "^1.6.0",
