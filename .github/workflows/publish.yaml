@@ -31,6 +31,9 @@ jobs:
         registry-url: 'https://registry.npmjs.org'
         cache-dependency-path: modal-js/package-lock.json
 
+    - name: Ensure npm 11.5.1 or later for trusted publishing
+      run: npm install -g npm@>=11.5.1
+
     - name: Install npm packages
       run: npm install
       working-directory: ./modal-js
