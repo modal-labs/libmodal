@@ -152,24 +152,23 @@ def publish(args):
 
     if args.dry_run:
         print("\nDRY RUN: Would execute the following operations:")
-        print("  - git push (push version commit)")
+        print("- git push (push version commit)")
+        print(f"- Create and push git tags: {js_tag}, {go_tag}")
         if args.dev:
-            print("  - npm publish --tag next (in modal-js/)")
+            print("- npm publish --tag next (in modal-js/)")
         else:
-            print("  - npm publish (in modal-js/)")
-        print(f"  - Create and push git tags: {js_tag}, {go_tag}")
+            print("- npm publish (in modal-js/)")
         return
 
     run_cli(["git", "push"])
+    run_cli(["git", "tag", js_tag])
+    run_cli(["git", "tag", go_tag])
+    run_cli(["git", "push", "--tags"])
 
     if args.dev:
         run_cli(["npm", "publish", "--tag", "next"], cwd="modal-js")
     else:
         run_cli(["npm", "publish"], cwd="modal-js")
-
-    run_cli(["git", "tag", js_tag])
-    run_cli(["git", "tag", go_tag])
-    run_cli(["git", "push", "--tags"])
 
     run_cli(["curl", f"https://proxy.golang.org/github.com/modal-labs/libmodal/modal-go/@v/v{version}.info"])
 
