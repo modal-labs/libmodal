@@ -147,13 +147,12 @@ def publish(args):
     check_git_clean()
 
     version = get_current_js_version()
-    js_tag = f"modal-js/v{version}"
-    go_tag = f"modal-go/v{version}"
+    git_tags = [f"{version}", f"modal-js/v{version}", f"modal-go/v{version}"]
 
     if args.dry_run:
         print("\nDRY RUN: Would execute the following operations:")
         print("- git push (push version commit)")
-        print(f"- Create and push git tags: {js_tag}, {go_tag}")
+        print(f"- Create and push git tags: {' '.join(git_tags)}")
         if args.dev:
             print("- npm publish --tag next (in modal-js/)")
         else:
@@ -161,8 +160,8 @@ def publish(args):
         return
 
     run_cli(["git", "push"])
-    run_cli(["git", "tag", js_tag])
-    run_cli(["git", "tag", go_tag])
+    for tag in git_tags:
+        run_cli(["git", "tag", tag])
     run_cli(["git", "push", "--tags"])
 
     if args.dev:
