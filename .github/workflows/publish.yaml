@@ -5,14 +5,15 @@ on:
     branches:
       - main
 
+permissions:
+  id-token: write  # Required for OIDC for trusted provider: https://docs.npmjs.com/trusted-publishers#github-actions-configuration
+  contents: write
+
 jobs:
   publish:
     runs-on: ubuntu-24.04
     if: startsWith(github.event.head_commit.message, '[RELEASE] Prepare release for') || startsWith(github.event.head_commit.message, '[DEV-RELEASE] Prepare dev release for')
     environment: publish
-    permissions:
-      id-token: write  # Required for OIDC for trusted provider: https://docs.npmjs.com/trusted-publishers#github-actions-configuration
-      contents: write
 
     steps:
     - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
