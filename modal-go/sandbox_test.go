@@ -62,3 +62,93 @@ func TestContainerExecProto_WithPTY(t *testing.T) {
 	g.Expect(ptyInfo.GetPtyType()).To(gomega.Equal(pb.PTYInfo_PTY_TYPE_SHELL))
 	g.Expect(ptyInfo.GetNoTerminateOnIdleStdin()).To(gomega.BeTrue())
 }
+
+func TestSandboxCreateRequestProto_WithCPUAndCPUMax(t *testing.T) {
+	g := gomega.NewWithT(t)
+
+	req, err := buildSandboxCreateRequestProto("app-123", "img-456", SandboxCreateParams{
+		CPU:    2.0,
+		CPUMax: 4.0,
+	})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	resources := req.GetDefinition().GetResources()
+	g.Expect(resources.GetMilliCpu()).To(gomega.Equal(uint32(2000)))
+	g.Expect(resources.GetMilliCpuMax()).To(gomega.Equal(uint32(4000)))
+}
+
+func TestSandboxCreateRequestProto_CPUMaxLowerThanCPU(t *testing.T) {
+	g := gomega.NewWithT(t)
+
+	_, err := buildSandboxCreateRequestProto("app-123", "img-456", SandboxCreateParams{
+		CPU:    4.0,
+		CPUMax: 2.0,
+	})
+	g.Expect(err).Should(gomega.HaveOccurred())
+	g.Expect(err.Error()).To(gomega.ContainSubstring("the CPU request (4.000000) cannot be higher than CPUMax (2.000000)"))
+}
+
+func TestSandboxCreateRequestProto_CPUMaxWithoutCPU(t *testing.T) {
+	g := gomega.NewWithT(t)
+
+	_, err := buildSandboxCreateRequestProto("app-123", "img-456", SandboxCreateParams{
+		CPUMax: 4.0,
+	})
+	g.Expect(err).Should(gomega.HaveOccurred())
+	g.Expect(err.Error()).To(gomega.ContainSubstring("must also specify CPU request when CPUMax is specified"))
+}
+
+func TestSandboxCreateRequestProto_WithMemoryAndMemoryMax(t *testing.T) {
+	g := gomega.NewWithT(t)
+
+	req, err := buildSandboxCreateRequestProto("app-123", "img-456", SandboxCreateParams{
+		Memory:    1024,
+		MemoryMax: 2048,
+	})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	resources := req.GetDefinition().GetResources()
+	g.Expect(resources.GetMemoryMb()).To(gomega.Equal(uint32(1024)))
+	g.Expect(resources.GetMemoryMbMax()).To(gomega.Equal(uint32(2048)))
+}
+
+func TestSandboxCreateRequestProto_MemoryMaxLowerThanMemory(t *testing.T) {
+	g := gomega.NewWithT(t)
+
+	_, err := buildSandboxCreateRequestProto("app-123", "img-456", SandboxCreateParams{
+		Memory:    2048,
+		MemoryMax: 1024,
+	})
+	g.Expect(err).Should(gomega.HaveOccurred())
+	g.Expect(err.Error()).To(gomega.ContainSubstring("the Memory request (2048) cannot be higher than MemoryMax (1024)"))
+}
+
+func TestSandboxCreateRequestProto_MemoryMaxWithoutMemory(t *testing.T) {
+	g := gomega.NewWithT(t)
+
+	_, err := buildSandboxCreateRequestProto("app-123", "img-456", SandboxCreateParams{
+		MemoryMax: 2048,
+	})
+	g.Expect(err).Should(gomega.HaveOccurred())
+	g.Expect(err.Error()).To(gomega.ContainSubstring("must also specify Memory request when MemoryMax is specified"))
+}
+
+func TestSandboxCreateRequestProto_NegativeCPU(t *testing.T) {
+	g := gomega.NewWithT(t)
+
+	_, err := buildSandboxCreateRequestProto("app-123", "img-456", SandboxCreateParams{
+		CPU: -1.0,
+	})
+	g.Expect(err).Should(gomega.HaveOccurred())
+	g.Expect(err.Error()).To(gomega.ContainSubstring("must be a positive number"))
+}
+
+func TestSandboxCreateRequestProto_NegativeMemory(t *testing.T) {
+	g := gomega.NewWithT(t)
+
+	_, err := buildSandboxCreateRequestProto("app-123", "img-456", SandboxCreateParams{
+		Memory: -100,
+	})
+	g.Expect(err).Should(gomega.HaveOccurred())
+	g.Expect(err.Error()).To(gomega.ContainSubstring("must be a positive number"))
+}

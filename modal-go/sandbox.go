@@ -29,8 +29,10 @@ type sandboxServiceImpl struct{ client *Client }
 
 // SandboxCreateParams are options for creating a Modal Sandbox.
 type SandboxCreateParams struct {
-	CPU               float64                      // CPU request in physical cores.
+	CPU               float64                      // CPU request in fractional, physical cores.
+	CPUMax            float64                      // Hard limit in fractional, physical CPU cores. Zero means no limit.
 	Memory            int                          // Memory request in MiB.
+	MemoryMax         int                          // Hard memory limit in MiB. Zero means no limit.
 	GPU               string                       // GPU reservation for the Sandbox (e.g. "A100", "T4:2", "A100-80GB:4").
 	Timeout           time.Duration                // Maximum lifetime for the Sandbox.
 	IdleTimeout       time.Duration                // The amount of time that a Sandbox can be idle before being terminated.
@@ -168,21 +170,67 @@ func buildSandboxCreateRequestProto(appID, imageID string, params SandboxCreateP
 		idleTimeoutSecs = &v
 	}
 
+	var milliCPU, milliCPUMax *uint32
+	if params.CPU != 0 {
+		if params.CPU <= 0 {
+			return nil, fmt.Errorf("the CPU request (%f) must be a positive number", params.CPU)
+		}
+		v := uint32(1000 * params.CPU)
+		milliCPU = &v
+		if params.CPUMax > 0 {
+			if params.CPUMax < params.CPU {
+				return nil, fmt.Errorf("the CPU request (%f) cannot be higher than CPUMax (%f)", params.CPU, params.CPUMax)
+			}
+			vMax := uint32(1000 * params.CPUMax)
+			milliCPUMax = &vMax
+		}
+	} else if params.CPUMax > 0 {
+		return nil, fmt.Errorf("must also specify CPU request when CPUMax is specified")
+	}
+
+	var memoryMb, memoryMbMax uint32
+	if params.Memory != 0 {
+		if params.Memory <= 0 {
+			return nil, fmt.Errorf("the Memory request (%d) must be a positive number", params.Memory)
+		}
+		memoryMb = uint32(params.Memory)
+		if params.MemoryMax > 0 {
+			if params.MemoryMax < params.Memory {
+				return nil, fmt.Errorf("the Memory request (%d) cannot be higher than MemoryMax (%d)", params.Memory, params.MemoryMax)
+			}
+			memoryMbMax = uint32(params.MemoryMax)
+		}
+	} else if params.MemoryMax > 0 {
+		return nil, fmt.Errorf("must also specify Memory request when MemoryMax is specified")
+	}
+
+	resourcesBuilder := pb.Resources_builder{
+		GpuConfig: gpuConfig,
+	}
+	if milliCPU != nil {
+		resourcesBuilder.MilliCpu = *milliCPU
+	}
+	if milliCPUMax != nil {
+		resourcesBuilder.MilliCpuMax = *milliCPUMax
+	}
+	if memoryMb > 0 {
+		resourcesBuilder.MemoryMb = memoryMb
+	}
+	if memoryMbMax > 0 {
+		resourcesBuilder.MemoryMbMax = memoryMbMax
+	}
+
 	return pb.SandboxCreateRequest_builder{
 		AppId: appID,
 		Definition: pb.Sandbox_builder{
-			EntrypointArgs:  params.Command,
-			ImageId:         imageID,
-			SecretIds:       secretIds,
-			TimeoutSecs:     uint32(params.Timeout.Seconds()),
-			IdleTimeoutSecs: idleTimeoutSecs,
-			Workdir:         workdir,
-			NetworkAccess:   networkAccess,
-			Resources: pb.Resources_builder{
-				MilliCpu:  uint32(1000 * params.CPU),
-				MemoryMb:  uint32(params.Memory),
-				GpuConfig: gpuConfig,
-			}.Build(),
+			EntrypointArgs:     params.Command,
+			ImageId:            imageID,
+			SecretIds:          secretIds,
+			TimeoutSecs:        uint32(params.Timeout.Seconds()),
+			IdleTimeoutSecs:    idleTimeoutSecs,
+			Workdir:            workdir,
+			NetworkAccess:      networkAccess,
+			Resources:          resourcesBuilder.Build(),
 			VolumeMounts:       volumeMounts,
 			CloudBucketMounts:  cloudBucketMounts,
 			PtyInfo:            ptyInfo,

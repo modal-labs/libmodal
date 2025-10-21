@@ -199,3 +199,173 @@ test("withOptions({ volumes: {} }) binds and does not replace volumes", async ()
 
   mock.assertExhausted();
 });
+
+test("withOptions({ cpu, cpuMax }) sets milliCpu and milliCpuMax", async () => {
+  const { mockClient: mc, mockCpClient: mock } = createMockModalClients();
+
+  mock.handleUnary("FunctionGet", (_: any) => {
+    return _mockFunctionProto;
+  });
+
+  mock.handleUnary("FunctionBindParams", (req: any) => {
+    expect(req).toMatchObject({ functionId: "fid" });
+    const fo = req.functionOptions;
+    expect(fo).toBeDefined();
+    expect(fo.resources).toBeDefined();
+    expect(fo.resources.milliCpu).toBe(2000);
+    expect(fo.resources.milliCpuMax).toBe(4000);
+    return { boundFunctionId: "fid-1", handleMetadata: {} };
+  });
+
+  const cls = await mc.cls.fromName("libmodal-test-support", "EchoCls");
+  const instance = await cls.withOptions({ cpu: 2.0, cpuMax: 4.0 }).instance();
+  expect(instance).toBeTruthy();
+
+  mock.assertExhausted();
+});
+
+test("withOptions cpuMax lower than cpu throws error", async () => {
+  const { mockClient: mc, mockCpClient: mock } = createMockModalClients();
+
+  mock.handleUnary("FunctionGet", (_: any) => {
+    return _mockFunctionProto;
+  });
+
+  const cls = await mc.cls.fromName("libmodal-test-support", "EchoCls");
+  await expect(
+    cls.withOptions({ cpu: 4.0, cpuMax: 2.0 }).instance(),
+  ).rejects.toThrow("cpu (4) cannot be higher than cpuMax (2)");
+
+  mock.assertExhausted();
+});
+
+test("withOptions cpuMax without cpu throws error", async () => {
+  const { mockClient: mc, mockCpClient: mock } = createMockModalClients();
+
+  mock.handleUnary("FunctionGet", (_: any) => {
+    return _mockFunctionProto;
+  });
+
+  const cls = await mc.cls.fromName("libmodal-test-support", "EchoCls");
+  await expect(cls.withOptions({ cpuMax: 4.0 }).instance()).rejects.toThrow(
+    "must also specify cpu when cpuMax is specified",
+  );
+
+  mock.assertExhausted();
+});
+
+test("withOptions({ memory, memoryMax }) sets memoryMb and memoryMbMax", async () => {
+  const { mockClient: mc, mockCpClient: mock } = createMockModalClients();
+
+  mock.handleUnary("FunctionGet", (_: any) => {
+    return _mockFunctionProto;
+  });
+
+  mock.handleUnary("FunctionBindParams", (req: any) => {
+    expect(req).toMatchObject({ functionId: "fid" });
+    const fo = req.functionOptions;
+    expect(fo).toBeDefined();
+    expect(fo.resources).toBeDefined();
+    expect(fo.resources.memoryMb).toBe(1024);
+    expect(fo.resources.memoryMbMax).toBe(2048);
+    return { boundFunctionId: "fid-1", handleMetadata: {} };
+  });
+
+  const cls = await mc.cls.fromName("libmodal-test-support", "EchoCls");
+  const instance = await cls
+    .withOptions({ memory: 1024, memoryMax: 2048 })
+    .instance();
+  expect(instance).toBeTruthy();
+
+  mock.assertExhausted();
+});
+
+test("withOptions memoryMax lower than memory throws error", async () => {
+  const { mockClient: mc, mockCpClient: mock } = createMockModalClients();
+
+  mock.handleUnary("FunctionGet", (_: any) => {
+    return _mockFunctionProto;
+  });
+
+  const cls = await mc.cls.fromName("libmodal-test-support", "EchoCls");
+  await expect(
+    cls.withOptions({ memory: 2048, memoryMax: 1024 }).instance(),
+  ).rejects.toThrow("memory (2048) cannot be higher than memoryMax (1024)");
+
+  mock.assertExhausted();
+});
+
+test("withOptions memoryMax without memory throws error", async () => {
+  const { mockClient: mc, mockCpClient: mock } = createMockModalClients();
+
+  mock.handleUnary("FunctionGet", (_: any) => {
+    return _mockFunctionProto;
+  });
+
+  const cls = await mc.cls.fromName("libmodal-test-support", "EchoCls");
+  await expect(cls.withOptions({ memoryMax: 2048 }).instance()).rejects.toThrow(
+    "must also specify memory when memoryMax is specified",
+  );
+
+  mock.assertExhausted();
+});
+
+test("withOptions negative cpu throws error", async () => {
+  const { mockClient: mc, mockCpClient: mock } = createMockModalClients();
+
+  mock.handleUnary("FunctionGet", (_: any) => {
+    return _mockFunctionProto;
+  });
+
+  const cls = await mc.cls.fromName("libmodal-test-support", "EchoCls");
+  await expect(cls.withOptions({ cpu: -1.0 }).instance()).rejects.toThrow(
+    "must be a positive number",
+  );
+
+  mock.assertExhausted();
+});
+
+test("withOptions zero cpu throws error", async () => {
+  const { mockClient: mc, mockCpClient: mock } = createMockModalClients();
+
+  mock.handleUnary("FunctionGet", (_: any) => {
+    return _mockFunctionProto;
+  });
+
+  const cls = await mc.cls.fromName("libmodal-test-support", "EchoCls");
+  await expect(cls.withOptions({ cpu: 0.0 }).instance()).rejects.toThrow(
+    "must be a positive number",
+  );
+
+  mock.assertExhausted();
+});
+
+test("withOptions negative memory throws error", async () => {
+  const { mockClient: mc, mockCpClient: mock } = createMockModalClients();
+
+  mock.handleUnary("FunctionGet", (_: any) => {
+    return _mockFunctionProto;
+  });
+
+  const cls = await mc.cls.fromName("libmodal-test-support", "EchoCls");
+  await expect(cls.withOptions({ memory: -100 }).instance()).rejects.toThrow(
+    "must be a positive number",
+  );
+
+  mock.assertExhausted();
+});
+
+test("withOptions zero memory throws error", async () => {
+  const { mockClient: mc, mockCpClient: mock } = createMockModalClients();
+
+  mock.handleUnary("FunctionGet", (_: any) => {
+    return _mockFunctionProto;
+  });
+
+  const cls = await mc.cls.fromName("libmodal-test-support", "EchoCls");
+  await expect(cls.withOptions({ memory: 0 }).instance()).rejects.toThrow(
+    "must be a positive number",
+  );
+
+  mock.assertExhausted();
+});

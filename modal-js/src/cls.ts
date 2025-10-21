@@ -84,7 +84,9 @@ export class ClsService {
 
 export type ClsWithOptionsParams = {
   cpu?: number;
+  cpuMax?: number;
   memory?: number;
+  memoryMax?: number;
   gpu?: string;
   env?: Record<string, string>;
   secrets?: Secret[];
@@ -263,11 +265,56 @@ async function buildFunctionOptionsProto(
   const o = options ?? {};
 
   const gpuConfig = parseGpuConfig(o.gpu);
+
+  let milliCpu: number | undefined = undefined;
+  let milliCpuMax: number | undefined = undefined;
+  if (o.cpu !== undefined) {
+    if (o.cpu <= 0) {
+      throw new Error(`cpu (${o.cpu}) must be a positive number`);
+    }
+    milliCpu = Math.round(1000 * o.cpu);
+    if (o.cpuMax !== undefined) {
+      if (o.cpuMax < o.cpu) {
+        throw new Error(
+          `cpu (${o.cpu}) cannot be higher than cpuMax (${o.cpuMax})`,
+        );
+      }
+      milliCpuMax = Math.round(1000 * o.cpuMax);
+    }
+  } else if (o.cpuMax !== undefined) {
+    throw new Error("must also specify cpu when cpuMax is specified");
+  }
+
+  let memoryMb: number | undefined = undefined;
+  let memoryMbMax: number | undefined = undefined;
+  if (o.memory !== undefined) {
+    if (o.memory <= 0) {
+      throw new Error(`memory (${o.memory}) must be a positive number`);
+    }
+    memoryMb = o.memory;
+    if (o.memoryMax !== undefined) {
+      if (o.memoryMax < o.memory) {
+        throw new Error(
+          `memory (${o.memory}) cannot be higher than memoryMax (${o.memoryMax})`,
+        );
+      }
+      memoryMbMax = o.memoryMax;
+    }
+  } else if (o.memoryMax !== undefined) {
+    throw new Error("must also specify memory when memoryMax is specified");
+  }
+
   const resources =
-    o.cpu !== undefined || o.memory !== undefined || gpuConfig
+    milliCpu !== undefined ||
+    milliCpuMax !== undefined ||
+    memoryMb !== undefined ||
+    memoryMbMax !== undefined ||
+    gpuConfig
       ? {
-          milliCpu: o.cpu !== undefined ? Math.round(1000 * o.cpu) : undefined,
-          memoryMb: o.memory,
+          milliCpu,
+          milliCpuMax,
+          memoryMb,
+          memoryMbMax,
           gpuConfig,
         }
       : undefined;
