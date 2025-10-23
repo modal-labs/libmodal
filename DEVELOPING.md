@@ -59,5 +59,5 @@ We check the generated protobuf files into Git so that the package can be instal
 ## How to publish
 
 1. Ensure all changes are captured in the ["Unreleased" section of the `CHANGELOG.md`](https://github.com/modal-labs/libmodal/blob/main/CHANGELOG.md#unreleased).
-2. Manually trigger the [Open PR for release](https://github.com/modal-labs/libmodal/actions/workflows/release.yaml) workflow in GitHub Actions by clicking "Run workflow" and selecting the version to bump (patch, minor, or major).
-3. Review and merge the release PR. This automatically triggers the [Publish Release](https://github.com/modal-labs/libmodal/actions/workflows/publish.yaml) workflow, which builds and publishes the packages.
+2. Manually trigger the [Open PR for release](https://github.com/modal-labs/libmodal/actions/workflows/release.yaml) workflow in GitHub Actions by clicking "Run workflow", selecting the version to bump (patch, minor, or major), and choosing "stable" or "dev" as the release type.
+3. Review and merge the release PR. This automatically triggers the [Publish Release](https://github.com/modal-labs/libmodal/actions/workflows/publish.yaml) workflow, which builds and publishes the packages. If it's a dev release, a `-dev.X` suffix is appended to the version, and the packages are published with the `next` tag on npm.
