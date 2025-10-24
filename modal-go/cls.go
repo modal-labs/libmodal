@@ -22,7 +22,9 @@ type clsServiceImpl struct{ client *Client }
 // ClsWithOptionsParams represents runtime options for a Modal Cls.
 type ClsWithOptionsParams struct {
 	CPU              *float64
+	CPUMax           *float64
 	Memory           *int
+	MemoryMax        *int
 	GPU              *string
 	Env              map[string]string
 	Secrets          []*Secret
@@ -48,7 +50,9 @@ type ClsWithBatchingParams struct {
 
 type serviceOptions struct {
 	cpu                    *float64
+	cpuMax                 *float64
 	memory                 *int
+	memoryMax              *int
 	gpu                    *string
 	env                    *map[string]string
 	secrets                *[]*Secret
@@ -198,7 +202,9 @@ func (c *Cls) WithOptions(params *ClsWithOptionsParams) *Cls {
 
 	merged := mergeServiceOptions(c.serviceOptions, &serviceOptions{
 		cpu:              params.CPU,
+		cpuMax:           params.CPUMax,
 		memory:           params.Memory,
+		memoryMax:        params.MemoryMax,
 		gpu:              params.GPU,
 		env:              envPtr,
 		secrets:          secretsPtr,
@@ -404,7 +410,9 @@ func mergeServiceOptions(base, new *serviceOptions) *serviceOptions {
 
 	merged := &serviceOptions{
 		cpu:                    base.cpu,
+		cpuMax:                 base.cpuMax,
 		memory:                 base.memory,
+		memoryMax:              base.memoryMax,
 		gpu:                    base.gpu,
 		env:                    base.env,
 		secrets:                base.secrets,
@@ -423,8 +431,14 @@ func mergeServiceOptions(base, new *serviceOptions) *serviceOptions {
 	if new.cpu != nil {
 		merged.cpu = new.cpu
 	}
+	if new.cpuMax != nil {
+		merged.cpuMax = new.cpuMax
+	}
 	if new.memory != nil {
 		merged.memory = new.memory
+	}
+	if new.memoryMax != nil {
+		merged.memoryMax = new.memoryMax
 	}
 	if new.gpu != nil {
 		merged.gpu = new.gpu
@@ -476,14 +490,39 @@ func buildFunctionOptionsProto(options *serviceOptions) (*pb.FunctionOptions, er
 
 	builder := pb.FunctionOptions_builder{}
 
-	if options.cpu != nil || options.memory != nil || options.gpu != nil {
+	if options.cpu != nil || options.cpuMax != nil || options.memory != nil || options.memoryMax != nil || options.gpu != nil {
 		resBuilder := pb.Resources_builder{}
+
 		if options.cpu != nil {
+			if *options.cpu <= 0 {
+				return nil, fmt.Errorf("the CPU request (%f) must be a positive number", *options.cpu)
+			}
 			resBuilder.MilliCpu = uint32(*options.cpu * 1000)
+			if options.cpuMax != nil {
+				if *options.cpuMax < *options.cpu {
+					return nil, fmt.Errorf("the CPU request (%f) cannot be higher than CPUMax (%f)", *options.cpu, *options.cpuMax)
+				}
+				resBuilder.MilliCpuMax = uint32(*options.cpuMax * 1000)
+			}
+		} else if options.cpuMax != nil {
+			return nil, fmt.Errorf("must also specify CPU request when CPUMax is specified")
 		}
+
 		if options.memory != nil {
+			if *options.memory <= 0 {
+				return nil, fmt.Errorf("the Memory request (%d) must be a positive number", *options.memory)
+			}
 			resBuilder.MemoryMb = uint32(*options.memory)
+			if options.memoryMax != nil {
+				if *options.memoryMax < *options.memory {
+					return nil, fmt.Errorf("the Memory request (%d) cannot be higher than MemoryMax (%d)", *options.memory, *options.memoryMax)
+				}
+				resBuilder.MemoryMbMax = uint32(*options.memoryMax)
+			}
+		} else if options.memoryMax != nil {
+			return nil, fmt.Errorf("must also specify Memory request when MemoryMax is specified")
 		}
+
 		if options.gpu != nil {
 			gpuConfig, err := parseGPUConfig(*options.gpu)
 			if err != nil {
