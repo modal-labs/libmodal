@@ -6,8 +6,8 @@ import (
 	"time"
 
 	modal "github.com/modal-labs/libmodal/modal-go"
+	"github.com/modal-labs/libmodal/modal-go/internal/grpcmock"
 	pb "github.com/modal-labs/libmodal/modal-go/proto/modal_proto"
-	"github.com/modal-labs/libmodal/modal-go/testsupport/grpcmock"
 	"github.com/onsi/gomega"
 )
 
