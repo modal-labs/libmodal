@@ -250,7 +250,7 @@ export async function buildSandboxCreateRequestProto(
     if (params.cpu <= 0) {
       throw new Error(`cpu (${params.cpu}) must be a positive number`);
     }
-    milliCpu = Math.round(1000 * params.cpu);
+    milliCpu = Math.trunc(1000 * params.cpu);
     if (params.cpuLimit !== undefined) {
       if (params.cpuLimit < params.cpu) {
         throw new Error(
@@ -296,7 +296,7 @@ export async function buildSandboxCreateRequestProto(
       networkAccess,
       resources: {
         // https://modal.com/docs/guide/resources
-        milliCpu: milliCpu ?? Math.round(1000 * 0.125),
+        milliCpu: milliCpu ?? Math.trunc(1000 * 0.125),
         milliCpuMax: milliCpuMax ?? 0,
         memoryMb: memoryMb ?? 128,
         memoryMbMax: memoryMbMax ?? 0,

@@ -275,7 +275,7 @@ async function buildFunctionOptionsProto(
     if (o.cpu <= 0) {
       throw new Error(`cpu (${o.cpu}) must be a positive number`);
     }
-    milliCpu = Math.round(1000 * o.cpu);
+    milliCpu = Math.trunc(1000 * o.cpu);
     if (o.cpuLimit !== undefined) {
       if (o.cpuLimit < o.cpu) {
         throw new Error(
