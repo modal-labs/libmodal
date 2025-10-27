@@ -295,11 +295,10 @@ export async function buildSandboxCreateRequestProto(
       workdir: params.workdir ?? undefined,
       networkAccess,
       resources: {
-        // https://modal.com/docs/guide/resources
-        milliCpu: milliCpu ?? Math.trunc(1000 * 0.125),
-        milliCpuMax: milliCpuMax ?? 0,
-        memoryMb: memoryMb ?? 128,
-        memoryMbMax: memoryMbMax ?? 0,
+        milliCpu,
+        milliCpuMax,
+        memoryMb,
+        memoryMbMax,
         gpuConfig,
       },
       volumeMounts,
