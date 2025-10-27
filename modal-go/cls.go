@@ -22,9 +22,9 @@ type clsServiceImpl struct{ client *Client }
 // ClsWithOptionsParams represents runtime options for a Modal Cls.
 type ClsWithOptionsParams struct {
 	CPU              *float64
-	CPUMax           *float64
+	CPULimit         *float64
 	Memory           *int
-	MemoryMax        *int
+	MemoryLimit      *int
 	GPU              *string
 	Env              map[string]string
 	Secrets          []*Secret
@@ -50,9 +50,9 @@ type ClsWithBatchingParams struct {
 
 type serviceOptions struct {
 	cpu                    *float64
-	cpuMax                 *float64
+	cpuLimit               *float64
 	memory                 *int
-	memoryMax              *int
+	memoryLimit            *int
 	gpu                    *string
 	env                    *map[string]string
 	secrets                *[]*Secret
@@ -202,9 +202,9 @@ func (c *Cls) WithOptions(params *ClsWithOptionsParams) *Cls {
 
 	merged := mergeServiceOptions(c.serviceOptions, &serviceOptions{
 		cpu:              params.CPU,
-		cpuMax:           params.CPUMax,
+		cpuLimit:         params.CPULimit,
 		memory:           params.Memory,
-		memoryMax:        params.MemoryMax,
+		memoryLimit:      params.MemoryLimit,
 		gpu:              params.GPU,
 		env:              envPtr,
 		secrets:          secretsPtr,
@@ -410,9 +410,9 @@ func mergeServiceOptions(base, new *serviceOptions) *serviceOptions {
 
 	merged := &serviceOptions{
 		cpu:                    base.cpu,
-		cpuMax:                 base.cpuMax,
+		cpuLimit:               base.cpuLimit,
 		memory:                 base.memory,
-		memoryMax:              base.memoryMax,
+		memoryLimit:            base.memoryLimit,
 		gpu:                    base.gpu,
 		env:                    base.env,
 		secrets:                base.secrets,
@@ -431,14 +431,14 @@ func mergeServiceOptions(base, new *serviceOptions) *serviceOptions {
 	if new.cpu != nil {
 		merged.cpu = new.cpu
 	}
-	if new.cpuMax != nil {
-		merged.cpuMax = new.cpuMax
+	if new.cpuLimit != nil {
+		merged.cpuLimit = new.cpuLimit
 	}
 	if new.memory != nil {
 		merged.memory = new.memory
 	}
-	if new.memoryMax != nil {
-		merged.memoryMax = new.memoryMax
+	if new.memoryLimit != nil {
+		merged.memoryLimit = new.memoryLimit
 	}
 	if new.gpu != nil {
 		merged.gpu = new.gpu
@@ -490,37 +490,39 @@ func buildFunctionOptionsProto(options *serviceOptions) (*pb.FunctionOptions, er
 
 	builder := pb.FunctionOptions_builder{}
 
-	if options.cpu != nil || options.cpuMax != nil || options.memory != nil || options.memoryMax != nil || options.gpu != nil {
+	if options.cpu != nil || options.cpuLimit != nil || options.memory != nil || options.memoryLimit != nil || options.gpu != nil {
 		resBuilder := pb.Resources_builder{}
 
+		if options.cpu == nil && options.cpuLimit != nil {
+			return nil, fmt.Errorf("must also specify non-zero CPU request when CPULimit is specified")
+		}
 		if options.cpu != nil {
 			if *options.cpu <= 0 {
 				return nil, fmt.Errorf("the CPU request (%f) must be a positive number", *options.cpu)
 			}
 			resBuilder.MilliCpu = uint32(*options.cpu * 1000)
-			if options.cpuMax != nil {
-				if *options.cpuMax < *options.cpu {
-					return nil, fmt.Errorf("the CPU request (%f) cannot be higher than CPUMax (%f)", *options.cpu, *options.cpuMax)
+			if options.cpuLimit != nil {
+				if *options.cpuLimit < *options.cpu {
+					return nil, fmt.Errorf("the CPU request (%f) cannot be higher than CPULimit (%f)", *options.cpu, *options.cpuLimit)
 				}
-				resBuilder.MilliCpuMax = uint32(*options.cpuMax * 1000)
+				resBuilder.MilliCpuMax = uint32(*options.cpuLimit * 1000)
 			}
-		} else if options.cpuMax != nil {
-			return nil, fmt.Errorf("must also specify CPU request when CPUMax is specified")
 		}
 
+		if options.memory == nil && options.memoryLimit != nil {
+			return nil, fmt.Errorf("must also specify non-zero Memory request when MemoryLimit is specified")
+		}
 		if options.memory != nil {
 			if *options.memory <= 0 {
 				return nil, fmt.Errorf("the Memory request (%d) must be a positive number", *options.memory)
 			}
 			resBuilder.MemoryMb = uint32(*options.memory)
-			if options.memoryMax != nil {
-				if *options.memoryMax < *options.memory {
-					return nil, fmt.Errorf("the Memory request (%d) cannot be higher than MemoryMax (%d)", *options.memory, *options.memoryMax)
+			if options.memoryLimit != nil {
+				if *options.memoryLimit < *options.memory {
+					return nil, fmt.Errorf("the Memory request (%d) cannot be higher than MemoryLimit (%d)", *options.memory, *options.memoryLimit)
 				}
-				resBuilder.MemoryMbMax = uint32(*options.memoryMax)
+				resBuilder.MemoryMbMax = uint32(*options.memoryLimit)
 			}
-		} else if options.memoryMax != nil {
-			return nil, fmt.Errorf("must also specify Memory request when MemoryMax is specified")
 		}
 
 		if options.gpu != nil {

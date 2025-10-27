@@ -30,9 +30,9 @@ type sandboxServiceImpl struct{ client *Client }
 // SandboxCreateParams are options for creating a Modal Sandbox.
 type SandboxCreateParams struct {
 	CPU               float64                      // CPU request in fractional, physical cores.
-	CPUMax            float64                      // Hard limit in fractional, physical CPU cores. Zero means no limit.
+	CPULimit          float64                      // Hard limit in fractional, physical CPU cores. Zero means no limit.
 	Memory            int                          // Memory request in MiB.
-	MemoryMax         int                          // Hard memory limit in MiB. Zero means no limit.
+	MemoryLimit       int                          // Hard memory limit in MiB. Zero means no limit.
 	GPU               string                       // GPU reservation for the Sandbox (e.g. "A100", "T4:2", "A100-80GB:4").
 	Timeout           time.Duration                // Maximum lifetime for the Sandbox.
 	IdleTimeout       time.Duration                // The amount of time that a Sandbox can be idle before being terminated.
@@ -171,37 +171,39 @@ func buildSandboxCreateRequestProto(appID, imageID string, params SandboxCreateP
 	}
 
 	var milliCPU, milliCPUMax *uint32
+	if params.CPU == 0 && params.CPULimit > 0 {
+		return nil, fmt.Errorf("must also specify non-zero CPU request when CPULimit is specified")
+	}
 	if params.CPU != 0 {
 		if params.CPU <= 0 {
 			return nil, fmt.Errorf("the CPU request (%f) must be a positive number", params.CPU)
 		}
 		v := uint32(1000 * params.CPU)
 		milliCPU = &v
-		if params.CPUMax > 0 {
-			if params.CPUMax < params.CPU {
-				return nil, fmt.Errorf("the CPU request (%f) cannot be higher than CPUMax (%f)", params.CPU, params.CPUMax)
+		if params.CPULimit > 0 {
+			if params.CPULimit < params.CPU {
+				return nil, fmt.Errorf("the CPU request (%f) cannot be higher than CPULimit (%f)", params.CPU, params.CPULimit)
 			}
-			vMax := uint32(1000 * params.CPUMax)
+			vMax := uint32(1000 * params.CPULimit)
 			milliCPUMax = &vMax
 		}
-	} else if params.CPUMax > 0 {
-		return nil, fmt.Errorf("must also specify CPU request when CPUMax is specified")
 	}
 
 	var memoryMb, memoryMbMax uint32
+	if params.Memory == 0 && params.MemoryLimit > 0 {
+		return nil, fmt.Errorf("must also specify non-zero Memory request when MemoryLimit is specified")
+	}
 	if params.Memory != 0 {
 		if params.Memory <= 0 {
 			return nil, fmt.Errorf("the Memory request (%d) must be a positive number", params.Memory)
 		}
 		memoryMb = uint32(params.Memory)
-		if params.MemoryMax > 0 {
-			if params.MemoryMax < params.Memory {
-				return nil, fmt.Errorf("the Memory request (%d) cannot be higher than MemoryMax (%d)", params.Memory, params.MemoryMax)
+		if params.MemoryLimit > 0 {
+			if params.MemoryLimit < params.Memory {
+				return nil, fmt.Errorf("the Memory request (%d) cannot be higher than MemoryLimit (%d)", params.Memory, params.MemoryLimit)
 			}
-			memoryMbMax = uint32(params.MemoryMax)
+			memoryMbMax = uint32(params.MemoryLimit)
 		}
-	} else if params.MemoryMax > 0 {
-		return nil, fmt.Errorf("must also specify Memory request when MemoryMax is specified")
 	}
 
 	resourcesBuilder := pb.Resources_builder{

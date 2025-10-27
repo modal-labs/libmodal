@@ -587,38 +587,38 @@ test("buildSandboxCreateRequestProto with PTY", async () => {
   expect(ptyInfo.ptyType).toBe(PTYInfo_PTYType.PTY_TYPE_SHELL);
 });
 
-test("buildSandboxCreateRequestProto with CPU and CPUMax", async () => {
+test("buildSandboxCreateRequestProto with CPU and CPULimit", async () => {
   const req = await buildSandboxCreateRequestProto("app-123", "img-456", {
     cpu: 2.0,
-    cpuMax: 4.0,
+    cpuLimit: 4.5,
   });
 
   const resources = req.definition!.resources!;
   expect(resources.milliCpu).toBe(2000);
-  expect(resources.milliCpuMax).toBe(4000);
+  expect(resources.milliCpuMax).toBe(4500);
 });
 
-test("buildSandboxCreateRequestProto CPUMax lower than CPU", async () => {
+test("buildSandboxCreateRequestProto CPULimit lower than CPU", async () => {
   await expect(
     buildSandboxCreateRequestProto("app-123", "img-456", {
       cpu: 4.0,
-      cpuMax: 2.0,
+      cpuLimit: 2.0,
     }),
-  ).rejects.toThrow("cpu (4) cannot be higher than cpuMax (2)");
+  ).rejects.toThrow("cpu (4) cannot be higher than cpuLimit (2)");
 });
 
-test("buildSandboxCreateRequestProto CPUMax without CPU", async () => {
+test("buildSandboxCreateRequestProto CPULimit without CPU", async () => {
   await expect(
     buildSandboxCreateRequestProto("app-123", "img-456", {
-      cpuMax: 4.0,
+      cpuLimit: 4.0,
     }),
-  ).rejects.toThrow("must also specify cpu when cpuMax is specified");
+  ).rejects.toThrow("must also specify cpu when cpuLimit is specified");
 });
 
-test("buildSandboxCreateRequestProto with Memory and MemoryMax", async () => {
+test("buildSandboxCreateRequestProto with Memory and MemoryLimit", async () => {
   const req = await buildSandboxCreateRequestProto("app-123", "img-456", {
     memory: 1024,
-    memoryMax: 2048,
+    memoryLimit: 2048,
   });
 
   const resources = req.definition!.resources!;
@@ -626,23 +626,23 @@ test("buildSandboxCreateRequestProto with Memory and MemoryMax", async () => {
   expect(resources.memoryMbMax).toBe(2048);
 });
 
-test("buildSandboxCreateRequestProto MemoryMax lower than Memory", async () => {
+test("buildSandboxCreateRequestProto MemoryLimit lower than Memory", async () => {
   await expect(
     buildSandboxCreateRequestProto("app-123", "img-456", {
       memory: 2048,
-      memoryMax: 1024,
+      memoryLimit: 1024,
     }),
   ).rejects.toThrow(
-    "the memory request (2048) cannot be higher than memoryMax (1024)",
+    "the memory request (2048) cannot be higher than memoryLimit (1024)",
   );
 });
 
-test("buildSandboxCreateRequestProto MemoryMax without Memory", async () => {
+test("buildSandboxCreateRequestProto MemoryLimit without Memory", async () => {
   await expect(
     buildSandboxCreateRequestProto("app-123", "img-456", {
-      memoryMax: 2048,
+      memoryLimit: 2048,
     }),
-  ).rejects.toThrow("must also specify memory when memoryMax is specified");
+  ).rejects.toThrow("must also specify memory when memoryLimit is specified");
 });
 
 test("buildSandboxCreateRequestProto negative CPU", async () => {

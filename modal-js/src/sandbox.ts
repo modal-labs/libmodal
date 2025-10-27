@@ -70,13 +70,13 @@ export type SandboxCreateParams = {
   cpu?: number;
 
   /** Hard limit of physical CPU cores for the Sandbox, can be fractional. */
-  cpuMax?: number;
+  cpuLimit?: number;
 
   /** Reservation of memory in MiB. */
   memory?: number;
 
   /** Hard limit of memory in MiB. */
-  memoryMax?: number;
+  memoryLimit?: number;
 
   /** GPU reservation for the Sandbox (e.g. "A100", "T4:2", "A100-80GB:4"). */
   gpu?: string;
@@ -243,25 +243,29 @@ export async function buildSandboxCreateRequestProto(
 
   let milliCpu: number | undefined = undefined;
   let milliCpuMax: number | undefined = undefined;
+  if (params.cpu === undefined && params.cpuLimit !== undefined) {
+    throw new Error("must also specify cpu when cpuLimit is specified");
+  }
   if (params.cpu !== undefined) {
     if (params.cpu <= 0) {
       throw new Error(`cpu (${params.cpu}) must be a positive number`);
     }
     milliCpu = Math.round(1000 * params.cpu);
-    if (params.cpuMax !== undefined) {
-      if (params.cpuMax < params.cpu) {
+    if (params.cpuLimit !== undefined) {
+      if (params.cpuLimit < params.cpu) {
         throw new Error(
-          `cpu (${params.cpu}) cannot be higher than cpuMax (${params.cpuMax})`,
+          `cpu (${params.cpu}) cannot be higher than cpuLimit (${params.cpuLimit})`,
         );
       }
-      milliCpuMax = Math.round(1000 * params.cpuMax);
+      milliCpuMax = Math.trunc(1000 * params.cpuLimit);
     }
-  } else if (params.cpuMax !== undefined) {
-    throw new Error("must also specify cpu when cpuMax is specified");
   }
 
   let memoryMb: number | undefined = undefined;
   let memoryMbMax: number | undefined = undefined;
+  if (params.memory === undefined && params.memoryLimit !== undefined) {
+    throw new Error("must also specify memory when memoryLimit is specified");
+  }
   if (params.memory !== undefined) {
     if (params.memory <= 0) {
       throw new Error(
@@ -269,16 +273,14 @@ export async function buildSandboxCreateRequestProto(
       );
     }
     memoryMb = params.memory;
-    if (params.memoryMax !== undefined) {
-      if (params.memoryMax < params.memory) {
+    if (params.memoryLimit !== undefined) {
+      if (params.memoryLimit < params.memory) {
         throw new Error(
-          `the memory request (${params.memory}) cannot be higher than memoryMax (${params.memoryMax})`,
+          `the memory request (${params.memory}) cannot be higher than memoryLimit (${params.memoryLimit})`,
         );
       }
-      memoryMbMax = params.memoryMax;
+      memoryMbMax = params.memoryLimit;
     }
-  } else if (params.memoryMax !== undefined) {
-    throw new Error("must also specify memory when memoryMax is specified");
   }
 
   return SandboxCreateRequest.create({

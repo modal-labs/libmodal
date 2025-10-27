@@ -14,55 +14,55 @@ func TestBuildFunctionOptionsProto_NilOptions(t *testing.T) {
 	g.Expect(options).Should(gomega.BeNil())
 }
 
-func TestBuildFunctionOptionsProto_WithCPUAndCPUMax(t *testing.T) {
+func TestBuildFunctionOptionsProto_WithCPUAndCPULimit(t *testing.T) {
 	g := gomega.NewWithT(t)
 
 	cpu := 2.0
-	cpuMax := 4.0
+	cpuLimit := 4.5
 	options, err := buildFunctionOptionsProto(&serviceOptions{
-		cpu:    &cpu,
-		cpuMax: &cpuMax,
+		cpu:      &cpu,
+		cpuLimit: &cpuLimit,
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(options).ShouldNot(gomega.BeNil())
 
 	resources := options.GetResources()
 	g.Expect(resources.GetMilliCpu()).To(gomega.Equal(uint32(2000)))
-	g.Expect(resources.GetMilliCpuMax()).To(gomega.Equal(uint32(4000)))
+	g.Expect(resources.GetMilliCpuMax()).To(gomega.Equal(uint32(4500)))
 }
 
-func TestBuildFunctionOptionsProto_CPUMaxLowerThanCPU(t *testing.T) {
+func TestBuildFunctionOptionsProto_CPULimitLowerThanCPU(t *testing.T) {
 	g := gomega.NewWithT(t)
 
 	cpu := 4.0
-	cpuMax := 2.0
+	cpuLimit := 2.0
 	_, err := buildFunctionOptionsProto(&serviceOptions{
-		cpu:    &cpu,
-		cpuMax: &cpuMax,
+		cpu:      &cpu,
+		cpuLimit: &cpuLimit,
 	})
 	g.Expect(err).Should(gomega.HaveOccurred())
-	g.Expect(err.Error()).To(gomega.ContainSubstring("the CPU request (4.000000) cannot be higher than CPUMax (2.000000)"))
+	g.Expect(err.Error()).To(gomega.ContainSubstring("the CPU request (4.000000) cannot be higher than CPULimit (2.000000)"))
 }
 
-func TestBuildFunctionOptionsProto_CPUMaxWithoutCPU(t *testing.T) {
+func TestBuildFunctionOptionsProto_CPULimitWithoutCPU(t *testing.T) {
 	g := gomega.NewWithT(t)
 
-	cpuMax := 4.0
+	cpuLimit := 4.0
 	_, err := buildFunctionOptionsProto(&serviceOptions{
-		cpuMax: &cpuMax,
+		cpuLimit: &cpuLimit,
 	})
 	g.Expect(err).Should(gomega.HaveOccurred())
-	g.Expect(err.Error()).To(gomega.ContainSubstring("must also specify CPU request when CPUMax is specified"))
+	g.Expect(err.Error()).To(gomega.ContainSubstring("must also specify non-zero CPU request when CPULimit is specified"))
 }
 
-func TestBuildFunctionOptionsProto_WithMemoryAndMemoryMax(t *testing.T) {
+func TestBuildFunctionOptionsProto_WithMemoryAndMemoryLimit(t *testing.T) {
 	g := gomega.NewWithT(t)
 
 	memory := 1024
-	memoryMax := 2048
+	memoryLimit := 2048
 	options, err := buildFunctionOptionsProto(&serviceOptions{
-		memory:    &memory,
-		memoryMax: &memoryMax,
+		memory:      &memory,
+		memoryLimit: &memoryLimit,
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(options).ShouldNot(gomega.BeNil())
@@ -72,28 +72,28 @@ func TestBuildFunctionOptionsProto_WithMemoryAndMemoryMax(t *testing.T) {
 	g.Expect(resources.GetMemoryMbMax()).To(gomega.Equal(uint32(2048)))
 }
 
-func TestBuildFunctionOptionsProto_MemoryMaxLowerThanMemory(t *testing.T) {
+func TestBuildFunctionOptionsProto_MemoryLimitLowerThanMemory(t *testing.T) {
 	g := gomega.NewWithT(t)
 
 	memory := 2048
-	memoryMax := 1024
+	memoryLimit := 1024
 	_, err := buildFunctionOptionsProto(&serviceOptions{
-		memory:    &memory,
-		memoryMax: &memoryMax,
+		memory:      &memory,
+		memoryLimit: &memoryLimit,
 	})
 	g.Expect(err).Should(gomega.HaveOccurred())
-	g.Expect(err.Error()).To(gomega.ContainSubstring("the Memory request (2048) cannot be higher than MemoryMax (1024)"))
+	g.Expect(err.Error()).To(gomega.ContainSubstring("the Memory request (2048) cannot be higher than MemoryLimit (1024)"))
 }
 
-func TestBuildFunctionOptionsProto_MemoryMaxWithoutMemory(t *testing.T) {
+func TestBuildFunctionOptionsProto_MemoryLimitWithoutMemory(t *testing.T) {
 	g := gomega.NewWithT(t)
 
-	memoryMax := 2048
+	memoryLimit := 2048
 	_, err := buildFunctionOptionsProto(&serviceOptions{
-		memoryMax: &memoryMax,
+		memoryLimit: &memoryLimit,
 	})
 	g.Expect(err).Should(gomega.HaveOccurred())
-	g.Expect(err.Error()).To(gomega.ContainSubstring("must also specify Memory request when MemoryMax is specified"))
+	g.Expect(err.Error()).To(gomega.ContainSubstring("must also specify non-zero Memory request when MemoryLimit is specified"))
 }
 
 func TestBuildFunctionOptionsProto_NegativeCPU(t *testing.T) {
