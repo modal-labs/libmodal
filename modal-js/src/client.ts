@@ -31,7 +31,7 @@ export interface ModalClientParams {
   tokenSecret?: string;
   environment?: string;
   endpoint?: string;
-  timeout?: number;
+  timeoutMs?: number;
   maxRetries?: number;
   /** @ignore */
   cpClient?: ModalGrpcClient;
@@ -200,17 +200,17 @@ export class ModalClient {
 
 type TimeoutOptions = {
   /** Timeout for this call, interpreted as a duration in milliseconds */
-  timeout?: number;
+  timeoutMs?: number;
 };
 
 /** gRPC client middleware to set timeout and retries on a call. */
 const timeoutMiddleware: ClientMiddleware<TimeoutOptions> =
   async function* timeoutMiddleware(call, options) {
-    if (!options.timeout || options.signal?.aborted) {
+    if (!options.timeoutMs || options.signal?.aborted) {
       return yield* call.next(call.request, options);
     }
 
-    const { timeout, signal: origSignal, ...restOptions } = options;
+    const { timeoutMs, signal: origSignal, ...restOptions } = options;
     const abortController = new AbortController();
     const abortListener = () => abortController.abort();
     origSignal?.addEventListener("abort", abortListener);
@@ -220,7 +220,7 @@ const timeoutMiddleware: ClientMiddleware<TimeoutOptions> =
     const timer = setTimeout(() => {
       timedOut = true;
       abortController.abort();
-    }, timeout);
+    }, timeoutMs);
 
     try {
       return yield* call.next(call.request, {
@@ -236,7 +236,7 @@ const timeoutMiddleware: ClientMiddleware<TimeoutOptions> =
         throw new ClientError(
           call.method.path,
           Status.DEADLINE_EXCEEDED,
-          `Timed out after ${timeout}ms`,
+          `Timed out after ${timeoutMs}ms`,
         );
       }
     }

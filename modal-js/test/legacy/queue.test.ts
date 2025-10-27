@@ -27,9 +27,9 @@ test("QueueSuite1", async () => {
   expect(await queue.get()).toBe(123);
 
   await queue.put(432);
-  expect(await queue.get({ timeout: 0 })).toBe(432);
+  expect(await queue.get({ timeoutMs: 0 })).toBe(432);
 
-  await expect(queue.get({ timeout: 0 })).rejects.toThrow(QueueEmptyError);
+  await expect(queue.get({ timeoutMs: 0 })).rejects.toThrow(QueueEmptyError);
   expect(await queue.len()).toBe(0);
 
   await queue.putMany([1, 2, 3]);
@@ -50,7 +50,7 @@ test("QueueSuite2", async () => {
   };
 
   const consumer = async (queue: Queue) => {
-    for await (const item of queue.iterate({ itemPollTimeout: 1000 })) {
+    for await (const item of queue.iterate({ itemPollTimeoutMs: 1000 })) {
       results.push(item);
     }
   };
@@ -73,9 +73,9 @@ test("QueueNonBlocking", async () => {
   // Assuming the queue is available, these operations
   // Should succeed immediately.
   const queue = await Queue.ephemeral();
-  await queue.put(123, { timeout: 0 });
+  await queue.put(123, { timeoutMs: 0 });
   expect(await queue.len()).toBe(1);
-  expect(await queue.get({ timeout: 0 })).toBe(123);
+  expect(await queue.get({ timeoutMs: 0 })).toBe(123);
   queue.closeEphemeral();
 });
 

@@ -73,19 +73,19 @@ export type SandboxCreateParams = {
   cpuLimit?: number;
 
   /** Reservation of memory in MiB. */
-  memory?: number;
+  memoryMib?: number;
 
   /** Hard limit of memory in MiB. */
-  memoryLimit?: number;
+  memoryLimitMib?: number;
 
   /** GPU reservation for the Sandbox (e.g. "A100", "T4:2", "A100-80GB:4"). */
   gpu?: string;
 
-  /** Timeout of the Sandbox container, defaults to 10 minutes. */
-  timeout?: number;
+  /** Timeout of the Sandbox container in milliseconds, defaults to 10 minutes. */
+  timeoutMs?: number;
 
   /** The amount of time in milliseconds that a sandbox can be idle before being terminated. */
-  idleTimeout?: number;
+  idleTimeoutMs?: number;
 
   /** Working directory of the Sandbox. */
   workdir?: string;
@@ -150,14 +150,14 @@ export async function buildSandboxCreateRequestProto(
   const gpuConfig = parseGpuConfig(params.gpu);
 
   // The gRPC API only accepts a whole number of seconds.
-  if (params.timeout && params.timeout % 1000 !== 0) {
+  if (params.timeoutMs && params.timeoutMs % 1000 !== 0) {
     throw new Error(
-      `timeout must be a multiple of 1000ms, got ${params.timeout}`,
+      `timeoutMs must be a multiple of 1000ms, got ${params.timeoutMs}`,
     );
   }
-  if (params.idleTimeout && params.idleTimeout % 1000 !== 0) {
+  if (params.idleTimeoutMs && params.idleTimeoutMs % 1000 !== 0) {
     throw new Error(
-      `idleTimeout must be a multiple of 1000ms, got ${params.idleTimeout}`,
+      `idleTimeoutMs must be a multiple of 1000ms, got ${params.idleTimeoutMs}`,
     );
   }
 
@@ -263,23 +263,25 @@ export async function buildSandboxCreateRequestProto(
 
   let memoryMb: number | undefined = undefined;
   let memoryMbMax: number | undefined = undefined;
-  if (params.memory === undefined && params.memoryLimit !== undefined) {
-    throw new Error("must also specify memory when memoryLimit is specified");
+  if (params.memoryMib === undefined && params.memoryLimitMib !== undefined) {
+    throw new Error(
+      "must also specify memoryMib when memoryLimitMib is specified",
+    );
   }
-  if (params.memory !== undefined) {
-    if (params.memory <= 0) {
+  if (params.memoryMib !== undefined) {
+    if (params.memoryMib <= 0) {
       throw new Error(
-        `the memory request (${params.memory}) must be a positive number`,
+        `the memoryMib request (${params.memoryMib}) must be a positive number`,
       );
     }
-    memoryMb = params.memory;
-    if (params.memoryLimit !== undefined) {
-      if (params.memoryLimit < params.memory) {
+    memoryMb = params.memoryMib;
+    if (params.memoryLimitMib !== undefined) {
+      if (params.memoryLimitMib < params.memoryMib) {
         throw new Error(
-          `the memory request (${params.memory}) cannot be higher than memoryLimit (${params.memoryLimit})`,
+          `the memoryMib request (${params.memoryMib}) cannot be higher than memoryLimitMib (${params.memoryLimitMib})`,
         );
       }
-      memoryMbMax = params.memoryLimit;
+      memoryMbMax = params.memoryLimitMib;
     }
   }
 
@@ -289,9 +291,12 @@ export async function buildSandboxCreateRequestProto(
       // Sleep default is implicit in image builder version <=2024.10
       entrypointArgs: params.command ?? ["sleep", "48h"],
       imageId,
-      timeoutSecs: params.timeout != undefined ? params.timeout / 1000 : 600,
+      timeoutSecs:
+        params.timeoutMs != undefined ? params.timeoutMs / 1000 : 600,
       idleTimeoutSecs:
-        params.idleTimeout != undefined ? params.idleTimeout / 1000 : undefined,
+        params.idleTimeoutMs != undefined
+          ? params.idleTimeoutMs / 1000
+          : undefined,
       workdir: params.workdir ?? undefined,
       networkAccess,
       resources: {
@@ -490,7 +495,7 @@ export type SandboxExecParams = {
   /** Working directory to run the command in. */
   workdir?: string;
   /** Timeout for the process in milliseconds. Defaults to 0 (no timeout). */
-  timeout?: number;
+  timeoutMs?: number;
   /** Environment variables to set for the command. */
   env?: Record<string, string>;
   /** {@link Secret}s to inject as environment variables for the commmand.*/
@@ -563,7 +568,7 @@ export async function buildContainerExecRequestProto(
     taskId,
     command,
     workdir: params?.workdir,
-    timeoutSecs: params?.timeout ? params.timeout / 1000 : 0,
+    timeoutSecs: params?.timeoutMs ? params.timeoutMs / 1000 : 0,
     secretIds,
     ptyInfo,
   });
@@ -767,14 +772,14 @@ export class Sandbox {
    *
    * @returns A dictionary of {@link Tunnel} objects which are keyed by the container port.
    */
-  async tunnels(timeout = 50000): Promise<Record<number, Tunnel>> {
+  async tunnels(timeoutMs = 50000): Promise<Record<number, Tunnel>> {
     if (this.#tunnels) {
       return this.#tunnels;
     }
 
     const resp = await this.#client.cpClient.sandboxGetTunnels({
       sandboxId: this.sandboxId,
-      timeout: timeout / 1000, // Convert to seconds
+      timeout: timeoutMs / 1000,
     });
 
     if (
@@ -801,13 +806,13 @@ export class Sandbox {
    *
    * Returns an {@link Image} object which can be used to spawn a new Sandbox with the same filesystem.
    *
-   * @param timeout - Timeout for the snapshot operation in milliseconds
+   * @param timeoutMs - Timeout for the snapshot operation in milliseconds
    * @returns Promise that resolves to an {@link Image}
    */
-  async snapshotFilesystem(timeout = 55000): Promise<Image> {
+  async snapshotFilesystem(timeoutMs = 55000): Promise<Image> {
     const resp = await this.#client.cpClient.sandboxSnapshotFs({
       sandboxId: this.sandboxId,
-      timeout: timeout / 1000,
+      timeout: timeoutMs / 1000,
     });
 
     if (

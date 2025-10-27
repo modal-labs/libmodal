@@ -29,7 +29,7 @@ export class FunctionCallService {
 
 /** Optional parameters for {@link FunctionCall#get FunctionCall.get()}. */
 export type FunctionCallGetParams = {
-  timeout?: number; // in milliseconds
+  timeoutMs?: number;
 };
 
 /** Optional parameters for {@link FunctionCall#cancel FunctionCall.cancel()}. */
@@ -61,12 +61,11 @@ export class FunctionCall {
 
   /** Get the result of a FunctionCall, optionally waiting with a timeout. */
   async get(params: FunctionCallGetParams = {}): Promise<any> {
-    const timeout = params.timeout;
     const invocation = ControlPlaneInvocation.fromFunctionCallId(
       this.#client || getDefaultClient(),
       this.functionCallId,
     );
-    return invocation.awaitOutput(timeout);
+    return invocation.awaitOutput(params.timeoutMs);
   }
 
   /** Cancel a running FunctionCall. */

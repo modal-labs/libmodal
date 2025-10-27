@@ -106,7 +106,7 @@ test("SandboxExecOptions", async () => {
     // Test with a custom working directory and timeout.
     const p = await sb.exec(["pwd"], {
       workdir: "/tmp",
-      timeout: 5000,
+      timeoutMs: 5000,
     });
 
     expect(await p.stdout.readText()).toBe("/tmp\n");
@@ -617,8 +617,8 @@ test("buildSandboxCreateRequestProto CPULimit without CPU", async () => {
 
 test("buildSandboxCreateRequestProto with Memory and MemoryLimit", async () => {
   const req = await buildSandboxCreateRequestProto("app-123", "img-456", {
-    memory: 1024,
-    memoryLimit: 2048,
+    memoryMib: 1024,
+    memoryLimitMib: 2048,
   });
 
   const resources = req.definition!.resources!;
@@ -629,20 +629,22 @@ test("buildSandboxCreateRequestProto with Memory and MemoryLimit", async () => {
 test("buildSandboxCreateRequestProto MemoryLimit lower than Memory", async () => {
   await expect(
     buildSandboxCreateRequestProto("app-123", "img-456", {
-      memory: 2048,
-      memoryLimit: 1024,
+      memoryMib: 2048,
+      memoryLimitMib: 1024,
     }),
   ).rejects.toThrow(
-    "the memory request (2048) cannot be higher than memoryLimit (1024)",
+    "the memoryMib request (2048) cannot be higher than memoryLimitMib (1024)",
   );
 });
 
 test("buildSandboxCreateRequestProto MemoryLimit without Memory", async () => {
   await expect(
     buildSandboxCreateRequestProto("app-123", "img-456", {
-      memoryLimit: 2048,
+      memoryLimitMib: 2048,
     }),
-  ).rejects.toThrow("must also specify memory when memoryLimit is specified");
+  ).rejects.toThrow(
+    "must also specify memoryMib when memoryLimitMib is specified",
+  );
 });
 
 test("buildSandboxCreateRequestProto negative CPU", async () => {
@@ -656,7 +658,7 @@ test("buildSandboxCreateRequestProto negative CPU", async () => {
 test("buildSandboxCreateRequestProto negative Memory", async () => {
   await expect(
     buildSandboxCreateRequestProto("app-123", "img-456", {
-      memory: -100,
+      memoryMib: -100,
     }),
   ).rejects.toThrow("must be a positive number");
 });

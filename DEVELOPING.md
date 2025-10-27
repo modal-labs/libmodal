@@ -31,6 +31,12 @@ cd modal-js
 node --import tsx examples/sandbox.ts
 ```
 
+### JS naming conventions
+
+- Parameters should always include explicit unit suffixes to make the API more self-documenting and prevent confusion about units:
+  - durations should be suffixed with `Ms`, e.g. `timeoutMs` instead of `timeout`
+  - memory should be suffixed with `Mib`, e.g. `memoryMib` instead of `memory`
+
 ### gRPC support
 
 We're using `nice-grpc` because the `@grpc/grpc-js` library doesn't support promises and is difficult to customize with types.
@@ -55,6 +61,12 @@ scripts/gen-proto.sh
 ```
 
 We check the generated protobuf files into Git so that the package can be installed with `go get`.
+
+### Go naming conventions
+
+- Parameters should always include explicit unit suffixes to make the API more self-documenting and prevent confusion about units:
+  - durations should NOT be suffixed, since they have type `time.Duration`
+  - memory should be suffixed with `Mib`, e.g. `memoryMib` instead of `memory`
 
 ## How to publish
 

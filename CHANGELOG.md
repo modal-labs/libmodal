@@ -11,10 +11,13 @@ The first beta release of the Modal SDKs for JS and Go (graduating from alpha). 
 - Calling deployed Functions and classes now uses a new protocol for payload serialization which requires the deployed apps to use the Modal Python SDK 1.2 or newer.
 - Internally removed the global client (and config/profile data in global scope), moving all that to the Client type.
 - Consistent parameter naming across both SDKs: all `Options` structs/interfaces renamed to `Params`.
+- JS-specific changes:
+  - Added explicit unit suffixes to all parameters that represent durations (in milliseconds, suffixed with `Ms`) or memory amounts (in MiB, suffixed with `Mib`).
 - Go-specific changes:
   - Changed how we do context passing, so contexts now only affect the current operation and are not used for lifecycle management of the created resources.
   - All `Params` structs are now passed as pointers for consistency and to support optional parameters.
   - Field names follow Go casing conventions (e.g., `Id` → `ID`, `Url` → `URL`, `TokenId` → `TokenID`).
+  - Added explicit unit suffixes to all parameters that represent memory amounts (in MiB, suffixed with `Mib`).
 
 Additional new features:
 - Added support for setting CPU and memory limits when creating Sandboxes and Cls instances.

@@ -85,8 +85,8 @@ export class ClsService {
 export type ClsWithOptionsParams = {
   cpu?: number;
   cpuLimit?: number;
-  memory?: number;
-  memoryLimit?: number;
+  memoryMib?: number;
+  memoryLimitMib?: number;
   gpu?: string;
   env?: Record<string, string>;
   secrets?: Secret[];
@@ -94,8 +94,8 @@ export type ClsWithOptionsParams = {
   retries?: number | Retries;
   maxContainers?: number;
   bufferContainers?: number;
-  scaledownWindow?: number; // in milliseconds
-  timeout?: number; // in milliseconds
+  scaledownWindowMs?: number;
+  timeoutMs?: number;
 };
 
 export type ClsWithConcurrencyParams = {
@@ -288,21 +288,23 @@ async function buildFunctionOptionsProto(
 
   let memoryMb: number | undefined = undefined;
   let memoryMbMax: number | undefined = undefined;
-  if (o.memory === undefined && o.memoryLimit !== undefined) {
-    throw new Error("must also specify memory when memoryLimit is specified");
+  if (o.memoryMib === undefined && o.memoryLimitMib !== undefined) {
+    throw new Error(
+      "must also specify memoryMib when memoryLimitMib is specified",
+    );
   }
-  if (o.memory !== undefined) {
-    if (o.memory <= 0) {
-      throw new Error(`memory (${o.memory}) must be a positive number`);
+  if (o.memoryMib !== undefined) {
+    if (o.memoryMib <= 0) {
+      throw new Error(`memoryMib (${o.memoryMib}) must be a positive number`);
     }
-    memoryMb = o.memory;
-    if (o.memoryLimit !== undefined) {
-      if (o.memoryLimit < o.memory) {
+    memoryMb = o.memoryMib;
+    if (o.memoryLimitMib !== undefined) {
+      if (o.memoryLimitMib < o.memoryMib) {
         throw new Error(
-          `memory (${o.memory}) cannot be higher than memoryLimit (${o.memoryLimit})`,
+          `memoryMib (${o.memoryMib}) cannot be higher than memoryLimitMib (${o.memoryLimitMib})`,
         );
       }
-      memoryMbMax = o.memoryLimit;
+      memoryMbMax = o.memoryLimitMib;
     }
   }
 
@@ -342,13 +344,15 @@ async function buildFunctionOptionsProto(
       }
     : undefined;
 
-  if (o.scaledownWindow !== undefined && o.scaledownWindow % 1000 !== 0) {
+  if (o.scaledownWindowMs !== undefined && o.scaledownWindowMs % 1000 !== 0) {
     throw new Error(
-      `scaledownWindow must be a multiple of 1000ms, got ${o.scaledownWindow}`,
+      `scaledownWindowMs must be a multiple of 1000ms, got ${o.scaledownWindowMs}`,
     );
   }
-  if (o.timeout !== undefined && o.timeout % 1000 !== 0) {
-    throw new Error(`timeout must be a multiple of 1000ms, got ${o.timeout}`);
+  if (o.timeoutMs !== undefined && o.timeoutMs % 1000 !== 0) {
+    throw new Error(
+      `timeoutMs must be a multiple of 1000ms, got ${o.timeoutMs}`,
+    );
   }
 
   const functionOptions = FunctionOptions.create({
@@ -361,8 +365,10 @@ async function buildFunctionOptionsProto(
     concurrencyLimit: o.maxContainers,
     bufferContainers: o.bufferContainers,
     taskIdleTimeoutSecs:
-      o.scaledownWindow !== undefined ? o.scaledownWindow / 1000 : undefined,
-    timeoutSecs: o.timeout !== undefined ? o.timeout / 1000 : undefined,
+      o.scaledownWindowMs !== undefined
+        ? o.scaledownWindowMs / 1000
+        : undefined,
+    timeoutSecs: o.timeoutMs !== undefined ? o.timeoutMs / 1000 : undefined,
     maxConcurrentInputs: o.maxConcurrentInputs,
     targetConcurrentInputs: o.targetConcurrentInputs,
     batchMaxSize: o.batchMaxSize,
