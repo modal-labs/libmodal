@@ -35,7 +35,7 @@ node --import tsx examples/sandbox.ts
 
 - Parameters should always include explicit unit suffixes to make the API more self-documenting and prevent confusion about units:
   - durations should be suffixed with `Ms`, e.g. `timeoutMs` instead of `timeout`
-  - memory should be suffixed with `Mib`, e.g. `memoryMib` instead of `memory`
+  - memory should be suffixed with `MiB`, e.g. `memoryMiB` instead of `memory`
 
 ### gRPC support
 
@@ -66,7 +66,7 @@ We check the generated protobuf files into Git so that the package can be instal
 
 - Parameters should always include explicit unit suffixes to make the API more self-documenting and prevent confusion about units:
   - durations should NOT be suffixed, since they have type `time.Duration`
-  - memory should be suffixed with `Mib`, e.g. `memoryMib` instead of `memory`
+  - memory should be suffixed with `MiB`, e.g. `memoryMiB` instead of `memory`
 
 ## How to publish
 

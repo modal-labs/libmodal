@@ -73,10 +73,10 @@ export type SandboxCreateParams = {
   cpuLimit?: number;
 
   /** Reservation of memory in MiB. */
-  memoryMib?: number;
+  memoryMiB?: number;
 
   /** Hard limit of memory in MiB. */
-  memoryLimitMib?: number;
+  memoryLimitMiB?: number;
 
   /** GPU reservation for the Sandbox (e.g. "A100", "T4:2", "A100-80GB:4"). */
   gpu?: string;
@@ -263,25 +263,25 @@ export async function buildSandboxCreateRequestProto(
 
   let memoryMb: number | undefined = undefined;
   let memoryMbMax: number | undefined = undefined;
-  if (params.memoryMib === undefined && params.memoryLimitMib !== undefined) {
+  if (params.memoryMiB === undefined && params.memoryLimitMiB !== undefined) {
     throw new Error(
-      "must also specify memoryMib when memoryLimitMib is specified",
+      "must also specify memoryMiB when memoryLimitMiB is specified",
     );
   }
-  if (params.memoryMib !== undefined) {
-    if (params.memoryMib <= 0) {
+  if (params.memoryMiB !== undefined) {
+    if (params.memoryMiB <= 0) {
       throw new Error(
-        `the memoryMib request (${params.memoryMib}) must be a positive number`,
+        `the memoryMiB request (${params.memoryMiB}) must be a positive number`,
       );
     }
-    memoryMb = params.memoryMib;
-    if (params.memoryLimitMib !== undefined) {
-      if (params.memoryLimitMib < params.memoryMib) {
+    memoryMb = params.memoryMiB;
+    if (params.memoryLimitMiB !== undefined) {
+      if (params.memoryLimitMiB < params.memoryMiB) {
         throw new Error(
-          `the memoryMib request (${params.memoryMib}) cannot be higher than memoryLimitMib (${params.memoryLimitMib})`,
+          `the memoryMiB request (${params.memoryMiB}) cannot be higher than memoryLimitMiB (${params.memoryLimitMiB})`,
         );
       }
-      memoryMbMax = params.memoryLimitMib;
+      memoryMbMax = params.memoryLimitMiB;
     }
   }
 

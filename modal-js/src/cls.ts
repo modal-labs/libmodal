@@ -85,8 +85,8 @@ export class ClsService {
 export type ClsWithOptionsParams = {
   cpu?: number;
   cpuLimit?: number;
-  memoryMib?: number;
-  memoryLimitMib?: number;
+  memoryMiB?: number;
+  memoryLimitMiB?: number;
   gpu?: string;
   env?: Record<string, string>;
   secrets?: Secret[];
@@ -288,23 +288,23 @@ async function buildFunctionOptionsProto(
 
   let memoryMb: number | undefined = undefined;
   let memoryMbMax: number | undefined = undefined;
-  if (o.memoryMib === undefined && o.memoryLimitMib !== undefined) {
+  if (o.memoryMiB === undefined && o.memoryLimitMiB !== undefined) {
     throw new Error(
-      "must also specify memoryMib when memoryLimitMib is specified",
+      "must also specify memoryMiB when memoryLimitMiB is specified",
     );
   }
-  if (o.memoryMib !== undefined) {
-    if (o.memoryMib <= 0) {
-      throw new Error(`memoryMib (${o.memoryMib}) must be a positive number`);
+  if (o.memoryMiB !== undefined) {
+    if (o.memoryMiB <= 0) {
+      throw new Error(`memoryMiB (${o.memoryMiB}) must be a positive number`);
     }
-    memoryMb = o.memoryMib;
-    if (o.memoryLimitMib !== undefined) {
-      if (o.memoryLimitMib < o.memoryMib) {
+    memoryMb = o.memoryMiB;
+    if (o.memoryLimitMiB !== undefined) {
+      if (o.memoryLimitMiB < o.memoryMiB) {
         throw new Error(
-          `memoryMib (${o.memoryMib}) cannot be higher than memoryLimitMib (${o.memoryLimitMib})`,
+          `memoryMiB (${o.memoryMiB}) cannot be higher than memoryLimitMiB (${o.memoryLimitMiB})`,
         );
       }
-      memoryMbMax = o.memoryLimitMib;
+      memoryMbMax = o.memoryLimitMiB;
     }
   }
 

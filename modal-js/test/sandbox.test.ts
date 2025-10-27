@@ -617,8 +617,8 @@ test("buildSandboxCreateRequestProto CPULimit without CPU", async () => {
 
 test("buildSandboxCreateRequestProto with Memory and MemoryLimit", async () => {
   const req = await buildSandboxCreateRequestProto("app-123", "img-456", {
-    memoryMib: 1024,
-    memoryLimitMib: 2048,
+    memoryMiB: 1024,
+    memoryLimitMiB: 2048,
   });
 
   const resources = req.definition!.resources!;
@@ -629,21 +629,21 @@ test("buildSandboxCreateRequestProto with Memory and MemoryLimit", async () => {
 test("buildSandboxCreateRequestProto MemoryLimit lower than Memory", async () => {
   await expect(
     buildSandboxCreateRequestProto("app-123", "img-456", {
-      memoryMib: 2048,
-      memoryLimitMib: 1024,
+      memoryMiB: 2048,
+      memoryLimitMiB: 1024,
     }),
   ).rejects.toThrow(
-    "the memoryMib request (2048) cannot be higher than memoryLimitMib (1024)",
+    "the memoryMiB request (2048) cannot be higher than memoryLimitMiB (1024)",
   );
 });
 
 test("buildSandboxCreateRequestProto MemoryLimit without Memory", async () => {
   await expect(
     buildSandboxCreateRequestProto("app-123", "img-456", {
-      memoryLimitMib: 2048,
+      memoryLimitMiB: 2048,
     }),
   ).rejects.toThrow(
-    "must also specify memoryMib when memoryLimitMib is specified",
+    "must also specify memoryMiB when memoryLimitMiB is specified",
   );
 });
 
@@ -658,7 +658,7 @@ test("buildSandboxCreateRequestProto negative CPU", async () => {
 test("buildSandboxCreateRequestProto negative Memory", async () => {
   await expect(
     buildSandboxCreateRequestProto("app-123", "img-456", {
-      memoryMib: -100,
+      memoryMiB: -100,
     }),
   ).rejects.toThrow("must be a positive number");
 });

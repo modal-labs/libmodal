@@ -48,7 +48,7 @@ test("Cls.withOptions stacking", async () => {
 
   const optioned = cls
     .withOptions({ timeoutMs: 45_000, cpu: 0.25 })
-    .withOptions({ timeoutMs: 60_000, memoryMib: 256, gpu: "T4" })
+    .withOptions({ timeoutMs: 60_000, memoryMiB: 256, gpu: "T4" })
     .withOptions({ secrets: [secret], volumes: { "/mnt/test": volume } });
 
   const instance = await optioned.instance();

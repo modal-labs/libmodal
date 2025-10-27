@@ -155,8 +155,8 @@ Parameters now include explicit unit suffixes to make the API more self-document
 - `itemPollTimeout` → `itemPollTimeoutMs`
 - `partitionTtl` → `partitionTtlMs`
 
-- `memory` → `memoryMib`
-- `memoryLimit` → `memoryLimitMib`
+- `memory` → `memoryMiB`
+- `memoryLimit` → `memoryLimitMiB`
 
 ## Go
 
@@ -369,5 +369,5 @@ client, err := modal.NewClientWithOptions(&modal.ClientParams{
 
 Parameters now include explicit unit suffixes to make the API more self-documenting and prevent confusion about units:
 
-- `memory` → `memoryMib`
-- `memoryLimit` → `memoryLimitMib`
+- `memory` → `memoryMiB`
+- `memoryLimit` → `memoryLimitMiB`

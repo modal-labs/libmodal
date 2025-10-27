@@ -31,8 +31,8 @@ type sandboxServiceImpl struct{ client *Client }
 type SandboxCreateParams struct {
 	CPU               float64                      // CPU request in fractional, physical cores.
 	CPULimit          float64                      // Hard limit in fractional, physical CPU cores. Zero means no limit.
-	MemoryMib         int                          // Memory request in MiB.
-	MemoryLimitMib    int                          // Hard memory limit in MiB. Zero means no limit.
+	MemoryMiB         int                          // Memory request in MiB.
+	MemoryLimitMiB    int                          // Hard memory limit in MiB. Zero means no limit.
 	GPU               string                       // GPU reservation for the Sandbox (e.g. "A100", "T4:2", "A100-80GB:4").
 	Timeout           time.Duration                // Maximum lifetime for the Sandbox.
 	IdleTimeout       time.Duration                // The amount of time that a Sandbox can be idle before being terminated.
@@ -190,19 +190,19 @@ func buildSandboxCreateRequestProto(appID, imageID string, params SandboxCreateP
 	}
 
 	var memoryMb, memoryMbMax uint32
-	if params.MemoryMib == 0 && params.MemoryLimitMib > 0 {
-		return nil, fmt.Errorf("must also specify non-zero MemoryMib request when MemoryLimitMib is specified")
+	if params.MemoryMiB == 0 && params.MemoryLimitMiB > 0 {
+		return nil, fmt.Errorf("must also specify non-zero MemoryMiB request when MemoryLimitMiB is specified")
 	}
-	if params.MemoryMib != 0 {
-		if params.MemoryMib <= 0 {
-			return nil, fmt.Errorf("the MemoryMib request (%d) must be a positive number", params.MemoryMib)
+	if params.MemoryMiB != 0 {
+		if params.MemoryMiB <= 0 {
+			return nil, fmt.Errorf("the MemoryMiB request (%d) must be a positive number", params.MemoryMiB)
 		}
-		memoryMb = uint32(params.MemoryMib)
-		if params.MemoryLimitMib > 0 {
-			if params.MemoryLimitMib < params.MemoryMib {
-				return nil, fmt.Errorf("the MemoryMib request (%d) cannot be higher than MemoryLimitMib (%d)", params.MemoryMib, params.MemoryLimitMib)
+		memoryMb = uint32(params.MemoryMiB)
+		if params.MemoryLimitMiB > 0 {
+			if params.MemoryLimitMiB < params.MemoryMiB {
+				return nil, fmt.Errorf("the MemoryMiB request (%d) cannot be higher than MemoryLimitMiB (%d)", params.MemoryMiB, params.MemoryLimitMiB)
 			}
-			memoryMbMax = uint32(params.MemoryLimitMib)
+			memoryMbMax = uint32(params.MemoryLimitMiB)
 		}
 	}
 

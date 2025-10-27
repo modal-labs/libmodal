@@ -23,8 +23,8 @@ type clsServiceImpl struct{ client *Client }
 type ClsWithOptionsParams struct {
 	CPU              *float64
 	CPULimit         *float64
-	MemoryMib        *int
-	MemoryLimitMib   *int
+	MemoryMiB        *int
+	MemoryLimitMiB   *int
 	GPU              *string
 	Env              map[string]string
 	Secrets          []*Secret
@@ -51,8 +51,8 @@ type ClsWithBatchingParams struct {
 type serviceOptions struct {
 	cpu                    *float64
 	cpuLimit               *float64
-	memoryMib              *int
-	memoryLimitMib         *int
+	memoryMiB              *int
+	memoryLimitMiB         *int
 	gpu                    *string
 	env                    *map[string]string
 	secrets                *[]*Secret
@@ -203,8 +203,8 @@ func (c *Cls) WithOptions(params *ClsWithOptionsParams) *Cls {
 	merged := mergeServiceOptions(c.serviceOptions, &serviceOptions{
 		cpu:              params.CPU,
 		cpuLimit:         params.CPULimit,
-		memoryMib:        params.MemoryMib,
-		memoryLimitMib:   params.MemoryLimitMib,
+		memoryMiB:        params.MemoryMiB,
+		memoryLimitMiB:   params.MemoryLimitMiB,
 		gpu:              params.GPU,
 		env:              envPtr,
 		secrets:          secretsPtr,
@@ -411,8 +411,8 @@ func mergeServiceOptions(base, new *serviceOptions) *serviceOptions {
 	merged := &serviceOptions{
 		cpu:                    base.cpu,
 		cpuLimit:               base.cpuLimit,
-		memoryMib:              base.memoryMib,
-		memoryLimitMib:         base.memoryLimitMib,
+		memoryMiB:              base.memoryMiB,
+		memoryLimitMiB:         base.memoryLimitMiB,
 		gpu:                    base.gpu,
 		env:                    base.env,
 		secrets:                base.secrets,
@@ -434,11 +434,11 @@ func mergeServiceOptions(base, new *serviceOptions) *serviceOptions {
 	if new.cpuLimit != nil {
 		merged.cpuLimit = new.cpuLimit
 	}
-	if new.memoryMib != nil {
-		merged.memoryMib = new.memoryMib
+	if new.memoryMiB != nil {
+		merged.memoryMiB = new.memoryMiB
 	}
-	if new.memoryLimitMib != nil {
-		merged.memoryLimitMib = new.memoryLimitMib
+	if new.memoryLimitMiB != nil {
+		merged.memoryLimitMiB = new.memoryLimitMiB
 	}
 	if new.gpu != nil {
 		merged.gpu = new.gpu
@@ -490,7 +490,7 @@ func buildFunctionOptionsProto(options *serviceOptions) (*pb.FunctionOptions, er
 
 	builder := pb.FunctionOptions_builder{}
 
-	if options.cpu != nil || options.cpuLimit != nil || options.memoryMib != nil || options.memoryLimitMib != nil || options.gpu != nil {
+	if options.cpu != nil || options.cpuLimit != nil || options.memoryMiB != nil || options.memoryLimitMiB != nil || options.gpu != nil {
 		resBuilder := pb.Resources_builder{}
 
 		if options.cpu == nil && options.cpuLimit != nil {
@@ -509,19 +509,19 @@ func buildFunctionOptionsProto(options *serviceOptions) (*pb.FunctionOptions, er
 			}
 		}
 
-		if options.memoryMib == nil && options.memoryLimitMib != nil {
-			return nil, fmt.Errorf("must also specify non-zero MemoryMib request when MemoryLimitMib is specified")
+		if options.memoryMiB == nil && options.memoryLimitMiB != nil {
+			return nil, fmt.Errorf("must also specify non-zero MemoryMiB request when MemoryLimitMiB is specified")
 		}
-		if options.memoryMib != nil {
-			if *options.memoryMib <= 0 {
-				return nil, fmt.Errorf("the MemoryMib request (%d) must be a positive number", *options.memoryMib)
+		if options.memoryMiB != nil {
+			if *options.memoryMiB <= 0 {
+				return nil, fmt.Errorf("the MemoryMiB request (%d) must be a positive number", *options.memoryMiB)
 			}
-			resBuilder.MemoryMb = uint32(*options.memoryMib)
-			if options.memoryLimitMib != nil {
-				if *options.memoryLimitMib < *options.memoryMib {
-					return nil, fmt.Errorf("the MemoryMib request (%d) cannot be higher than MemoryLimitMib (%d)", *options.memoryMib, *options.memoryLimitMib)
+			resBuilder.MemoryMb = uint32(*options.memoryMiB)
+			if options.memoryLimitMiB != nil {
+				if *options.memoryLimitMiB < *options.memoryMiB {
+					return nil, fmt.Errorf("the MemoryMiB request (%d) cannot be higher than MemoryLimitMiB (%d)", *options.memoryMiB, *options.memoryLimitMiB)
 				}
-				resBuilder.MemoryMbMax = uint32(*options.memoryLimitMib)
+				resBuilder.MemoryMbMax = uint32(*options.memoryLimitMiB)
 			}
 		}
 
