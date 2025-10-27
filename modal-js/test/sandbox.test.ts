@@ -586,3 +586,77 @@ test("buildSandboxCreateRequestProto with PTY", async () => {
   expect(ptyInfo.envColorterm).toBe("truecolor");
   expect(ptyInfo.ptyType).toBe(PTYInfo_PTYType.PTY_TYPE_SHELL);
 });
+
+test("buildSandboxCreateRequestProto with CPU and CPULimit", async () => {
+  const req = await buildSandboxCreateRequestProto("app-123", "img-456", {
+    cpu: 2.0,
+    cpuLimit: 4.5,
+  });
+
+  const resources = req.definition!.resources!;
+  expect(resources.milliCpu).toBe(2000);
+  expect(resources.milliCpuMax).toBe(4500);
+});
+
+test("buildSandboxCreateRequestProto CPULimit lower than CPU", async () => {
+  await expect(
+    buildSandboxCreateRequestProto("app-123", "img-456", {
+      cpu: 4.0,
+      cpuLimit: 2.0,
+    }),
+  ).rejects.toThrow("cpu (4) cannot be higher than cpuLimit (2)");
+});
+
+test("buildSandboxCreateRequestProto CPULimit without CPU", async () => {
+  await expect(
+    buildSandboxCreateRequestProto("app-123", "img-456", {
+      cpuLimit: 4.0,
+    }),
+  ).rejects.toThrow("must also specify cpu when cpuLimit is specified");
+});
+
+test("buildSandboxCreateRequestProto with Memory and MemoryLimit", async () => {
+  const req = await buildSandboxCreateRequestProto("app-123", "img-456", {
+    memory: 1024,
+    memoryLimit: 2048,
+  });
+
+  const resources = req.definition!.resources!;
+  expect(resources.memoryMb).toBe(1024);
+  expect(resources.memoryMbMax).toBe(2048);
+});
+
+test("buildSandboxCreateRequestProto MemoryLimit lower than Memory", async () => {
+  await expect(
+    buildSandboxCreateRequestProto("app-123", "img-456", {
+      memory: 2048,
+      memoryLimit: 1024,
+    }),
+  ).rejects.toThrow(
+    "the memory request (2048) cannot be higher than memoryLimit (1024)",
+  );
+});
+
+test("buildSandboxCreateRequestProto MemoryLimit without Memory", async () => {
+  await expect(
+    buildSandboxCreateRequestProto("app-123", "img-456", {
+      memoryLimit: 2048,
+    }),
+  ).rejects.toThrow("must also specify memory when memoryLimit is specified");
+});
+
+test("buildSandboxCreateRequestProto negative CPU", async () => {
+  await expect(
+    buildSandboxCreateRequestProto("app-123", "img-456", {
+      cpu: -1.0,
+    }),
+  ).rejects.toThrow("must be a positive number");
+});
+
+test("buildSandboxCreateRequestProto negative Memory", async () => {
+  await expect(
+    buildSandboxCreateRequestProto("app-123", "img-456", {
+      memory: -100,
+    }),
+  ).rejects.toThrow("must be a positive number");
+});

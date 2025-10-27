@@ -16,6 +16,9 @@ The first beta release of the Modal SDKs for JS and Go (graduating from alpha). 
   - All `Params` structs are now passed as pointers for consistency and to support optional parameters.
   - Field names follow Go casing conventions (e.g., `Id` → `ID`, `Url` → `URL`, `TokenId` → `TokenID`).
 
+Additional new features:
+- Added support for setting CPU and memory limits when creating Sandboxes and Cls instances.
+
 ## modal-js/v0.3.25, modal-go/v0.0.25
 
 - Fixed a bug in modal-js related to unpickling objects from Python (Function calls, Queues, etc.), where integers between 32678 and 65535 were incorrectly decoded as signed integers.

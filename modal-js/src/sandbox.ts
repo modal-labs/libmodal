@@ -69,8 +69,14 @@ export type SandboxCreateParams = {
   /** Reservation of physical CPU cores for the Sandbox, can be fractional. */
   cpu?: number;
 
+  /** Hard limit of physical CPU cores for the Sandbox, can be fractional. */
+  cpuLimit?: number;
+
   /** Reservation of memory in MiB. */
   memory?: number;
+
+  /** Hard limit of memory in MiB. */
+  memoryLimit?: number;
 
   /** GPU reservation for the Sandbox (e.g. "A100", "T4:2", "A100-80GB:4"). */
   gpu?: string;
@@ -235,6 +241,48 @@ export async function buildSandboxCreateRequestProto(
     ptyInfo = defaultSandboxPTYInfo();
   }
 
+  let milliCpu: number | undefined = undefined;
+  let milliCpuMax: number | undefined = undefined;
+  if (params.cpu === undefined && params.cpuLimit !== undefined) {
+    throw new Error("must also specify cpu when cpuLimit is specified");
+  }
+  if (params.cpu !== undefined) {
+    if (params.cpu <= 0) {
+      throw new Error(`cpu (${params.cpu}) must be a positive number`);
+    }
+    milliCpu = Math.trunc(1000 * params.cpu);
+    if (params.cpuLimit !== undefined) {
+      if (params.cpuLimit < params.cpu) {
+        throw new Error(
+          `cpu (${params.cpu}) cannot be higher than cpuLimit (${params.cpuLimit})`,
+        );
+      }
+      milliCpuMax = Math.trunc(1000 * params.cpuLimit);
+    }
+  }
+
+  let memoryMb: number | undefined = undefined;
+  let memoryMbMax: number | undefined = undefined;
+  if (params.memory === undefined && params.memoryLimit !== undefined) {
+    throw new Error("must also specify memory when memoryLimit is specified");
+  }
+  if (params.memory !== undefined) {
+    if (params.memory <= 0) {
+      throw new Error(
+        `the memory request (${params.memory}) must be a positive number`,
+      );
+    }
+    memoryMb = params.memory;
+    if (params.memoryLimit !== undefined) {
+      if (params.memoryLimit < params.memory) {
+        throw new Error(
+          `the memory request (${params.memory}) cannot be higher than memoryLimit (${params.memoryLimit})`,
+        );
+      }
+      memoryMbMax = params.memoryLimit;
+    }
+  }
+
   return SandboxCreateRequest.create({
     appId,
     definition: {
@@ -248,8 +296,10 @@ export async function buildSandboxCreateRequestProto(
       networkAccess,
       resources: {
         // https://modal.com/docs/guide/resources
-        milliCpu: Math.round(1000 * (params.cpu ?? 0.125)),
-        memoryMb: params.memory ?? 128,
+        milliCpu: milliCpu ?? Math.trunc(1000 * 0.125),
+        milliCpuMax: milliCpuMax ?? 0,
+        memoryMb: memoryMb ?? 128,
+        memoryMbMax: memoryMbMax ?? 0,
         gpuConfig,
       },
       volumeMounts,

@@ -84,7 +84,9 @@ export class ClsService {
 
 export type ClsWithOptionsParams = {
   cpu?: number;
+  cpuLimit?: number;
   memory?: number;
+  memoryLimit?: number;
   gpu?: string;
   env?: Record<string, string>;
   secrets?: Secret[];
@@ -263,11 +265,58 @@ async function buildFunctionOptionsProto(
   const o = options ?? {};
 
   const gpuConfig = parseGpuConfig(o.gpu);
+
+  let milliCpu: number | undefined = undefined;
+  let milliCpuMax: number | undefined = undefined;
+  if (o.cpu === undefined && o.cpuLimit !== undefined) {
+    throw new Error("must also specify cpu when cpuLimit is specified");
+  }
+  if (o.cpu !== undefined) {
+    if (o.cpu <= 0) {
+      throw new Error(`cpu (${o.cpu}) must be a positive number`);
+    }
+    milliCpu = Math.trunc(1000 * o.cpu);
+    if (o.cpuLimit !== undefined) {
+      if (o.cpuLimit < o.cpu) {
+        throw new Error(
+          `cpu (${o.cpu}) cannot be higher than cpuLimit (${o.cpuLimit})`,
+        );
+      }
+      milliCpuMax = Math.trunc(1000 * o.cpuLimit);
+    }
+  }
+
+  let memoryMb: number | undefined = undefined;
+  let memoryMbMax: number | undefined = undefined;
+  if (o.memory === undefined && o.memoryLimit !== undefined) {
+    throw new Error("must also specify memory when memoryLimit is specified");
+  }
+  if (o.memory !== undefined) {
+    if (o.memory <= 0) {
+      throw new Error(`memory (${o.memory}) must be a positive number`);
+    }
+    memoryMb = o.memory;
+    if (o.memoryLimit !== undefined) {
+      if (o.memoryLimit < o.memory) {
+        throw new Error(
+          `memory (${o.memory}) cannot be higher than memoryLimit (${o.memoryLimit})`,
+        );
+      }
+      memoryMbMax = o.memoryLimit;
+    }
+  }
+
   const resources =
-    o.cpu !== undefined || o.memory !== undefined || gpuConfig
+    milliCpu !== undefined ||
+    milliCpuMax !== undefined ||
+    memoryMb !== undefined ||
+    memoryMbMax !== undefined ||
+    gpuConfig
       ? {
-          milliCpu: o.cpu !== undefined ? Math.round(1000 * o.cpu) : undefined,
-          memoryMb: o.memory,
+          milliCpu,
+          milliCpuMax,
+          memoryMb,
+          memoryMbMax,
           gpuConfig,
         }
       : undefined;
