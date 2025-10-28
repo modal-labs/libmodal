@@ -2,7 +2,7 @@
 
 Sign in to Modal, which you'll use for running the test programs.
 
-Then deploy the apps and secrets in this folder using the Python client. This
+Then deploy the apps and secrets in this folder using the Python SDK. This
 requires being signed in to AWS (Modal Labs account):
 
 ```bash
