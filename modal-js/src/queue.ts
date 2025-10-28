@@ -9,9 +9,10 @@ import { InvalidError, QueueEmptyError, QueueFullError } from "./errors";
 import { dumps as pickleEncode, loads as pickleDecode } from "./pickle";
 import { ClientError, Status } from "nice-grpc";
 import { EphemeralHeartbeatManager } from "./ephemeral";
+import { checkForRenamedParams } from "./validation";
 
-const queueInitialPutBackoff = 100; // 100 milliseconds
-const queueDefaultPartitionTtl = 24 * 3600 * 1000; // 24 hours
+const queueInitialPutBackoffMs = 100;
+const queueDefaultPartitionTtlMs = 24 * 3600 * 1000; // 24 hours
 
 /** Optional parameters for {@link QueueService#fromName client.queues.fromName()}. */
 export type QueueFromNameParams = {
@@ -98,8 +99,8 @@ export type QueueClearParams = {
 
 /** Optional parameters for {@link Queue#get Queue.get()}. */
 export type QueueGetParams = {
-  /** How long to wait if the Queue is empty (default: indefinite). */
-  timeout?: number;
+  /** How long to wait if the Queue is empty in milliseconds (default: indefinite). */
+  timeoutMs?: number;
 
   /** Partition to fetch values from, uses default partition if not set. */
   partition?: string;
@@ -110,14 +111,14 @@ export type QueueGetManyParams = QueueGetParams;
 
 /** Optional parameters for {@link Queue#put Queue.put()}. */
 export type QueuePutParams = {
-  /** How long to wait if the Queue is full (default: indefinite). */
-  timeout?: number;
+  /** How long to wait if the Queue is full in milliseconds (default: indefinite). */
+  timeoutMs?: number;
 
   /** Partition to add items to, uses default partition if not set. */
   partition?: string;
 
-  /** TTL for the partition in seconds (default: 1 day). */
-  partitionTtl?: number;
+  /** TTL for the partition in milliseconds (default: 1 day). */
+  partitionTtlMs?: number;
 };
 
 /** Optional parameters for {@link Queue#putMany Queue.putMany()}. */
@@ -134,8 +135,8 @@ export type QueueLenParams = {
 
 /** Optional parameters for {@link Queue#iterate Queue.iterate()}. */
 export type QueueIterateParams = {
-  /** How long to wait between successive items before exiting iteration (default: 0). */
-  itemPollTimeout?: number;
+  /** How long to wait between successive items before exiting iteration in milliseconds (default: 0). */
+  itemPollTimeoutMs?: number;
 
   /** Partition to iterate, uses default partition if not set. */
   partition?: string;
@@ -228,32 +229,36 @@ export class Queue {
     });
   }
 
-  async #get(n: number, partition?: string, timeout?: number): Promise<any[]> {
+  async #get(
+    n: number,
+    partition?: string,
+    timeoutMs?: number,
+  ): Promise<any[]> {
     const partitionKey = Queue.#validatePartitionKey(partition);
 
     const startTime = Date.now();
-    let pollTimeout = 50_000;
-    if (timeout !== undefined) {
-      pollTimeout = Math.min(pollTimeout, timeout);
+    let pollTimeoutMs = 50_000;
+    if (timeoutMs !== undefined) {
+      pollTimeoutMs = Math.min(pollTimeoutMs, timeoutMs);
     }
 
     while (true) {
       const response = await this.#client.cpClient.queueGet({
         queueId: this.queueId,
         partitionKey,
-        timeout: pollTimeout / 1000,
+        timeout: pollTimeoutMs / 1000,
         nValues: n,
       });
       if (response.values && response.values.length > 0) {
         return response.values.map((value) => pickleDecode(value));
       }
-      if (timeout !== undefined) {
-        const remaining = timeout - (Date.now() - startTime);
-        if (remaining <= 0) {
-          const message = `Queue ${this.queueId} did not return values within ${timeout}ms.`;
+      if (timeoutMs !== undefined) {
+        const remainingMs = timeoutMs - (Date.now() - startTime);
+        if (remainingMs <= 0) {
+          const message = `Queue ${this.queueId} did not return values within ${timeoutMs}ms.`;
           throw new QueueEmptyError(message);
         }
-        pollTimeout = Math.min(pollTimeout, remaining);
+        pollTimeoutMs = Math.min(pollTimeoutMs, remainingMs);
       }
     }
   }
@@ -262,11 +267,13 @@ export class Queue {
    * Remove and return the next object from the Queue.
    *
    * By default, this will wait until at least one item is present in the Queue.
-   * If `timeout` is set, raises `QueueEmptyError` if no items are available
+   * If `timeoutMs` is set, raises `QueueEmptyError` if no items are available
    * within that timeout in milliseconds.
    */
   async get(params: QueueGetParams = {}): Promise<any | null> {
-    const values = await this.#get(1, params.partition, params.timeout);
+    checkForRenamedParams(params, { timeout: "timeoutMs" });
+
+    const values = await this.#get(1, params.partition, params.timeoutMs);
     return values[0]; // Must have length >= 1 if returned.
   }
 
@@ -274,24 +281,26 @@ export class Queue {
    * Remove and return up to `n` objects from the Queue.
    *
    * By default, this will wait until at least one item is present in the Queue.
-   * If `timeout` is set, raises `QueueEmptyError` if no items are available
+   * If `timeoutMs` is set, raises `QueueEmptyError` if no items are available
    * within that timeout in milliseconds.
    */
   async getMany(n: number, params: QueueGetManyParams = {}): Promise<any[]> {
-    return await this.#get(n, params.partition, params.timeout);
+    checkForRenamedParams(params, { timeout: "timeoutMs" });
+
+    return await this.#get(n, params.partition, params.timeoutMs);
   }
 
   async #put(
     values: any[],
-    timeout?: number,
+    timeoutMs?: number,
     partition?: string,
-    partitionTtl?: number,
+    partitionTtlMs?: number,
   ): Promise<void> {
     const valuesEncoded = values.map((v) => pickleEncode(v));
     const partitionKey = Queue.#validatePartitionKey(partition);
 
-    let delay = queueInitialPutBackoff;
-    const deadline = timeout ? Date.now() + timeout : undefined;
+    let delay = queueInitialPutBackoffMs;
+    const deadline = timeoutMs ? Date.now() + timeoutMs : undefined;
     while (true) {
       try {
         await this.#client.cpClient.queuePut({
@@ -299,7 +308,7 @@ export class Queue {
           values: valuesEncoded,
           partitionKey,
           partitionTtlSeconds:
-            (partitionTtl || queueDefaultPartitionTtl) / 1000,
+            (partitionTtlMs || queueDefaultPartitionTtlMs) / 1000,
         });
         break;
       } catch (e) {
@@ -324,26 +333,41 @@ export class Queue {
    * Add an item to the end of the Queue.
    *
    * If the Queue is full, this will retry with exponential backoff until the
-   * provided `timeout` is reached, or indefinitely if `timeout` is not set.
+   * provided `timeoutMs` is reached, or indefinitely if `timeoutMs` is not set.
    * Raises {@link QueueFullError} if the Queue is still full after the timeout.
    */
   async put(v: any, params: QueuePutParams = {}): Promise<void> {
-    await this.#put([v], params.timeout, params.partition, params.partitionTtl);
+    checkForRenamedParams(params, {
+      timeout: "timeoutMs",
+      partitionTtl: "partitionTtlMs",
+    });
+
+    await this.#put(
+      [v],
+      params.timeoutMs,
+      params.partition,
+      params.partitionTtlMs,
+    );
   }
 
   /**
    * Add several items to the end of the Queue.
    *
    * If the Queue is full, this will retry with exponential backoff until the
-   * provided `timeout` is reached, or indefinitely if `timeout` is not set.
+   * provided `timeoutMs` is reached, or indefinitely if `timeoutMs` is not set.
    * Raises {@link QueueFullError} if the Queue is still full after the timeout.
    */
   async putMany(values: any[], params: QueuePutManyParams = {}): Promise<void> {
+    checkForRenamedParams(params, {
+      timeout: "timeoutMs",
+      partitionTtl: "partitionTtlMs",
+    });
+
     await this.#put(
       values,
-      params.timeout,
+      params.timeoutMs,
       params.partition,
-      params.partitionTtl,
+      params.partitionTtlMs,
     );
   }
 
@@ -366,22 +390,24 @@ export class Queue {
   async *iterate(
     params: QueueIterateParams = {},
   ): AsyncGenerator<any, void, unknown> {
-    const { partition, itemPollTimeout = 0 } = params;
+    checkForRenamedParams(params, { itemPollTimeout: "itemPollTimeoutMs" });
+
+    const { partition, itemPollTimeoutMs = 0 } = params;
 
     let lastEntryId = undefined;
     const validatedPartitionKey = Queue.#validatePartitionKey(partition);
-    let fetchDeadline = Date.now() + itemPollTimeout;
+    let fetchDeadline = Date.now() + itemPollTimeoutMs;
 
-    const maxPollDuration = 30_000;
+    const maxPollDurationMs = 30_000;
     while (true) {
-      const pollDuration = Math.max(
+      const pollDurationMs = Math.max(
         0.0,
-        Math.min(maxPollDuration, fetchDeadline - Date.now()),
+        Math.min(maxPollDurationMs, fetchDeadline - Date.now()),
       );
       const request: QueueNextItemsRequest = {
         queueId: this.queueId,
         partitionKey: validatedPartitionKey,
-        itemPollTimeout: pollDuration / 1000,
+        itemPollTimeout: pollDurationMs / 1000,
         lastEntryId: lastEntryId || "",
       };
 
@@ -391,7 +417,7 @@ export class Queue {
           yield pickleDecode(item.value);
           lastEntryId = item.entryId;
         }
-        fetchDeadline = Date.now() + itemPollTimeout;
+        fetchDeadline = Date.now() + itemPollTimeoutMs;
       } else if (Date.now() > fetchDeadline) {
         break;
       }

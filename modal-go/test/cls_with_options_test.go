@@ -65,14 +65,14 @@ func TestClsWithOptionsStacking(t *testing.T) {
 	secret := &modal.Secret{SecretID: "sec-1"}
 	volume := &modal.Volume{VolumeID: "vol-1"}
 	cpu := 0.25
-	memory := 256
+	memoryMiB := 256
 	gpu := "T4"
 	timeout := 45 * time.Second
 	newTimeout := 60 * time.Second
 
 	optioned := cls.
 		WithOptions(&modal.ClsWithOptionsParams{Timeout: &timeout, CPU: &cpu}).
-		WithOptions(&modal.ClsWithOptionsParams{Timeout: &newTimeout, Memory: &memory, GPU: &gpu}).
+		WithOptions(&modal.ClsWithOptionsParams{Timeout: &newTimeout, MemoryMiB: &memoryMiB, GPU: &gpu}).
 		WithOptions(&modal.ClsWithOptionsParams{Secrets: []*modal.Secret{secret}, Volumes: map[string]*modal.Volume{"/mnt/test": volume}})
 
 	instance, err := optioned.Instance(ctx, nil)

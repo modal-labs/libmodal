@@ -102,8 +102,8 @@ func TestSandboxCreateRequestProto_WithMemoryAndMemoryLimit(t *testing.T) {
 	g := gomega.NewWithT(t)
 
 	req, err := buildSandboxCreateRequestProto("app-123", "img-456", SandboxCreateParams{
-		Memory:      1024,
-		MemoryLimit: 2048,
+		MemoryMiB:      1024,
+		MemoryLimitMiB: 2048,
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
@@ -116,21 +116,21 @@ func TestSandboxCreateRequestProto_MemoryLimitLowerThanMemory(t *testing.T) {
 	g := gomega.NewWithT(t)
 
 	_, err := buildSandboxCreateRequestProto("app-123", "img-456", SandboxCreateParams{
-		Memory:      2048,
-		MemoryLimit: 1024,
+		MemoryMiB:      2048,
+		MemoryLimitMiB: 1024,
 	})
 	g.Expect(err).Should(gomega.HaveOccurred())
-	g.Expect(err.Error()).To(gomega.ContainSubstring("the Memory request (2048) cannot be higher than MemoryLimit (1024)"))
+	g.Expect(err.Error()).To(gomega.ContainSubstring("the MemoryMiB request (2048) cannot be higher than MemoryLimitMiB (1024)"))
 }
 
 func TestSandboxCreateRequestProto_MemoryLimitWithoutMemory(t *testing.T) {
 	g := gomega.NewWithT(t)
 
 	_, err := buildSandboxCreateRequestProto("app-123", "img-456", SandboxCreateParams{
-		MemoryLimit: 2048,
+		MemoryLimitMiB: 2048,
 	})
 	g.Expect(err).Should(gomega.HaveOccurred())
-	g.Expect(err.Error()).To(gomega.ContainSubstring("must also specify non-zero Memory request when MemoryLimit is specified"))
+	g.Expect(err.Error()).To(gomega.ContainSubstring("must also specify non-zero MemoryMiB request when MemoryLimitMiB is specified"))
 }
 
 func TestSandboxCreateRequestProto_NegativeCPU(t *testing.T) {
@@ -147,7 +147,7 @@ func TestSandboxCreateRequestProto_NegativeMemory(t *testing.T) {
 	g := gomega.NewWithT(t)
 
 	_, err := buildSandboxCreateRequestProto("app-123", "img-456", SandboxCreateParams{
-		Memory: -100,
+		MemoryMiB: -100,
 	})
 	g.Expect(err).Should(gomega.HaveOccurred())
 	g.Expect(err.Error()).To(gomega.ContainSubstring("must be a positive number"))

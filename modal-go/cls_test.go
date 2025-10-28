@@ -58,11 +58,11 @@ func TestBuildFunctionOptionsProto_CPULimitWithoutCPU(t *testing.T) {
 func TestBuildFunctionOptionsProto_WithMemoryAndMemoryLimit(t *testing.T) {
 	g := gomega.NewWithT(t)
 
-	memory := 1024
-	memoryLimit := 2048
+	memoryMiB := 1024
+	memoryLimitMiB := 2048
 	options, err := buildFunctionOptionsProto(&serviceOptions{
-		memory:      &memory,
-		memoryLimit: &memoryLimit,
+		memoryMiB:      &memoryMiB,
+		memoryLimitMiB: &memoryLimitMiB,
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(options).ShouldNot(gomega.BeNil())
@@ -75,25 +75,25 @@ func TestBuildFunctionOptionsProto_WithMemoryAndMemoryLimit(t *testing.T) {
 func TestBuildFunctionOptionsProto_MemoryLimitLowerThanMemory(t *testing.T) {
 	g := gomega.NewWithT(t)
 
-	memory := 2048
-	memoryLimit := 1024
+	memoryMiB := 2048
+	memoryLimitMiB := 1024
 	_, err := buildFunctionOptionsProto(&serviceOptions{
-		memory:      &memory,
-		memoryLimit: &memoryLimit,
+		memoryMiB:      &memoryMiB,
+		memoryLimitMiB: &memoryLimitMiB,
 	})
 	g.Expect(err).Should(gomega.HaveOccurred())
-	g.Expect(err.Error()).To(gomega.ContainSubstring("the Memory request (2048) cannot be higher than MemoryLimit (1024)"))
+	g.Expect(err.Error()).To(gomega.ContainSubstring("the MemoryMiB request (2048) cannot be higher than MemoryLimitMiB (1024)"))
 }
 
 func TestBuildFunctionOptionsProto_MemoryLimitWithoutMemory(t *testing.T) {
 	g := gomega.NewWithT(t)
 
-	memoryLimit := 2048
+	memoryLimitMiB := 2048
 	_, err := buildFunctionOptionsProto(&serviceOptions{
-		memoryLimit: &memoryLimit,
+		memoryLimitMiB: &memoryLimitMiB,
 	})
 	g.Expect(err).Should(gomega.HaveOccurred())
-	g.Expect(err.Error()).To(gomega.ContainSubstring("must also specify non-zero Memory request when MemoryLimit is specified"))
+	g.Expect(err.Error()).To(gomega.ContainSubstring("must also specify non-zero MemoryMiB request when MemoryLimitMiB is specified"))
 }
 
 func TestBuildFunctionOptionsProto_NegativeCPU(t *testing.T) {
@@ -121,9 +121,9 @@ func TestBuildFunctionOptionsProto_ZeroCPU(t *testing.T) {
 func TestBuildFunctionOptionsProto_NegativeMemory(t *testing.T) {
 	g := gomega.NewWithT(t)
 
-	memory := -100
+	memoryMiB := -100
 	_, err := buildFunctionOptionsProto(&serviceOptions{
-		memory: &memory,
+		memoryMiB: &memoryMiB,
 	})
 	g.Expect(err).Should(gomega.HaveOccurred())
 	g.Expect(err.Error()).To(gomega.ContainSubstring("must be a positive number"))
@@ -132,9 +132,9 @@ func TestBuildFunctionOptionsProto_NegativeMemory(t *testing.T) {
 func TestBuildFunctionOptionsProto_ZeroMemory(t *testing.T) {
 	g := gomega.NewWithT(t)
 
-	memory := 0
+	memoryMiB := 0
 	_, err := buildFunctionOptionsProto(&serviceOptions{
-		memory: &memory,
+		memoryMiB: &memoryMiB,
 	})
 	g.Expect(err).Should(gomega.HaveOccurred())
 	g.Expect(err.Error()).To(gomega.ContainSubstring("must be a positive number"))

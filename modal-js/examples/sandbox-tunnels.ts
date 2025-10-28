@@ -11,8 +11,8 @@ const image = modal.images.fromRegistry("python:3.12-alpine");
 const sandbox = await modal.sandboxes.create(app, image, {
   command: ["python3", "-m", "http.server", "8000"],
   encryptedPorts: [8000],
-  timeout: 60000, // 1 minute
-  idleTimeout: 30000, // 30 seconds
+  timeoutMs: 60000, // 1 minute
+  idleTimeoutMs: 30000, // 30 seconds
 });
 
 console.log("Sandbox created:", sandbox.sandboxId);

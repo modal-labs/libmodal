@@ -18,6 +18,7 @@ import {
   InputPlaneInvocation,
   Invocation,
 } from "./invocation";
+import { checkForRenamedParams } from "./validation";
 
 // From: modal/_utils/blob_utils.py
 const maxObjectSizeBytes = 2 * 1024 * 1024; // 2 MiB
@@ -91,7 +92,7 @@ export interface FunctionUpdateAutoscalerParams {
   minContainers?: number;
   maxContainers?: number;
   bufferContainers?: number;
-  scaledownWindow?: number;
+  scaledownWindowMs?: number;
 }
 
 /** Represents a deployed Modal Function, which can be invoked remotely. */
@@ -186,7 +187,7 @@ export class Function_ {
   async getCurrentStats(): Promise<FunctionStats> {
     const resp = await this.#client.cpClient.functionGetCurrentStats(
       { functionId: this.functionId },
-      { timeout: 10000 },
+      { timeoutMs: 10000 },
     );
     return {
       backlog: resp.backlog,
@@ -198,6 +199,8 @@ export class Function_ {
   async updateAutoscaler(
     params: FunctionUpdateAutoscalerParams,
   ): Promise<void> {
+    checkForRenamedParams(params, { scaledownWindow: "scaledownWindowMs" });
+
     await this.#client.cpClient.functionUpdateSchedulingParams({
       functionId: this.functionId,
       warmPoolSizeOverride: 0, // Deprecated field, always set to 0
@@ -205,7 +208,10 @@ export class Function_ {
         minContainers: params.minContainers,
         maxContainers: params.maxContainers,
         bufferContainers: params.bufferContainers,
-        scaledownWindow: params.scaledownWindow,
+        scaledownWindow:
+          params.scaledownWindowMs !== undefined
+            ? Math.trunc(params.scaledownWindowMs / 1000)
+            : undefined,
       },
     });
   }

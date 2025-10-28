@@ -47,8 +47,8 @@ test("Cls.withOptions stacking", async () => {
   const volume = { volumeId: "vol-1" } as Volume;
 
   const optioned = cls
-    .withOptions({ timeout: 45_000, cpu: 0.25 })
-    .withOptions({ timeout: 60_000, memory: 256, gpu: "T4" })
+    .withOptions({ timeoutMs: 45_000, cpu: 0.25 })
+    .withOptions({ timeoutMs: 60_000, memoryMiB: 256, gpu: "T4" })
     .withOptions({ secrets: [secret], volumes: { "/mnt/test": volume } });
 
   const instance = await optioned.instance();
@@ -78,7 +78,7 @@ test("Cls.withConcurrency/withConcurrency/withBatching chaining", async () => {
   });
 
   const chained = cls
-    .withOptions({ timeout: 60_000 })
+    .withOptions({ timeoutMs: 60_000 })
     .withConcurrency({ maxInputs: 10 })
     .withBatching({ maxBatchSize: 11, waitMs: 12 });
 
@@ -142,13 +142,13 @@ test("Cls.withOptions invalid values", async () => {
   });
 
   const cls = await mc.cls.fromName("libmodal-test-support", "EchoCls");
-  await expect(cls.withOptions({ timeout: 1500 }).instance()).rejects.toThrow(
-    /timeout must be a multiple of 1000ms/,
+  await expect(cls.withOptions({ timeoutMs: 1500 }).instance()).rejects.toThrow(
+    /timeoutMs must be a multiple of 1000ms/,
   );
 
   await expect(
-    cls.withOptions({ scaledownWindow: 2500 }).instance(),
-  ).rejects.toThrow(/scaledownWindow must be a multiple of 1000ms/);
+    cls.withOptions({ scaledownWindowMs: 2500 }).instance(),
+  ).rejects.toThrow(/scaledownWindowMs must be a multiple of 1000ms/);
 
   mock.assertExhausted();
 });
@@ -275,7 +275,7 @@ test("withOptions({ memory, memoryLimit }) sets memoryMb and memoryMbMax", async
 
   const cls = await mc.cls.fromName("libmodal-test-support", "EchoCls");
   const instance = await cls
-    .withOptions({ memory: 1024, memoryLimit: 2048 })
+    .withOptions({ memoryMiB: 1024, memoryLimitMiB: 2048 })
     .instance();
   expect(instance).toBeTruthy();
 
@@ -291,8 +291,10 @@ test("withOptions memoryLimit lower than memory throws error", async () => {
 
   const cls = await mc.cls.fromName("libmodal-test-support", "EchoCls");
   await expect(
-    cls.withOptions({ memory: 2048, memoryLimit: 1024 }).instance(),
-  ).rejects.toThrow("memory (2048) cannot be higher than memoryLimit (1024)");
+    cls.withOptions({ memoryMiB: 2048, memoryLimitMiB: 1024 }).instance(),
+  ).rejects.toThrow(
+    "memoryMiB (2048) cannot be higher than memoryLimitMiB (1024)",
+  );
 
   mock.assertExhausted();
 });
@@ -306,8 +308,10 @@ test("withOptions memoryLimit without memory throws error", async () => {
 
   const cls = await mc.cls.fromName("libmodal-test-support", "EchoCls");
   await expect(
-    cls.withOptions({ memoryLimit: 2048 }).instance(),
-  ).rejects.toThrow("must also specify memory when memoryLimit is specified");
+    cls.withOptions({ memoryLimitMiB: 2048 }).instance(),
+  ).rejects.toThrow(
+    "must also specify memoryMiB when memoryLimitMiB is specified",
+  );
 
   mock.assertExhausted();
 });
@@ -350,7 +354,7 @@ test("withOptions negative memory throws error", async () => {
   });
 
   const cls = await mc.cls.fromName("libmodal-test-support", "EchoCls");
-  await expect(cls.withOptions({ memory: -100 }).instance()).rejects.toThrow(
+  await expect(cls.withOptions({ memoryMiB: -100 }).instance()).rejects.toThrow(
     "must be a positive number",
   );
 
@@ -365,7 +369,7 @@ test("withOptions zero memory throws error", async () => {
   });
 
   const cls = await mc.cls.fromName("libmodal-test-support", "EchoCls");
-  await expect(cls.withOptions({ memory: 0 }).instance()).rejects.toThrow(
+  await expect(cls.withOptions({ memoryMiB: 0 }).instance()).rejects.toThrow(
     "must be a positive number",
   );
 

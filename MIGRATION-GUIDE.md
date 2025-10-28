@@ -145,6 +145,19 @@ const client = new ModalClient({ tokenId: "...", tokenSecret: "..." });
 - `SecretFromObjectParams` -> new export (no previous equivalent)
 - `VolumeFromNameOptions` -> `VolumeFromNameParams`
 
+### Parameter Name Changes - Unit Suffixes
+
+Parameters now include explicit unit suffixes to make the API more self-documenting and prevent confusion about units:
+
+- `timeout` → `timeoutMs`
+- `idleTimeout` → `idleTimeoutMs`
+- `scaledownWindow` → `scaledownWindowMs`
+- `itemPollTimeout` → `itemPollTimeoutMs`
+- `partitionTtl` → `partitionTtlMs`
+
+- `memory` → `memoryMiB`
+- `memoryLimit` → `memoryLimitMiB`
+
 ## Go
 
 Brief example of using the new API (with `err` handling omitted for brevity):
@@ -351,3 +364,10 @@ client, err := modal.NewClientWithOptions(&modal.ClientParams{
 - `SecretFromNameOptions` -> `SecretFromNameParams`
 - `UpdateAutoscalerOptions` -> `FunctionUpdateAutoscalerParams`
 - `VolumeFromNameOptions` -> `VolumeFromNameParams`
+
+### Parameter Name Changes - Unit Suffixes
+
+Parameters now include explicit unit suffixes to make the API more self-documenting and prevent confusion about units:
+
+- `memory` → `memoryMiB`
+- `memoryLimit` → `memoryLimitMiB`

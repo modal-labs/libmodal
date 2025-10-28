@@ -18,6 +18,7 @@ import type { Secret } from "./secret";
 import { mergeEnvIntoSecrets } from "./secret";
 import { Retries, parseRetries } from "./retries";
 import type { Volume } from "./volume";
+import { checkForRenamedParams } from "./validation";
 
 /** Optional parameters for {@link ClsService#fromName client.cls.fromName()}. */
 export type ClsFromNameParams = {
@@ -85,8 +86,8 @@ export class ClsService {
 export type ClsWithOptionsParams = {
   cpu?: number;
   cpuLimit?: number;
-  memory?: number;
-  memoryLimit?: number;
+  memoryMiB?: number;
+  memoryLimitMiB?: number;
   gpu?: string;
   env?: Record<string, string>;
   secrets?: Secret[];
@@ -94,8 +95,8 @@ export type ClsWithOptionsParams = {
   retries?: number | Retries;
   maxContainers?: number;
   bufferContainers?: number;
-  scaledownWindow?: number; // in milliseconds
-  timeout?: number; // in milliseconds
+  scaledownWindowMs?: number;
+  timeoutMs?: number;
 };
 
 export type ClsWithConcurrencyParams = {
@@ -264,6 +265,13 @@ async function buildFunctionOptionsProto(
   if (!options) return undefined;
   const o = options ?? {};
 
+  checkForRenamedParams(o, {
+    memory: "memoryMiB",
+    memoryLimit: "memoryLimitMiB",
+    scaledownWindow: "scaledownWindowMs",
+    timeout: "timeoutMs",
+  });
+
   const gpuConfig = parseGpuConfig(o.gpu);
 
   let milliCpu: number | undefined = undefined;
@@ -288,21 +296,23 @@ async function buildFunctionOptionsProto(
 
   let memoryMb: number | undefined = undefined;
   let memoryMbMax: number | undefined = undefined;
-  if (o.memory === undefined && o.memoryLimit !== undefined) {
-    throw new Error("must also specify memory when memoryLimit is specified");
+  if (o.memoryMiB === undefined && o.memoryLimitMiB !== undefined) {
+    throw new Error(
+      "must also specify memoryMiB when memoryLimitMiB is specified",
+    );
   }
-  if (o.memory !== undefined) {
-    if (o.memory <= 0) {
-      throw new Error(`memory (${o.memory}) must be a positive number`);
+  if (o.memoryMiB !== undefined) {
+    if (o.memoryMiB <= 0) {
+      throw new Error(`memoryMiB (${o.memoryMiB}) must be a positive number`);
     }
-    memoryMb = o.memory;
-    if (o.memoryLimit !== undefined) {
-      if (o.memoryLimit < o.memory) {
+    memoryMb = o.memoryMiB;
+    if (o.memoryLimitMiB !== undefined) {
+      if (o.memoryLimitMiB < o.memoryMiB) {
         throw new Error(
-          `memory (${o.memory}) cannot be higher than memoryLimit (${o.memoryLimit})`,
+          `memoryMiB (${o.memoryMiB}) cannot be higher than memoryLimitMiB (${o.memoryLimitMiB})`,
         );
       }
-      memoryMbMax = o.memoryLimit;
+      memoryMbMax = o.memoryLimitMiB;
     }
   }
 
@@ -342,13 +352,15 @@ async function buildFunctionOptionsProto(
       }
     : undefined;
 
-  if (o.scaledownWindow !== undefined && o.scaledownWindow % 1000 !== 0) {
+  if (o.scaledownWindowMs !== undefined && o.scaledownWindowMs % 1000 !== 0) {
     throw new Error(
-      `scaledownWindow must be a multiple of 1000ms, got ${o.scaledownWindow}`,
+      `scaledownWindowMs must be a multiple of 1000ms, got ${o.scaledownWindowMs}`,
     );
   }
-  if (o.timeout !== undefined && o.timeout % 1000 !== 0) {
-    throw new Error(`timeout must be a multiple of 1000ms, got ${o.timeout}`);
+  if (o.timeoutMs !== undefined && o.timeoutMs % 1000 !== 0) {
+    throw new Error(
+      `timeoutMs must be a multiple of 1000ms, got ${o.timeoutMs}`,
+    );
   }
 
   const functionOptions = FunctionOptions.create({
@@ -361,8 +373,10 @@ async function buildFunctionOptionsProto(
     concurrencyLimit: o.maxContainers,
     bufferContainers: o.bufferContainers,
     taskIdleTimeoutSecs:
-      o.scaledownWindow !== undefined ? o.scaledownWindow / 1000 : undefined,
-    timeoutSecs: o.timeout !== undefined ? o.timeout / 1000 : undefined,
+      o.scaledownWindowMs !== undefined
+        ? o.scaledownWindowMs / 1000
+        : undefined,
+    timeoutSecs: o.timeoutMs !== undefined ? o.timeoutMs / 1000 : undefined,
     maxConcurrentInputs: o.maxConcurrentInputs,
     targetConcurrentInputs: o.targetConcurrentInputs,
     batchMaxSize: o.batchMaxSize,

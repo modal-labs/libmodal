@@ -15,7 +15,7 @@ import { FunctionTimeoutError, InternalFailure, RemoteError } from "./errors";
 import { cborDecode } from "./serialization";
 
 // From: modal-client/modal/_utils/function_utils.py
-const outputsTimeout = 55 * 1000;
+const outputsTimeoutMs = 55 * 1000;
 
 /**
  * This abstraction exists so that we can easily send inputs to either the control plane or the input plane.
@@ -24,7 +24,7 @@ const outputsTimeout = 55 * 1000;
  * For now, we support just the control plane, and will add support for the input plane soon.
  */
 export interface Invocation {
-  awaitOutput(timeout?: number): Promise<any>;
+  awaitOutput(timeoutMs?: number): Promise<any>;
   retry(retryCount: number): Promise<void>;
 }
 
@@ -83,21 +83,21 @@ export class ControlPlaneInvocation implements Invocation {
     return new ControlPlaneInvocation(client.cpClient, functionCallId);
   }
 
-  async awaitOutput(timeout?: number): Promise<any> {
+  async awaitOutput(timeoutMs?: number): Promise<any> {
     return await pollFunctionOutput(
       this.cpClient,
-      (timeoutMillis: number) => this.#getOutput(timeoutMillis),
-      timeout,
+      (timeoutMs: number) => this.#getOutput(timeoutMs),
+      timeoutMs,
     );
   }
 
   async #getOutput(
-    timeoutMillis: number,
+    timeoutMs: number,
   ): Promise<FunctionGetOutputsItem | undefined> {
     const response = await this.cpClient.functionGetOutputs({
       functionCallId: this.functionCallId,
       maxValues: 1,
-      timeout: timeoutMillis / 1000, // Backend needs seconds
+      timeout: timeoutMs / 1000,
       lastEntryId: "0-0",
       clearOnSuccess: true,
       requestedAt: timeNowSeconds(),
@@ -174,21 +174,21 @@ export class InputPlaneInvocation implements Invocation {
     );
   }
 
-  async awaitOutput(timeout?: number): Promise<any> {
+  async awaitOutput(timeoutMs?: number): Promise<any> {
     return await pollFunctionOutput(
       this.cpClient,
-      (timeoutMillis: number) => this.#getOutput(timeoutMillis),
-      timeout,
+      (timeoutMs: number) => this.#getOutput(timeoutMs),
+      timeoutMs,
     );
   }
 
   async #getOutput(
-    timeoutMillis: number,
+    timeoutMs: number,
   ): Promise<FunctionGetOutputsItem | undefined> {
     const response = await this.ipClient.attemptAwait({
       attemptToken: this.attemptToken,
       requestedAt: timeNowSeconds(),
-      timeoutSecs: timeoutMillis / 1000,
+      timeoutSecs: timeoutMs / 1000,
     });
     return response.output;
   }
@@ -212,7 +212,7 @@ function timeNowSeconds() {
  * from either the control plane or the input plane, depending on the implementation.
  */
 type GetOutput = (
-  timeoutMillis: number,
+  timeoutMs: number,
 ) => Promise<FunctionGetOutputsItem | undefined>;
 
 /***
@@ -223,27 +223,27 @@ type GetOutput = (
 async function pollFunctionOutput(
   cpClient: ModalGrpcClient,
   getOutput: GetOutput,
-  timeout?: number, // in milliseconds
+  timeoutMs?: number,
 ): Promise<any> {
   const startTime = Date.now();
-  let pollTimeout = outputsTimeout;
-  if (timeout !== undefined) {
-    pollTimeout = Math.min(timeout, outputsTimeout);
+  let pollTimeoutMs = outputsTimeoutMs;
+  if (timeoutMs !== undefined) {
+    pollTimeoutMs = Math.min(timeoutMs, outputsTimeoutMs);
   }
 
   while (true) {
-    const output = await getOutput(pollTimeout);
+    const output = await getOutput(pollTimeoutMs);
     if (output) {
       return await processResult(cpClient, output.result, output.dataFormat);
     }
 
-    if (timeout !== undefined) {
-      const remainingTime = timeout - (Date.now() - startTime);
-      if (remainingTime <= 0) {
-        const message = `Timeout exceeded: ${(timeout / 1000).toFixed(1)}s`;
+    if (timeoutMs !== undefined) {
+      const remainingMs = timeoutMs - (Date.now() - startTime);
+      if (remainingMs <= 0) {
+        const message = `Timeout exceeded: ${timeoutMs}ms`;
         throw new FunctionTimeoutError(message);
       }
-      pollTimeout = Math.min(outputsTimeout, remainingTime);
+      pollTimeoutMs = Math.min(outputsTimeoutMs, remainingMs);
     }
   }
 }

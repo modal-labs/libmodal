@@ -136,7 +136,7 @@ test("FunctionUpdateAutoscaler", async () => {
     minContainers: 1,
     maxContainers: 10,
     bufferContainers: 2,
-    scaledownWindow: 300,
+    scaledownWindowMs: 300 * 1000,
   });
 
   mock.handleUnary("/FunctionUpdateSchedulingParams", (req) => {

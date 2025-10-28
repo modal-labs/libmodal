@@ -47,8 +47,8 @@ test("Cls.withOptions stacking", async () => {
   const volume = { volumeId: "vol-1" } as Volume;
 
   const optioned = cls
-    .withOptions({ timeout: 45_000, cpu: 0.25 })
-    .withOptions({ timeout: 60_000, memory: 256, gpu: "T4" })
+    .withOptions({ timeoutMs: 45_000, cpu: 0.25 })
+    .withOptions({ timeoutMs: 60_000, memoryMiB: 256, gpu: "T4" })
     .withOptions({ secrets: [secret], volumes: { "/mnt/test": volume } });
 
   const instance = await optioned.instance();
@@ -78,7 +78,7 @@ test("Cls.withConcurrency/withConcurrency/withBatching chaining", async () => {
   });
 
   const chained = cls
-    .withOptions({ timeout: 60_000 })
+    .withOptions({ timeoutMs: 60_000 })
     .withConcurrency({ maxInputs: 10 })
     .withBatching({ maxBatchSize: 11, waitMs: 12 });
 
@@ -142,13 +142,13 @@ test("Cls.withOptions invalid values", async () => {
   });
 
   const cls = await mc.cls.fromName("libmodal-test-support", "EchoCls");
-  await expect(cls.withOptions({ timeout: 1500 }).instance()).rejects.toThrow(
-    /timeout must be a multiple of 1000ms/,
+  await expect(cls.withOptions({ timeoutMs: 1500 }).instance()).rejects.toThrow(
+    /timeoutMs must be a multiple of 1000ms/,
   );
 
   await expect(
-    cls.withOptions({ scaledownWindow: 2500 }).instance(),
-  ).rejects.toThrow(/scaledownWindow must be a multiple of 1000ms/);
+    cls.withOptions({ scaledownWindowMs: 2500 }).instance(),
+  ).rejects.toThrow(/scaledownWindowMs must be a multiple of 1000ms/);
 
   mock.assertExhausted();
 });
