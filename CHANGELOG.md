@@ -4,6 +4,10 @@ Both client libraries are pre-1.0, and they have separate versioning.
 
 ## Unreleased
 
+No unreleased changes.
+
+## modal-js/v0.5.0, modal-go/v0.5.0
+
 The first beta release of the Modal SDKs for JS and Go (graduating from alpha). See the [Migration Guide](./MIGRATION-GUIDE.md) for a detailed list of breaking changes.
 
 - The SDKs now expose a central Modal Client object as the main entry point for interacting with Modal resources.
