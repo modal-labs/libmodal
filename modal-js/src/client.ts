@@ -25,6 +25,7 @@ import { ClientType, ModalClientDefinition } from "../proto/modal_proto/api";
 import { getProfile, type Profile } from "./config";
 import { AuthTokenManager } from "./auth_token_manager";
 import { getSDKVersion } from "./version";
+import { checkForRenamedParams } from "./validation";
 
 export interface ModalClientParams {
   tokenId?: string;
@@ -80,6 +81,8 @@ export class ModalClient {
   private authTokenManager: AuthTokenManager | null = null;
 
   constructor(params?: ModalClientParams) {
+    checkForRenamedParams(params, { timeout: "timeoutMs" });
+
     const baseProfile = getProfile(process.env["MODAL_PROFILE"]);
     this.profile = {
       ...baseProfile,

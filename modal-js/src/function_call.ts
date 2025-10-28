@@ -2,6 +2,7 @@
 
 import { getDefaultClient, type ModalClient } from "./client";
 import { ControlPlaneInvocation } from "./invocation";
+import { checkForRenamedParams } from "./validation";
 
 /**
  * Service for managing {@link FunctionCall}s.
@@ -61,6 +62,8 @@ export class FunctionCall {
 
   /** Get the result of a FunctionCall, optionally waiting with a timeout. */
   async get(params: FunctionCallGetParams = {}): Promise<any> {
+    checkForRenamedParams(params, { timeout: "timeoutMs" });
+
     const invocation = ControlPlaneInvocation.fromFunctionCallId(
       this.#client || getDefaultClient(),
       this.functionCallId,

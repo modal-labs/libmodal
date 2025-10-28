@@ -48,6 +48,7 @@ import type { CloudBucketMount } from "./cloud_bucket_mount";
 import { cloudBucketMountToProto } from "./cloud_bucket_mount";
 import type { App } from "./app";
 import { parseGpuConfig } from "./app";
+import { checkForRenamedParams } from "./validation";
 
 /**
  * Stdin is always present, but this option allow you to drop stdout or stderr
@@ -147,6 +148,13 @@ export async function buildSandboxCreateRequestProto(
   imageId: string,
   params: SandboxCreateParams = {},
 ): Promise<SandboxCreateRequest> {
+  checkForRenamedParams(params, {
+    memory: "memoryMiB",
+    memoryLimit: "memoryLimitMiB",
+    timeout: "timeoutMs",
+    idleTimeout: "idleTimeoutMs",
+  });
+
   const gpuConfig = parseGpuConfig(params.gpu);
 
   // The gRPC API only accepts a whole number of seconds.
@@ -557,6 +565,8 @@ export async function buildContainerExecRequestProto(
   command: string[],
   params?: SandboxExecParams,
 ): Promise<ContainerExecRequest> {
+  checkForRenamedParams(params, { timeout: "timeoutMs" });
+
   const secretIds = (params?.secrets || []).map((secret) => secret.secretId);
 
   let ptyInfo: PTYInfo | undefined;

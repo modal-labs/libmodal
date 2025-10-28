@@ -18,6 +18,7 @@ import {
   InputPlaneInvocation,
   Invocation,
 } from "./invocation";
+import { checkForRenamedParams } from "./validation";
 
 // From: modal/_utils/blob_utils.py
 const maxObjectSizeBytes = 2 * 1024 * 1024; // 2 MiB
@@ -198,6 +199,8 @@ export class Function_ {
   async updateAutoscaler(
     params: FunctionUpdateAutoscalerParams,
   ): Promise<void> {
+    checkForRenamedParams(params, { scaledownWindow: "scaledownWindowMs" });
+
     await this.#client.cpClient.functionUpdateSchedulingParams({
       functionId: this.functionId,
       warmPoolSizeOverride: 0, // Deprecated field, always set to 0

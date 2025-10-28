@@ -18,6 +18,7 @@ import type { Secret } from "./secret";
 import { mergeEnvIntoSecrets } from "./secret";
 import { Retries, parseRetries } from "./retries";
 import type { Volume } from "./volume";
+import { checkForRenamedParams } from "./validation";
 
 /** Optional parameters for {@link ClsService#fromName client.cls.fromName()}. */
 export type ClsFromNameParams = {
@@ -263,6 +264,13 @@ async function buildFunctionOptionsProto(
 ): Promise<FunctionOptions | undefined> {
   if (!options) return undefined;
   const o = options ?? {};
+
+  checkForRenamedParams(o, {
+    memory: "memoryMiB",
+    memoryLimit: "memoryLimitMiB",
+    scaledownWindow: "scaledownWindowMs",
+    timeout: "timeoutMs",
+  });
 
   const gpuConfig = parseGpuConfig(o.gpu);
 

@@ -9,6 +9,7 @@ import { InvalidError, QueueEmptyError, QueueFullError } from "./errors";
 import { dumps as pickleEncode, loads as pickleDecode } from "./pickle";
 import { ClientError, Status } from "nice-grpc";
 import { EphemeralHeartbeatManager } from "./ephemeral";
+import { checkForRenamedParams } from "./validation";
 
 const queueInitialPutBackoffMs = 100;
 const queueDefaultPartitionTtlMs = 24 * 3600 * 1000; // 24 hours
@@ -270,6 +271,8 @@ export class Queue {
    * within that timeout in milliseconds.
    */
   async get(params: QueueGetParams = {}): Promise<any | null> {
+    checkForRenamedParams(params, { timeout: "timeoutMs" });
+
     const values = await this.#get(1, params.partition, params.timeoutMs);
     return values[0]; // Must have length >= 1 if returned.
   }
@@ -282,6 +285,8 @@ export class Queue {
    * within that timeout in milliseconds.
    */
   async getMany(n: number, params: QueueGetManyParams = {}): Promise<any[]> {
+    checkForRenamedParams(params, { timeout: "timeoutMs" });
+
     return await this.#get(n, params.partition, params.timeoutMs);
   }
 
@@ -332,6 +337,11 @@ export class Queue {
    * Raises {@link QueueFullError} if the Queue is still full after the timeout.
    */
   async put(v: any, params: QueuePutParams = {}): Promise<void> {
+    checkForRenamedParams(params, {
+      timeout: "timeoutMs",
+      partitionTtl: "partitionTtlMs",
+    });
+
     await this.#put(
       [v],
       params.timeoutMs,
@@ -348,6 +358,11 @@ export class Queue {
    * Raises {@link QueueFullError} if the Queue is still full after the timeout.
    */
   async putMany(values: any[], params: QueuePutManyParams = {}): Promise<void> {
+    checkForRenamedParams(params, {
+      timeout: "timeoutMs",
+      partitionTtl: "partitionTtlMs",
+    });
+
     await this.#put(
       values,
       params.timeoutMs,
@@ -375,6 +390,8 @@ export class Queue {
   async *iterate(
     params: QueueIterateParams = {},
   ): AsyncGenerator<any, void, unknown> {
+    checkForRenamedParams(params, { itemPollTimeout: "itemPollTimeoutMs" });
+
     const { partition, itemPollTimeoutMs = 0 } = params;
 
     let lastEntryId = undefined;
