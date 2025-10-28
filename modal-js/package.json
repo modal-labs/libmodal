@@ -1,9 +1,9 @@
 {
   "name": "modal",
   "version": "0.5.0-dev.7",
-  "description": "Modal client library for JavaScript",
+  "description": "Modal SDK for JavaScript/TypeScript",
   "license": "Apache-2.0",
-  "homepage": "https://modal.com/docs",
+  "homepage": "https://modal.com/docs/guide/sdk-javascript-go",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/modal-labs/libmodal.git"
