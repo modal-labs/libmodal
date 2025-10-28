@@ -86,7 +86,7 @@ export class ControlPlaneInvocation implements Invocation {
   async awaitOutput(timeoutMs?: number): Promise<any> {
     return await pollFunctionOutput(
       this.cpClient,
-      (timeoutMillis: number) => this.#getOutput(timeoutMillis),
+      (timeoutMs: number) => this.#getOutput(timeoutMs),
       timeoutMs,
     );
   }
