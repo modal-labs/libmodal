@@ -186,6 +186,10 @@ func (q *Queue) get(ctx context.Context, n int, params *QueueGetParams) ([]any, 
 	}
 
 	for {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+
 		resp, err := q.client.cpClient.QueueGet(ctx, pb.QueueGetRequest_builder{
 			QueueId:      q.QueueID,
 			PartitionKey: partitionKey,
@@ -284,6 +288,10 @@ func (q *Queue) put(ctx context.Context, values []any, params *QueuePutParams) e
 	}
 
 	for {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+
 		_, err := q.client.cpClient.QueuePut(ctx, pb.QueuePutRequest_builder{
 			QueueId:             q.QueueID,
 			Values:              valuesEncoded,
@@ -400,6 +408,11 @@ func (q *Queue) Iterate(ctx context.Context, params *QueueIterateParams) iter.Se
 
 		fetchDeadline := time.Now().Add(itemPoll)
 		for {
+			if err := ctx.Err(); err != nil {
+				yield(nil, err)
+				return
+			}
+
 			pollDuration := max(0, min(maxPoll, time.Until(fetchDeadline)))
 			resp, err := q.client.cpClient.QueueNextItems(ctx, pb.QueueNextItemsRequest_builder{
 				QueueId:         q.QueueID,

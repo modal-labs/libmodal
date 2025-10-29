@@ -180,6 +180,10 @@ func pollFunctionOutput(ctx context.Context, client pb.ModalClientClient, getOut
 	}
 
 	for {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+
 		output, err := getOutput(ctx, pollTimeout)
 		if err != nil {
 			return nil, err

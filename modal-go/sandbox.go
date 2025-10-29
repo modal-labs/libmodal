@@ -537,6 +537,10 @@ func (sb *Sandbox) Terminate(ctx context.Context) error {
 // Wait blocks until the Sandbox exits.
 func (sb *Sandbox) Wait(ctx context.Context) (int, error) {
 	for {
+		if err := ctx.Err(); err != nil {
+			return 0, err
+		}
+
 		resp, err := sb.client.cpClient.SandboxWait(ctx, pb.SandboxWaitRequest_builder{
 			SandboxId: sb.SandboxID,
 			Timeout:   10,
@@ -677,6 +681,11 @@ func (s *sandboxServiceImpl) List(ctx context.Context, params *SandboxListParams
 	return func(yield func(*Sandbox, error) bool) {
 		var before float64
 		for {
+			if err := ctx.Err(); err != nil {
+				yield(nil, err)
+				return
+			}
+
 			resp, err := s.client.cpClient.SandboxList(ctx, pb.SandboxListRequest_builder{
 				AppId:           params.AppID,
 				BeforeTimestamp: before,
@@ -764,6 +773,10 @@ func newContainerProcess(cpClient pb.ModalClientClient, execID string, params Sa
 // Wait blocks until the container process exits and returns its exit code.
 func (cp *ContainerProcess) Wait(ctx context.Context) (int, error) {
 	for {
+		if err := ctx.Err(); err != nil {
+			return 0, err
+		}
+
 		resp, err := cp.cpClient.ContainerExecWait(ctx, pb.ContainerExecWaitRequest_builder{
 			ExecId:  cp.execID,
 			Timeout: 55,

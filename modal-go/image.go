@@ -196,6 +196,10 @@ func (image *Image) Build(ctx context.Context, app *App) (*Image, error) {
 	var currentImageID string
 
 	for i, currentLayer := range image.layers {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+
 		mergedSecrets, err := mergeEnvIntoSecrets(ctx, image.client, &currentLayer.env, &currentLayer.secrets)
 		if err != nil {
 			return nil, err
@@ -255,6 +259,10 @@ func (image *Image) Build(ctx context.Context, app *App) (*Image, error) {
 			// Not built or in the process of building - wait for build
 			lastEntryID := ""
 			for result == nil {
+				if err := ctx.Err(); err != nil {
+					return nil, err
+				}
+
 				stream, err := image.client.cpClient.ImageJoinStreaming(ctx, pb.ImageJoinStreamingRequest_builder{
 					ImageId:     resp.GetImageId(),
 					Timeout:     55,
