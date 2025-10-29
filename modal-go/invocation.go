@@ -246,7 +246,11 @@ func blobDownload(ctx context.Context, client pb.ModalClientClient, blobID strin
 	if err != nil {
 		return nil, err
 	}
-	s3resp, err := http.Get(resp.GetDownloadUrl())
+	req, err := http.NewRequestWithContext(ctx, "GET", resp.GetDownloadUrl(), nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create download request: %w", err)
+	}
+	s3resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to download blob: %w", err)
 	}
