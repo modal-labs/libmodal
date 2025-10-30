@@ -4,7 +4,7 @@ Both client libraries are pre-1.0, and they have separate versioning.
 
 ## Unreleased
 
-No unreleased changes.
+- All Go SDK functions that take a Context will respect the timeout of the context.
 
 ## modal-js/v0.5.0, modal-go/v0.5.0
 
