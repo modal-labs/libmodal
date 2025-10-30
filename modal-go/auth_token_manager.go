@@ -146,7 +146,7 @@ func (m *AuthTokenManager) FetchToken(ctx context.Context) (string, error) {
 	})
 
 	timeUntilRefresh := time.Duration(expiry-time.Now().Unix()-RefreshWindow) * time.Second
-	m.logger.Debug("Fetched auth token",
+	m.logger.DebugContext(ctx, "Fetched auth token",
 		"expires_in", time.Until(time.Unix(expiry, 0)),
 		"refresh_in", timeUntilRefresh)
 

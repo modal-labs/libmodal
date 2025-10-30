@@ -96,7 +96,7 @@ func (s *functionServiceImpl) FromName(ctx context.Context, appName string, name
 	}
 
 	handleMetadata := resp.GetHandleMetadata()
-	s.client.logger.Debug("Retrieved Function",
+	s.client.logger.DebugContext(ctx, "Retrieved Function",
 		"function_id", resp.GetFunctionId(),
 		"app_name", appName,
 		"function_name", name)
@@ -251,7 +251,7 @@ func (f *Function) getWebURL() string {
 
 // Remote executes a single input on a remote Function.
 func (f *Function) Remote(ctx context.Context, args []any, kwargs map[string]any) (any, error) {
-	f.client.logger.Debug("Executing function call", "function_id", f.FunctionID)
+	f.client.logger.DebugContext(ctx, "Executing function call", "function_id", f.FunctionID)
 	input, err := f.createInput(ctx, args, kwargs)
 	if err != nil {
 		return nil, err
@@ -265,11 +265,11 @@ func (f *Function) Remote(ctx context.Context, args []any, kwargs map[string]any
 	for {
 		output, err := invocation.awaitOutput(ctx, nil)
 		if err == nil {
-			f.client.logger.Debug("Function call completed", "function_id", f.FunctionID)
+			f.client.logger.DebugContext(ctx, "Function call completed", "function_id", f.FunctionID)
 			return output, nil
 		}
 		if errors.As(err, &InternalFailure{}) && retryCount <= maxSystemRetries {
-			f.client.logger.Debug("Retrying function call due to internal failure",
+			f.client.logger.DebugContext(ctx, "Retrying function call due to internal failure",
 				"function_id", f.FunctionID,
 				"retry_count", retryCount)
 			if retryErr := invocation.retry(ctx, retryCount); retryErr != nil {
@@ -301,7 +301,7 @@ func (f *Function) createRemoteInvocation(ctx context.Context, input *pb.Functio
 
 // Spawn starts running a single input on a remote Function.
 func (f *Function) Spawn(ctx context.Context, args []any, kwargs map[string]any) (*FunctionCall, error) {
-	f.client.logger.Debug("Spawning function call", "function_id", f.FunctionID)
+	f.client.logger.DebugContext(ctx, "Spawning function call", "function_id", f.FunctionID)
 	input, err := f.createInput(ctx, args, kwargs)
 	if err != nil {
 		return nil, err
@@ -314,7 +314,7 @@ func (f *Function) Spawn(ctx context.Context, args []any, kwargs map[string]any)
 		FunctionCallID: invocation.FunctionCallID,
 		client:         f.client,
 	}
-	f.client.logger.Debug("Function call spawned",
+	f.client.logger.DebugContext(ctx, "Function call spawned",
 		"function_id", f.FunctionID,
 		"function_call_id", invocation.FunctionCallID)
 	return &functionCall, nil

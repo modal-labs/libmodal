@@ -74,6 +74,7 @@ type ClientParams struct {
 	TokenSecret        string
 	Environment        string
 	Config             *config
+	Logger             *slog.Logger
 	ControlPlaneClient pb.ModalClientClient
 }
 
@@ -106,9 +107,16 @@ func NewClientWithOptions(params *ClientParams) (*Client, error) {
 		profile.Environment = params.Environment
 	}
 
-	logger, err := newLogger(profile)
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize logger: %w", err)
+	var logger *slog.Logger
+	var err error
+
+	if params.Logger != nil {
+		logger = params.Logger
+	} else {
+		logger, err = newLogger(profile)
+		if err != nil {
+			return nil, fmt.Errorf("failed to initialize logger: %w", err)
+		}
 	}
 
 	c := &Client{
@@ -390,7 +398,7 @@ func retryInterceptor(c *Client) grpc.UnaryClientInterceptor {
 		inv grpc.UnaryInvoker,
 		opts ...grpc.CallOption,
 	) error {
-		c.logger.Debug("Sending gRPC request", "method", method)
+		c.logger.DebugContext(ctx, "Sending gRPC request", "method", method)
 		// start with package defaults
 		retries := defaultRetryAttempts
 		baseDelay := defaultRetryBaseDelay
@@ -446,7 +454,7 @@ func retryInterceptor(c *Client) grpc.UnaryClientInterceptor {
 			if st, ok := status.FromError(err); ok { // gRPC error
 				if _, ok := retryable[st.Code()]; !ok || attempt == retries {
 					if attempt == retries && attempt > 0 {
-						c.logger.Debug("Final retry attempt failed",
+						c.logger.DebugContext(ctx, "Final retry attempt failed",
 							"error", err,
 							"retries", attempt,
 							"delay", delay,
@@ -460,7 +468,7 @@ func retryInterceptor(c *Client) grpc.UnaryClientInterceptor {
 			}
 
 			if attempt > 0 {
-				c.logger.Debug("Retryable failure",
+				c.logger.DebugContext(ctx, "Retryable failure",
 					"error", err,
 					"retries", attempt,
 					"delay", delay,

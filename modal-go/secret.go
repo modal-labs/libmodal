@@ -42,7 +42,7 @@ func (s *secretServiceImpl) FromName(ctx context.Context, name string, params *S
 		return nil, err
 	}
 
-	s.client.logger.Debug("Retrieved Secret", "secret_id", resp.GetSecretId(), "secret_name", name)
+	s.client.logger.DebugContext(ctx, "Retrieved Secret", "secret_id", resp.GetSecretId(), "secret_name", name)
 	return &Secret{SecretID: resp.GetSecretId(), Name: name}, nil
 }
 
@@ -66,7 +66,7 @@ func (s *secretServiceImpl) FromMap(ctx context.Context, keyValuePairs map[strin
 		return nil, err
 	}
 
-	s.client.logger.Debug("Created ephemeral Secret", "secret_id", resp.GetSecretId())
+	s.client.logger.DebugContext(ctx, "Created ephemeral Secret", "secret_id", resp.GetSecretId())
 	return &Secret{SecretID: resp.GetSecretId()}, nil
 }
 

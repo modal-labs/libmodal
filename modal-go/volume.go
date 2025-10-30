@@ -55,7 +55,7 @@ func (s *volumeServiceImpl) FromName(ctx context.Context, name string, params *V
 		return nil, err
 	}
 
-	s.client.logger.Debug("Retrieved Volume", "volume_id", resp.GetVolumeId(), "volume_name", name)
+	s.client.logger.DebugContext(ctx, "Retrieved Volume", "volume_id", resp.GetVolumeId(), "volume_name", name)
 	return &Volume{VolumeID: resp.GetVolumeId(), Name: name, readOnly: false, cancelEphemeral: nil}, nil
 }
 
@@ -93,7 +93,7 @@ func (s *volumeServiceImpl) Ephemeral(ctx context.Context, params *VolumeEphemer
 		return nil, err
 	}
 
-	s.client.logger.Debug("Created ephemeral Volume", "volume_id", resp.GetVolumeId())
+	s.client.logger.DebugContext(ctx, "Created ephemeral Volume", "volume_id", resp.GetVolumeId())
 
 	ephemeralCtx, cancel := context.WithCancel(context.Background())
 	startEphemeralHeartbeat(ephemeralCtx, func() error {
