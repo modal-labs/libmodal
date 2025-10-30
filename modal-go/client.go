@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"log/slog"
 	"os"
 	"runtime/debug"
 	"strconv"
@@ -55,6 +56,7 @@ type Client struct {
 	config           config
 	profile          Profile
 	sdkVersion       string
+	logger           *slog.Logger
 	cpClient         pb.ModalClientClient            // control plane client
 	ipClients        map[string]pb.ModalClientClient // input plane clients
 	authTokenManager *AuthTokenManager
@@ -104,14 +106,18 @@ func NewClientWithOptions(params *ClientParams) (*Client, error) {
 		profile.Environment = params.Environment
 	}
 
+	logger, err := newLogger(profile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize logger: %w", err)
+	}
+
 	c := &Client{
 		config:     cfg,
 		profile:    profile,
 		sdkVersion: sdkVersion(),
+		logger:     logger,
 		ipClients:  make(map[string]pb.ModalClientClient),
 	}
-
-	var err error
 	if params.ControlPlaneClient != nil {
 		c.cpClient = params.ControlPlaneClient
 	} else {
@@ -121,7 +127,7 @@ func NewClientWithOptions(params *ClientParams) (*Client, error) {
 		return nil, fmt.Errorf("failed to create control plane client: %w", err)
 	}
 
-	c.authTokenManager = NewAuthTokenManager(c.cpClient)
+	c.authTokenManager = NewAuthTokenManager(c.cpClient, c.logger)
 	if err := c.authTokenManager.Start(context.Background()); err != nil {
 		return nil, fmt.Errorf("failed to start auth token manager: %w", err)
 	}
