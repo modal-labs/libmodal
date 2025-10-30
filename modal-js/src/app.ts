@@ -34,6 +34,13 @@ export class AppService {
           ? ObjectCreationType.OBJECT_CREATION_TYPE_CREATE_IF_MISSING
           : ObjectCreationType.OBJECT_CREATION_TYPE_UNSPECIFIED,
       });
+      this.#client.logger.debug(
+        "Retrieved App",
+        "app_id",
+        resp.appId,
+        "app_name",
+        name,
+      );
       return new App(resp.appId, name);
     } catch (err) {
       if (err instanceof ClientError && err.code === Status.NOT_FOUND)

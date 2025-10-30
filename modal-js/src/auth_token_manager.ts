@@ -1,18 +1,22 @@
 // Start refreshing this many seconds before the token expires
+import type { Logger } from "./logger";
+
 export const REFRESH_WINDOW = 5 * 60;
 // If the token doesn't have an expiry field, default to current time plus this value (not expected).
 export const DEFAULT_EXPIRY_OFFSET = 20 * 60;
 
 export class AuthTokenManager {
   private client: any;
+  private logger: Logger;
   private currentToken: string = "";
   private tokenExpiry: number = 0;
   private stopped: boolean = false;
   private timeoutId: NodeJS.Timeout | null = null;
   private initialTokenPromise: Promise<void> | null = null;
 
-  constructor(client: any) {
+  constructor(client: any, logger: Logger) {
     this.client = client;
+    this.logger = logger;
   }
 
   /**
@@ -52,10 +56,21 @@ export class AuthTokenManager {
     if (exp > 0) {
       this.tokenExpiry = exp;
     } else {
-      console.warn("Failed to decode x-modal-auth-token exp field");
+      this.logger.warn("x-modal-auth-token does not contain exp field");
       // We'll use the token, and set the expiry to DEFAULT_EXPIRY_OFFSET from now.
       this.tokenExpiry = Math.floor(Date.now() / 1000) + DEFAULT_EXPIRY_OFFSET;
     }
+
+    const now = Math.floor(Date.now() / 1000);
+    const expiresIn = this.tokenExpiry - now;
+    const refreshIn = this.tokenExpiry - now - REFRESH_WINDOW;
+    this.logger.debug(
+      "Fetched auth token",
+      "expires_in",
+      `${expiresIn}s`,
+      "refresh_in",
+      `${refreshIn}s`,
+    );
   }
 
   /**
@@ -81,7 +96,7 @@ export class AuthTokenManager {
       try {
         await this.fetchToken();
       } catch (error) {
-        console.error("Failed to refresh auth token:", error);
+        this.logger.error("Failed to refresh auth token", "error", error);
         // Sleep for 5 seconds before trying again on failure
         await new Promise((resolve) => setTimeout(resolve, 5000));
       }
