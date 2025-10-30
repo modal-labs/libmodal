@@ -279,6 +279,7 @@ func (s *sandboxServiceImpl) Create(ctx context.Context, app *App, image *Image,
 		return nil, err
 	}
 
+	s.client.logger.Debug("Created Sandbox", "sandbox_id", createResp.GetSandboxId())
 	return newSandbox(s.client, createResp.GetSandboxId()), nil
 }
 
@@ -473,6 +474,10 @@ func (sb *Sandbox) Exec(ctx context.Context, command []string, params *SandboxEx
 	if err != nil {
 		return nil, err
 	}
+	sb.client.logger.Debug("Created ContainerProcess",
+		"exec_id", resp.GetExecId(),
+		"sandbox_id", sb.SandboxID,
+		"command", command)
 	return newContainerProcess(sb.client.cpClient, resp.GetExecId(), *params), nil
 }
 
@@ -550,6 +555,10 @@ func (sb *Sandbox) Wait(ctx context.Context) (int, error) {
 		}
 		if resp.GetResult() != nil {
 			returnCode := getReturnCode(resp.GetResult())
+			sb.client.logger.Debug("Sandbox wait completed",
+				"sandbox_id", sb.SandboxID,
+				"status", resp.GetResult().GetStatus().String(),
+				"return_code", returnCode)
 			if returnCode != nil {
 				return *returnCode, nil
 			}

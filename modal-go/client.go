@@ -118,6 +118,9 @@ func NewClientWithOptions(params *ClientParams) (*Client, error) {
 		logger:     logger,
 		ipClients:  make(map[string]pb.ModalClientClient),
 	}
+
+	logger.Debug("Initializing Modal client", "version", sdkVersion(), "server_url", profile.ServerURL)
+
 	if params.ControlPlaneClient != nil {
 		c.cpClient = params.ControlPlaneClient
 	} else {
@@ -131,6 +134,8 @@ func NewClientWithOptions(params *ClientParams) (*Client, error) {
 	if err := c.authTokenManager.Start(context.Background()); err != nil {
 		return nil, fmt.Errorf("failed to start auth token manager: %w", err)
 	}
+
+	logger.Debug("Modal client initialized successfully")
 
 	c.Apps = &appServiceImpl{client: c}
 	c.CloudBucketMounts = &cloudBucketMountServiceImpl{client: c}
@@ -164,6 +169,7 @@ func (c *Client) ipClient(serverURL string) (pb.ModalClientClient, error) {
 		return client, nil
 	}
 
+	c.logger.Debug("Creating input plane client", "server_url", serverURL)
 	prof := c.profile
 	prof.ServerURL = serverURL
 	_, client, err := newClient(prof, c)
@@ -176,7 +182,9 @@ func (c *Client) ipClient(serverURL string) (pb.ModalClientClient, error) {
 
 // Close stops the background auth token refresh.
 func (c *Client) Close() {
+	c.logger.Debug("Closing Modal client")
 	c.authTokenManager.Stop()
+	c.logger.Debug("Modal client closed")
 }
 
 // Version returns the SDK version.
@@ -231,15 +239,20 @@ func isRetryableGrpc(err error) bool {
 func newClient(profile Profile, c *Client) (*grpc.ClientConn, pb.ModalClientClient, error) {
 	var target string
 	var creds credentials.TransportCredentials
+	var scheme string
 	if after, ok := strings.CutPrefix(profile.ServerURL, "https://"); ok {
 		target = after
 		creds = credentials.NewTLS(&tls.Config{})
+		scheme = "https"
 	} else if after, ok := strings.CutPrefix(profile.ServerURL, "http://"); ok {
 		target = after
 		creds = insecure.NewCredentials()
+		scheme = "http"
 	} else {
 		return nil, nil, status.Errorf(codes.InvalidArgument, "invalid server URL: %s", profile.ServerURL)
 	}
+
+	c.logger.Debug("Connecting to Modal server", "target", target, "scheme", scheme)
 
 	conn, err := grpc.NewClient(
 		target,
@@ -251,7 +264,7 @@ func newClient(profile Profile, c *Client) (*grpc.ClientConn, pb.ModalClientClie
 		grpc.WithChainUnaryInterceptor(
 			headerInjectorUnaryInterceptor(profile, c.sdkVersion),
 			authTokenInterceptor(c),
-			retryInterceptor(),
+			retryInterceptor(c),
 			timeoutInterceptor(),
 		),
 		grpc.WithChainStreamInterceptor(
@@ -368,7 +381,7 @@ func timeoutInterceptor() grpc.UnaryClientInterceptor {
 	}
 }
 
-func retryInterceptor() grpc.UnaryClientInterceptor {
+func retryInterceptor(c *Client) grpc.UnaryClientInterceptor {
 	return func(
 		ctx context.Context,
 		method string,
@@ -377,6 +390,7 @@ func retryInterceptor() grpc.UnaryClientInterceptor {
 		inv grpc.UnaryInvoker,
 		opts ...grpc.CallOption,
 	) error {
+		c.logger.Debug("Sending gRPC request", "method", method)
 		// start with package defaults
 		retries := defaultRetryAttempts
 		baseDelay := defaultRetryBaseDelay
@@ -431,10 +445,27 @@ func retryInterceptor() grpc.UnaryClientInterceptor {
 
 			if st, ok := status.FromError(err); ok { // gRPC error
 				if _, ok := retryable[st.Code()]; !ok || attempt == retries {
+					if attempt == retries && attempt > 0 {
+						c.logger.Debug("Final retry attempt failed",
+							"error", err,
+							"retries", attempt,
+							"delay", delay,
+							"method", method,
+							"idempotency_key", idempotency[:8])
+					}
 					return err
 				}
 			} else { // Unexpected, non-gRPC error
 				return err
+			}
+
+			if attempt > 0 {
+				c.logger.Debug("Retryable failure",
+					"error", err,
+					"retries", attempt,
+					"delay", delay,
+					"method", method,
+					"idempotency_key", idempotency[:8])
 			}
 
 			if sleepCtx(ctx, delay) != nil {
