@@ -27,9 +27,18 @@ export interface Profile {
   logLevel?: string;
 }
 
+export function configFilePath(): string {
+  const configPath = process.env["MODAL_CONFIG_PATH"];
+  if (configPath && configPath !== "") {
+    return configPath;
+  }
+  return path.join(homedir(), ".modal.toml");
+}
+
 function readConfigFile(): Config {
   try {
-    const configContent = readFileSync(path.join(homedir(), ".modal.toml"), {
+    const configPath = configFilePath();
+    const configContent = readFileSync(configPath, {
       encoding: "utf-8",
     });
     return parseToml(configContent) as Config;
