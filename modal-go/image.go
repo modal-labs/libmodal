@@ -187,6 +187,8 @@ func (image *Image) Build(ctx context.Context, app *App) (*Image, error) {
 		return image, nil
 	}
 
+	image.client.logger.Debug("Building image", "app_id", app.AppID)
+
 	for _, currentLayer := range image.layers {
 		if err := validateDockerfileCommands(currentLayer.commands); err != nil {
 			return nil, err
@@ -309,6 +311,7 @@ func (image *Image) Build(ctx context.Context, app *App) (*Image, error) {
 	}
 
 	image.ImageID = currentImageID
+	image.client.logger.Debug("Image build completed", "image_id", currentImageID)
 	return image, nil
 }
 
