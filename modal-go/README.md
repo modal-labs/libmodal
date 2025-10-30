@@ -40,7 +40,7 @@ Go 1.23 or later.
 
 ## Documentation
 
-See the main [Modal documentation](https://modal.com/docs/guide) and [user guides](https://modal.com/docs/guide) for high-level overviews. For details, see the [API reference documentation for for Go](https://pkg.go.dev/github.com/modal-labs/libmodal/modal-go#section-documentation).
+See the main [Modal documentation](https://modal.com/docs) and [user guides](https://modal.com/docs/guide) for high-level overviews. For details, see the [API reference documentation for for Go](https://pkg.go.dev/github.com/modal-labs/libmodal/modal-go#section-documentation).
 
 We also provide a number of examples:
 - [Call a deployed Function](./examples/function-call/main.go)

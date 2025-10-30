@@ -27,7 +27,7 @@ Node 22 or later. We bundle both ES Modules and CommonJS formats, so you can loa
 
 ## Documentation
 
-See the main [Modal documentation](https://modal.com/docs/guide) and [user guides](https://modal.com/docs/guide) for high-level overviews. For details, see the [API reference documentation for for JS](https://modal-labs.github.io/libmodal/).
+See the main [Modal documentation](https://modal.com/docs) and [user guides](https://modal.com/docs/guide) for high-level overviews. For details, see the [API reference documentation for for JS](https://modal-labs.github.io/libmodal/).
 
 We also provide a number of examples:
 
