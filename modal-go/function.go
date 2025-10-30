@@ -371,7 +371,7 @@ func blobUpload(ctx context.Context, client pb.ModalClientClient, data []byte) (
 		return "", fmt.Errorf("Function input size exceeds multipart upload threshold, unsupported by this SDK version")
 
 	case pb.BlobCreateResponse_UploadUrl_case:
-		req, err := http.NewRequest("PUT", resp.GetUploadUrl(), bytes.NewReader(data))
+		req, err := http.NewRequestWithContext(ctx, "PUT", resp.GetUploadUrl(), bytes.NewReader(data))
 		if err != nil {
 			return "", fmt.Errorf("failed to create upload request: %w", err)
 		}
