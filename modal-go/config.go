@@ -19,6 +19,7 @@ type Profile struct {
 	TokenSecret         string
 	Environment         string
 	ImageBuilderVersion string
+	LogLevel            string
 }
 
 // rawProfile mirrors the TOML structure on disk.
@@ -28,6 +29,7 @@ type rawProfile struct {
 	TokenSecret         string `toml:"token_secret"`
 	Environment         string `toml:"environment"`
 	ImageBuilderVersion string `toml:"image_builder_version"`
+	LogLevel            string `toml:"loglevel"`
 	Active              bool   `toml:"active"`
 }
 
@@ -80,6 +82,7 @@ func getProfile(name string, cfg config) Profile {
 	tokenSecret := firstNonEmpty(os.Getenv("MODAL_TOKEN_SECRET"), raw.TokenSecret)
 	environment := firstNonEmpty(os.Getenv("MODAL_ENVIRONMENT"), raw.Environment)
 	imageBuilderVersion := firstNonEmpty(os.Getenv("MODAL_IMAGE_BUILDER_VERSION"), raw.ImageBuilderVersion)
+	logLevel := firstNonEmpty(os.Getenv("MODAL_LOGLEVEL"), raw.LogLevel)
 
 	return Profile{
 		ServerURL:           serverURL,
@@ -87,6 +90,7 @@ func getProfile(name string, cfg config) Profile {
 		TokenSecret:         tokenSecret,
 		Environment:         environment,
 		ImageBuilderVersion: imageBuilderVersion,
+		LogLevel:            logLevel,
 	}
 }
 

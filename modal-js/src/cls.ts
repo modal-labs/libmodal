@@ -69,6 +69,15 @@ export class ClsService {
         );
       }
 
+      this.#client.logger.debug(
+        "Retrieved Cls",
+        "function_id",
+        serviceFunction.functionId,
+        "app_name",
+        appName,
+        "cls_name",
+        name,
+      );
       return new Cls(
         this.#client,
         serviceFunction.functionId,

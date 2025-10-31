@@ -5,7 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -28,14 +28,16 @@ type TokenAndExpiry struct {
 // AuthTokenManager manages authentication tokens using a goroutine, and refreshes the token REFRESH_WINDOW seconds before it expires.
 type AuthTokenManager struct {
 	client   pb.ModalClientClient
+	logger   *slog.Logger
 	cancelFn context.CancelFunc
 
 	tokenAndExpiry atomic.Value
 }
 
-func NewAuthTokenManager(client pb.ModalClientClient) *AuthTokenManager {
+func NewAuthTokenManager(client pb.ModalClientClient, logger *slog.Logger) *AuthTokenManager {
 	manager := &AuthTokenManager{
 		client: client,
+		logger: logger,
 	}
 
 	manager.tokenAndExpiry.Store(TokenAndExpiry{
@@ -106,7 +108,7 @@ func (m *AuthTokenManager) backgroundRefresh(ctx context.Context) {
 
 		// Refresh the token
 		if _, err := m.FetchToken(ctx); err != nil {
-			log.Printf("Failed to refresh auth token: %v", err)
+			m.logger.Error("Failed to refresh auth token", "error", err)
 			// Sleep for 5 seconds before trying again on failure
 			select {
 			case <-ctx.Done():
@@ -133,7 +135,7 @@ func (m *AuthTokenManager) FetchToken(ctx context.Context) (string, error) {
 	if exp := m.decodeJWT(token); exp > 0 {
 		expiry = exp
 	} else {
-		log.Printf("x-modal-auth-token does not contain exp field")
+		m.logger.Warn("x-modal-auth-token does not contain exp field")
 		// We'll use the token, and set the expiry to 20 min from now.
 		expiry = time.Now().Unix() + DefaultExpiryOffset
 	}
@@ -142,6 +144,11 @@ func (m *AuthTokenManager) FetchToken(ctx context.Context) (string, error) {
 		token:  token,
 		expiry: expiry,
 	})
+
+	timeUntilRefresh := time.Duration(expiry-time.Now().Unix()-RefreshWindow) * time.Second
+	m.logger.DebugContext(ctx, "Fetched auth token",
+		"expires_in", time.Until(time.Unix(expiry, 0)),
+		"refresh_in", timeUntilRefresh)
 
 	return token, nil
 }

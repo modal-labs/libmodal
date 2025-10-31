@@ -26,6 +26,7 @@ import { getProfile, type Profile } from "./config";
 import { AuthTokenManager } from "./auth_token_manager";
 import { getSDKVersion } from "./version";
 import { checkForRenamedParams } from "./validation";
+import { createLogger, type Logger, type LogLevel } from "./logger";
 
 export interface ModalClientParams {
   tokenId?: string;
@@ -34,6 +35,8 @@ export interface ModalClientParams {
   endpoint?: string;
   timeoutMs?: number;
   maxRetries?: number;
+  logger?: Logger;
+  logLevel?: LogLevel;
   /** @ignore */
   cpClient?: ModalGrpcClient;
 }
@@ -76,6 +79,7 @@ export class ModalClient {
   /** @ignore */
   readonly cpClient: ModalGrpcClient;
   readonly profile: Profile;
+  readonly logger: Logger;
 
   private ipClients: Map<string, ModalGrpcClient>;
   private authTokenManager: AuthTokenManager | null = null;
@@ -91,8 +95,20 @@ export class ModalClient {
       ...(params?.environment && { environment: params.environment }),
     };
 
+    const logLevelValue = params?.logLevel || this.profile.logLevel || "";
+    this.logger = createLogger(params?.logger, logLevelValue);
+    this.logger.debug(
+      "Initializing Modal client",
+      "version",
+      getSDKVersion(),
+      "server_url",
+      this.profile.serverUrl,
+    );
+
     this.ipClients = new Map();
     this.cpClient = params?.cpClient ?? this.createClient(this.profile);
+
+    this.logger.debug("Modal client initialized successfully");
 
     this.apps = new AppService(this);
     this.cls = new ClsService(this);
@@ -121,6 +137,7 @@ export class ModalClient {
       return existing;
     }
 
+    this.logger.debug("Creating input plane client", "server_url", serverUrl);
     const profile = { ...this.profile, serverUrl };
     const newClient = this.createClient(profile);
     this.ipClients.set(serverUrl, newClient);
@@ -128,10 +145,12 @@ export class ModalClient {
   }
 
   close(): void {
+    this.logger.debug("Closing Modal client");
     if (this.authTokenManager) {
       this.authTokenManager.stop();
       this.authTokenManager = null;
     }
+    this.logger.debug("Modal client closed");
   }
 
   version(): string {
@@ -148,15 +167,124 @@ export class ModalClient {
     });
     return createClientFactory()
       .use(this.authMiddleware(profile))
-      .use(retryMiddleware)
+      .use(this.retryMiddleware())
       .use(timeoutMiddleware)
       .create(ModalClientDefinition, channel);
+  }
+
+  /** Middleware to retry transient errors and timeouts for unary requests. */
+  private retryMiddleware(): ClientMiddleware<RetryOptions> {
+    const logger = this.logger;
+    return async function* retryMiddleware<Request, Response>(
+      call: ClientMiddlewareCall<Request, Response>,
+      options: CallOptions & RetryOptions,
+    ) {
+      const {
+        retries = 3,
+        baseDelay = 100,
+        maxDelay = 1000,
+        delayFactor = 2,
+        additionalStatusCodes = [],
+        signal,
+        ...restOptions
+      } = options;
+
+      if (call.requestStream || call.responseStream || !retries) {
+        // Don't retry streaming calls, or if retries are disabled.
+        return yield* call.next(call.request, restOptions);
+      }
+
+      const retryableCodes = new Set([
+        ...retryableGrpcStatusCodes,
+        ...additionalStatusCodes,
+      ]);
+
+      // One idempotency key for the whole call (all attempts).
+      const idempotencyKey = uuidv4();
+
+      const startTime = Date.now();
+      let attempt = 0;
+      let delayMs = baseDelay;
+
+      logger.debug("Sending gRPC request", "method", call.method.path);
+
+      while (true) {
+        // Clone/augment metadata for this attempt.
+        const metadata = new Metadata(restOptions.metadata ?? {});
+
+        metadata.set("x-idempotency-key", idempotencyKey);
+        metadata.set("x-retry-attempt", String(attempt));
+        if (attempt > 0) {
+          metadata.set(
+            "x-retry-delay",
+            ((Date.now() - startTime) / 1000).toFixed(3),
+          );
+        }
+
+        try {
+          // Forward the call.
+          return yield* call.next(call.request, {
+            ...restOptions,
+            metadata,
+            signal,
+          });
+        } catch (err) {
+          // Immediately propagate non-retryable situations.
+          if (
+            !(err instanceof ClientError) ||
+            !retryableCodes.has(err.code) ||
+            attempt >= retries
+          ) {
+            if (attempt === retries && attempt > 0) {
+              logger.debug(
+                "Final retry attempt failed",
+                "error",
+                err,
+                "retries",
+                attempt,
+                "delay",
+                delayMs,
+                "method",
+                call.method.path,
+                "idempotency_key",
+                idempotencyKey.substring(0, 8),
+              );
+            }
+            throw err;
+          }
+
+          if (attempt > 0) {
+            logger.debug(
+              "Retryable failure",
+              "error",
+              err,
+              "retries",
+              attempt,
+              "delay",
+              delayMs,
+              "method",
+              call.method.path,
+              "idempotency_key",
+              idempotencyKey.substring(0, 8),
+            );
+          }
+
+          // Exponential back-off with a hard cap.
+          await sleep(delayMs, signal);
+          delayMs = Math.min(delayMs * delayFactor, maxDelay);
+          attempt += 1;
+        }
+      }
+    };
   }
 
   private authMiddleware(profile: Profile): ClientMiddleware {
     const getOrCreateAuthTokenManager = () => {
       if (!this.authTokenManager) {
-        this.authTokenManager = new AuthTokenManager(this.cpClient);
+        this.authTokenManager = new AuthTokenManager(
+          this.cpClient,
+          this.logger,
+        );
         this.authTokenManager.start();
       }
       return this.authTokenManager;
@@ -291,74 +419,6 @@ type RetryOptions = {
   /** Additional status codes to retry. */
   additionalStatusCodes?: Status[];
 };
-
-/** Middleware to retry transient errors and timeouts for unary requests. */
-const retryMiddleware: ClientMiddleware<RetryOptions> =
-  async function* retryMiddleware(call, options) {
-    const {
-      retries = 3,
-      baseDelay = 100,
-      maxDelay = 1000,
-      delayFactor = 2,
-      additionalStatusCodes = [],
-      signal,
-      ...restOptions
-    } = options;
-
-    if (call.requestStream || call.responseStream || !retries) {
-      // Don't retry streaming calls, or if retries are disabled.
-      return yield* call.next(call.request, restOptions);
-    }
-
-    const retryableCodes = new Set([
-      ...retryableGrpcStatusCodes,
-      ...additionalStatusCodes,
-    ]);
-
-    // One idempotency key for the whole call (all attempts).
-    const idempotencyKey = uuidv4();
-
-    const startTime = Date.now();
-    let attempt = 0;
-    let delayMs = baseDelay;
-
-    while (true) {
-      // Clone/augment metadata for this attempt.
-      const metadata = new Metadata(restOptions.metadata ?? {});
-
-      metadata.set("x-idempotency-key", idempotencyKey);
-      metadata.set("x-retry-attempt", String(attempt));
-      if (attempt > 0) {
-        metadata.set(
-          "x-retry-delay",
-          ((Date.now() - startTime) / 1000).toFixed(3),
-        );
-      }
-
-      try {
-        // Forward the call.
-        return yield* call.next(call.request, {
-          ...restOptions,
-          metadata,
-          signal,
-        });
-      } catch (err) {
-        // Immediately propagate non-retryable situations.
-        if (
-          !(err instanceof ClientError) ||
-          !retryableCodes.has(err.code) ||
-          attempt >= retries
-        ) {
-          throw err;
-        }
-
-        // Exponential back-off with a hard cap.
-        await sleep(delayMs, signal);
-        delayMs = Math.min(delayMs * delayFactor, maxDelay);
-        attempt += 1;
-      }
-    }
-  };
 
 // Legacy default client - lazily initialized
 let defaultClient: ModalClient | undefined;

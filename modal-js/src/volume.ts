@@ -42,6 +42,13 @@ export class VolumeService {
           ? ObjectCreationType.OBJECT_CREATION_TYPE_CREATE_IF_MISSING
           : ObjectCreationType.OBJECT_CREATION_TYPE_UNSPECIFIED,
       });
+      this.#client.logger.debug(
+        "Retrieved Volume",
+        "volume_id",
+        resp.volumeId,
+        "volume_name",
+        name,
+      );
       return new Volume(resp.volumeId, name);
     } catch (err) {
       if (err instanceof ClientError && err.code === Status.NOT_FOUND)
@@ -59,6 +66,12 @@ export class VolumeService {
       objectCreationType: ObjectCreationType.OBJECT_CREATION_TYPE_EPHEMERAL,
       environmentName: this.#client.environmentName(params.environment),
     });
+
+    this.#client.logger.debug(
+      "Created ephemeral Volume",
+      "volume_id",
+      resp.volumeId,
+    );
 
     const ephemeralHbManager = new EphemeralHeartbeatManager(() =>
       this.#client.cpClient.volumeHeartbeat({ volumeId: resp.volumeId }),

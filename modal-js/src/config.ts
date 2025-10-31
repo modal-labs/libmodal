@@ -12,6 +12,7 @@ interface Config {
     token_secret?: string;
     environment?: string;
     imageBuilderVersion?: string;
+    loglevel?: string;
     active?: boolean;
   };
 }
@@ -23,6 +24,7 @@ export interface Profile {
   tokenSecret?: string;
   environment?: string;
   imageBuilderVersion?: string;
+  logLevel?: string;
 }
 
 function readConfigFile(): Config {
@@ -73,6 +75,7 @@ export function getProfile(profileName?: string): Profile {
     imageBuilderVersion:
       process.env["MODAL_IMAGE_BUILDER_VERSION"] ||
       profileData.imageBuilderVersion,
+    logLevel: process.env["MODAL_LOGLEVEL"] || profileData.loglevel,
   };
   return profile as Profile; // safe to null-cast because of check above
 }

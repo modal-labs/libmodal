@@ -2,6 +2,7 @@ import { describe, test, expect, vi, beforeEach, afterEach } from "vitest";
 import jwt from "jsonwebtoken";
 import { ModalClient } from "../src/client";
 import { AuthTokenManager } from "../src/auth_token_manager";
+import { newLogger } from "../src/logger";
 
 async function eventually(
   condition: () => boolean,
@@ -45,7 +46,7 @@ describe("AuthTokenManager", () => {
 
   beforeEach(() => {
     mockClient = newMockAuthClient();
-    manager = new AuthTokenManager(mockClient as any);
+    manager = new AuthTokenManager(mockClient as any, newLogger());
   });
 
   afterEach(() => {

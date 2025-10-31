@@ -23,6 +23,18 @@
 //
 // See `config.go` for the resolution logic.
 //
+// # Logging
+//
+// The SDK logging level can be controlled in multiple ways (in order of precedence):
+//
+//  1. `MODAL_LOGLEVEL` environment variable
+//  2. `loglevel` field in the active profile in `~/.modal.toml`
+//  3. Defaults to WARN
+//
+// Supported values are DEBUG, INFO, WARN, and ERROR (case-insensitive).
+//
+// Logs are written to stderr.
+//
 // For additional examples and language-parity tests, see
 // https://github.com/modal-labs/libmodal/tree/main/modal-go.
 package modal

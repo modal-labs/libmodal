@@ -379,6 +379,11 @@ export class SandboxService {
       throw err;
     }
 
+    this.#client.logger.debug(
+      "Created Sandbox",
+      "sandbox_id",
+      createResp.sandboxId,
+    );
     return new Sandbox(this.#client, createResp.sandboxId);
   }
 
@@ -736,6 +741,15 @@ export class Sandbox {
     );
     const resp = await this.#client.cpClient.containerExec(req);
 
+    this.#client.logger.debug(
+      "Created ContainerProcess",
+      "exec_id",
+      resp.execId,
+      "sandbox_id",
+      this.sandboxId,
+      "command",
+      command,
+    );
     return new ContainerProcess(this.#client, resp.execId, params);
   }
 
@@ -771,7 +785,17 @@ export class Sandbox {
         timeout: 10,
       });
       if (resp.result) {
-        return Sandbox.#getReturnCode(resp.result)!;
+        const returnCode = Sandbox.#getReturnCode(resp.result)!;
+        this.#client.logger.debug(
+          "Sandbox wait completed",
+          "sandbox_id",
+          this.sandboxId,
+          "status",
+          resp.result.status,
+          "return_code",
+          returnCode,
+        );
+        return returnCode;
       }
     }
   }

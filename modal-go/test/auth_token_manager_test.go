@@ -2,6 +2,7 @@ package test
 
 import (
 	"context"
+	"log/slog"
 	"testing"
 	"time"
 
@@ -46,7 +47,7 @@ func TestAuthTokenManager_DecodeJWT(t *testing.T) {
 	g := gomega.NewWithT(t)
 
 	mockClient := newMockAuthClient()
-	manager := modal.NewAuthTokenManager(mockClient)
+	manager := modal.NewAuthTokenManager(mockClient, slog.Default())
 
 	validToken := createTestJWT(123456789)
 	mockClient.setAuthToken(validToken)
@@ -66,7 +67,7 @@ func TestAuthTokenManager_InitialFetch(t *testing.T) {
 	token := createTestJWT(time.Now().Unix() + 3600)
 	mockClient.setAuthToken(token)
 
-	manager := modal.NewAuthTokenManager(mockClient)
+	manager := modal.NewAuthTokenManager(mockClient, slog.Default())
 	err := manager.Start(context.Background())
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	defer manager.Stop()
@@ -83,7 +84,7 @@ func TestAuthTokenManager_InitialFetch(t *testing.T) {
 func TestAuthTokenManager_IsExpired(t *testing.T) {
 	g := gomega.NewWithT(t)
 
-	manager := modal.NewAuthTokenManager(nil)
+	manager := modal.NewAuthTokenManager(nil, slog.Default())
 
 	// Test not expired
 	manager.SetToken("token", time.Now().Unix()+3600)
@@ -104,7 +105,7 @@ func TestAuthTokenManager_RefreshExpiredToken(t *testing.T) {
 	expiringToken := createTestJWT(now - 60)
 	freshToken := createTestJWT(now + 3600)
 
-	manager := modal.NewAuthTokenManager(mockClient)
+	manager := modal.NewAuthTokenManager(mockClient, slog.Default())
 	manager.SetToken(expiringToken, now-60)
 	mockClient.setAuthToken(freshToken)
 
@@ -128,7 +129,7 @@ func TestAuthTokenManager_RefreshNearExpiryToken(t *testing.T) {
 	expiringToken := createTestJWT(now + 60)
 	freshToken := createTestJWT(now + 3600)
 
-	manager := modal.NewAuthTokenManager(mockClient)
+	manager := modal.NewAuthTokenManager(mockClient, slog.Default())
 	manager.SetToken(expiringToken, now+60)
 	mockClient.setAuthToken(freshToken)
 
@@ -148,7 +149,7 @@ func TestAuthTokenManager_GetToken_ExpiredToken(t *testing.T) {
 	g := gomega.NewWithT(t)
 
 	mockClient := newMockAuthClient()
-	manager := modal.NewAuthTokenManager(mockClient)
+	manager := modal.NewAuthTokenManager(mockClient, slog.Default())
 
 	_, err := manager.GetToken(context.Background())
 	g.Expect(err).Should(gomega.HaveOccurred())
