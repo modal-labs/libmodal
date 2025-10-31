@@ -84,7 +84,7 @@ export {
   type VolumeEphemeralParams,
 } from "./volume";
 export { Proxy, ProxyService, type ProxyFromNameParams } from "./proxy";
-export { CloudBucketMount } from "./cloud_bucket_mount";
+export { CloudBucketMount, CloudBucketMountService } from "./cloud_bucket_mount";
 export { ModalClient, type ModalClientParams } from "./client";
 export { type Profile } from "./config";
 export { checkForRenamedParams } from "./validation";

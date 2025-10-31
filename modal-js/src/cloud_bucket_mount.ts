@@ -3,6 +3,7 @@ import {
   CloudBucketMount as CloudBucketMountProto,
 } from "../proto/modal_proto/api";
 import { Secret } from "./secret";
+import { type ModalClient } from "./client";
 
 /** Cloud Bucket Mounts provide access to cloud storage buckets within Modal Functions. */
 export class CloudBucketMount {
@@ -55,6 +56,37 @@ export class CloudBucketMount {
         "keyPrefix will be prefixed to all object paths, so it must end in a '/'",
       );
     }
+  }
+}
+
+/** Service for constructing {@link CloudBucketMount}s via the client.
+ *
+ * Normally accessed as:
+ * ```typescript
+ * const modal = new ModalClient();
+ * const mount = modal.cloudBucketMounts.new("my-bucket", { readOnly: true });
+ * ```
+ */
+export class CloudBucketMountService {
+  readonly #client: ModalClient;
+  constructor(client: ModalClient) {
+    this.#client = client;
+  }
+
+  /** Create a new {@link CloudBucketMount}. */
+  new(
+    bucketName: string,
+    params: {
+      secret?: Secret;
+      readOnly?: boolean;
+      requesterPays?: boolean;
+      bucketEndpointUrl?: string;
+      keyPrefix?: string;
+      oidcAuthRoleArn?: string;
+    } = {},
+  ): CloudBucketMount {
+    // No RPC needed; validate client-provided params in constructor
+    return new CloudBucketMount(bucketName, params);
   }
 }
 
