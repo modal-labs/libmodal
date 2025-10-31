@@ -2,9 +2,23 @@ import {
   CloudBucketMount_BucketType,
   CloudBucketMount as CloudBucketMountProto,
 } from "../proto/modal_proto/api";
+import type { ModalClient } from "./client";
 import { Secret } from "./secret";
 
-/** Cloud Bucket Mounts provide access to cloud storage buckets within Modal Functions. */
+export type CloudBucketMountParams = {
+  secret?: Secret;
+  readOnly?: boolean;
+  requesterPays?: boolean;
+  bucketEndpointUrl?: string;
+  keyPrefix?: string;
+  oidcAuthRoleArn?: string;
+};
+
+/**
+ * Cloud bucket mounts let functions access objects from external storage.
+ *
+ * @deprecated Use {@link CloudBucketMountService#new client.cloudBucketMounts.new()} instead.
+ */
 export class CloudBucketMount {
   readonly bucketName: string;
   readonly secret?: Secret;
@@ -14,17 +28,7 @@ export class CloudBucketMount {
   readonly keyPrefix?: string;
   readonly oidcAuthRoleArn?: string;
 
-  constructor(
-    bucketName: string,
-    params: {
-      secret?: Secret;
-      readOnly?: boolean;
-      requesterPays?: boolean;
-      bucketEndpointUrl?: string;
-      keyPrefix?: string;
-      oidcAuthRoleArn?: string;
-    } = {},
-  ) {
+  constructor(bucketName: string, params: CloudBucketMountParams = {}) {
     this.bucketName = bucketName;
     this.secret = params.secret;
     this.readOnly = params.readOnly ?? false;
@@ -55,6 +59,21 @@ export class CloudBucketMount {
         "keyPrefix will be prefixed to all object paths, so it must end in a '/'",
       );
     }
+  }
+}
+
+export class CloudBucketMountService {
+  readonly #client: ModalClient;
+
+  constructor(client: ModalClient) {
+    this.#client = client;
+  }
+
+  new(bucketName: string, params: CloudBucketMountParams = {}): CloudBucketMount {
+    // Touch the client instance to avoid unused-private-member lint errors until the service
+    // needs it for control-plane interactions.
+    void this.#client;
+    return new CloudBucketMount(bucketName, params);
   }
 }
 

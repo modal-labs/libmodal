@@ -1,4 +1,4 @@
-import { CloudBucketMount, Secret } from "modal";
+import { CloudBucketMountService, type ModalClient, Secret } from "modal";
 import {
   cloudBucketMountToProto,
   endpointUrlToBucketType,
@@ -6,8 +6,10 @@ import {
 import { CloudBucketMount_BucketType } from "../proto/modal_proto/api";
 import { expect, test } from "vitest";
 
+const service = new CloudBucketMountService({} as ModalClient);
+
 test("CloudBucketMount constructor with minimal options", () => {
-  const mount = new CloudBucketMount("my-bucket");
+  const mount = service.new("my-bucket");
 
   expect(mount.bucketName).toBe("my-bucket");
   expect(mount.readOnly).toBe(false);
@@ -25,7 +27,7 @@ test("CloudBucketMount constructor with minimal options", () => {
 test("CloudBucketMount constructor with all options", () => {
   const mockSecret = { secretId: "sec-123" } as Secret;
 
-  const mount = new CloudBucketMount("my-bucket", {
+  const mount = service.new("my-bucket", {
     secret: mockSecret,
     readOnly: true,
     requesterPays: true,
@@ -71,7 +73,7 @@ test("CloudBucketMount bucket type detection from endpoint URLs", () => {
 
 test("CloudBucketMount validation: requesterPays without secret", () => {
   expect(() => {
-    new CloudBucketMount("my-bucket", {
+    service.new("my-bucket", {
       requesterPays: true,
     });
   }).toThrowError("Credentials required in order to use Requester Pays.");
@@ -79,7 +81,7 @@ test("CloudBucketMount validation: requesterPays without secret", () => {
 
 test("CloudBucketMount validation: keyPrefix without trailing slash", () => {
   expect(() => {
-    new CloudBucketMount("my-bucket", {
+    service.new("my-bucket", {
       keyPrefix: "prefix",
     });
   }).toThrowError(
@@ -88,7 +90,7 @@ test("CloudBucketMount validation: keyPrefix without trailing slash", () => {
 });
 
 test("cloudBucketMountToProto with minimal options", () => {
-  const mount = new CloudBucketMount("my-bucket");
+  const mount = service.new("my-bucket");
   const proto = cloudBucketMountToProto(mount, "/mnt/bucket");
 
   expect(proto.bucketName).toBe("my-bucket");
@@ -105,7 +107,7 @@ test("cloudBucketMountToProto with minimal options", () => {
 test("cloudBucketMountToProto with all options", () => {
   const mockSecret = { secretId: "sec-123" } as Secret;
 
-  const mount = new CloudBucketMount("my-bucket", {
+  const mount = service.new("my-bucket", {
     secret: mockSecret,
     readOnly: true,
     requesterPays: true,
