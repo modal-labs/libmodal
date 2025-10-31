@@ -2,7 +2,17 @@ import {
   CloudBucketMount_BucketType,
   CloudBucketMount as CloudBucketMountProto,
 } from "../proto/modal_proto/api";
+import { getDefaultClient, type ModalClient } from "./client";
 import { Secret } from "./secret";
+
+export type CloudBucketMountParams = {
+  secret?: Secret;
+  readOnly?: boolean;
+  requesterPays?: boolean;
+  bucketEndpointUrl?: string;
+  keyPrefix?: string;
+  oidcAuthRoleArn?: string;
+};
 
 /** Cloud Bucket Mounts provide access to cloud storage buckets within Modal Functions. */
 export class CloudBucketMount {
@@ -14,17 +24,7 @@ export class CloudBucketMount {
   readonly keyPrefix?: string;
   readonly oidcAuthRoleArn?: string;
 
-  constructor(
-    bucketName: string,
-    params: {
-      secret?: Secret;
-      readOnly?: boolean;
-      requesterPays?: boolean;
-      bucketEndpointUrl?: string;
-      keyPrefix?: string;
-      oidcAuthRoleArn?: string;
-    } = {},
-  ) {
+  constructor(bucketName: string, params: CloudBucketMountParams = {}) {
     this.bucketName = bucketName;
     this.secret = params.secret;
     this.readOnly = params.readOnly ?? false;
@@ -55,6 +55,16 @@ export class CloudBucketMount {
         "keyPrefix will be prefixed to all object paths, so it must end in a '/'",
       );
     }
+  }
+
+  /**
+   * @deprecated Use {@link CloudBucketMountService#new client.cloudBucketMounts.new()} instead.
+   */
+  static new(
+    bucketName: string,
+    params: CloudBucketMountParams = {},
+  ): CloudBucketMount {
+    return getDefaultClient().cloudBucketMounts.new(bucketName, params);
   }
 }
 
@@ -90,4 +100,20 @@ export function cloudBucketMountToProto(
     keyPrefix: mount.keyPrefix,
     oidcAuthRoleArn: mount.oidcAuthRoleArn,
   };
+}
+
+/** Service for creating {@link CloudBucketMount} instances. */
+export class CloudBucketMountService {
+  readonly #client: ModalClient;
+
+  constructor(client: ModalClient) {
+    this.#client = client;
+  }
+
+  new(
+    bucketName: string,
+    params: CloudBucketMountParams = {},
+  ): CloudBucketMount {
+    return new CloudBucketMount(bucketName, params);
+  }
 }

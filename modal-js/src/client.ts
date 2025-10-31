@@ -20,6 +20,7 @@ import { QueueService } from "./queue";
 import { SandboxService } from "./sandbox";
 import { SecretService } from "./secret";
 import { VolumeService } from "./volume";
+import { CloudBucketMountService } from "./cloud_bucket_mount";
 
 import { ClientType, ModalClientDefinition } from "../proto/modal_proto/api";
 import { getProfile, type Profile } from "./config";
@@ -72,6 +73,7 @@ export class ModalClient {
   readonly sandboxes: SandboxService;
   readonly secrets: SecretService;
   readonly volumes: VolumeService;
+  readonly cloudBucketMounts: CloudBucketMountService;
 
   /** @ignore */
   readonly cpClient: ModalGrpcClient;
@@ -104,6 +106,7 @@ export class ModalClient {
     this.sandboxes = new SandboxService(this);
     this.secrets = new SecretService(this);
     this.volumes = new VolumeService(this);
+    this.cloudBucketMounts = new CloudBucketMountService(this);
   }
 
   environmentName(environment?: string): string {
