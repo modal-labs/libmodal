@@ -1,10 +1,27 @@
-import { CloudBucketMount, Secret } from "modal";
+import { ModalClient, Secret, CloudBucketMount } from "modal";
 import {
   cloudBucketMountToProto,
   endpointUrlToBucketType,
 } from "../../src/cloud_bucket_mount";
 import { CloudBucketMount_BucketType } from "../../proto/modal_proto/api";
 import { expect, test } from "vitest";
+
+// Test legacy static method (deprecated)
+test("CloudBucketMount.new() static method (deprecated)", () => {
+  const mount = CloudBucketMount.new("my-bucket");
+
+  expect(mount.bucketName).toBe("my-bucket");
+  expect(mount.readOnly).toBe(false);
+  expect(mount.requesterPays).toBe(false);
+  expect(mount.secret).toBeUndefined();
+  expect(mount.bucketEndpointUrl).toBeUndefined();
+  expect(mount.keyPrefix).toBeUndefined();
+  expect(mount.oidcAuthRoleArn).toBeUndefined();
+
+  expect(endpointUrlToBucketType(mount.bucketEndpointUrl)).toBe(
+    CloudBucketMount_BucketType.S3,
+  );
+});
 
 test("CloudBucketMount constructor with minimal options", () => {
   const mount = new CloudBucketMount("my-bucket");

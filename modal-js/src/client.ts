@@ -11,6 +11,7 @@ import {
   Status,
 } from "nice-grpc";
 import { AppService } from "./app";
+import { CloudBucketMountService } from "./cloud_bucket_mount";
 import { ClsService } from "./cls";
 import { FunctionService } from "./function";
 import { FunctionCallService } from "./function_call";
@@ -63,6 +64,7 @@ export type ModalGrpcClient = Client<
  */
 export class ModalClient {
   readonly apps: AppService;
+  readonly cloudBucketMounts: CloudBucketMountService;
   readonly cls: ClsService;
   readonly functions: FunctionService;
   readonly functionCalls: FunctionCallService;
@@ -95,6 +97,7 @@ export class ModalClient {
     this.cpClient = params?.cpClient ?? this.createClient(this.profile);
 
     this.apps = new AppService(this);
+    this.cloudBucketMounts = new CloudBucketMountService(this);
     this.cls = new ClsService(this);
     this.functions = new FunctionService(this);
     this.functionCalls = new FunctionCallService(this);
