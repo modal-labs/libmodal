@@ -1,5 +1,5 @@
 import { tc } from "../test-support/test-client";
-import { NotFoundError } from "modal";
+import { InvalidError, NotFoundError } from "modal";
 import { expect, test } from "vitest";
 import { createMockModalClients } from "../test-support/grpc_mock";
 import { Function_ } from "../src/function";
@@ -203,6 +203,32 @@ test("FunctionCallPreCborVersionError", async () => {
   // Represent Python kwargs.
   const promise = function_.remote([], { s: "hello" });
   await expect(promise).rejects.toThrowError(
-    /please redeploy it using Modal Python SDK version >= 1.2/,
+    /Redeploy with Modal Python SDK >= 1.2/,
+  );
+});
+
+test("WebEndpointRemoteCallError", async () => {
+  const function_ = await tc.functions.fromName(
+    "libmodal-test-support",
+    "web_endpoint_echo",
+  );
+
+  const promise = function_.remote(["hello"]);
+  await expect(promise).rejects.toThrowError(InvalidError);
+  await expect(promise).rejects.toThrowError(
+    /A webhook Function cannot be invoked for remote execution with '\.remote'/,
+  );
+});
+
+test("WebEndpointSpawnCallError", async () => {
+  const function_ = await tc.functions.fromName(
+    "libmodal-test-support",
+    "web_endpoint_echo",
+  );
+
+  const promise = function_.spawn(["hello"]);
+  await expect(promise).rejects.toThrowError(InvalidError);
+  await expect(promise).rejects.toThrowError(
+    /A webhook Function cannot be invoked for remote execution with '\.spawn'/,
   );
 });

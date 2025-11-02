@@ -127,11 +127,20 @@ export class Function_ {
     return await getDefaultClient().functions.fromName(appName, name, params);
   }
 
+  #checkNoWebUrl(fnName: string): void {
+    if (this.#handleMetadata?.webUrl) {
+      throw new InvalidError(
+        `A webhook Function cannot be invoked for remote execution with '.${fnName}'. Invoke this Function via its web url '${this.#handleMetadata.webUrl}' instead.`,
+      );
+    }
+  }
+
   // Execute a single input into a remote Function.
   async remote(
     args: any[] = [],
     kwargs: Record<string, any> = {},
   ): Promise<any> {
+    this.#checkNoWebUrl("remote");
     const input = await this.#createInput(args, kwargs);
     const invocation = await this.#createRemoteInvocation(input);
     // TODO(ryan): Add tests for retries.
@@ -173,6 +182,7 @@ export class Function_ {
     args: any[] = [],
     kwargs: Record<string, any> = {},
   ): Promise<FunctionCall> {
+    this.#checkNoWebUrl("spawn");
     const input = await this.#createInput(args, kwargs);
     const invocation = await ControlPlaneInvocation.create(
       this.#client,

@@ -57,3 +57,9 @@ class EchoClsParametrized:
     @modal.method()
     def echo_env_var(self, var_name: str) -> str:
         return f"output: {var_name}='{os.getenv(var_name, '[not set]')}'"
+
+
+@app.function(image=modal.Image.debian_slim().pip_install("fastapi"))
+@modal.fastapi_endpoint()
+def web_endpoint_echo(s: str) -> str:
+    return "output: " + s

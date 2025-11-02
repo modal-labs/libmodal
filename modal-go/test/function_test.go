@@ -43,7 +43,7 @@ func TestFunctionCallPreCborVersionError(t *testing.T) {
 	// Represent Python kwargs.
 	_, err = function.Remote(ctx, nil, map[string]any{"s": "hello"})
 	g.Expect(err).Should(gomega.HaveOccurred())
-	g.Expect(err.Error()).Should(gomega.ContainSubstring("please redeploy it using Modal Python SDK version >= 1.2"))
+	g.Expect(err.Error()).Should(gomega.ContainSubstring("Redeploy with Modal Python SDK >= 1.2"))
 }
 
 func TestFunctionCallGoMap(t *testing.T) {
@@ -315,6 +315,34 @@ func TestFunctionFromNameWithDotNotation(t *testing.T) {
 	_, err := tc.Functions.FromName(ctx, "libmodal-test-support", "MyClass.myMethod", nil)
 	g.Expect(err).Should(gomega.HaveOccurred())
 	g.Expect(err.Error()).To(gomega.Equal("cannot retrieve Cls methods using Functions.FromName(). Use:\n  cls, _ := client.Cls.FromName(ctx, \"libmodal-test-support\", \"MyClass\", nil)\n  instance, _ := cls.Instance(ctx, nil)\n  m, _ := instance.Method(\"myMethod\")"))
+}
+
+func TestWebEndpointRemoteCallError(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+
+	function, err := tc.Functions.FromName(ctx, "libmodal-test-support", "web_endpoint_echo", nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	_, err = function.Remote(ctx, []any{"hello"}, nil)
+	g.Expect(err).Should(gomega.HaveOccurred())
+	g.Expect(err).Should(gomega.BeAssignableToTypeOf(modal.InvalidError{}))
+	g.Expect(err.Error()).Should(gomega.ContainSubstring("A webhook Function cannot be invoked for remote execution with 'Remote'"))
+}
+
+func TestWebEndpointSpawnCallError(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+
+	function, err := tc.Functions.FromName(ctx, "libmodal-test-support", "web_endpoint_echo", nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	_, err = function.Spawn(ctx, []any{"hello"}, nil)
+	g.Expect(err).Should(gomega.HaveOccurred())
+	g.Expect(err).Should(gomega.BeAssignableToTypeOf(modal.InvalidError{}))
+	g.Expect(err.Error()).Should(gomega.ContainSubstring("A webhook Function cannot be invoked for remote execution with 'Spawn'"))
 }
 
 // compareFlexible compares two values with flexible type handling

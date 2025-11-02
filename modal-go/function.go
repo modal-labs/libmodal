@@ -245,8 +245,22 @@ func (f *Function) getWebURL() string {
 	return metadata.GetWebUrl()
 }
 
+func (f *Function) checkNoWebURL(fnName string) error {
+	webURL := f.getWebURL()
+	if webURL != "" {
+		return InvalidError{fmt.Sprintf(
+			"A webhook Function cannot be invoked for remote execution with '%s'. Invoke this Function via its web url '%s' instead",
+			fnName, webURL,
+		)}
+	}
+	return nil
+}
+
 // Remote executes a single input on a remote Function.
 func (f *Function) Remote(ctx context.Context, args []any, kwargs map[string]any) (any, error) {
+	if err := f.checkNoWebURL("Remote"); err != nil {
+		return nil, err
+	}
 	input, err := f.createInput(ctx, args, kwargs)
 	if err != nil {
 		return nil, err
@@ -292,6 +306,9 @@ func (f *Function) createRemoteInvocation(ctx context.Context, input *pb.Functio
 
 // Spawn starts running a single input on a remote Function.
 func (f *Function) Spawn(ctx context.Context, args []any, kwargs map[string]any) (*FunctionCall, error) {
+	if err := f.checkNoWebURL("Spawn"); err != nil {
+		return nil, err
+	}
 	input, err := f.createInput(ctx, args, kwargs)
 	if err != nil {
 		return nil, err

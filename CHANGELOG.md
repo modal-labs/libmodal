@@ -5,6 +5,7 @@ Both client libraries are pre-1.0, and they have separate versioning.
 ## Unreleased
 
 - All Go SDK functions that take a Context will respect the timeout of the context.
+- Improved the error message when calling a webhook Function as a normal Function.
 
 ## modal-js/v0.5.0, modal-go/v0.5.0
 
