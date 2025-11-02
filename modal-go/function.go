@@ -173,7 +173,7 @@ func (f *Function) createInput(ctx context.Context, args []any, kwargs map[strin
 
 	// Error if CBOR is not supported
 	if !cborSupported {
-		return nil, fmt.Errorf("the deployed Function does not support libmodal - please redeploy it using Modal Python SDK version >= 1.2")
+		return nil, fmt.Errorf("cannot call Modal Function from Go SDK since it was deployed with an incompatible Python SDK version. Redeploy with Modal Python SDK >= 1.2")
 	}
 
 	// Use CBOR encoding

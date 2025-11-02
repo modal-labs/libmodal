@@ -236,7 +236,7 @@ export class Function_ {
       // the remote function isn't cbor compatible for inputs
       // so we can error early
       throw new InvalidError(
-        "the deployed Function does not support libmodal - please redeploy it using Modal Python SDK version >= 1.2",
+        "cannot call Modal Function from JS SDK since it was deployed with an incompatible Python SDK version. Redeploy with Modal Python SDK >= 1.2",
       );
     }
     const payload = cborEncode([args, kwargs]);
