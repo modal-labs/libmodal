@@ -321,11 +321,9 @@ type ImageDeleteParams struct {
 
 // Delete deletes an Image by ID. Warning: This removes an *entire Image*, and cannot be undone.
 func (s *imageServiceImpl) Delete(ctx context.Context, imageID string, params *ImageDeleteParams) error {
-	image, err := s.FromID(ctx, imageID)
-	if err != nil {
-		return err
+	_, err := s.client.cpClient.ImageDelete(ctx, pb.ImageDeleteRequest_builder{ImageId: imageID}.Build())
+	if status, ok := status.FromError(err); ok && status.Code() == codes.NotFound {
+		return NotFoundError{fmt.Sprintf("Image '%s' not found", imageID)}
 	}
-
-	_, err = s.client.cpClient.ImageDelete(ctx, pb.ImageDeleteRequest_builder{ImageId: image.ImageID}.Build())
 	return err
 }
