@@ -120,8 +120,19 @@ export class ImageService {
    * Delete an {@link Image} by ID. Warning: This removes an *entire Image*, and cannot be undone.
    */
   async delete(imageId: string, _: ImageDeleteParams = {}): Promise<void> {
-    const image = await this.fromId(imageId);
-    await this.#client.cpClient.imageDelete({ imageId: image.imageId });
+    try {
+      await this.#client.cpClient.imageDelete({ imageId });
+    } catch (err) {
+      if (err instanceof ClientError && err.code === Status.NOT_FOUND)
+        throw new NotFoundError(err.details);
+      if (
+        err instanceof ClientError &&
+        err.code === Status.FAILED_PRECONDITION &&
+        err.details.includes("Could not find image with ID")
+      )
+        throw new NotFoundError(err.details);
+      throw err;
+    }
   }
 }
 
