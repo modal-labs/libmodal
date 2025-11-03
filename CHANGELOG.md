@@ -4,9 +4,14 @@ Both client libraries are pre-1.0, and they have separate versioning.
 
 ## Unreleased
 
+No unreleased changes.
+
+## modal-js/v0.5.1, modal-go/v0.5.1
+
 - All Go SDK functions that take a Context will respect the timeout of the context.
 - Improved the error message when calling a webhook Function as a normal Function.
 - Allow customizing the config file path via `MODAL_CONFIG_PATH` environment variable (defaults to `~/.modal.toml`).
+- Add support for passing `MODAL_LOGLEVEL=debug` environment variable to also log debug logs, incl. all GRPC calls, etc.
 
 ## modal-js/v0.5.0, modal-go/v0.5.0
 
