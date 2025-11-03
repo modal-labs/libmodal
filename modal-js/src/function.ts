@@ -136,6 +136,14 @@ export class Function_ {
     return await getDefaultClient().functions.fromName(appName, name, params);
   }
 
+  #checkNoWebUrl(fnName: string): void {
+    if (this.#handleMetadata?.webUrl) {
+      throw new InvalidError(
+        `A webhook Function cannot be invoked for remote execution with '.${fnName}'. Invoke this Function via its web url '${this.#handleMetadata.webUrl}' instead.`,
+      );
+    }
+  }
+
   // Execute a single input into a remote Function.
   async remote(
     args: any[] = [],
@@ -146,6 +154,7 @@ export class Function_ {
       "function_id",
       this.functionId,
     );
+    this.#checkNoWebUrl("remote");
     const input = await this.#createInput(args, kwargs);
     const invocation = await this.#createRemoteInvocation(input);
     // TODO(ryan): Add tests for retries.
@@ -205,6 +214,7 @@ export class Function_ {
       "function_id",
       this.functionId,
     );
+    this.#checkNoWebUrl("spawn");
     const input = await this.#createInput(args, kwargs);
     const invocation = await ControlPlaneInvocation.create(
       this.#client,
@@ -275,7 +285,7 @@ export class Function_ {
       // the remote function isn't cbor compatible for inputs
       // so we can error early
       throw new InvalidError(
-        "the deployed Function does not support libmodal - please redeploy it using Modal Python SDK version >= 1.2",
+        "cannot call Modal Function from JS SDK since it was deployed with an incompatible Python SDK version. Redeploy with Modal Python SDK >= 1.2",
       );
     }
     const payload = cborEncode([args, kwargs]);

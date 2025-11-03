@@ -5,7 +5,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 echo "Deploying 'libmodal_test_support.py'..."
-modal deploy libmodal_test_support.py
+modal deploy test_support.py
 
 echo "Deploying Secret 'libmodal-test-secret'..."
 modal secret create --force libmodal-test-secret \
