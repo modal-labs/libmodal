@@ -64,6 +64,8 @@ func (s *queueServiceImpl) Ephemeral(ctx context.Context, params *QueueEphemeral
 		return nil, err
 	}
 
+	s.client.logger.DebugContext(ctx, "Created ephemeral Queue", "queue_id", resp.GetQueueId())
+
 	ephemeralCtx, cancel := context.WithCancel(context.Background())
 	startEphemeralHeartbeat(ephemeralCtx, func() error {
 		_, err := s.client.cpClient.QueueHeartbeat(ephemeralCtx, pb.QueueHeartbeatRequest_builder{
@@ -117,6 +119,8 @@ func (s *queueServiceImpl) FromName(ctx context.Context, name string, params *Qu
 	if err != nil {
 		return nil, err
 	}
+
+	s.client.logger.DebugContext(ctx, "Retrieved Queue", "queue_id", resp.GetQueueId(), "queue_name", name)
 	return &Queue{
 		QueueID:         resp.GetQueueId(),
 		Name:            name,

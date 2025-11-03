@@ -55,6 +55,12 @@ export class QueueService {
       environmentName: this.#client.environmentName(params.environment),
     });
 
+    this.#client.logger.debug(
+      "Created ephemeral Queue",
+      "queue_id",
+      resp.queueId,
+    );
+
     const ephemeralHbManager = new EphemeralHeartbeatManager(() =>
       this.#client.cpClient.queueHeartbeat({ queueId: resp.queueId }),
     );
@@ -76,6 +82,13 @@ export class QueueService {
         : undefined,
       environmentName: this.#client.environmentName(params.environment),
     });
+    this.#client.logger.debug(
+      "Retrieved Queue",
+      "queue_id",
+      resp.queueId,
+      "queue_name",
+      name,
+    );
     return new Queue(this.#client, resp.queueId, name);
   }
 

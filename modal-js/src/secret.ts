@@ -37,6 +37,13 @@ export class SecretService {
         environmentName: this.#client.environmentName(params?.environment),
         requiredKeys: params?.requiredKeys ?? [],
       });
+      this.#client.logger.debug(
+        "Retrieved Secret",
+        "secret_id",
+        resp.secretId,
+        "secret_name",
+        name,
+      );
       return new Secret(resp.secretId, name);
     } catch (err) {
       if (err instanceof ClientError && err.code === Status.NOT_FOUND)
@@ -71,6 +78,11 @@ export class SecretService {
         envDict: entries as Record<string, string>,
         environmentName: this.#client.environmentName(params?.environment),
       });
+      this.#client.logger.debug(
+        "Created ephemeral Secret",
+        "secret_id",
+        resp.secretId,
+      );
       return new Secret(resp.secretId);
     } catch (err) {
       if (

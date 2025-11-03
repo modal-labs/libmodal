@@ -281,6 +281,8 @@ export class Image {
       return this;
     }
 
+    this.#client.logger.debug("Building image", "app_id", app.appId);
+
     let baseImageId: string | undefined;
 
     for (let i = 0; i < this.#layers.length; i++) {
@@ -376,6 +378,7 @@ export class Image {
       baseImageId = resp.imageId;
     }
     this.#imageId = baseImageId!;
+    this.#client.logger.debug("Image build completed", "image_id", baseImageId);
     return this;
   }
 
