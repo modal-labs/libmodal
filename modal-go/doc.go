@@ -12,7 +12,11 @@
 // handled in Python; this package is for calling and orchestrating them
 // from other projects.
 //
-// # Authentication
+// # Configuration
+//
+// The config file path can be customized via `MODAL_CONFIG_PATH` (defaults to `~/.modal.toml`).
+//
+// ## Authentication
 //
 // At runtime the SDK resolves credentials in this order:
 //
@@ -21,9 +25,7 @@
 //  2. A profile explicitly requested via `MODAL_PROFILE`
 //  3. A profile marked `active = true` in `~/.modal.toml`
 //
-// See `config.go` for the resolution logic.
-//
-// # Logging
+// ## Logging
 //
 // The SDK logging level can be controlled in multiple ways (in order of precedence):
 //

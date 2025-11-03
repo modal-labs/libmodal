@@ -35,14 +35,26 @@ type rawProfile struct {
 
 type config map[string]rawProfile
 
-// readConfigFile loads ~/.modal.toml, returning an empty config if the file
-// does not exist.
-func readConfigFile() (config, error) {
+func configFilePath() (string, error) {
+	if configPath := os.Getenv("MODAL_CONFIG_PATH"); configPath != "" {
+		return configPath, nil
+	}
+
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return nil, fmt.Errorf("cannot locate homedir: %w", err)
+		return "", fmt.Errorf("cannot locate homedir: %w", err)
 	}
-	path := filepath.Join(home, ".modal.toml")
+	return filepath.Join(home, ".modal.toml"), nil
+}
+
+// readConfigFile loads the Modal config file, returning an empty config if the file
+// does not exist.
+func readConfigFile() (config, error) {
+	path, err := configFilePath()
+	if err != nil {
+		return nil, err
+	}
+
 	content, err := os.ReadFile(path)
 	if errors.Is(err, os.ErrNotExist) {
 		return config{}, nil // silent absence is fine
