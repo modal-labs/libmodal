@@ -87,4 +87,5 @@ export { Proxy, ProxyService, type ProxyFromNameParams } from "./proxy";
 export { CloudBucketMount } from "./cloud_bucket_mount";
 export { ModalClient, type ModalClientParams } from "./client";
 export { type Profile } from "./config";
+export { type Logger, type LogLevel } from "./logger";
 export { checkForRenamedParams } from "./validation";

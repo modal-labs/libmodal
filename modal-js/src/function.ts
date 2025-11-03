@@ -67,6 +67,15 @@ export class FunctionService {
         objectTag: name,
         environmentName: this.#client.environmentName(params.environment),
       });
+      this.#client.logger.debug(
+        "Retrieved Function",
+        "function_id",
+        resp.functionId,
+        "app_name",
+        appName,
+        "function_name",
+        name,
+      );
       return new Function_(
         this.#client,
         resp.functionId,
@@ -140,6 +149,11 @@ export class Function_ {
     args: any[] = [],
     kwargs: Record<string, any> = {},
   ): Promise<any> {
+    this.#client.logger.debug(
+      "Executing function call",
+      "function_id",
+      this.functionId,
+    );
     this.#checkNoWebUrl("remote");
     const input = await this.#createInput(args, kwargs);
     const invocation = await this.#createRemoteInvocation(input);
@@ -147,9 +161,22 @@ export class Function_ {
     let retryCount = 0;
     while (true) {
       try {
-        return await invocation.awaitOutput();
+        const result = await invocation.awaitOutput();
+        this.#client.logger.debug(
+          "Function call completed",
+          "function_id",
+          this.functionId,
+        );
+        return result;
       } catch (err) {
         if (err instanceof InternalFailure && retryCount <= maxSystemRetries) {
+          this.#client.logger.debug(
+            "Retrying function call due to internal failure",
+            "function_id",
+            this.functionId,
+            "retry_count",
+            retryCount,
+          );
           await invocation.retry(retryCount);
           retryCount++;
         } else {
@@ -182,6 +209,11 @@ export class Function_ {
     args: any[] = [],
     kwargs: Record<string, any> = {},
   ): Promise<FunctionCall> {
+    this.#client.logger.debug(
+      "Spawning function call",
+      "function_id",
+      this.functionId,
+    );
     this.#checkNoWebUrl("spawn");
     const input = await this.#createInput(args, kwargs);
     const invocation = await ControlPlaneInvocation.create(
@@ -189,6 +221,13 @@ export class Function_ {
       this.functionId,
       input,
       FunctionCallInvocationType.FUNCTION_CALL_INVOCATION_TYPE_ASYNC,
+    );
+    this.#client.logger.debug(
+      "Function call spawned",
+      "function_id",
+      this.functionId,
+      "function_call_id",
+      invocation.functionCallId,
     );
     return new FunctionCall(this.#client, invocation.functionCallId);
   }
