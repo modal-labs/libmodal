@@ -6,8 +6,6 @@ import { NotFoundError } from "../src/errors";
 
 test("SecretFromName", async () => {
   const secret = await tc.secrets.fromName("libmodal-test-secret");
-  expect(secret).toBeDefined();
-  expect(secret.secretId).toBeDefined();
   expect(secret.secretId).toMatch(/^st-/);
   expect(secret.name).toBe("libmodal-test-secret");
 
@@ -21,7 +19,7 @@ test("SecretFromNameWithRequiredKeys", async () => {
   const secret = await tc.secrets.fromName("libmodal-test-secret", {
     requiredKeys: ["a", "b", "c"],
   });
-  expect(secret).toBeDefined();
+  expect(secret.secretId).toMatch(/^st-/);
 
   const promise = tc.secrets.fromName("libmodal-test-secret", {
     requiredKeys: ["a", "b", "c", "missing-key"],
@@ -33,7 +31,7 @@ test("SecretFromNameWithRequiredKeys", async () => {
 
 test("SecretFromObject", async () => {
   const secret = await tc.secrets.fromObject({ key: "value" });
-  expect(secret).toBeDefined();
+  expect(secret.secretId).toMatch(/^st-/);
 
   const app = await tc.apps.fromName("libmodal-test", {
     createIfMissing: true,

@@ -14,7 +14,6 @@ test("snapshotFilesystem", async () => {
   await sb.exec(["mkdir", "-p", "/tmp/testdir"]);
 
   const snapshotImage = await sb.snapshotFilesystem();
-  expect(snapshotImage).toBeDefined();
   expect(snapshotImage.imageId).toMatch(/^im-/);
 
   await sb.terminate();

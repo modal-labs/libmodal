@@ -7,8 +7,6 @@ test("Volume.fromName", async () => {
   const volume = await tc.volumes.fromName("libmodal-test-volume", {
     createIfMissing: true,
   });
-  expect(volume).toBeDefined();
-  expect(volume.volumeId).toBeDefined();
   expect(volume.volumeId).toMatch(/^vo-/);
   expect(volume.name).toBe("libmodal-test-volume");
 

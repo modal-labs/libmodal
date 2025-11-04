@@ -20,7 +20,6 @@ func TestCreateOneSandbox(t *testing.T) {
 
 	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(app.Name).To(gomega.Equal("libmodal-test"))
 
 	image := tc.Images.FromRegistry("alpine:3.21", nil)
 

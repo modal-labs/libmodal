@@ -22,7 +22,6 @@ func TestCreateSandboxWithProxy(t *testing.T) {
 
 	proxy, err := tc.Proxies.FromName(ctx, "libmodal-test-proxy", &modal.ProxyFromNameParams{Environment: "libmodal"})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(proxy.ProxyID).ShouldNot(gomega.BeEmpty())
 	g.Expect(strings.HasPrefix(proxy.ProxyID, "pr-")).To(gomega.BeTrue())
 
 	sb, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{

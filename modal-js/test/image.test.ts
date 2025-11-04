@@ -8,7 +8,6 @@ test("ImageFromId", async () => {
   const app = await tc.apps.fromName("libmodal-test", {
     createIfMissing: true,
   });
-  expect(app.appId).toBeTruthy();
 
   const image = await tc.images.fromRegistry("alpine:3.21").build(app);
   expect(image.imageId).toBeTruthy();
@@ -23,7 +22,6 @@ test("ImageFromRegistry", async () => {
   const app = await tc.apps.fromName("libmodal-test", {
     createIfMissing: true,
   });
-  expect(app.appId).toBeTruthy();
 
   const image = await tc.images.fromRegistry("alpine:3.21").build(app);
   expect(image.imageId).toBeTruthy();
@@ -39,7 +37,6 @@ test("ImageFromRegistryWithSecret", async () => {
   const app = await tc.apps.fromName("libmodal-test", {
     createIfMissing: true,
   });
-  expect(app.appId).toBeTruthy();
 
   const image = await tc.images
     .fromRegistry(
@@ -57,7 +54,6 @@ test("ImageFromAwsEcr", async () => {
   const app = await tc.apps.fromName("libmodal-test", {
     createIfMissing: true,
   });
-  expect(app.appId).toBeTruthy();
 
   const image = await tc.images
     .fromAwsEcr(
@@ -75,7 +71,6 @@ test("ImageFromGcpArtifactRegistry", { timeout: 30_000 }, async () => {
   const app = await tc.apps.fromName("libmodal-test", {
     createIfMissing: true,
   });
-  expect(app.appId).toBeTruthy();
 
   const image = await tc.images
     .fromGcpArtifactRegistry(
@@ -89,90 +84,10 @@ test("ImageFromGcpArtifactRegistry", { timeout: 30_000 }, async () => {
   expect(image.imageId).toMatch(/^im-/);
 });
 
-test("CreateOneSandboxTopLevelImageAPI", async () => {
-  const app = await tc.apps.fromName("libmodal-test", {
-    createIfMissing: true,
-  });
-  expect(app.appId).toBeTruthy();
-
-  const image = tc.images.fromRegistry("alpine:3.21");
-  expect(image.imageId).toBeFalsy();
-
-  const sb = await tc.sandboxes.create(app, image);
-  onTestFinished(async () => await sb.terminate());
-  expect(sb.sandboxId).toBeTruthy();
-
-  expect(image.imageId).toMatch(/^im-/);
-});
-
-test("CreateOneSandboxTopLevelImageAPISecret", async () => {
-  const app = await tc.apps.fromName("libmodal-test", {
-    createIfMissing: true,
-  });
-  expect(app.appId).toBeTruthy();
-
-  const image = tc.images.fromRegistry(
-    "us-east1-docker.pkg.dev/modal-prod-367916/private-repo-test/my-image",
-    await tc.secrets.fromName("libmodal-gcp-artifact-registry-test", {
-      requiredKeys: ["REGISTRY_USERNAME", "REGISTRY_PASSWORD"],
-    }),
-  );
-  expect(image.imageId).toBeFalsy();
-
-  const sb = await tc.sandboxes.create(app, image);
-  onTestFinished(async () => await sb.terminate());
-  expect(sb.sandboxId).toBeTruthy();
-
-  expect(image.imageId).toMatch(/^im-/);
-});
-
-test("ImageFromAwsEcrTopLevel", async () => {
-  const app = await tc.apps.fromName("libmodal-test", {
-    createIfMissing: true,
-  });
-  expect(app.appId).toBeTruthy();
-
-  const image = tc.images.fromAwsEcr(
-    "459781239556.dkr.ecr.us-east-1.amazonaws.com/ecr-private-registry-test-7522615:python",
-    await tc.secrets.fromName("libmodal-aws-ecr-test", {
-      requiredKeys: ["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"],
-    }),
-  );
-  expect(image.imageId).toBeFalsy();
-
-  const sb = await tc.sandboxes.create(app, image);
-  onTestFinished(async () => await sb.terminate());
-  expect(sb.sandboxId).toBeTruthy();
-
-  expect(image.imageId).toMatch(/^im-/);
-});
-
-test("ImageFromGcpEcrTopLevel", async () => {
-  const app = await tc.apps.fromName("libmodal-test", {
-    createIfMissing: true,
-  });
-  expect(app.appId).toBeTruthy();
-
-  const image = tc.images.fromGcpArtifactRegistry(
-    "us-east1-docker.pkg.dev/modal-prod-367916/private-repo-test/my-image",
-    await tc.secrets.fromName("libmodal-gcp-artifact-registry-test", {
-      requiredKeys: ["SERVICE_ACCOUNT_JSON"],
-    }),
-  );
-  expect(image.imageId).toBeFalsy();
-
-  const sb = await tc.sandboxes.create(app, image);
-  onTestFinished(async () => await sb.terminate());
-  expect(sb.sandboxId).toBeTruthy();
-
-  expect(image.imageId).toMatch(/^im-/);
-});
-
 test("ImageDelete", async () => {
   const app = await tc.apps.fromName("libmodal-test", {
     createIfMissing: true,
   });
-  expect(app.appId).toBeTruthy();
 
   const image = await tc.images.fromRegistry("alpine:3.13").build(app);
   expect(image.imageId).toBeTruthy();

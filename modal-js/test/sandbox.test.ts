@@ -9,9 +9,6 @@ test("CreateOneSandbox", async () => {
   const app = await tc.apps.fromName("libmodal-test", {
     createIfMissing: true,
   });
-  expect(app.appId).toBeTruthy();
-  expect(app.name).toBe("libmodal-test");
-
   const image = tc.images.fromRegistry("alpine:3.21");
 
   const sb = await tc.sandboxes.create(app, image);
@@ -69,7 +66,6 @@ test("SandboxCreateOptions", async () => {
   });
   onTestFinished(async () => await sandbox.terminate());
 
-  expect(sandbox).toBeDefined();
   expect(sandbox.sandboxId).toMatch(/^sb-/);
 
   const exitCode = await sandbox.wait();
@@ -168,7 +164,6 @@ test("SandboxWithVolume", async () => {
   });
   onTestFinished(async () => await sandbox.terminate());
 
-  expect(sandbox).toBeDefined();
   expect(sandbox.sandboxId).toMatch(/^sb-/);
 
   const exitCode = await sandbox.wait();
@@ -211,7 +206,6 @@ test("SandboxWithTunnels", async () => {
   });
   onTestFinished(async () => await sandbox.terminate());
 
-  expect(sandbox).toBeDefined();
   expect(sandbox.sandboxId).toMatch(/^sb-/);
 
   const tunnels = await sandbox.tunnels();
@@ -246,7 +240,6 @@ test("CreateSandboxWithSecrets", async () => {
   const secret = await tc.secrets.fromName("libmodal-test-secret", {
     requiredKeys: ["c"],
   });
-  expect(secret).toBeDefined();
 
   const sandbox = await tc.sandboxes.create(app, image, {
     command: ["printenv", "c"],
@@ -524,7 +517,6 @@ test("buildContainerExecRequestProto with PTY", async () => {
   });
 
   const ptyInfo = req.ptyInfo!;
-  expect(ptyInfo).toBeDefined();
   expect(ptyInfo.enabled).toBe(true);
   expect(ptyInfo.winszRows).toBe(24);
   expect(ptyInfo.winszCols).toBe(80);

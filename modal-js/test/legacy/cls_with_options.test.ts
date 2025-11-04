@@ -23,7 +23,6 @@ test("Cls.withOptions stacking", async () => {
   mock.handleUnary("FunctionBindParams", (req: any) => {
     expect(req).toMatchObject({ functionId: "fid" });
     const fo = req.functionOptions;
-    expect(fo).toBeDefined();
     expect(fo.timeoutSecs).toBe(60);
     expect(fo.resources).toBeDefined();
     expect(fo.resources.milliCpu).toBe(250);

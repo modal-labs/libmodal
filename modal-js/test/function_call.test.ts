@@ -8,26 +8,19 @@ test("FunctionSpawn", async () => {
     "echo_string",
   );
 
-  // Spawn function with kwargs.
   let functionCall = await function_.spawn([], { s: "hello" });
-  expect(functionCall.functionCallId).toBeDefined();
+  expect(functionCall.functionCallId).toMatch(/^fc-/);
 
-  // Get results after spawn.
   let resultKwargs = await functionCall.get();
   expect(resultKwargs).toBe("output: hello");
 
-  // Try the same again; same results should still be available.
   resultKwargs = await functionCall.get();
   expect(resultKwargs).toBe("output: hello");
 
-  // Function that takes a long time to complete.
   const sleep = await tc.functions.fromName("libmodal-test-support", "sleep");
-
-  // Spawn with long running input.
   functionCall = await sleep.spawn([], { t: 5 });
-  expect(functionCall.functionCallId).toBeDefined();
+  expect(functionCall.functionCallId).toMatch(/^fc-/);
 
-  // Getting outputs with timeout raises error.
   const promise = functionCall.get({ timeoutMs: 1000 }); // 1000ms
   await expect(promise).rejects.toThrowError(FunctionTimeoutError);
 });
@@ -42,6 +35,6 @@ test("FunctionCallGet0", async () => {
     FunctionTimeoutError,
   );
 
-  expect(await call.get()).toBe(null); // Wait for the function call to finish.
-  expect(await call.get({ timeoutMs: 0 })).toBe(null); // Now we can get the result.
+  expect(await call.get()).toBe(null);
+  expect(await call.get({ timeoutMs: 0 })).toBe(null);
 });
