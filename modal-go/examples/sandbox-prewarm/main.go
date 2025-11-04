@@ -5,6 +5,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 
 	"github.com/modal-labs/libmodal/modal-go"
@@ -28,7 +29,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Unable to build Image: %v", err)
 	}
-	log.Printf("Image has ID: %v", image.ImageID)
+	fmt.Printf("Image has ID: %v\n", image.ImageID)
 
 	// You can save the ImageId and create a new Image object that referes to it.
 	imageID := image.ImageID
@@ -48,5 +49,5 @@ func main() {
 			log.Fatalf("Failed to terminate Sandbox %s: %v", sb.SandboxID, err)
 		}
 	}()
-	log.Printf("Sandbox: %s\n", sb.SandboxID)
+	fmt.Printf("Sandbox: %s\n", sb.SandboxID)
 }

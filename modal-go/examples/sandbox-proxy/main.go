@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log"
 
@@ -26,7 +27,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to get Proxy: %v", err)
 	}
-	log.Printf("Using Proxy: %s", proxy.ProxyID)
+	fmt.Printf("Using Proxy: %s\n", proxy.ProxyID)
 
 	sb, err := mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
 		Proxy: proxy,
@@ -34,7 +35,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create sandbox: %v", err)
 	}
-	log.Printf("Created sandbox with proxy: %s", sb.SandboxID)
+	fmt.Printf("Created sandbox with proxy: %s\n", sb.SandboxID)
 	defer func() {
 		if err := sb.Terminate(context.Background()); err != nil {
 			log.Fatalf("Failed to terminate Sandbox %s: %v", sb.SandboxID, err)
@@ -51,5 +52,5 @@ func main() {
 		log.Fatalf("Failed to read IP output: %v", err)
 	}
 
-	log.Printf("External IP: %s", string(ip))
+	fmt.Printf("External IP: %s", string(ip))
 }

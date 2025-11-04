@@ -5,6 +5,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 
 	"github.com/modal-labs/libmodal/modal-go"
@@ -31,5 +32,5 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to get Function results: %v", err)
 	}
-	log.Println("Response:", ret)
+	fmt.Println("Response:", ret)
 }

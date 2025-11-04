@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log"
 
@@ -26,7 +27,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create Sandbox: %v", err)
 	}
-	log.Println("Started Sandbox:", sb.SandboxID)
+	fmt.Println("Started Sandbox:", sb.SandboxID)
 	defer func() {
 		if err := sb.Terminate(context.Background()); err != nil {
 			log.Fatalf("Failed to terminate Sandbox %s: %v", sb.SandboxID, err)
@@ -61,12 +62,12 @@ for i in range(50000):
 		log.Fatalf("Failed to read stderr: %v", err)
 	}
 
-	log.Printf("Got %d bytes stdout and %d bytes stderr\n", len(contentStdout), len(contentStderr))
+	fmt.Printf("Got %d bytes stdout and %d bytes stderr\n", len(contentStdout), len(contentStderr))
 	returnCode, err := p.Wait(ctx)
 	if err != nil {
 		log.Fatalf("Failed to wait for process completion: %v", err)
 	}
-	log.Println("Return code:", returnCode)
+	fmt.Println("Return code:", returnCode)
 
 	secret, err := mc.Secrets.FromName(ctx, "libmodal-test-secret", &modal.SecretFromNameParams{RequiredKeys: []string{"c"}})
 	if err != nil {
@@ -83,5 +84,5 @@ for i in range(50000):
 	if err != nil {
 		log.Fatalf("Failed to read stdout: %v", err)
 	}
-	log.Printf("Got environment variable c=%v", string(secretStdout))
+	fmt.Printf("Got environment variable c=%v", string(secretStdout))
 }

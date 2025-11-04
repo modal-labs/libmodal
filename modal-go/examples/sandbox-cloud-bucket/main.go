@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log"
 
@@ -52,12 +53,12 @@ func main() {
 		}
 	}()
 
-	log.Printf("S3 Sandbox: %s", sb.SandboxID)
+	fmt.Printf("S3 Sandbox: %s\n", sb.SandboxID)
 
 	output, err := io.ReadAll(sb.Stdout)
 	if err != nil {
 		log.Fatalf("Failed to read from Sandbox stdout: %v", err)
 	}
 
-	log.Printf("Sandbox directory listing of /mnt/s3-bucket:\n%s", string(output))
+	fmt.Printf("Sandbox directory listing of /mnt/s3-bucket:\n%s", string(output))
 }

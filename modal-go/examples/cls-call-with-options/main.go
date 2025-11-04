@@ -5,6 +5,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 
 	"github.com/modal-labs/libmodal/modal-go"
@@ -59,12 +60,12 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to call Cls method: %v", err)
 	}
-	log.Println(result)
+	fmt.Println(result)
 
 	// Call the Cls function with overrides, and confirm that the Secret is set.
 	result, err = methodWithOptions.Remote(ctx, []any{"SECRET_MESSAGE"}, nil)
 	if err != nil {
 		log.Fatalf("Failed to call Cls method with options: %v", err)
 	}
-	log.Println(result)
+	fmt.Println(result)
 }
