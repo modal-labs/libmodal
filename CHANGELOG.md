@@ -4,6 +4,10 @@ Both client libraries are pre-1.0, and they have separate versioning.
 
 ## Unreleased
 
+No unreleased changes.
+
+## modal-js/v0.5.2, modal-go/v0.5.2
+
 - Allow adding custom gRPC interceptors when creating a Modal client, to allow instrumentation, custom telemetry, etc.
 
 ## modal-js/v0.5.1, modal-go/v0.5.1
