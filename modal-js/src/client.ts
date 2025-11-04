@@ -37,6 +37,16 @@ export interface ModalClientParams {
   maxRetries?: number;
   logger?: Logger;
   logLevel?: LogLevel;
+  /**
+   * Custom gRPC middleware to be applied to all API calls.
+   * These middleware are appended after Modal's built-in middleware
+   * (authentication, retry logic, and timeouts), allowing you to add
+   * telemetry, tracing, or other observability features.
+   *
+   * Note that the Modal gRPC API is not considered a public API, and
+   * can change without warning.
+   */
+  grpcMiddleware?: ClientMiddleware[];
   /** @ignore */
   cpClient?: ModalGrpcClient;
 }
@@ -83,6 +93,7 @@ export class ModalClient {
 
   private ipClients: Map<string, ModalGrpcClient>;
   private authTokenManager: AuthTokenManager | null = null;
+  private customMiddleware: ClientMiddleware[];
 
   constructor(params?: ModalClientParams) {
     checkForRenamedParams(params, { timeout: "timeoutMs" });
@@ -105,6 +116,7 @@ export class ModalClient {
       this.profile.serverUrl,
     );
 
+    this.customMiddleware = params?.grpcMiddleware ?? [];
     this.ipClients = new Map();
     this.cpClient = params?.cpClient ?? this.createClient(this.profile);
 
@@ -165,11 +177,16 @@ export class ModalClient {
       "grpc.max_send_message_length": 100 * 1024 * 1024,
       "grpc-node.flow_control_window": 64 * 1024 * 1024,
     });
-    return createClientFactory()
+    let factory = createClientFactory()
       .use(this.authMiddleware(profile))
       .use(this.retryMiddleware())
-      .use(timeoutMiddleware)
-      .create(ModalClientDefinition, channel);
+      .use(timeoutMiddleware);
+
+    for (const middleware of this.customMiddleware) {
+      factory = factory.use(middleware);
+    }
+
+    return factory.create(ModalClientDefinition, channel);
   }
 
   /** Middleware to retry transient errors and timeouts for unary requests. */

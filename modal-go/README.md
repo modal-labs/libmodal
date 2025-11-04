@@ -33,6 +33,9 @@ export MODAL_TOKEN_ID=ak-NOTAREALTOKENSTRINGXYZ
 export MODAL_TOKEN_SECRET=as-FAKESECRETSTRINGABCDEF
 ```
 
+### Telemetry and Observability
+
+The Modal Go SDK supports custom gRPC interceptors for telemetry, tracing, and observability. You can add custom unary and stream interceptors to measure API call latency, trace requests, and integrate with observability tools like OpenTelemetry, DataDog, and others. See the [telemetry example](./examples/telemetry/main.go) for more details.
 
 ## Requirements
 
@@ -62,6 +65,7 @@ We also provide a number of examples:
 - [Mount a cloud bucket to a Sandbox](./examples/sandbox-cloud-bucket/main.go)
 - [Eagerly build an Image for a Sandbox](./examples/sandbox-prewarm/main.go)
 - [Building custom Images](./examples/image-building/main.go)
+- [Add telemetry and tracing with custom interceptors](./examples/telemetry/main.go)
 
 ## Support
 

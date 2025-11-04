@@ -50,6 +50,11 @@ We also provide a number of examples:
 - [Mount a cloud bucket to a Sandbox](https://github.com/modal-labs/libmodal/blob/main/modal-js/examples/sandbox-cloud-bucket.ts)
 - [Eagerly build an Image for a Sandbox](https://github.com/modal-labs/libmodal/blob/main/modal-js/examples/sandbox-prewarm.ts)
 - [Building custom Images](https://github.com/modal-labs/libmodal/blob/main/modal-js/examples/image-building.ts)
+- [Add telemetry and tracing with custom middleware](https://github.com/modal-labs/libmodal/blob/main/modal-js/examples/telemetry.ts)
+
+### Configuration
+
+The config file path can be customized via `MODAL_CONFIG_PATH` (defaults to `~/.modal.toml`).
 
 ### Authenticating with Modal
 
@@ -60,6 +65,10 @@ You also need to authenticate with Modal (see [Getting started](https://modal.co
 export MODAL_TOKEN_ID=ak-NOTAREALTOKENSTRINGXYZ
 export MODAL_TOKEN_SECRET=as-FAKESECRETSTRINGABCDEF
 ```
+
+### Telemetry and Observability
+
+The Modal JavaScript SDK supports custom gRPC middleware for telemetry, tracing, and observability. You can add custom middleware to measure API call latency, trace requests, and integrate with observability tools like OpenTelemetry, DataDog, and others. See the [telemetry example](https://github.com/modal-labs/libmodal/blob/main/modal-js/examples/telemetry.ts) for more details.
 
 ## Support
 
