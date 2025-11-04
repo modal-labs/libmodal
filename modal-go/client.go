@@ -53,16 +53,16 @@ type Client struct {
 	Secrets           SecretService
 	Volumes           VolumeService
 
-	config                   config
-	profile                  Profile
-	sdkVersion               string
-	logger                   *slog.Logger
-	cpClient                 pb.ModalClientClient            // control plane client
-	ipClients                map[string]pb.ModalClientClient // input plane clients
-	authTokenManager         *AuthTokenManager
-	customUnaryInterceptors  []grpc.UnaryClientInterceptor
-	customStreamInterceptors []grpc.StreamClientInterceptor
-	mu                       sync.RWMutex
+	config                       config
+	profile                      Profile
+	sdkVersion                   string
+	logger                       *slog.Logger
+	cpClient                     pb.ModalClientClient            // control plane client
+	ipClients                    map[string]pb.ModalClientClient // input plane clients
+	authTokenManager             *AuthTokenManager
+	additionalUnaryInterceptors  []grpc.UnaryClientInterceptor
+	additionalStreamInterceptors []grpc.StreamClientInterceptor
+	mu                           sync.RWMutex
 }
 
 // NewClient generates a new client with the default profile configuration read from environment variables and ~/.modal.toml.
@@ -130,13 +130,13 @@ func NewClientWithOptions(params *ClientParams) (*Client, error) {
 	}
 
 	c := &Client{
-		config:                   cfg,
-		profile:                  profile,
-		sdkVersion:               sdkVersion(),
-		logger:                   logger,
-		ipClients:                make(map[string]pb.ModalClientClient),
-		customUnaryInterceptors:  params.GRPCUnaryInterceptors,
-		customStreamInterceptors: params.GRPCStreamInterceptors,
+		config:                       cfg,
+		profile:                      profile,
+		sdkVersion:                   sdkVersion(),
+		logger:                       logger,
+		ipClients:                    make(map[string]pb.ModalClientClient),
+		additionalUnaryInterceptors:  params.GRPCUnaryInterceptors,
+		additionalStreamInterceptors: params.GRPCStreamInterceptors,
 	}
 
 	logger.Debug("Initializing Modal client", "version", sdkVersion(), "server_url", profile.ServerURL)
@@ -144,7 +144,7 @@ func NewClientWithOptions(params *ClientParams) (*Client, error) {
 	if params.ControlPlaneClient != nil {
 		c.cpClient = params.ControlPlaneClient
 	} else {
-		_, c.cpClient, err = newClient(profile, c, c.customUnaryInterceptors, c.customStreamInterceptors)
+		_, c.cpClient, err = newClient(profile, c, c.additionalUnaryInterceptors, c.additionalStreamInterceptors)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to create control plane client: %w", err)
@@ -192,7 +192,7 @@ func (c *Client) ipClient(serverURL string) (pb.ModalClientClient, error) {
 	c.logger.Debug("Creating input plane client", "server_url", serverURL)
 	prof := c.profile
 	prof.ServerURL = serverURL
-	_, client, err := newClient(prof, c, c.customUnaryInterceptors, c.customStreamInterceptors)
+	_, client, err := newClient(prof, c, c.additionalUnaryInterceptors, c.additionalStreamInterceptors)
 	if err != nil {
 		return nil, err
 	}
