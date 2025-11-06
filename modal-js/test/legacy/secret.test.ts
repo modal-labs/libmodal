@@ -33,7 +33,7 @@ test("SecretFromObject", async () => {
   expect(secret).toBeDefined();
 
   const app = await App.lookup("libmodal-test", { createIfMissing: true });
-  const image = await Image.fromRegistry("alpine:3.21");
+  const image = Image.fromRegistry("alpine:3.21");
 
   const sandbox = await app.createSandbox(image, {
     command: ["printenv", "key"],

@@ -89,7 +89,7 @@ test("CreateOneSandboxTopLevelImageAPISecret", async () => {
   const app = await App.lookup("libmodal-test", { createIfMissing: true });
   expect(app.appId).toBeTruthy();
 
-  const image = await Image.fromRegistry(
+  const image = Image.fromRegistry(
     "us-east1-docker.pkg.dev/modal-prod-367916/private-repo-test/my-image",
     await Secret.fromName("libmodal-gcp-artifact-registry-test", {
       requiredKeys: ["REGISTRY_USERNAME", "REGISTRY_PASSWORD"],
@@ -108,7 +108,7 @@ test("ImageFromAwsEcrTopLevel", async () => {
   const app = await App.lookup("libmodal-test", { createIfMissing: true });
   expect(app.appId).toBeTruthy();
 
-  const image = await Image.fromAwsEcr(
+  const image = Image.fromAwsEcr(
     "459781239556.dkr.ecr.us-east-1.amazonaws.com/ecr-private-registry-test-7522615:python",
     await Secret.fromName("libmodal-aws-ecr-test", {
       requiredKeys: ["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"],
@@ -127,7 +127,7 @@ test("ImageFromGcpEcrTopLevel", async () => {
   const app = await App.lookup("libmodal-test", { createIfMissing: true });
   expect(app.appId).toBeTruthy();
 
-  const image = await Image.fromGcpArtifactRegistry(
+  const image = Image.fromGcpArtifactRegistry(
     "us-east1-docker.pkg.dev/modal-prod-367916/private-repo-test/my-image",
     await Secret.fromName("libmodal-gcp-artifact-registry-test", {
       requiredKeys: ["SERVICE_ACCOUNT_JSON"],

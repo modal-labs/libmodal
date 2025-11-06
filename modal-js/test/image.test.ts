@@ -59,7 +59,7 @@ test("ImageFromAwsEcr", async () => {
   });
   expect(app.appId).toBeTruthy();
 
-  const image = await app.imageFromAwsEcr(
+  const image = tc.images.fromAwsEcr(
     "459781239556.dkr.ecr.us-east-1.amazonaws.com/ecr-private-registry-test-7522615:python",
     await tc.secrets.fromName("libmodal-aws-ecr-test", {
       requiredKeys: ["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"],
@@ -75,7 +75,7 @@ test("ImageFromGcpArtifactRegistry", { timeout: 30_000 }, async () => {
   });
   expect(app.appId).toBeTruthy();
 
-  const image = await app.imageFromGcpArtifactRegistry(
+  const image = tc.images.fromGcpArtifactRegistry(
     "us-east1-docker.pkg.dev/modal-prod-367916/private-repo-test/my-image",
     await tc.secrets.fromName("libmodal-gcp-artifact-registry-test", {
       requiredKeys: ["SERVICE_ACCOUNT_JSON"],
@@ -107,7 +107,7 @@ test("CreateOneSandboxTopLevelImageAPISecret", async () => {
   });
   expect(app.appId).toBeTruthy();
 
-  const image = await tc.images.fromRegistry(
+  const image = tc.images.fromRegistry(
     "us-east1-docker.pkg.dev/modal-prod-367916/private-repo-test/my-image",
     await tc.secrets.fromName("libmodal-gcp-artifact-registry-test", {
       requiredKeys: ["REGISTRY_USERNAME", "REGISTRY_PASSWORD"],
@@ -128,7 +128,7 @@ test("ImageFromAwsEcrTopLevel", async () => {
   });
   expect(app.appId).toBeTruthy();
 
-  const image = await tc.images.fromAwsEcr(
+  const image = tc.images.fromAwsEcr(
     "459781239556.dkr.ecr.us-east-1.amazonaws.com/ecr-private-registry-test-7522615:python",
     await tc.secrets.fromName("libmodal-aws-ecr-test", {
       requiredKeys: ["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"],
@@ -149,7 +149,7 @@ test("ImageFromGcpEcrTopLevel", async () => {
   });
   expect(app.appId).toBeTruthy();
 
-  const image = await tc.images.fromGcpArtifactRegistry(
+  const image = tc.images.fromGcpArtifactRegistry(
     "us-east1-docker.pkg.dev/modal-prod-367916/private-repo-test/my-image",
     await tc.secrets.fromName("libmodal-gcp-artifact-registry-test", {
       requiredKeys: ["SERVICE_ACCOUNT_JSON"],
