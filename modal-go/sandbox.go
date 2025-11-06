@@ -874,21 +874,37 @@ func (cps *cpStdin) Close() error {
 	return err
 }
 
+// cancelOnCloseReader is used to cancel background goroutines when the stream is closed.
+type cancelOnCloseReader struct {
+	io.ReadCloser
+	cancel context.CancelFunc
+}
+
+func (r *cancelOnCloseReader) Close() error {
+	r.cancel()
+	return r.ReadCloser.Close()
+}
+
 func outputStreamSb(cpClient pb.ModalClientClient, sandboxID string, fd pb.FileDescriptor) io.ReadCloser {
 	pr, pw := nio.Pipe(buffer.New(64 * 1024))
+	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
 		defer pw.Close()
+		defer cancel()
 		lastIndex := "0-0"
 		completed := false
 		retries := 10
 		for !completed {
-			stream, err := cpClient.SandboxGetLogs(context.Background(), pb.SandboxGetLogsRequest_builder{
+			stream, err := cpClient.SandboxGetLogs(ctx, pb.SandboxGetLogsRequest_builder{
 				SandboxId:      sandboxID,
 				FileDescriptor: fd,
 				Timeout:        55,
 				LastEntryId:    lastIndex,
 			}.Build())
 			if err != nil {
+				if ctx.Err() != nil {
+					return
+				}
 				if isRetryableGrpc(err) && retries > 0 {
 					retries--
 					continue
@@ -899,6 +915,9 @@ func outputStreamSb(cpClient pb.ModalClientClient, sandboxID string, fd pb.FileD
 			for {
 				batch, err := stream.Recv()
 				if err != nil {
+					if ctx.Err() != nil {
+						return
+					}
 					if err != io.EOF {
 						if isRetryableGrpc(err) && retries > 0 {
 							retries--
@@ -921,18 +940,20 @@ func outputStreamSb(cpClient pb.ModalClientClient, sandboxID string, fd pb.FileD
 			}
 		}
 	}()
-	return pr
+	return &cancelOnCloseReader{ReadCloser: pr, cancel: cancel}
 }
 
 func outputStreamCp(cpClient pb.ModalClientClient, execID string, fd pb.FileDescriptor) io.ReadCloser {
 	pr, pw := nio.Pipe(buffer.New(64 * 1024))
+	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
 		defer pw.Close()
+		defer cancel()
 		var lastIndex uint64
 		completed := false
 		retries := 10
 		for !completed {
-			stream, err := cpClient.ContainerExecGetOutput(context.Background(), pb.ContainerExecGetOutputRequest_builder{
+			stream, err := cpClient.ContainerExecGetOutput(ctx, pb.ContainerExecGetOutputRequest_builder{
 				ExecId:         execID,
 				FileDescriptor: fd,
 				Timeout:        55,
@@ -940,6 +961,9 @@ func outputStreamCp(cpClient pb.ModalClientClient, execID string, fd pb.FileDesc
 				LastBatchIndex: lastIndex,
 			}.Build())
 			if err != nil {
+				if ctx.Err() != nil {
+					return
+				}
 				if isRetryableGrpc(err) && retries > 0 {
 					retries--
 					continue
@@ -950,6 +974,9 @@ func outputStreamCp(cpClient pb.ModalClientClient, execID string, fd pb.FileDesc
 			for {
 				batch, err := stream.Recv()
 				if err != nil {
+					if ctx.Err() != nil {
+						return
+					}
 					if err != io.EOF {
 						if isRetryableGrpc(err) && retries > 0 {
 							retries--
@@ -972,5 +999,5 @@ func outputStreamCp(cpClient pb.ModalClientClient, execID string, fd pb.FileDesc
 			}
 		}
 	}()
-	return pr
+	return &cancelOnCloseReader{ReadCloser: pr, cancel: cancel}
 }
