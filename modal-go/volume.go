@@ -13,6 +13,7 @@ import (
 type VolumeService interface {
 	FromName(ctx context.Context, name string, params *VolumeFromNameParams) (*Volume, error)
 	Ephemeral(ctx context.Context, params *VolumeEphemeralParams) (*Volume, error)
+	Delete(ctx context.Context, name string, params *VolumeDeleteParams) error
 }
 
 type volumeServiceImpl struct{ client *Client }
@@ -79,6 +80,12 @@ type VolumeEphemeralParams struct {
 	Environment string
 }
 
+// VolumeDeleteParams are options for client.Volumes.Delete.
+type VolumeDeleteParams struct {
+	Environment  string
+	AllowMissing bool
+}
+
 // Ephemeral creates a nameless, temporary Volume, that persists until CloseEphemeral is called, or the process exits.
 func (s *volumeServiceImpl) Ephemeral(ctx context.Context, params *VolumeEphemeralParams) (*Volume, error) {
 	if params == nil {
@@ -119,4 +126,36 @@ func (v *Volume) CloseEphemeral() {
 		// used with `defer` like CloseEphemeral should not return errors.
 		panic(fmt.Sprintf("Volume %s is not ephemeral", v.VolumeID))
 	}
+}
+
+// Delete deletes a named Volume.
+//
+// Warning: Deletion is irreversible and will affect any Apps currently using the Volume.
+func (s *volumeServiceImpl) Delete(ctx context.Context, name string, params *VolumeDeleteParams) error {
+	if params == nil {
+		params = &VolumeDeleteParams{}
+	}
+
+	volume, err := s.FromName(ctx, name, &VolumeFromNameParams{
+		Environment:     params.Environment,
+		CreateIfMissing: false,
+	})
+
+	if err != nil {
+		if _, ok := err.(NotFoundError); ok && params.AllowMissing {
+			return nil
+		}
+		return err
+	}
+
+	_, err = s.client.cpClient.VolumeDelete(ctx, pb.VolumeDeleteRequest_builder{
+		VolumeId: volume.VolumeID,
+	}.Build())
+
+	if err != nil {
+		return err
+	}
+
+	s.client.logger.DebugContext(ctx, "Deleted Volume", "volume_name", name)
+	return nil
 }

@@ -15,6 +15,12 @@ export type VolumeEphemeralParams = {
   environment?: string;
 };
 
+/** Optional parameters for {@link VolumeService#delete client.volumes.delete()}. */
+export type VolumeDeleteParams = {
+  environment?: string;
+  allowMissing?: boolean;
+};
+
 /**
  * Service for managing {@link Volume}s.
  *
@@ -78,6 +84,29 @@ export class VolumeService {
     );
 
     return new Volume(resp.volumeId, undefined, false, ephemeralHbManager);
+  }
+
+  /**
+   * Delete a named {@link Volume}.
+   *
+   * Warning: Deletion is irreversible and will affect any Apps currently using the Volume.
+   */
+  async delete(name: string, params?: VolumeDeleteParams): Promise<void> {
+    try {
+      const volume = await this.fromName(name, {
+        environment: params?.environment,
+        createIfMissing: false,
+      });
+      await this.#client.cpClient.volumeDelete({
+        volumeId: volume.volumeId,
+      });
+      this.#client.logger.debug("Deleted Volume", "volume_name", name);
+    } catch (err) {
+      if (err instanceof NotFoundError && params?.allowMissing) {
+        return;
+      }
+      throw err;
+    }
   }
 }
 
