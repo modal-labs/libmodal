@@ -104,9 +104,19 @@ export class QueueService {
         environment: params.environment,
       });
       await this.#client.cpClient.queueDelete({ queueId: queue.queueId });
-      this.#client.logger.debug("Deleted Queue", "queue_name", name, "queue_id", queue.queueId);
+      this.#client.logger.debug(
+        "Deleted Queue",
+        "queue_name",
+        name,
+        "queue_id",
+        queue.queueId,
+      );
     } catch (err) {
-      if (err instanceof ClientError && err.code === Status.NOT_FOUND && params.allowMissing) {
+      if (
+        err instanceof ClientError &&
+        err.code === Status.NOT_FOUND &&
+        params.allowMissing
+      ) {
         return;
       }
       throw err;
