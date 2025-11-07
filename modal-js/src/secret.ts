@@ -14,6 +14,12 @@ export type SecretFromObjectParams = {
   environment?: string;
 };
 
+/** Optional parameters for {@link SecretService#delete client.secrets.delete()}. */
+export type SecretDeleteParams = {
+  environment?: string;
+  allowMissing?: boolean;
+};
+
 /**
  * Service for managing {@link Secret Secrets}.
  *
@@ -91,6 +97,28 @@ export class SecretService {
           err.code === Status.FAILED_PRECONDITION)
       )
         throw new InvalidError(err.details);
+      throw err;
+    }
+  }
+
+  /**
+   * Delete a named {@link Secret}.
+   *
+   * Warning: Deletion is irreversible and will affect any Apps currently using the Secret.
+   */
+  async delete(name: string, params?: SecretDeleteParams): Promise<void> {
+    try {
+      const secret = await this.fromName(name, {
+        environment: params?.environment,
+      });
+      await this.#client.cpClient.secretDelete({
+        secretId: secret.secretId,
+      });
+      this.#client.logger.debug("Deleted Secret", "secret_name", name);
+    } catch (err) {
+      if (err instanceof NotFoundError && params?.allowMissing) {
+        return;
+      }
       throw err;
     }
   }
