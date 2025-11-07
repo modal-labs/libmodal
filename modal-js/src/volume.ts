@@ -100,7 +100,7 @@ export class VolumeService {
       await this.#client.cpClient.volumeDelete({
         volumeId: volume.volumeId,
       });
-      this.#client.logger.debug("Deleted Volume", "volume_name", name);
+      this.#client.logger.debug("Deleted Volume", "volume_name", name, "volume_id", volume.volumeId);
     } catch (err) {
       if (err instanceof NotFoundError && params?.allowMissing) {
         return;

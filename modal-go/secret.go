@@ -104,7 +104,7 @@ func (s *secretServiceImpl) Delete(ctx context.Context, name string, params *Sec
 		return err
 	}
 
-	s.client.logger.DebugContext(ctx, "Deleted Secret", "secret_name", name)
+	s.client.logger.DebugContext(ctx, "Deleted Secret", "secret_name", name, "secret_id", secret.SecretID)
 	return nil
 }
 

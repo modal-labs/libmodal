@@ -156,6 +156,6 @@ func (s *volumeServiceImpl) Delete(ctx context.Context, name string, params *Vol
 		return err
 	}
 
-	s.client.logger.DebugContext(ctx, "Deleted Volume", "volume_name", name)
+	s.client.logger.DebugContext(ctx, "Deleted Volume", "volume_name", name, "volume_id", volume.VolumeID)
 	return nil
 }

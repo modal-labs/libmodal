@@ -160,7 +160,7 @@ func (s *queueServiceImpl) Delete(ctx context.Context, name string, params *Queu
 		return err
 	}
 
-	s.client.logger.DebugContext(ctx, "Deleted Queue", "queue_name", name)
+	s.client.logger.DebugContext(ctx, "Deleted Queue", "queue_name", name, "queue_id", q.QueueID)
 	return nil
 }
 

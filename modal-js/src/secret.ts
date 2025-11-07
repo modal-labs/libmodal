@@ -114,7 +114,7 @@ export class SecretService {
       await this.#client.cpClient.secretDelete({
         secretId: secret.secretId,
       });
-      this.#client.logger.debug("Deleted Secret", "secret_name", name);
+      this.#client.logger.debug("Deleted Secret", "secret_name", name, "secret_id", secret.secretId);
     } catch (err) {
       if (err instanceof NotFoundError && params?.allowMissing) {
         return;
