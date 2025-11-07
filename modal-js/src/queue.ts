@@ -23,6 +23,7 @@ export type QueueFromNameParams = {
 /** Optional parameters for {@link QueueService#delete client.queues.delete()}. */
 export type QueueDeleteParams = {
   environment?: string;
+  allowMissing?: boolean;
 };
 
 /** Optional parameters for {@link QueueService#ephemeral client.queues.ephemeral()}. */
@@ -94,10 +95,22 @@ export class QueueService {
 
   /**
    * Delete a {@link Queue} by name.
+   *
+   * Warning: Deletion is irreversible and will affect any Apps currently using the Queue.
    */
   async delete(name: string, params: QueueDeleteParams = {}): Promise<void> {
-    const queue = await this.fromName(name, params);
-    await this.#client.cpClient.queueDelete({ queueId: queue.queueId });
+    try {
+      const queue = await this.fromName(name, {
+        environment: params.environment,
+      });
+      await this.#client.cpClient.queueDelete({ queueId: queue.queueId });
+      this.#client.logger.debug("Deleted Queue", "queue_name", name);
+    } catch (err) {
+      if (err instanceof ClientError && err.code === Status.NOT_FOUND && params.allowMissing) {
+        return;
+      }
+      throw err;
+    }
   }
 }
 
