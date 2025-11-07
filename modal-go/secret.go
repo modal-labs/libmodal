@@ -2,8 +2,11 @@ package modal
 
 import (
 	"context"
+	"fmt"
 
 	pb "github.com/modal-labs/libmodal/modal-go/proto/modal_proto"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // SecretService provides Secret related operations.
@@ -39,6 +42,9 @@ func (s *secretServiceImpl) FromName(ctx context.Context, name string, params *S
 		RequiredKeys:    params.RequiredKeys,
 	}.Build())
 
+	if status, ok := status.FromError(err); ok && status.Code() == codes.NotFound {
+		return nil, NotFoundError{fmt.Sprintf("Secret '%s' not found", name)}
+	}
 	if err != nil {
 		return nil, err
 	}

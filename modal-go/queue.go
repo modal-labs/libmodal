@@ -116,6 +116,10 @@ func (s *queueServiceImpl) FromName(ctx context.Context, name string, params *Qu
 		EnvironmentName:    environmentName(params.Environment, s.client.profile),
 		ObjectCreationType: creationType,
 	}.Build())
+
+	if status, ok := status.FromError(err); ok && status.Code() == codes.NotFound {
+		return nil, NotFoundError{fmt.Sprintf("Queue '%s' not found", name)}
+	}
 	if err != nil {
 		return nil, err
 	}
