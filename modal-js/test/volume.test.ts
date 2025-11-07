@@ -1,5 +1,7 @@
 import { tc } from "../test-support/test-client";
 import { expect, test } from "vitest";
+import { createMockModalClients } from "../test-support/grpc_mock";
+import { NotFoundError } from "../src/errors";
 
 test("Volume.fromName", async () => {
   const volume = await tc.volumes.fromName("libmodal-test-volume", {
@@ -38,4 +40,44 @@ test("VolumeEphemeral", async () => {
   expect(volume.isReadOnly).toBe(false);
   expect(volume.readOnly().isReadOnly).toBe(true);
   volume.closeEphemeral();
+});
+
+test("VolumeDelete success", async () => {
+  const { mockClient: mc, mockCpClient: mock } = createMockModalClients();
+
+  mock.handleUnary("/VolumeGetOrCreate", () => ({
+    volumeId: "vo-test-123",
+    metadata: { name: "test-volume" },
+  }));
+
+  mock.handleUnary("/VolumeDelete", (req: any) => {
+    expect(req.volumeId).toBe("vo-test-123");
+    return {};
+  });
+
+  await mc.volumes.delete("test-volume");
+  mock.assertExhausted();
+});
+
+test("VolumeDelete with allowMissing=true", async () => {
+  const { mockClient: mc, mockCpClient: mock } = createMockModalClients();
+
+  mock.handleUnary("/VolumeGetOrCreate", () => {
+    throw new NotFoundError("Volume 'missing' not found");
+  });
+
+  await mc.volumes.delete("missing", { allowMissing: true });
+  mock.assertExhausted();
+});
+
+test("VolumeDelete with allowMissing=false throws", async () => {
+  const { mockClient: mc, mockCpClient: mock } = createMockModalClients();
+
+  mock.handleUnary("/VolumeGetOrCreate", () => {
+    throw new NotFoundError("Volume 'missing' not found");
+  });
+
+  await expect(
+    mc.volumes.delete("missing", { allowMissing: false }),
+  ).rejects.toThrow(NotFoundError);
 });

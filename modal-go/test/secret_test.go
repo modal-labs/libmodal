@@ -6,7 +6,10 @@ import (
 	"testing"
 
 	"github.com/modal-labs/libmodal/modal-go"
+	"github.com/modal-labs/libmodal/modal-go/internal/grpcmock"
+	pb "github.com/modal-labs/libmodal/modal-go/proto/modal_proto"
 	"github.com/onsi/gomega"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 func TestSecretFromName(t *testing.T) {
@@ -60,4 +63,83 @@ func TestSecretFromMap(t *testing.T) {
 	output, err := io.ReadAll(sb.Stdout)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(string(output)).To(gomega.Equal("value\n"))
+}
+
+func TestSecretDeleteSuccess(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+
+	mock := grpcmock.NewMockClient()
+	defer func() {
+		g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
+	}()
+
+	grpcmock.HandleUnary(
+		mock, "/SecretGetOrCreate",
+		func(req *pb.SecretGetOrCreateRequest) (*pb.SecretGetOrCreateResponse, error) {
+			return pb.SecretGetOrCreateResponse_builder{
+				SecretId: "st-test-123",
+			}.Build(), nil
+		},
+	)
+
+	grpcmock.HandleUnary(
+		mock, "/SecretDelete",
+		func(req *pb.SecretDeleteRequest) (*emptypb.Empty, error) {
+			g.Expect(req.GetSecretId()).To(gomega.Equal("st-test-123"))
+			return &emptypb.Empty{}, nil
+		},
+	)
+
+	err := mock.Secrets.Delete(ctx, "test-secret", nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+}
+
+func TestSecretDeleteWithAllowMissing(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+
+	mock := grpcmock.NewMockClient()
+	defer func() {
+		g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
+	}()
+
+	grpcmock.HandleUnary(
+		mock, "/SecretGetOrCreate",
+		func(req *pb.SecretGetOrCreateRequest) (*pb.SecretGetOrCreateResponse, error) {
+			return nil, modal.NotFoundError{Exception: "Secret 'missing' not found"}
+		},
+	)
+
+	err := mock.Secrets.Delete(ctx, "missing", &modal.SecretDeleteParams{
+		AllowMissing: true,
+	})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+}
+
+func TestSecretDeleteWithAllowMissingFalseThrows(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+
+	mock := grpcmock.NewMockClient()
+	defer func() {
+		g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
+	}()
+
+	grpcmock.HandleUnary(
+		mock, "/SecretGetOrCreate",
+		func(req *pb.SecretGetOrCreateRequest) (*pb.SecretGetOrCreateResponse, error) {
+			return nil, modal.NotFoundError{Exception: "Secret 'missing' not found"}
+		},
+	)
+
+	err := mock.Secrets.Delete(ctx, "missing", &modal.SecretDeleteParams{
+		AllowMissing: false,
+	})
+	g.Expect(err).Should(gomega.HaveOccurred())
+	var notFoundErr modal.NotFoundError
+	g.Expect(err).Should(gomega.BeAssignableToTypeOf(notFoundErr))
 }
