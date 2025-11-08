@@ -4,7 +4,7 @@ Both client libraries are pre-1.0, and they have separate versioning.
 
 ## Unreleased
 
-No unreleased changes.
+- Fixed a bug in modal-go where `Sandbox.Exec` would leak goroutines.
 
 ## modal-js/v0.5.2, modal-go/v0.5.2
 
