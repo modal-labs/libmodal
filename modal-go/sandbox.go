@@ -352,8 +352,16 @@ func defaultSandboxPTYInfo() *pb.PTYInfo {
 func newSandbox(client *Client, sandboxID string) *Sandbox {
 	sb := &Sandbox{SandboxID: sandboxID, client: client}
 	sb.Stdin = inputStreamSb(client.cpClient, sandboxID)
-	sb.Stdout = outputStreamSb(client.cpClient, sandboxID, pb.FileDescriptor_FILE_DESCRIPTOR_STDOUT)
-	sb.Stderr = outputStreamSb(client.cpClient, sandboxID, pb.FileDescriptor_FILE_DESCRIPTOR_STDERR)
+	sb.Stdout = &lazyStreamReader{
+		initFunc: func() io.ReadCloser {
+			return outputStreamSb(client.cpClient, sandboxID, pb.FileDescriptor_FILE_DESCRIPTOR_STDOUT)
+		},
+	}
+	sb.Stderr = &lazyStreamReader{
+		initFunc: func() io.ReadCloser {
+			return outputStreamSb(client.cpClient, sandboxID, pb.FileDescriptor_FILE_DESCRIPTOR_STDERR)
+		},
+	}
 	return sb
 }
 
@@ -768,12 +776,20 @@ func newContainerProcess(cpClient pb.ModalClientClient, execID string, params Sa
 	if stdoutBehavior == Ignore {
 		cp.Stdout = io.NopCloser(bytes.NewReader(nil))
 	} else {
-		cp.Stdout = outputStreamCp(cpClient, execID, pb.FileDescriptor_FILE_DESCRIPTOR_STDOUT)
+		cp.Stdout = &lazyStreamReader{
+			initFunc: func() io.ReadCloser {
+				return outputStreamCp(cpClient, execID, pb.FileDescriptor_FILE_DESCRIPTOR_STDOUT)
+			},
+		}
 	}
 	if stderrBehavior == Ignore {
 		cp.Stderr = io.NopCloser(bytes.NewReader(nil))
 	} else {
-		cp.Stderr = outputStreamCp(cpClient, execID, pb.FileDescriptor_FILE_DESCRIPTOR_STDERR)
+		cp.Stderr = &lazyStreamReader{
+			initFunc: func() io.ReadCloser {
+				return outputStreamCp(cpClient, execID, pb.FileDescriptor_FILE_DESCRIPTOR_STDERR)
+			},
+		}
 	}
 
 	return cp
@@ -883,6 +899,32 @@ type cancelOnCloseReader struct {
 func (r *cancelOnCloseReader) Close() error {
 	r.cancel()
 	return r.ReadCloser.Close()
+}
+
+// lazyStreamReader defers stream initialization until the first read, preventing goroutine
+// leaks for unused streams. Without lazy initialization, output stream goroutines are created
+// eagerly and block on stream.Recv() calls.
+type lazyStreamReader struct {
+	once     sync.Once
+	reader   io.ReadCloser
+	initFunc func() io.ReadCloser
+}
+
+func (l *lazyStreamReader) Read(p []byte) (n int, err error) {
+	l.once.Do(func() {
+		l.reader = l.initFunc()
+	})
+	return l.reader.Read(p)
+}
+
+func (l *lazyStreamReader) Close() error {
+	l.once.Do(func() {
+		l.reader = io.NopCloser(bytes.NewReader(nil))
+	})
+	if l.reader != nil {
+		return l.reader.Close()
+	}
+	return nil
 }
 
 func outputStreamSb(cpClient pb.ModalClientClient, sandboxID string, fd pb.FileDescriptor) io.ReadCloser {

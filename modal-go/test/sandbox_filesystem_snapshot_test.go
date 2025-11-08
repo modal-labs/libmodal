@@ -11,7 +11,7 @@ import (
 )
 
 func TestSnapshotFilesystem(t *testing.T) {
-	t.Parallel()
+	parallelOrCheckLeaks(t)
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
