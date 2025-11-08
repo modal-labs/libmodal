@@ -765,15 +765,15 @@ func newContainerProcess(cpClient pb.ModalClientClient, execID string, params Sa
 	cp := &ContainerProcess{execID: execID, cpClient: cpClient}
 	cp.Stdin = inputStreamCp(cpClient, execID)
 
-	cp.Stdout = outputStreamCp(cpClient, execID, pb.FileDescriptor_FILE_DESCRIPTOR_STDOUT)
 	if stdoutBehavior == Ignore {
-		cp.Stdout.Close()
 		cp.Stdout = io.NopCloser(bytes.NewReader(nil))
+	} else {
+		cp.Stdout = outputStreamCp(cpClient, execID, pb.FileDescriptor_FILE_DESCRIPTOR_STDOUT)
 	}
-	cp.Stderr = outputStreamCp(cpClient, execID, pb.FileDescriptor_FILE_DESCRIPTOR_STDERR)
 	if stderrBehavior == Ignore {
-		cp.Stderr.Close()
 		cp.Stderr = io.NopCloser(bytes.NewReader(nil))
+	} else {
+		cp.Stderr = outputStreamCp(cpClient, execID, pb.FileDescriptor_FILE_DESCRIPTOR_STDERR)
 	}
 
 	return cp

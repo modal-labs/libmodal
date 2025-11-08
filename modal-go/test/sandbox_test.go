@@ -675,7 +675,6 @@ func TestNoGoroutineLeaksWithIgnoredOutput(t *testing.T) {
 	}
 
 	for _, tt := range testCases {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			g := gomega.NewWithT(t)
 			ctx := context.Background()
@@ -711,8 +710,10 @@ func TestNoGoroutineLeaksWithIgnoredOutput(t *testing.T) {
 			runtime.GC()
 			time.Sleep(500 * time.Millisecond)
 
-			finalGoroutines := runtime.NumGoroutine()
-			g.Expect(finalGoroutines).To(gomega.Equal(initialGoroutines))
+			g.Eventually(func() int {
+				runtime.GC()
+				return runtime.NumGoroutine()
+			}, 5*time.Second, 100*time.Millisecond).Should(gomega.Equal(initialGoroutines))
 		})
 	}
 }
