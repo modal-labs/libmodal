@@ -266,7 +266,6 @@ func (image *Image) Build(ctx context.Context, app *App) (*Image, error) {
 				}
 
 				streamCtx, cancel := context.WithCancel(ctx)
-				defer cancel()
 
 				stream, err := image.client.cpClient.ImageJoinStreaming(streamCtx, pb.ImageJoinStreamingRequest_builder{
 					ImageId:     resp.GetImageId(),
@@ -274,6 +273,7 @@ func (image *Image) Build(ctx context.Context, app *App) (*Image, error) {
 					LastEntryId: lastEntryID,
 				}.Build())
 				if err != nil {
+					cancel()
 					return nil, err
 				}
 				for {
@@ -282,6 +282,7 @@ func (image *Image) Build(ctx context.Context, app *App) (*Image, error) {
 						if err == io.EOF {
 							break
 						}
+						cancel()
 						return nil, err
 					}
 					if item.GetEntryId() != "" {
@@ -293,6 +294,7 @@ func (image *Image) Build(ctx context.Context, app *App) (*Image, error) {
 					}
 					// Ignore all log lines and progress updates.
 				}
+				cancel()
 			}
 		}
 
