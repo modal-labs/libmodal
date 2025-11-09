@@ -8,6 +8,7 @@ import (
 )
 
 func TestSandboxCreateRequestProto_WithoutPTY(t *testing.T) {
+	t.Parallel()
 	g := gomega.NewWithT(t)
 
 	req, err := buildSandboxCreateRequestProto("app-123", "img-456", SandboxCreateParams{})
@@ -19,6 +20,7 @@ func TestSandboxCreateRequestProto_WithoutPTY(t *testing.T) {
 }
 
 func TestSandboxCreateRequestProto_WithPTY(t *testing.T) {
+	t.Parallel()
 	g := gomega.NewWithT(t)
 
 	req, err := buildSandboxCreateRequestProto("app-123", "img-456", SandboxCreateParams{
@@ -64,6 +66,7 @@ func TestContainerExecProto_WithPTY(t *testing.T) {
 }
 
 func TestSandboxCreateRequestProto_WithCPUAndCPULimit(t *testing.T) {
+	t.Parallel()
 	g := gomega.NewWithT(t)
 
 	req, err := buildSandboxCreateRequestProto("app-123", "img-456", SandboxCreateParams{
@@ -78,6 +81,7 @@ func TestSandboxCreateRequestProto_WithCPUAndCPULimit(t *testing.T) {
 }
 
 func TestSandboxCreateRequestProto_CPULimitLowerThanCPU(t *testing.T) {
+	t.Parallel()
 	g := gomega.NewWithT(t)
 
 	_, err := buildSandboxCreateRequestProto("app-123", "img-456", SandboxCreateParams{
@@ -89,6 +93,7 @@ func TestSandboxCreateRequestProto_CPULimitLowerThanCPU(t *testing.T) {
 }
 
 func TestSandboxCreateRequestProto_CPULimitWithoutCPU(t *testing.T) {
+	t.Parallel()
 	g := gomega.NewWithT(t)
 
 	_, err := buildSandboxCreateRequestProto("app-123", "img-456", SandboxCreateParams{
@@ -99,6 +104,7 @@ func TestSandboxCreateRequestProto_CPULimitWithoutCPU(t *testing.T) {
 }
 
 func TestSandboxCreateRequestProto_WithMemoryAndMemoryLimit(t *testing.T) {
+	t.Parallel()
 	g := gomega.NewWithT(t)
 
 	req, err := buildSandboxCreateRequestProto("app-123", "img-456", SandboxCreateParams{
@@ -113,6 +119,7 @@ func TestSandboxCreateRequestProto_WithMemoryAndMemoryLimit(t *testing.T) {
 }
 
 func TestSandboxCreateRequestProto_MemoryLimitLowerThanMemory(t *testing.T) {
+	t.Parallel()
 	g := gomega.NewWithT(t)
 
 	_, err := buildSandboxCreateRequestProto("app-123", "img-456", SandboxCreateParams{
@@ -124,6 +131,7 @@ func TestSandboxCreateRequestProto_MemoryLimitLowerThanMemory(t *testing.T) {
 }
 
 func TestSandboxCreateRequestProto_MemoryLimitWithoutMemory(t *testing.T) {
+	t.Parallel()
 	g := gomega.NewWithT(t)
 
 	_, err := buildSandboxCreateRequestProto("app-123", "img-456", SandboxCreateParams{
@@ -134,6 +142,7 @@ func TestSandboxCreateRequestProto_MemoryLimitWithoutMemory(t *testing.T) {
 }
 
 func TestSandboxCreateRequestProto_NegativeCPU(t *testing.T) {
+	t.Parallel()
 	g := gomega.NewWithT(t)
 
 	_, err := buildSandboxCreateRequestProto("app-123", "img-456", SandboxCreateParams{
@@ -144,6 +153,7 @@ func TestSandboxCreateRequestProto_NegativeCPU(t *testing.T) {
 }
 
 func TestSandboxCreateRequestProto_NegativeMemory(t *testing.T) {
+	t.Parallel()
 	g := gomega.NewWithT(t)
 
 	_, err := buildSandboxCreateRequestProto("app-123", "img-456", SandboxCreateParams{
