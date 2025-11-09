@@ -44,6 +44,7 @@ func createTestJWT(expiry int64) string {
 }
 
 func TestAuthTokenManager_DecodeJWT(t *testing.T) {
+	t.Parallel()
 	g := gomega.NewWithT(t)
 
 	mockClient := newMockAuthClient()
@@ -61,6 +62,7 @@ func TestAuthTokenManager_DecodeJWT(t *testing.T) {
 
 // Setting the initial token and having it cached.
 func TestAuthTokenManager_InitialFetch(t *testing.T) {
+	t.Parallel()
 	g := gomega.NewWithT(t)
 
 	mockClient := newMockAuthClient()
@@ -82,6 +84,7 @@ func TestAuthTokenManager_InitialFetch(t *testing.T) {
 }
 
 func TestAuthTokenManager_IsExpired(t *testing.T) {
+	t.Parallel()
 	g := gomega.NewWithT(t)
 
 	manager := modal.NewAuthTokenManager(nil, slog.Default())
@@ -97,6 +100,7 @@ func TestAuthTokenManager_IsExpired(t *testing.T) {
 
 // Refreshing an expired token. Unlikely to occur since we refresh in background before expiry.
 func TestAuthTokenManager_RefreshExpiredToken(t *testing.T) {
+	t.Parallel()
 	g := gomega.NewWithT(t)
 
 	mockClient := newMockAuthClient()
@@ -121,6 +125,7 @@ func TestAuthTokenManager_RefreshExpiredToken(t *testing.T) {
 }
 
 func TestAuthTokenManager_RefreshNearExpiryToken(t *testing.T) {
+	t.Parallel()
 	g := gomega.NewWithT(t)
 
 	mockClient := newMockAuthClient()
@@ -146,6 +151,7 @@ func TestAuthTokenManager_RefreshNearExpiryToken(t *testing.T) {
 
 // Should error out if no valid token is available.
 func TestAuthTokenManager_GetToken_ExpiredToken(t *testing.T) {
+	t.Parallel()
 	g := gomega.NewWithT(t)
 
 	mockClient := newMockAuthClient()
@@ -156,6 +162,7 @@ func TestAuthTokenManager_GetToken_ExpiredToken(t *testing.T) {
 }
 
 func TestClient_Close(t *testing.T) {
+	t.Parallel()
 	g := gomega.NewWithT(t)
 
 	mockClient := newMockAuthClient()
@@ -171,6 +178,7 @@ func TestClient_Close(t *testing.T) {
 }
 
 func TestClient_MultipleInstancesSeparateManagers(t *testing.T) {
+	t.Parallel()
 	g := gomega.NewWithT(t)
 
 	mockClient1 := newMockAuthClient()

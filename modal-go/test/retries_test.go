@@ -9,6 +9,7 @@ import (
 )
 
 func TestRetriesConstructor(t *testing.T) {
+	t.Parallel()
 	g := gomega.NewWithT(t)
 
 	backoff := float32(2.0)
