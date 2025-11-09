@@ -265,7 +265,10 @@ func (image *Image) Build(ctx context.Context, app *App) (*Image, error) {
 					return nil, err
 				}
 
-				stream, err := image.client.cpClient.ImageJoinStreaming(ctx, pb.ImageJoinStreamingRequest_builder{
+				streamCtx, cancel := context.WithCancel(ctx)
+				defer cancel()
+
+				stream, err := image.client.cpClient.ImageJoinStreaming(streamCtx, pb.ImageJoinStreamingRequest_builder{
 					ImageId:     resp.GetImageId(),
 					Timeout:     55,
 					LastEntryId: lastEntryID,
