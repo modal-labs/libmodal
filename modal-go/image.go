@@ -200,20 +200,22 @@ func (image *Image) waitForBuildIteration(ctx context.Context, imageID string, l
 		item, err := stream.Recv()
 		if err != nil {
 			if err == io.EOF {
-				break
+				return nil, lastEntryID, nil
 			}
 			return nil, lastEntryID, err
 		}
 		if item.GetEntryId() != "" {
 			lastEntryID = item.GetEntryId()
 		}
-		if item.GetResult() != nil && item.GetResult().GetStatus() != pb.GenericResult_GENERIC_STATUS_UNSPECIFIED {
-			return item.GetResult(), lastEntryID, nil
-		}
-		// Ignore all log lines and progress updates.
-	}
+		res := item.GetResult()
 
-	return nil, lastEntryID, nil
+		// Ignore all log lines and progress updates.
+		if res == nil || res.GetStatus() == pb.GenericResult_GENERIC_STATUS_UNSPECIFIED {
+			continue
+		}
+
+		return res, lastEntryID, nil
+	}
 }
 
 // Build eagerly builds an Image on Modal.
