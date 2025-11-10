@@ -269,11 +269,13 @@ func TestDockerfileCommandsCopyCommandValidation(t *testing.T) {
 }
 
 func TestDockerfileCommandsWithOptions(t *testing.T) {
+	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
 	mock := grpcmock.NewMockClient()
 	defer func() {
+		mock.Close()
 		g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
 	}()
 

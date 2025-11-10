@@ -68,6 +68,10 @@ We check the generated protobuf files into Git so that the package can be instal
   - durations should NOT be suffixed, since they have type `time.Duration`
   - memory should be suffixed with `MiB`, e.g. `memoryMiB` instead of `memory`
 
+### Testing
+
+We use [goleak](https://github.com/uber-go/goleak) for goroutine leak detection, enabled by passing `-check-leaks` to `go test`. To identify which specific test is leaking, use [goleaks recommended method to find them](https://github.com/uber-go/goleak/?tab=readme-ov-file#determine-source-of-package-leaks), then use `go test -run` to run individual tests.
+
 ## How to publish
 
 1. Ensure all changes are captured in the ["Unreleased" section of the `CHANGELOG.md`](https://github.com/modal-labs/libmodal/blob/main/CHANGELOG.md#unreleased).

@@ -87,8 +87,11 @@ func runFilesystemExec(ctx context.Context, cpClient pb.ModalClientClient, req *
 	retries := 10
 	totalRead := 0
 
+	streamCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	for {
-		outputIterator, err := cpClient.ContainerFilesystemExecGetOutput(ctx, pb.ContainerFilesystemExecGetOutputRequest_builder{
+		outputIterator, err := cpClient.ContainerFilesystemExecGetOutput(streamCtx, pb.ContainerFilesystemExecGetOutputRequest_builder{
 			ExecId:  resp.GetExecId(),
 			Timeout: 55,
 		}.Build())

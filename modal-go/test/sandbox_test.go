@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"math/rand"
-	"runtime"
 	"testing"
 	"time"
 
@@ -646,74 +645,4 @@ func TestNamedSandboxNotFound(t *testing.T) {
 	_, err := tc.Sandboxes.FromName(ctx, "libmodal-test", "non-existent-sandbox", nil)
 	g.Expect(err).Should(gomega.HaveOccurred())
 	g.Expect(err.Error()).To(gomega.ContainSubstring("not found"))
-}
-
-func TestNoGoroutineLeaksWithIgnoredOutput(t *testing.T) {
-	testCases := []struct {
-		name      string
-		params    *modal.SandboxExecParams
-		afterExec func(*gomega.WithT, *modal.ContainerProcess)
-	}{
-		{
-			name: "with modal.Ignore",
-			params: &modal.SandboxExecParams{
-				Stdout: modal.Ignore,
-				Stderr: modal.Ignore,
-			},
-			afterExec: func(g *gomega.WithT, p *modal.ContainerProcess) {},
-		},
-		{
-			name:   "with explicit Close",
-			params: &modal.SandboxExecParams{},
-			afterExec: func(g *gomega.WithT, p *modal.ContainerProcess) {
-				err := p.Stdout.Close()
-				g.Expect(err).ShouldNot(gomega.HaveOccurred())
-				err = p.Stderr.Close()
-				g.Expect(err).ShouldNot(gomega.HaveOccurred())
-			},
-		},
-	}
-
-	for _, tt := range testCases {
-		t.Run(tt.name, func(t *testing.T) {
-			g := gomega.NewWithT(t)
-			ctx := context.Background()
-
-			app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
-			g.Expect(err).ShouldNot(gomega.HaveOccurred())
-
-			image := tc.Images.FromRegistry("alpine:3.21", nil)
-
-			runtime.GC()
-			time.Sleep(100 * time.Millisecond)
-			initialGoroutines := runtime.NumGoroutine()
-
-			sb, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
-				Command: []string{"sh", "-c", "echo 'test output'; sleep 1"},
-			})
-			g.Expect(err).ShouldNot(gomega.HaveOccurred())
-			defer terminateSandbox(g, sb)
-
-			p, err := sb.Exec(ctx, []string{"echo", "exec output"}, tt.params)
-			g.Expect(err).ShouldNot(gomega.HaveOccurred())
-
-			tt.afterExec(g, p)
-
-			exitCode, err := p.Wait(ctx)
-			g.Expect(err).ShouldNot(gomega.HaveOccurred())
-			g.Expect(exitCode).To(gomega.Equal(0))
-
-			sandboxExitCode, err := sb.Wait(ctx)
-			g.Expect(err).ShouldNot(gomega.HaveOccurred())
-			g.Expect(sandboxExitCode).To(gomega.Equal(0))
-
-			runtime.GC()
-			time.Sleep(500 * time.Millisecond)
-
-			g.Eventually(func() int {
-				runtime.GC()
-				return runtime.NumGoroutine()
-			}, 5*time.Second, 100*time.Millisecond).Should(gomega.Equal(initialGoroutines))
-		})
-	}
 }
