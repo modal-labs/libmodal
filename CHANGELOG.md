@@ -6,6 +6,7 @@ Both client libraries are pre-1.0, and they have separate versioning.
 
 - Enabled [goleak](https://github.com/uber-go/goleak) for goroutine leak detection in tests. See [DEVELOPING.md](./DEVELOPING.md) for details.
 - Fixed all detected goroutine leaks in Sandboxes and Images.
+- Added deletion methods for `Volume` and `Secret` objects and updated the deletion methods on `Queue` objects to support idempotent deletion via the `allowMissing` parameter.
 
 ## modal-js/v0.5.3, modal-go/v0.5.3
 
