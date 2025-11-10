@@ -3,6 +3,7 @@ package test
 import (
 	"context"
 	"flag"
+	"fmt"
 	"net/http"
 	"os"
 	"testing"
@@ -35,15 +36,21 @@ func (w *testMainWrapper) Run() int {
 }
 
 // checkLeaks enables package-level goroutine leak detection using goleak.VerifyTestMain.
-// This approach works with t.Parallel() tests.
-var checkLeaks = flag.Bool("check-leaks", false, "enable package-level goroutine leak detection (works with t.Parallel() tests)")
+var checkLeaks = flag.Bool("check-leaks", true, "enable package-level goroutine leak detection")
 
 func TestMain(m *testing.M) {
 	flag.Parse()
 
 	wrapper := &testMainWrapper{m: m}
+
 	if *checkLeaks {
 		var goleakOptions []goleak.Option
+		goleakOptions = append(goleakOptions, goleak.Cleanup(func(exitCode int) {
+			if exitCode == 0 {
+				fmt.Println("goleak: no goroutine leaks detected.")
+			}
+			os.Exit(exitCode)
+		}))
 
 		goleak.VerifyTestMain(wrapper, goleakOptions...)
 	} else {

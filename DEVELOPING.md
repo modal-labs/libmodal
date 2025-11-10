@@ -70,7 +70,7 @@ We check the generated protobuf files into Git so that the package can be instal
 
 ### Testing
 
-We use [goleak](https://github.com/uber-go/goleak) for goroutine leak detection, enabled by passing `-check-leaks` to `go test`. To identify which specific test is leaking, use [goleaks recommended method to find them](https://github.com/uber-go/goleak/?tab=readme-ov-file#determine-source-of-package-leaks), then use `go test -run` to run individual tests.
+We use [goleak](https://github.com/uber-go/goleak) for goroutine leak detection, enabled by default. You can disable it with `go test -check-leaks=false`. To identify which specific test is leaking, use [goleaks recommended method to find them](https://github.com/uber-go/goleak/?tab=readme-ov-file#determine-source-of-package-leaks), then use `go test -run` to run individual tests.
 
 ## How to publish
 
