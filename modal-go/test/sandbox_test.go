@@ -13,7 +13,7 @@ import (
 )
 
 func TestCreateOneSandbox(t *testing.T) {
-	parallelOrCheckLeaks(t)
+	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
@@ -37,7 +37,7 @@ func TestCreateOneSandbox(t *testing.T) {
 }
 
 func TestPassCatToStdin(t *testing.T) {
-	parallelOrCheckLeaks(t)
+	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
@@ -61,7 +61,7 @@ func TestPassCatToStdin(t *testing.T) {
 }
 
 func TestIgnoreLargeStdout(t *testing.T) {
-	parallelOrCheckLeaks(t)
+	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
@@ -88,7 +88,7 @@ func TestIgnoreLargeStdout(t *testing.T) {
 }
 
 func TestSandboxCreateOptions(t *testing.T) {
-	parallelOrCheckLeaks(t)
+	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
@@ -129,7 +129,7 @@ func TestSandboxCreateOptions(t *testing.T) {
 }
 
 func TestSandboxExecOptions(t *testing.T) {
-	parallelOrCheckLeaks(t)
+	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
@@ -159,7 +159,7 @@ func TestSandboxExecOptions(t *testing.T) {
 }
 
 func TestSandboxWithVolume(t *testing.T) {
-	parallelOrCheckLeaks(t)
+	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
@@ -191,7 +191,7 @@ func TestSandboxWithVolume(t *testing.T) {
 }
 
 func TestSandboxWithReadOnlyVolume(t *testing.T) {
-	parallelOrCheckLeaks(t)
+	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
@@ -229,7 +229,7 @@ func TestSandboxWithReadOnlyVolume(t *testing.T) {
 }
 
 func TestSandboxWithTunnels(t *testing.T) {
-	parallelOrCheckLeaks(t)
+	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
@@ -277,7 +277,7 @@ func TestSandboxWithTunnels(t *testing.T) {
 }
 
 func TestCreateSandboxWithSecrets(t *testing.T) {
-	parallelOrCheckLeaks(t)
+	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
@@ -297,7 +297,7 @@ func TestCreateSandboxWithSecrets(t *testing.T) {
 	g.Expect(string(output)).To(gomega.Equal("hello world\n"))
 }
 func TestSandboxPollAndReturnCode(t *testing.T) {
-	parallelOrCheckLeaks(t)
+	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
@@ -330,7 +330,7 @@ func TestSandboxPollAndReturnCode(t *testing.T) {
 }
 
 func TestSandboxPollAfterFailure(t *testing.T) {
-	parallelOrCheckLeaks(t)
+	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
@@ -355,7 +355,7 @@ func TestSandboxPollAfterFailure(t *testing.T) {
 }
 
 func TestCreateSandboxWithNetworkAccessParams(t *testing.T) {
-	parallelOrCheckLeaks(t)
+	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
@@ -397,7 +397,7 @@ func TestCreateSandboxWithNetworkAccessParams(t *testing.T) {
 }
 
 func TestSandboxExecSecret(t *testing.T) {
-	parallelOrCheckLeaks(t)
+	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
@@ -425,7 +425,7 @@ func TestSandboxExecSecret(t *testing.T) {
 }
 
 func TestSandboxFromId(t *testing.T) {
-	parallelOrCheckLeaks(t)
+	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
@@ -446,7 +446,7 @@ func TestSandboxFromId(t *testing.T) {
 }
 
 func TestSandboxWithWorkdir(t *testing.T) {
-	parallelOrCheckLeaks(t)
+	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
@@ -478,7 +478,7 @@ func TestSandboxWithWorkdir(t *testing.T) {
 }
 
 func TestSandboxSetTagsAndList(t *testing.T) {
-	parallelOrCheckLeaks(t)
+	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
@@ -516,7 +516,7 @@ func TestSandboxSetTagsAndList(t *testing.T) {
 }
 
 func TestSandboxTags(t *testing.T) {
-	parallelOrCheckLeaks(t)
+	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
@@ -573,7 +573,7 @@ func TestSandboxTags(t *testing.T) {
 }
 
 func TestSandboxListByAppId(t *testing.T) {
-	parallelOrCheckLeaks(t)
+	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
@@ -601,7 +601,7 @@ func TestSandboxListByAppId(t *testing.T) {
 }
 
 func TestNamedSandbox(t *testing.T) {
-	parallelOrCheckLeaks(t)
+	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
@@ -638,7 +638,7 @@ func TestNamedSandbox(t *testing.T) {
 }
 
 func TestNamedSandboxNotFound(t *testing.T) {
-	parallelOrCheckLeaks(t)
+	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 

@@ -12,7 +12,7 @@ import (
 )
 
 func TestImageFromId(t *testing.T) {
-	parallelOrCheckLeaks(t)
+	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
@@ -31,7 +31,7 @@ func TestImageFromId(t *testing.T) {
 }
 
 func TestImageFromRegistry(t *testing.T) {
-	parallelOrCheckLeaks(t)
+	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
@@ -49,7 +49,7 @@ func TestImageFromRegistryWithSecret(t *testing.T) {
 	// https://cloud.google.com/artifact-registry/docs/docker/authentication#json-key
 	// So we use GCP Artifact Registry to test this too.
 
-	parallelOrCheckLeaks(t)
+	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
@@ -69,7 +69,7 @@ func TestImageFromRegistryWithSecret(t *testing.T) {
 }
 
 func TestImageFromAwsEcr(t *testing.T) {
-	parallelOrCheckLeaks(t)
+	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
@@ -87,7 +87,7 @@ func TestImageFromAwsEcr(t *testing.T) {
 }
 
 func TestImageFromGcpArtifactRegistry(t *testing.T) {
-	parallelOrCheckLeaks(t)
+	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
@@ -105,7 +105,7 @@ func TestImageFromGcpArtifactRegistry(t *testing.T) {
 }
 
 func TestCreateSandboxWithImage(t *testing.T) {
-	parallelOrCheckLeaks(t)
+	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
@@ -123,7 +123,7 @@ func TestCreateSandboxWithImage(t *testing.T) {
 }
 
 func TestImageDelete(t *testing.T) {
-	parallelOrCheckLeaks(t)
+	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
@@ -153,7 +153,7 @@ func TestImageDelete(t *testing.T) {
 }
 
 func TestDockerfileCommands(t *testing.T) {
-	parallelOrCheckLeaks(t)
+	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
@@ -177,7 +177,7 @@ func TestDockerfileCommands(t *testing.T) {
 }
 
 func TestDockerfileCommandsEmptyArrayNoOp(t *testing.T) {
-	parallelOrCheckLeaks(t)
+	t.Parallel()
 	g := gomega.NewWithT(t)
 
 	image1 := tc.Images.FromRegistry("alpine:3.21", nil)
@@ -186,7 +186,7 @@ func TestDockerfileCommandsEmptyArrayNoOp(t *testing.T) {
 }
 
 func TestDockerfileCommandsChaining(t *testing.T) {
-	parallelOrCheckLeaks(t)
+	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
@@ -224,7 +224,7 @@ func TestDockerfileCommandsChaining(t *testing.T) {
 }
 
 func TestDockerfileCommandsCopyCommandValidation(t *testing.T) {
-	parallelOrCheckLeaks(t)
+	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
@@ -269,7 +269,7 @@ func TestDockerfileCommandsCopyCommandValidation(t *testing.T) {
 }
 
 func TestDockerfileCommandsWithOptions(t *testing.T) {
-	parallelOrCheckLeaks(t)
+	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 

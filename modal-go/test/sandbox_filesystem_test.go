@@ -25,7 +25,7 @@ func createSandbox(g *gomega.WithT) *modal.Sandbox {
 }
 
 func TestSandboxWriteAndReadBinaryFile(t *testing.T) {
-	parallelOrCheckLeaks(t)
+	t.Parallel()
 	g := gomega.NewWithT(t)
 	sb := createSandbox(g)
 	defer terminateSandbox(g, sb)
@@ -55,7 +55,7 @@ func TestSandboxWriteAndReadBinaryFile(t *testing.T) {
 }
 
 func TestSandboxAppendToFileBinary(t *testing.T) {
-	parallelOrCheckLeaks(t)
+	t.Parallel()
 	g := gomega.NewWithT(t)
 	sb := createSandbox(g)
 	defer terminateSandbox(g, sb)
@@ -88,7 +88,7 @@ func TestSandboxAppendToFileBinary(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 }
 func TestSandboxFileFlush(t *testing.T) {
-	parallelOrCheckLeaks(t)
+	t.Parallel()
 	g := gomega.NewWithT(t)
 	sb := createSandbox(g)
 	defer terminateSandbox(g, sb)
@@ -118,7 +118,7 @@ func TestSandboxFileFlush(t *testing.T) {
 }
 
 func TestSandboxMultipleFileOperations(t *testing.T) {
-	parallelOrCheckLeaks(t)
+	t.Parallel()
 	g := gomega.NewWithT(t)
 	sb := createSandbox(g)
 	defer terminateSandbox(g, sb)
@@ -162,7 +162,7 @@ func TestSandboxMultipleFileOperations(t *testing.T) {
 }
 
 func TestSandboxFileOpenModes(t *testing.T) {
-	parallelOrCheckLeaks(t)
+	t.Parallel()
 	g := gomega.NewWithT(t)
 	sb := createSandbox(g)
 	defer terminateSandbox(g, sb)
@@ -209,7 +209,7 @@ func TestSandboxFileOpenModes(t *testing.T) {
 }
 
 func TestSandboxLargeFileOperations(t *testing.T) {
-	parallelOrCheckLeaks(t)
+	t.Parallel()
 	g := gomega.NewWithT(t)
 	sb := createSandbox(g)
 	defer terminateSandbox(g, sb)

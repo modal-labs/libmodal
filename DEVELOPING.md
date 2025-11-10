@@ -70,7 +70,7 @@ We check the generated protobuf files into Git so that the package can be instal
 
 ### Testing
 
-We use [goleak](https://github.com/uber-go/goleak) for goroutine leak detection. Run tests with `-check-leaks` for package-level detection (`t.Parallel()`-safe), or `-check-leaks-per-test` to trace leaks to specific tests (must run sequentially). To enable per-test leak detection for a test, call `parallelOrCheckLeaks(t)` in the beginning of the test function, where you would normally call `t.Parallel()`.
+We use [goleak](https://github.com/uber-go/goleak) for goroutine leak detection, enabled by passing `-check-leaks` to `go test`. To identify which specific test is leaking, use [goleaks recommended method to find them](https://github.com/uber-go/goleak/?tab=readme-ov-file#determine-source-of-package-leaks), then use `go test -run` to run individual tests.
 
 ## How to publish
 
