@@ -180,6 +180,42 @@ func validateDockerfileCommands(commands []string) error {
 	return nil
 }
 
+// waitForBuildIteration performs a single iteration of waiting for an image build to complete.
+// It streams build updates and returns either a result (if build completes) or nil (if the stream
+// ends without a result, requiring another iteration).
+func (image *Image) waitForBuildIteration(ctx context.Context, imageID string, lastEntryID string) (*pb.GenericResult, string, error) {
+	streamCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	stream, err := image.client.cpClient.ImageJoinStreaming(streamCtx, pb.ImageJoinStreamingRequest_builder{
+		ImageId:     imageID,
+		Timeout:     55,
+		LastEntryId: lastEntryID,
+	}.Build())
+	if err != nil {
+		return nil, lastEntryID, err
+	}
+
+	for {
+		item, err := stream.Recv()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return nil, lastEntryID, err
+		}
+		if item.GetEntryId() != "" {
+			lastEntryID = item.GetEntryId()
+		}
+		if item.GetResult() != nil && item.GetResult().GetStatus() != pb.GenericResult_GENERIC_STATUS_UNSPECIFIED {
+			return item.GetResult(), lastEntryID, nil
+		}
+		// Ignore all log lines and progress updates.
+	}
+
+	return nil, lastEntryID, nil
+}
+
 // Build eagerly builds an Image on Modal.
 func (image *Image) Build(ctx context.Context, app *App) (*Image, error) {
 	// Image is already hyrdated
@@ -265,36 +301,11 @@ func (image *Image) Build(ctx context.Context, app *App) (*Image, error) {
 					return nil, err
 				}
 
-				streamCtx, cancel := context.WithCancel(ctx)
-
-				stream, err := image.client.cpClient.ImageJoinStreaming(streamCtx, pb.ImageJoinStreamingRequest_builder{
-					ImageId:     resp.GetImageId(),
-					Timeout:     55,
-					LastEntryId: lastEntryID,
-				}.Build())
+				var err error
+				result, lastEntryID, err = image.waitForBuildIteration(ctx, resp.GetImageId(), lastEntryID)
 				if err != nil {
-					cancel()
 					return nil, err
 				}
-				for {
-					item, err := stream.Recv()
-					if err != nil {
-						if err == io.EOF {
-							break
-						}
-						cancel()
-						return nil, err
-					}
-					if item.GetEntryId() != "" {
-						lastEntryID = item.GetEntryId()
-					}
-					if item.GetResult() != nil && item.GetResult().GetStatus() != pb.GenericResult_GENERIC_STATUS_UNSPECIFIED {
-						result = item.GetResult()
-						break
-					}
-					// Ignore all log lines and progress updates.
-				}
-				cancel()
 			}
 		}
 
