@@ -5,7 +5,12 @@ import {
   QueueNextItemsRequest,
 } from "../proto/modal_proto/api";
 import { getDefaultClient, type ModalClient } from "./client";
-import { InvalidError, QueueEmptyError, QueueFullError } from "./errors";
+import {
+  InvalidError,
+  NotFoundError,
+  QueueEmptyError,
+  QueueFullError,
+} from "./errors";
 import { dumps as pickleEncode, loads as pickleDecode } from "./pickle";
 import { ClientError, Status } from "nice-grpc";
 import { EphemeralHeartbeatManager } from "./ephemeral";
@@ -76,21 +81,27 @@ export class QueueService {
     name: string,
     params: QueueFromNameParams = {},
   ): Promise<Queue> {
-    const resp = await this.#client.cpClient.queueGetOrCreate({
-      deploymentName: name,
-      objectCreationType: params.createIfMissing
-        ? ObjectCreationType.OBJECT_CREATION_TYPE_CREATE_IF_MISSING
-        : undefined,
-      environmentName: this.#client.environmentName(params.environment),
-    });
-    this.#client.logger.debug(
-      "Retrieved Queue",
-      "queue_id",
-      resp.queueId,
-      "queue_name",
-      name,
-    );
-    return new Queue(this.#client, resp.queueId, name);
+    try {
+      const resp = await this.#client.cpClient.queueGetOrCreate({
+        deploymentName: name,
+        objectCreationType: params.createIfMissing
+          ? ObjectCreationType.OBJECT_CREATION_TYPE_CREATE_IF_MISSING
+          : undefined,
+        environmentName: this.#client.environmentName(params.environment),
+      });
+      this.#client.logger.debug(
+        "Retrieved Queue",
+        "queue_id",
+        resp.queueId,
+        "queue_name",
+        name,
+      );
+      return new Queue(this.#client, resp.queueId, name);
+    } catch (err) {
+      if (err instanceof ClientError && err.code === Status.NOT_FOUND)
+        throw new NotFoundError(err.details);
+      throw err;
+    }
   }
 
   /**
@@ -112,11 +123,7 @@ export class QueueService {
         queue.queueId,
       );
     } catch (err) {
-      if (
-        err instanceof ClientError &&
-        err.code === Status.NOT_FOUND &&
-        params.allowMissing
-      ) {
+      if (err instanceof NotFoundError && params.allowMissing) {
         return;
       }
       throw err;

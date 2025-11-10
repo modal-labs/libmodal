@@ -1,5 +1,5 @@
 import { tc } from "../test-support/test-client";
-import { Queue, QueueEmptyError } from "modal";
+import { Queue, QueueEmptyError, NotFoundError } from "modal";
 import { expect, onTestFinished, test, vi } from "vitest";
 import { ephemeralObjectHeartbeatSleep } from "../src/ephemeral";
 import { createMockModalClients } from "../test-support/grpc_mock";
@@ -164,5 +164,5 @@ test("QueueDelete with allowMissing=false throws", async () => {
 
   await expect(
     mc.queues.delete("missing", { allowMissing: false }),
-  ).rejects.toThrow(ClientError);
+  ).rejects.toThrow(NotFoundError);
 });
