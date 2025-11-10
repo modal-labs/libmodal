@@ -827,12 +827,12 @@ type sbStdin struct {
 	index uint32
 }
 
-func (sbs *sbStdin) Write(p []byte) (n int, err error) {
+func (sbs *sbStdin) Write(p []byte) (int, error) {
 	sbs.mu.Lock()
 	defer sbs.mu.Unlock()
 	index := sbs.index
 	sbs.index++
-	_, err = sbs.cpClient.SandboxStdinWrite(context.Background(), pb.SandboxStdinWriteRequest_builder{
+	_, err := sbs.cpClient.SandboxStdinWrite(context.Background(), pb.SandboxStdinWriteRequest_builder{
 		SandboxId: sbs.sandboxID,
 		Input:     p,
 		Index:     index,
@@ -864,8 +864,8 @@ type cpStdin struct {
 	cpClient     pb.ModalClientClient
 }
 
-func (cps *cpStdin) Write(p []byte) (n int, err error) {
-	_, err = cps.cpClient.ContainerExecPutInput(context.Background(), pb.ContainerExecPutInputRequest_builder{
+func (cps *cpStdin) Write(p []byte) (int, error) {
+	_, err := cps.cpClient.ContainerExecPutInput(context.Background(), pb.ContainerExecPutInputRequest_builder{
 		ExecId: cps.execID,
 		Input: pb.RuntimeInputMessage_builder{
 			Message:      p,
@@ -910,7 +910,7 @@ type lazyStreamReader struct {
 	initFunc func() io.ReadCloser
 }
 
-func (l *lazyStreamReader) Read(p []byte) (n int, err error) {
+func (l *lazyStreamReader) Read(p []byte) (int, error) {
 	l.once.Do(func() {
 		l.reader = l.initFunc()
 	})
