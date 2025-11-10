@@ -1,6 +1,8 @@
 import { tc } from "../test-support/test-client";
 import { expect, test } from "vitest";
 import { mergeEnvIntoSecrets } from "../src/secret";
+import { createMockModalClients } from "../test-support/grpc_mock";
+import { NotFoundError } from "../src/errors";
 
 test("SecretFromName", async () => {
   const secret = await tc.secrets.fromName("libmodal-test-secret");
@@ -109,4 +111,43 @@ test("mergeEnvIntoSecrets with no env and no secrets returns empty array", async
 
   expect(result).toHaveLength(0);
   expect(result).toEqual([]);
+});
+
+test("SecretDelete success", async () => {
+  const { mockClient: mc, mockCpClient: mock } = createMockModalClients();
+
+  mock.handleUnary("/SecretGetOrCreate", () => ({
+    secretId: "st-test-123",
+  }));
+
+  mock.handleUnary("/SecretDelete", (req: any) => {
+    expect(req.secretId).toBe("st-test-123");
+    return {};
+  });
+
+  await mc.secrets.delete("test-secret");
+  mock.assertExhausted();
+});
+
+test("SecretDelete with allowMissing=true", async () => {
+  const { mockClient: mc, mockCpClient: mock } = createMockModalClients();
+
+  mock.handleUnary("/SecretGetOrCreate", () => {
+    throw new NotFoundError("Secret 'missing' not found");
+  });
+
+  await mc.secrets.delete("missing", { allowMissing: true });
+  mock.assertExhausted();
+});
+
+test("SecretDelete with allowMissing=false throws", async () => {
+  const { mockClient: mc, mockCpClient: mock } = createMockModalClients();
+
+  mock.handleUnary("/SecretGetOrCreate", () => {
+    throw new NotFoundError("Secret 'missing' not found");
+  });
+
+  await expect(
+    mc.secrets.delete("missing", { allowMissing: false }),
+  ).rejects.toThrow(NotFoundError);
 });

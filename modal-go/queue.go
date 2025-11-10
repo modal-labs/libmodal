@@ -116,6 +116,10 @@ func (s *queueServiceImpl) FromName(ctx context.Context, name string, params *Qu
 		EnvironmentName:    environmentName(params.Environment, s.client.profile),
 		ObjectCreationType: creationType,
 	}.Build())
+
+	if status, ok := status.FromError(err); ok && status.Code() == codes.NotFound {
+		return nil, NotFoundError{fmt.Sprintf("Queue '%s' not found", name)}
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -131,21 +135,37 @@ func (s *queueServiceImpl) FromName(ctx context.Context, name string, params *Qu
 
 // QueueDeleteParams are options for client.Queues.Delete.
 type QueueDeleteParams struct {
-	Environment string
+	Environment  string
+	AllowMissing bool
 }
 
 // Delete removes a Queue by name.
+//
+// Warning: Deletion is irreversible and will affect any Apps currently using the Queue.
 func (s *queueServiceImpl) Delete(ctx context.Context, name string, params *QueueDeleteParams) error {
 	if params == nil {
 		params = &QueueDeleteParams{}
 	}
 
-	q, err := s.FromName(ctx, name, &QueueFromNameParams{Environment: params.Environment})
+	q, err := s.FromName(ctx, name, &QueueFromNameParams{
+		Environment:     params.Environment,
+		CreateIfMissing: false,
+	})
+
+	if err != nil {
+		if _, ok := err.(NotFoundError); ok && params.AllowMissing {
+			return nil
+		}
+		return err
+	}
+
+	_, err = s.client.cpClient.QueueDelete(ctx, pb.QueueDeleteRequest_builder{QueueId: q.QueueID}.Build())
 	if err != nil {
 		return err
 	}
-	_, err = s.client.cpClient.QueueDelete(ctx, pb.QueueDeleteRequest_builder{QueueId: q.QueueID}.Build())
-	return err
+
+	s.client.logger.DebugContext(ctx, "Deleted Queue", "queue_name", name, "queue_id", q.QueueID)
+	return nil
 }
 
 type QueueClearParams struct {

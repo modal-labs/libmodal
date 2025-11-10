@@ -5,7 +5,10 @@ import (
 	"testing"
 
 	"github.com/modal-labs/libmodal/modal-go"
+	"github.com/modal-labs/libmodal/modal-go/internal/grpcmock"
+	pb "github.com/modal-labs/libmodal/modal-go/proto/modal_proto"
 	"github.com/onsi/gomega"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 func TestVolumeFromName(t *testing.T) {
@@ -56,4 +59,83 @@ func TestVolumeEphemeral(t *testing.T) {
 	g.Expect(volume.VolumeID).Should(gomega.HavePrefix("vo-"))
 	g.Expect(volume.IsReadOnly()).To(gomega.BeFalse())
 	g.Expect(volume.ReadOnly().IsReadOnly()).To(gomega.BeTrue())
+}
+
+func TestVolumeDeleteSuccess(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+
+	mock := grpcmock.NewMockClient()
+	defer func() {
+		g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
+	}()
+
+	grpcmock.HandleUnary(
+		mock, "/VolumeGetOrCreate",
+		func(req *pb.VolumeGetOrCreateRequest) (*pb.VolumeGetOrCreateResponse, error) {
+			return pb.VolumeGetOrCreateResponse_builder{
+				VolumeId: "vo-test-123",
+			}.Build(), nil
+		},
+	)
+
+	grpcmock.HandleUnary(
+		mock, "/VolumeDelete",
+		func(req *pb.VolumeDeleteRequest) (*emptypb.Empty, error) {
+			g.Expect(req.GetVolumeId()).To(gomega.Equal("vo-test-123"))
+			return &emptypb.Empty{}, nil
+		},
+	)
+
+	err := mock.Volumes.Delete(ctx, "test-volume", nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+}
+
+func TestVolumeDeleteWithAllowMissing(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+
+	mock := grpcmock.NewMockClient()
+	defer func() {
+		g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
+	}()
+
+	grpcmock.HandleUnary(
+		mock, "/VolumeGetOrCreate",
+		func(req *pb.VolumeGetOrCreateRequest) (*pb.VolumeGetOrCreateResponse, error) {
+			return nil, modal.NotFoundError{Exception: "Volume 'missing' not found"}
+		},
+	)
+
+	err := mock.Volumes.Delete(ctx, "missing", &modal.VolumeDeleteParams{
+		AllowMissing: true,
+	})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+}
+
+func TestVolumeDeleteWithAllowMissingFalseThrows(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+
+	mock := grpcmock.NewMockClient()
+	defer func() {
+		g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
+	}()
+
+	grpcmock.HandleUnary(
+		mock, "/VolumeGetOrCreate",
+		func(req *pb.VolumeGetOrCreateRequest) (*pb.VolumeGetOrCreateResponse, error) {
+			return nil, modal.NotFoundError{Exception: "Volume 'missing' not found"}
+		},
+	)
+
+	err := mock.Volumes.Delete(ctx, "missing", &modal.VolumeDeleteParams{
+		AllowMissing: false,
+	})
+	g.Expect(err).Should(gomega.HaveOccurred())
+	var notFoundErr modal.NotFoundError
+	g.Expect(err).Should(gomega.BeAssignableToTypeOf(notFoundErr))
 }

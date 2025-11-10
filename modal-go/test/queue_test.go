@@ -9,7 +9,10 @@ import (
 	"time"
 
 	"github.com/modal-labs/libmodal/modal-go"
+	"github.com/modal-labs/libmodal/modal-go/internal/grpcmock"
+	pb "github.com/modal-labs/libmodal/modal-go/proto/modal_proto"
 	"github.com/onsi/gomega"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 func TestQueueInvalidName(t *testing.T) {
@@ -200,4 +203,81 @@ func TestQueueNonEphemeral(t *testing.T) {
 	value, err := queue2.Get(ctx, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(value).To(gomega.Equal("data"))
+}
+
+func TestQueueDeleteSuccess(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+
+	mock := grpcmock.NewMockClient()
+	defer func() {
+		g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
+	}()
+
+	grpcmock.HandleUnary(
+		mock, "/QueueGetOrCreate",
+		func(req *pb.QueueGetOrCreateRequest) (*pb.QueueGetOrCreateResponse, error) {
+			return pb.QueueGetOrCreateResponse_builder{
+				QueueId: "qu-test-123",
+			}.Build(), nil
+		},
+	)
+
+	grpcmock.HandleUnary(
+		mock, "/QueueDelete",
+		func(req *pb.QueueDeleteRequest) (*emptypb.Empty, error) {
+			g.Expect(req.GetQueueId()).To(gomega.Equal("qu-test-123"))
+			return &emptypb.Empty{}, nil
+		},
+	)
+
+	err := mock.Queues.Delete(ctx, "test-queue", nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+}
+
+func TestQueueDeleteWithAllowMissing(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+
+	mock := grpcmock.NewMockClient()
+	defer func() {
+		g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
+	}()
+
+	grpcmock.HandleUnary(
+		mock, "/QueueGetOrCreate",
+		func(req *pb.QueueGetOrCreateRequest) (*pb.QueueGetOrCreateResponse, error) {
+			return nil, modal.NotFoundError{Exception: "Queue 'missing' not found"}
+		},
+	)
+
+	err := mock.Queues.Delete(ctx, "missing", &modal.QueueDeleteParams{
+		AllowMissing: true,
+	})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+}
+
+func TestQueueDeleteWithAllowMissingFalseThrows(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+
+	mock := grpcmock.NewMockClient()
+	defer func() {
+		g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
+	}()
+
+	grpcmock.HandleUnary(
+		mock, "/QueueGetOrCreate",
+		func(req *pb.QueueGetOrCreateRequest) (*pb.QueueGetOrCreateResponse, error) {
+			return nil, modal.NotFoundError{Exception: "Queue 'missing' not found"}
+		},
+	)
+
+	err := mock.Queues.Delete(ctx, "missing", &modal.QueueDeleteParams{
+		AllowMissing: false,
+	})
+	g.Expect(err).Should(gomega.HaveOccurred())
 }

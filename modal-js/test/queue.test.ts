@@ -1,8 +1,9 @@
 import { tc } from "../test-support/test-client";
-import { Queue, QueueEmptyError } from "modal";
+import { Queue, QueueEmptyError, NotFoundError } from "modal";
 import { expect, onTestFinished, test, vi } from "vitest";
 import { ephemeralObjectHeartbeatSleep } from "../src/ephemeral";
 import { createMockModalClients } from "../test-support/grpc_mock";
+import { ClientError, Status } from "nice-grpc";
 
 test("QueueInvalidName", async () => {
   for (const name of ["has space", "has/slash", "a".repeat(65)]) {
@@ -125,4 +126,43 @@ test("QueueEphemeralHeartbeatStopsAfterClose", async () => {
   expect(heartbeatCount).toBe(1);
 
   mock.assertExhausted();
+});
+
+test("QueueDelete success", async () => {
+  const { mockClient: mc, mockCpClient: mock } = createMockModalClients();
+
+  mock.handleUnary("/QueueGetOrCreate", () => ({
+    queueId: "qu-test-123",
+  }));
+
+  mock.handleUnary("/QueueDelete", (req: any) => {
+    expect(req.queueId).toBe("qu-test-123");
+    return {};
+  });
+
+  await mc.queues.delete("test-queue");
+  mock.assertExhausted();
+});
+
+test("QueueDelete with allowMissing=true", async () => {
+  const { mockClient: mc, mockCpClient: mock } = createMockModalClients();
+
+  mock.handleUnary("/QueueGetOrCreate", () => {
+    throw new ClientError("", Status.NOT_FOUND, "Queue 'missing' not found");
+  });
+
+  await mc.queues.delete("missing", { allowMissing: true });
+  mock.assertExhausted();
+});
+
+test("QueueDelete with allowMissing=false throws", async () => {
+  const { mockClient: mc, mockCpClient: mock } = createMockModalClients();
+
+  mock.handleUnary("/QueueGetOrCreate", () => {
+    throw new ClientError("", Status.NOT_FOUND, "Queue 'missing' not found");
+  });
+
+  await expect(
+    mc.queues.delete("missing", { allowMissing: false }),
+  ).rejects.toThrow(NotFoundError);
 });

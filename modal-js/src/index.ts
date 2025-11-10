@@ -75,6 +75,7 @@ export {
   SecretService,
   type SecretFromNameParams,
   type SecretFromObjectParams,
+  type SecretDeleteParams,
 } from "./secret";
 export { SandboxFile, type SandboxFileMode } from "./sandbox_filesystem";
 export {
@@ -82,6 +83,7 @@ export {
   VolumeService,
   type VolumeFromNameParams,
   type VolumeEphemeralParams,
+  type VolumeDeleteParams,
 } from "./volume";
 export { Proxy, ProxyService, type ProxyFromNameParams } from "./proxy";
 export { CloudBucketMount } from "./cloud_bucket_mount";
