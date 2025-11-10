@@ -10,9 +10,7 @@ import (
 // However when running tests across both packages (go test . ./test -check-leaks),
 // Go passes it to both packages, and we get a "flag provided but not defined" warning
 // if it's not also defined here.
-
-// checkLeaks is ignored in this package, but defined in the test package.
-var checkLeaks = flag.Bool("check-leaks", false, "ignored in this package, but defined in the test package")
+var checkLeaks = flag.Bool("check-leaks", false, "ignored in this package, but defined in the test package") //nolint:unused
 
 func TestMain(m *testing.M) {
 	flag.Parse()
