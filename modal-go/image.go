@@ -198,18 +198,18 @@ func (image *Image) waitForBuildIteration(ctx context.Context, imageID string, l
 
 	for {
 		item, err := stream.Recv()
-		if err != nil {
-			if err == io.EOF {
-				return nil, lastEntryID, nil
-			}
+		if err == io.EOF {
+			return nil, lastEntryID, nil
+		} else if err != nil {
 			return nil, lastEntryID, err
 		}
+
 		if item.GetEntryId() != "" {
 			lastEntryID = item.GetEntryId()
 		}
-		res := item.GetResult()
 
 		// Ignore all log lines and progress updates.
+		res := item.GetResult()
 		if res == nil || res.GetStatus() == pb.GenericResult_GENERIC_STATUS_UNSPECIFIED {
 			continue
 		}
@@ -334,8 +334,7 @@ func (image *Image) Build(ctx context.Context, app *App) (*Image, error) {
 }
 
 // ImageDeleteParams are options for deleting an Image.
-type ImageDeleteParams struct {
-}
+type ImageDeleteParams struct{}
 
 // Delete deletes an Image by ID. Warning: This removes an *entire Image*, and cannot be undone.
 func (s *imageServiceImpl) Delete(ctx context.Context, imageID string, params *ImageDeleteParams) error {
