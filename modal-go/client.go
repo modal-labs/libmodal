@@ -38,6 +38,21 @@ var sdkVersion = sync.OnceValue(func() string {
 	return "v0.0.0"
 })
 
+// clientWithConn wraps a ModalClientClient and its underlying gRPC connection
+// to enable proper cleanup of connection-owned goroutines.
+type clientWithConn struct {
+	pb.ModalClientClient
+	conn *grpc.ClientConn
+}
+
+// Close closes the underlying gRPC connection, terminating all associated goroutines.
+func (c *clientWithConn) Close() error {
+	if c.conn != nil {
+		return c.conn.Close()
+	}
+	return nil
+}
+
 // Client exposes services for interacting with Modal resources.
 // You should not instantiate it directly, and instead use [NewClient]/[NewClientWithOptions].
 type Client struct {
@@ -57,8 +72,8 @@ type Client struct {
 	profile                      Profile
 	sdkVersion                   string
 	logger                       *slog.Logger
-	cpClient                     pb.ModalClientClient            // control plane client
-	ipClients                    map[string]pb.ModalClientClient // input plane clients
+	cpClient                     *clientWithConn            // control plane client
+	ipClients                    map[string]*clientWithConn // input plane clients
 	authTokenManager             *AuthTokenManager
 	additionalUnaryInterceptors  []grpc.UnaryClientInterceptor
 	additionalStreamInterceptors []grpc.StreamClientInterceptor
@@ -72,12 +87,19 @@ func NewClient() (*Client, error) {
 
 // ClientParams defines credentials and options for initializing the Modal client.
 type ClientParams struct {
-	TokenID            string
-	TokenSecret        string
-	Environment        string
-	Config             *config
-	Logger             *slog.Logger
+	TokenID     string
+	TokenSecret string
+	Environment string
+	Config      *config
+	Logger      *slog.Logger
+	// ControlPlaneClient is a custom gRPC client for testing.
+	// If provided, the client will use this instead of creating its own connection.
+	// Typically used with mock clients in tests.
 	ControlPlaneClient pb.ModalClientClient
+	// ControlPlaneConn is the underlying gRPC connection for ControlPlaneClient.
+	// If provided, Client.Close() will close this connection for proper cleanup.
+	// Leave nil for mock clients that don't have real connections.
+	ControlPlaneConn *grpc.ClientConn
 	// GRPCUnaryInterceptors allows custom gRPC unary interceptors for telemetry, tracing, and observability.
 	// These are appended after Modal's built-in interceptors (header injection, auth, retry, timeout).
 	// Note that the Modal gRPC API is not considered a public API, and can change without warning.
@@ -134,7 +156,7 @@ func NewClientWithOptions(params *ClientParams) (*Client, error) {
 		profile:                      profile,
 		sdkVersion:                   sdkVersion(),
 		logger:                       logger,
-		ipClients:                    make(map[string]pb.ModalClientClient),
+		ipClients:                    map[string]*clientWithConn{},
 		additionalUnaryInterceptors:  params.GRPCUnaryInterceptors,
 		additionalStreamInterceptors: params.GRPCStreamInterceptors,
 	}
@@ -142,12 +164,16 @@ func NewClientWithOptions(params *ClientParams) (*Client, error) {
 	logger.Debug("Initializing Modal client", "version", sdkVersion(), "server_url", profile.ServerURL)
 
 	if params.ControlPlaneClient != nil {
-		c.cpClient = params.ControlPlaneClient
+		c.cpClient = &clientWithConn{
+			ModalClientClient: params.ControlPlaneClient,
+			conn:              params.ControlPlaneConn,
+		}
 	} else {
-		_, c.cpClient, err = newClient(profile, c, c.additionalUnaryInterceptors, c.additionalStreamInterceptors)
-	}
-	if err != nil {
-		return nil, fmt.Errorf("failed to create control plane client: %w", err)
+		conn, client, err := newClient(profile, c, c.additionalUnaryInterceptors, c.additionalStreamInterceptors)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create control plane client: %w", err)
+		}
+		c.cpClient = &clientWithConn{ModalClientClient: client, conn: conn}
 	}
 
 	c.authTokenManager = NewAuthTokenManager(c.cpClient, c.logger)
@@ -192,18 +218,34 @@ func (c *Client) ipClient(serverURL string) (pb.ModalClientClient, error) {
 	c.logger.Debug("Creating input plane client", "server_url", serverURL)
 	prof := c.profile
 	prof.ServerURL = serverURL
-	_, client, err := newClient(prof, c, c.additionalUnaryInterceptors, c.additionalStreamInterceptors)
+	conn, client, err := newClient(prof, c, c.additionalUnaryInterceptors, c.additionalStreamInterceptors)
 	if err != nil {
 		return nil, err
 	}
-	c.ipClients[serverURL] = client
-	return client, nil
+	c.ipClients[serverURL] = &clientWithConn{ModalClientClient: client, conn: conn}
+	return c.ipClients[serverURL], nil
 }
 
-// Close stops the background auth token refresh.
+// Close stops the background auth token refresh and closes all gRPC connections.
 func (c *Client) Close() {
 	c.logger.Debug("Closing Modal client")
 	c.authTokenManager.Stop()
+
+	if c.cpClient != nil {
+		if err := c.cpClient.Close(); err != nil {
+			c.logger.Warn("Failed to close control plane connection", "error", err)
+		}
+	}
+
+	c.mu.Lock()
+	for serverURL, client := range c.ipClients {
+		if err := client.Close(); err != nil {
+			c.logger.Warn("Failed to close input plane connection", "server_url", serverURL, "error", err)
+		}
+	}
+	c.ipClients = map[string]*clientWithConn{}
+	c.mu.Unlock()
+
 	c.logger.Debug("Modal client closed")
 }
 

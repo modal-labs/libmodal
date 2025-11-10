@@ -35,7 +35,7 @@ func (s *slowModalServer) AuthTokenGet(ctx context.Context, req *pb.AuthTokenGet
 	return pb.AuthTokenGetResponse_builder{Token: "test-token"}.Build(), nil
 }
 
-func TestAppFromName_RespectsContextDeadline(t *testing.T) {
+func TestClientRespectsContextDeadline(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
@@ -85,15 +85,16 @@ func TestAppFromName_RespectsContextDeadline(t *testing.T) {
 				grpc.WithTransportCredentials(insecure.NewCredentials()),
 			)
 			g.Expect(err).ShouldNot(gomega.HaveOccurred())
-			defer conn.Close()
 
 			client, err := modal.NewClientWithOptions(&modal.ClientParams{
 				TokenID:            "test-token-id",
 				TokenSecret:        "test-token-secret",
 				Environment:        "test",
 				ControlPlaneClient: pb.NewModalClientClient(conn),
+				ControlPlaneConn:   conn,
 			})
 			g.Expect(err).ShouldNot(gomega.HaveOccurred())
+			defer client.Close()
 
 			ctxWithTimeout, cancel := context.WithTimeout(context.Background(), tc.contextTimeout)
 			defer cancel()
