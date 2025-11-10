@@ -26,6 +26,7 @@ func TestClsWithOptionsStacking(t *testing.T) {
 
 	mock := grpcmock.NewMockClient()
 	defer func() {
+		mock.Close()
 		g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
 	}()
 
@@ -87,6 +88,7 @@ func TestClsWithConcurrencyWithBatchingChaining(t *testing.T) {
 
 	mock := grpcmock.NewMockClient()
 	defer func() {
+		mock.Close()
 		g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
 	}()
 
@@ -132,6 +134,7 @@ func TestClsWithOptionsRetries(t *testing.T) {
 
 	mock := grpcmock.NewMockClient()
 	defer func() {
+		mock.Close()
 		g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
 	}()
 
@@ -180,6 +183,7 @@ func TestClsWithOptionsInvalidValues(t *testing.T) {
 
 	mock := grpcmock.NewMockClient()
 	defer func() {
+		mock.Close()
 		g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
 	}()
 
@@ -221,6 +225,7 @@ func TestWithOptionsEmptySecretsDoesNotReplace(t *testing.T) {
 
 	mock := grpcmock.NewMockClient()
 	defer func() {
+		mock.Close()
 		g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
 	}()
 
@@ -257,6 +262,7 @@ func TestWithOptionsEmptyVolumesDoesNotReplace(t *testing.T) {
 
 	mock := grpcmock.NewMockClient()
 	defer func() {
+		mock.Close()
 		g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
 	}()
 

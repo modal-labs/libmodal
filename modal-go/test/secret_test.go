@@ -72,6 +72,7 @@ func TestSecretDeleteSuccess(t *testing.T) {
 
 	mock := grpcmock.NewMockClient()
 	defer func() {
+		mock.Close()
 		g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
 	}()
 
@@ -103,6 +104,7 @@ func TestSecretDeleteWithAllowMissing(t *testing.T) {
 
 	mock := grpcmock.NewMockClient()
 	defer func() {
+		mock.Close()
 		g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
 	}()
 
@@ -126,6 +128,7 @@ func TestSecretDeleteWithAllowMissingFalseThrows(t *testing.T) {
 
 	mock := grpcmock.NewMockClient()
 	defer func() {
+		mock.Close()
 		g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
 	}()
 

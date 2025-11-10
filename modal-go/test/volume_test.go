@@ -68,6 +68,7 @@ func TestVolumeDeleteSuccess(t *testing.T) {
 
 	mock := grpcmock.NewMockClient()
 	defer func() {
+		mock.Close()
 		g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
 	}()
 
@@ -99,6 +100,7 @@ func TestVolumeDeleteWithAllowMissing(t *testing.T) {
 
 	mock := grpcmock.NewMockClient()
 	defer func() {
+		mock.Close()
 		g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
 	}()
 
@@ -122,6 +124,7 @@ func TestVolumeDeleteWithAllowMissingFalseThrows(t *testing.T) {
 
 	mock := grpcmock.NewMockClient()
 	defer func() {
+		mock.Close()
 		g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
 	}()
 

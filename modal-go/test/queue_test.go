@@ -212,7 +212,9 @@ func TestQueueDeleteSuccess(t *testing.T) {
 
 	mock := grpcmock.NewMockClient()
 	defer func() {
+		mock.Close()
 		g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
+
 	}()
 
 	grpcmock.HandleUnary(
@@ -243,6 +245,7 @@ func TestQueueDeleteWithAllowMissing(t *testing.T) {
 
 	mock := grpcmock.NewMockClient()
 	defer func() {
+		mock.Close()
 		g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
 	}()
 
@@ -266,6 +269,7 @@ func TestQueueDeleteWithAllowMissingFalseThrows(t *testing.T) {
 
 	mock := grpcmock.NewMockClient()
 	defer func() {
+		mock.Close()
 		g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
 	}()
 
