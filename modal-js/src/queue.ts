@@ -113,6 +113,7 @@ export class QueueService {
     try {
       const queue = await this.fromName(name, {
         environment: params.environment,
+        createIfMissing: false,
       });
       await this.#client.cpClient.queueDelete({ queueId: queue.queueId });
       this.#client.logger.debug(
