@@ -4,7 +4,8 @@ Both client libraries are pre-1.0, and they have separate versioning.
 
 ## Unreleased
 
-No unreleased changes.
+- Enabled goroutine leak detection for all tests by default.
+- Fixed a few remaining goroutine leaks.
 
 ## modal-js/v0.5.4, modal-go/v0.5.4
 
