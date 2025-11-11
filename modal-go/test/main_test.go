@@ -44,9 +44,6 @@ func TestMain(m *testing.M) {
 	wrapper := &testMainWrapper{m: m}
 	if *checkLeaks {
 		var goleakOptions []goleak.Option
-		// Capture baseline goroutines before any test infrastructure is created.
-		// The wrapper will create/close the client within its Run() call.
-		goleakOptions = append(goleakOptions, goleak.IgnoreCurrent())
 
 		goleak.VerifyTestMain(wrapper, goleakOptions...)
 	} else {
