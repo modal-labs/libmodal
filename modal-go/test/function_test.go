@@ -178,10 +178,7 @@ func TestFunctionGetCurrentStats(t *testing.T) {
 	ctx := context.Background()
 
 	mock := grpcmock.NewMockClient()
-	defer func() {
-		mock.Close()
-		g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
-	}()
+	defer mock.Close()
 
 	grpcmock.HandleUnary(
 		mock, "/FunctionGet",
@@ -206,6 +203,8 @@ func TestFunctionGetCurrentStats(t *testing.T) {
 	stats, err := f.GetCurrentStats(ctx)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(stats).To(gomega.Equal(&modal.FunctionStats{Backlog: 3, NumTotalRunners: 7}))
+
+	g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
 }
 
 func TestFunctionUpdateAutoscaler(t *testing.T) {
@@ -214,10 +213,7 @@ func TestFunctionUpdateAutoscaler(t *testing.T) {
 	ctx := context.Background()
 
 	mock := grpcmock.NewMockClient()
-	defer func() {
-		mock.Close()
-		g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
-	}()
+	defer mock.Close()
 
 	grpcmock.HandleUnary(
 		mock, "/FunctionGet",
@@ -265,6 +261,8 @@ func TestFunctionUpdateAutoscaler(t *testing.T) {
 		MinContainers: ptrU32(2),
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
 }
 
 func ptrU32(v uint32) *uint32 { return &v }
@@ -275,10 +273,7 @@ func TestFunctionGetWebURL(t *testing.T) {
 	ctx := context.Background()
 
 	mock := grpcmock.NewMockClient()
-	defer func() {
-		mock.Close()
-		g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
-	}()
+	defer mock.Close()
 
 	grpcmock.HandleUnary(
 		mock, "FunctionGet",
@@ -308,6 +303,8 @@ func TestFunctionGetWebURL(t *testing.T) {
 	wef, err := mock.Functions.FromName(ctx, "libmodal-test-support", "web_endpoint", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(wef.GetWebURL()).To(gomega.Equal("https://endpoint.internal"))
+
+	g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
 }
 
 func TestFunctionFromNameWithDotNotation(t *testing.T) {

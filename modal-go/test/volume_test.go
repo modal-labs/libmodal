@@ -67,10 +67,7 @@ func TestVolumeDeleteSuccess(t *testing.T) {
 	ctx := context.Background()
 
 	mock := grpcmock.NewMockClient()
-	defer func() {
-		mock.Close()
-		g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
-	}()
+	defer mock.Close()
 
 	grpcmock.HandleUnary(
 		mock, "/VolumeGetOrCreate",
@@ -91,6 +88,8 @@ func TestVolumeDeleteSuccess(t *testing.T) {
 
 	err := mock.Volumes.Delete(ctx, "test-volume", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
 }
 
 func TestVolumeDeleteWithAllowMissing(t *testing.T) {
@@ -99,10 +98,7 @@ func TestVolumeDeleteWithAllowMissing(t *testing.T) {
 	ctx := context.Background()
 
 	mock := grpcmock.NewMockClient()
-	defer func() {
-		mock.Close()
-		g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
-	}()
+	defer mock.Close()
 
 	grpcmock.HandleUnary(
 		mock, "/VolumeGetOrCreate",
@@ -115,6 +111,8 @@ func TestVolumeDeleteWithAllowMissing(t *testing.T) {
 		AllowMissing: true,
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
 }
 
 func TestVolumeDeleteWithAllowMissingFalseThrows(t *testing.T) {
@@ -123,10 +121,7 @@ func TestVolumeDeleteWithAllowMissingFalseThrows(t *testing.T) {
 	ctx := context.Background()
 
 	mock := grpcmock.NewMockClient()
-	defer func() {
-		mock.Close()
-		g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
-	}()
+	defer mock.Close()
 
 	grpcmock.HandleUnary(
 		mock, "/VolumeGetOrCreate",
@@ -141,4 +136,6 @@ func TestVolumeDeleteWithAllowMissingFalseThrows(t *testing.T) {
 	g.Expect(err).Should(gomega.HaveOccurred())
 	var notFoundErr modal.NotFoundError
 	g.Expect(err).Should(gomega.BeAssignableToTypeOf(notFoundErr))
+
+	g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
 }

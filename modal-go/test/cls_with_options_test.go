@@ -25,10 +25,7 @@ func TestClsWithOptionsStacking(t *testing.T) {
 	ctx := context.Background()
 
 	mock := grpcmock.NewMockClient()
-	defer func() {
-		mock.Close()
-		g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
-	}()
+	defer mock.Close()
 
 	grpcmock.HandleUnary(
 		mock, "FunctionGet",
@@ -79,6 +76,8 @@ func TestClsWithOptionsStacking(t *testing.T) {
 	instance, err := optioned.Instance(ctx, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(instance).ToNot(gomega.BeNil())
+
+	g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
 }
 
 func TestClsWithConcurrencyWithBatchingChaining(t *testing.T) {
@@ -87,10 +86,7 @@ func TestClsWithConcurrencyWithBatchingChaining(t *testing.T) {
 	ctx := context.Background()
 
 	mock := grpcmock.NewMockClient()
-	defer func() {
-		mock.Close()
-		g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
-	}()
+	defer mock.Close()
 
 	grpcmock.HandleUnary(
 		mock, "FunctionGet",
@@ -125,6 +121,8 @@ func TestClsWithConcurrencyWithBatchingChaining(t *testing.T) {
 	instance, err := chained.Instance(ctx, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(instance).ToNot(gomega.BeNil())
+
+	g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
 }
 
 func TestClsWithOptionsRetries(t *testing.T) {
@@ -133,10 +131,7 @@ func TestClsWithOptionsRetries(t *testing.T) {
 	ctx := context.Background()
 
 	mock := grpcmock.NewMockClient()
-	defer func() {
-		mock.Close()
-		g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
-	}()
+	defer mock.Close()
 
 	grpcmock.HandleUnary(
 		mock, "FunctionGet",
@@ -174,6 +169,8 @@ func TestClsWithOptionsRetries(t *testing.T) {
 
 	_, err = cls.WithOptions(&modal.ClsWithOptionsParams{Retries: retries}).Instance(ctx, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
 }
 
 func TestClsWithOptionsInvalidValues(t *testing.T) {
@@ -182,10 +179,7 @@ func TestClsWithOptionsInvalidValues(t *testing.T) {
 	ctx := context.Background()
 
 	mock := grpcmock.NewMockClient()
-	defer func() {
-		mock.Close()
-		g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
-	}()
+	defer mock.Close()
 
 	grpcmock.HandleUnary(
 		mock, "FunctionGet",
@@ -216,6 +210,8 @@ func TestClsWithOptionsInvalidValues(t *testing.T) {
 	_, err = cls.WithOptions(&modal.ClsWithOptionsParams{ScaledownWindow: &fractionalScaledown}).Instance(ctx, nil)
 	g.Expect(err).Should(gomega.HaveOccurred())
 	g.Expect(err.Error()).Should(gomega.ContainSubstring("whole number of seconds"))
+
+	g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
 }
 
 func TestWithOptionsEmptySecretsDoesNotReplace(t *testing.T) {
@@ -224,10 +220,7 @@ func TestWithOptionsEmptySecretsDoesNotReplace(t *testing.T) {
 	ctx := context.Background()
 
 	mock := grpcmock.NewMockClient()
-	defer func() {
-		mock.Close()
-		g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
-	}()
+	defer mock.Close()
 
 	grpcmock.HandleUnary(
 		mock, "FunctionGet",
@@ -253,6 +246,8 @@ func TestWithOptionsEmptySecretsDoesNotReplace(t *testing.T) {
 
 	_, err = cls.WithOptions(&modal.ClsWithOptionsParams{Secrets: []*modal.Secret{}}).Instance(ctx, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
 }
 
 func TestWithOptionsEmptyVolumesDoesNotReplace(t *testing.T) {
@@ -261,10 +256,7 @@ func TestWithOptionsEmptyVolumesDoesNotReplace(t *testing.T) {
 	ctx := context.Background()
 
 	mock := grpcmock.NewMockClient()
-	defer func() {
-		mock.Close()
-		g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
-	}()
+	defer mock.Close()
 
 	grpcmock.HandleUnary(
 		mock, "FunctionGet",
@@ -290,4 +282,6 @@ func TestWithOptionsEmptyVolumesDoesNotReplace(t *testing.T) {
 
 	_, err = cls.WithOptions(&modal.ClsWithOptionsParams{Volumes: map[string]*modal.Volume{}}).Instance(ctx, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
 }

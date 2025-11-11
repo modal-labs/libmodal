@@ -211,11 +211,7 @@ func TestQueueDeleteSuccess(t *testing.T) {
 	ctx := context.Background()
 
 	mock := grpcmock.NewMockClient()
-	defer func() {
-		mock.Close()
-		g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
-
-	}()
+	defer mock.Close()
 
 	grpcmock.HandleUnary(
 		mock, "/QueueGetOrCreate",
@@ -236,6 +232,8 @@ func TestQueueDeleteSuccess(t *testing.T) {
 
 	err := mock.Queues.Delete(ctx, "test-queue", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
 }
 
 func TestQueueDeleteWithAllowMissing(t *testing.T) {
@@ -244,10 +242,7 @@ func TestQueueDeleteWithAllowMissing(t *testing.T) {
 	ctx := context.Background()
 
 	mock := grpcmock.NewMockClient()
-	defer func() {
-		mock.Close()
-		g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
-	}()
+	defer mock.Close()
 
 	grpcmock.HandleUnary(
 		mock, "/QueueGetOrCreate",
@@ -260,6 +255,8 @@ func TestQueueDeleteWithAllowMissing(t *testing.T) {
 		AllowMissing: true,
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
 }
 
 func TestQueueDeleteWithAllowMissingFalseThrows(t *testing.T) {
@@ -268,10 +265,7 @@ func TestQueueDeleteWithAllowMissingFalseThrows(t *testing.T) {
 	ctx := context.Background()
 
 	mock := grpcmock.NewMockClient()
-	defer func() {
-		mock.Close()
-		g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
-	}()
+	defer mock.Close()
 
 	grpcmock.HandleUnary(
 		mock, "/QueueGetOrCreate",
@@ -284,4 +278,6 @@ func TestQueueDeleteWithAllowMissingFalseThrows(t *testing.T) {
 		AllowMissing: false,
 	})
 	g.Expect(err).Should(gomega.HaveOccurred())
+
+	g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
 }

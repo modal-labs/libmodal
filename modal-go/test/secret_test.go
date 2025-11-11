@@ -71,10 +71,7 @@ func TestSecretDeleteSuccess(t *testing.T) {
 	ctx := context.Background()
 
 	mock := grpcmock.NewMockClient()
-	defer func() {
-		mock.Close()
-		g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
-	}()
+	defer mock.Close()
 
 	grpcmock.HandleUnary(
 		mock, "/SecretGetOrCreate",
@@ -95,6 +92,8 @@ func TestSecretDeleteSuccess(t *testing.T) {
 
 	err := mock.Secrets.Delete(ctx, "test-secret", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
 }
 
 func TestSecretDeleteWithAllowMissing(t *testing.T) {
@@ -103,10 +102,7 @@ func TestSecretDeleteWithAllowMissing(t *testing.T) {
 	ctx := context.Background()
 
 	mock := grpcmock.NewMockClient()
-	defer func() {
-		mock.Close()
-		g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
-	}()
+	defer mock.Close()
 
 	grpcmock.HandleUnary(
 		mock, "/SecretGetOrCreate",
@@ -119,6 +115,8 @@ func TestSecretDeleteWithAllowMissing(t *testing.T) {
 		AllowMissing: true,
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
 }
 
 func TestSecretDeleteWithAllowMissingFalseThrows(t *testing.T) {
@@ -127,10 +125,7 @@ func TestSecretDeleteWithAllowMissingFalseThrows(t *testing.T) {
 	ctx := context.Background()
 
 	mock := grpcmock.NewMockClient()
-	defer func() {
-		mock.Close()
-		g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
-	}()
+	defer mock.Close()
 
 	grpcmock.HandleUnary(
 		mock, "/SecretGetOrCreate",
@@ -145,4 +140,6 @@ func TestSecretDeleteWithAllowMissingFalseThrows(t *testing.T) {
 	g.Expect(err).Should(gomega.HaveOccurred())
 	var notFoundErr modal.NotFoundError
 	g.Expect(err).Should(gomega.BeAssignableToTypeOf(notFoundErr))
+
+	g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
 }

@@ -274,10 +274,7 @@ func TestDockerfileCommandsWithOptions(t *testing.T) {
 	ctx := context.Background()
 
 	mock := grpcmock.NewMockClient()
-	defer func() {
-		mock.Close()
-		g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
-	}()
+	defer mock.Close()
 
 	grpcmock.HandleUnary(
 		mock, "ImageGetOrCreate",
@@ -377,4 +374,6 @@ func TestDockerfileCommandsWithOptions(t *testing.T) {
 
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(builtImage.ImageID).To(gomega.Equal("im-layer3"))
+
+	g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
 }
