@@ -13,7 +13,7 @@ func TestCreateSandboxWithProxy(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
-	tc := newModalClient(t)
+	tc := newTestClient(t)
 
 	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -44,7 +44,7 @@ func TestProxyNotFound(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
-	tc := newModalClient(t)
+	tc := newTestClient(t)
 
 	_, err := tc.Proxies.FromName(ctx, "non-existent-proxy-name", nil)
 	g.Expect(err).Should(gomega.HaveOccurred())

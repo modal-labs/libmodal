@@ -16,7 +16,7 @@ func TestFunctionCall(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
-	tc := newModalClient(t)
+	tc := newTestClient(t)
 
 	function, err := tc.Functions.FromName(ctx, "libmodal-test-support", "echo_string", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -37,7 +37,7 @@ func TestFunctionCallPreCborVersionError(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
-	tc := newModalClient(t)
+	tc := newTestClient(t)
 
 	function, err := tc.Functions.FromName(ctx, "test-support-1-1", "identity_with_repr", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -52,7 +52,7 @@ func TestFunctionCallGoMap(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
-	tc := newModalClient(t)
+	tc := newTestClient(t)
 
 	function, err := tc.Functions.FromName(ctx, "libmodal-test-support", "identity_with_repr", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -81,7 +81,7 @@ func TestFunctionCallDateTimeRoundtrip(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
-	tc := newModalClient(t)
+	tc := newTestClient(t)
 
 	function, err := tc.Functions.FromName(ctx, "libmodal-test-support", "identity_with_repr", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -142,7 +142,7 @@ func TestFunctionCallLargeInput(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
-	tc := newModalClient(t)
+	tc := newTestClient(t)
 
 	function, err := tc.Functions.FromName(ctx, "libmodal-test-support", "bytelength", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -158,7 +158,7 @@ func TestFunctionNotFound(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
-	tc := newModalClient(t)
+	tc := newTestClient(t)
 
 	_, err := tc.Functions.FromName(ctx, "libmodal-test-support", "not_a_real_function", nil)
 	g.Expect(err).Should(gomega.BeAssignableToTypeOf(modal.NotFoundError{}))
@@ -168,7 +168,7 @@ func TestFunctionCallInputPlane(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
-	tc := newModalClient(t)
+	tc := newTestClient(t)
 
 	function, err := tc.Functions.FromName(ctx, "libmodal-test-support", "input_plane", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -315,7 +315,7 @@ func TestFunctionFromNameWithDotNotation(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
-	tc := newModalClient(t)
+	tc := newTestClient(t)
 
 	_, err := tc.Functions.FromName(ctx, "libmodal-test-support", "MyClass.myMethod", nil)
 	g.Expect(err).Should(gomega.HaveOccurred())
@@ -326,7 +326,7 @@ func TestWebEndpointRemoteCallError(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
-	tc := newModalClient(t)
+	tc := newTestClient(t)
 
 	function, err := tc.Functions.FromName(ctx, "libmodal-test-support", "web_endpoint_echo", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -341,7 +341,7 @@ func TestWebEndpointSpawnCallError(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
-	tc := newModalClient(t)
+	tc := newTestClient(t)
 
 	function, err := tc.Functions.FromName(ctx, "libmodal-test-support", "web_endpoint_echo", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())

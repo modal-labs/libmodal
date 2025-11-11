@@ -28,7 +28,7 @@ func TestSandboxWriteAndReadBinaryFile(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
-	tc := newModalClient(t)
+	tc := newTestClient(t)
 	sb := createSandbox(ctx, g, tc)
 	defer terminateSandbox(g, sb)
 
@@ -59,7 +59,7 @@ func TestSandboxAppendToFileBinary(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	g := gomega.NewWithT(t)
-	c := newModalClient(t)
+	c := newTestClient(t)
 	sb := createSandbox(ctx, g, c)
 	defer terminateSandbox(g, sb)
 
@@ -94,7 +94,7 @@ func TestSandboxFileFlush(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	g := gomega.NewWithT(t)
-	c := newModalClient(t)
+	c := newTestClient(t)
 	sb := createSandbox(ctx, g, c)
 	defer terminateSandbox(g, sb)
 
@@ -125,7 +125,7 @@ func TestSandboxMultipleFileOperations(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	g := gomega.NewWithT(t)
-	c := newModalClient(t)
+	c := newTestClient(t)
 	sb := createSandbox(ctx, g, c)
 	defer terminateSandbox(g, sb)
 
@@ -169,7 +169,7 @@ func TestSandboxFileOpenModes(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	g := gomega.NewWithT(t)
-	c := newModalClient(t)
+	c := newTestClient(t)
 	sb := createSandbox(ctx, g, c)
 	defer terminateSandbox(g, sb)
 
@@ -217,7 +217,7 @@ func TestSandboxLargeFileOperations(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	g := gomega.NewWithT(t)
-	c := newModalClient(t)
+	c := newTestClient(t)
 	sb := createSandbox(ctx, g, c)
 	defer terminateSandbox(g, sb)
 

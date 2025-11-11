@@ -10,7 +10,7 @@ import (
 	"github.com/onsi/gomega"
 )
 
-func newModalClient(t *testing.T) *modal.Client {
+func newTestClient(t *testing.T) *modal.Client {
 	t.Helper()
 
 	c, err := modal.NewClient()

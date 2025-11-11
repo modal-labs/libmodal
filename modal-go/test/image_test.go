@@ -15,7 +15,7 @@ func TestImageFromId(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
-	tc := newModalClient(t)
+	tc := newTestClient(t)
 
 	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -35,7 +35,7 @@ func TestImageFromRegistry(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
-	tc := newModalClient(t)
+	tc := newTestClient(t)
 
 	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -54,7 +54,7 @@ func TestImageFromRegistryWithSecret(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
-	tc := newModalClient(t)
+	tc := newTestClient(t)
 
 	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -75,7 +75,7 @@ func TestImageFromAwsEcr(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
-	tc := newModalClient(t)
+	tc := newTestClient(t)
 
 	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -94,7 +94,7 @@ func TestImageFromGcpArtifactRegistry(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
-	tc := newModalClient(t)
+	tc := newTestClient(t)
 
 	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -113,7 +113,7 @@ func TestCreateSandboxWithImage(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
-	tc := newModalClient(t)
+	tc := newTestClient(t)
 
 	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -132,7 +132,7 @@ func TestImageDelete(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
-	tc := newModalClient(t)
+	tc := newTestClient(t)
 
 	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -163,7 +163,7 @@ func TestDockerfileCommands(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
-	tc := newModalClient(t)
+	tc := newTestClient(t)
 
 	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -187,7 +187,7 @@ func TestDockerfileCommands(t *testing.T) {
 func TestDockerfileCommandsEmptyArrayNoOp(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
-	tc := newModalClient(t)
+	tc := newTestClient(t)
 
 	image1 := tc.Images.FromRegistry("alpine:3.21", nil)
 	image2 := image1.DockerfileCommands([]string{}, nil)
@@ -198,7 +198,7 @@ func TestDockerfileCommandsChaining(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
-	tc := newModalClient(t)
+	tc := newTestClient(t)
 
 	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -237,7 +237,7 @@ func TestDockerfileCommandsCopyCommandValidation(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
-	tc := newModalClient(t)
+	tc := newTestClient(t)
 
 	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())

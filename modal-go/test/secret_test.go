@@ -16,7 +16,7 @@ func TestSecretFromName(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
-	tc := newModalClient(t)
+	tc := newTestClient(t)
 
 	secret, err := tc.Secrets.FromName(ctx, "libmodal-test-secret", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -31,7 +31,7 @@ func TestSecretFromNameWithRequiredKeys(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
-	tc := newModalClient(t)
+	tc := newTestClient(t)
 
 	secret, err := tc.Secrets.FromName(ctx, "libmodal-test-secret", &modal.SecretFromNameParams{
 		RequiredKeys: []string{"a", "b", "c"},
@@ -49,7 +49,7 @@ func TestSecretFromMap(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
-	tc := newModalClient(t)
+	tc := newTestClient(t)
 
 	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
