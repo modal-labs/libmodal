@@ -18,6 +18,7 @@ import (
 func TestQueueInvalidName(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
+	tc := newModalClient(t)
 
 	for _, name := range []string{"has space", "has/slash", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"} {
 		_, err := tc.Queues.FromName(context.Background(), name, nil)
@@ -29,6 +30,7 @@ func TestQueueEphemeral(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
+	tc := newModalClient(t)
 
 	queue, err := tc.Queues.Ephemeral(ctx, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -51,6 +53,7 @@ func TestQueueSuite1(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
+	tc := newModalClient(t)
 
 	queue, err := tc.Queues.Ephemeral(ctx, nil)
 	g.Expect(err).ToNot(gomega.HaveOccurred())
@@ -103,6 +106,7 @@ func TestQueueSuite2(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
+	tc := newModalClient(t)
 
 	queue, err := tc.Queues.Ephemeral(ctx, nil)
 	g.Expect(err).ToNot(gomega.HaveOccurred())
@@ -138,6 +142,7 @@ func TestQueuePutAndGetMany(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
+	tc := newModalClient(t)
 
 	queue, err := tc.Queues.Ephemeral(ctx, nil)
 	g.Expect(err).ToNot(gomega.HaveOccurred())
@@ -158,6 +163,7 @@ func TestQueueNonBlocking(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
+	tc := newModalClient(t)
 
 	queue, err := tc.Queues.Ephemeral(ctx, nil)
 	g.Expect(err).ToNot(gomega.HaveOccurred())
@@ -180,6 +186,7 @@ func TestQueueNonEphemeral(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
+	tc := newModalClient(t)
 
 	queueName := "test-queue-" + strconv.FormatInt(time.Now().UnixNano(), 10)
 	queue1, err := tc.Queues.FromName(ctx, queueName, &modal.QueueFromNameParams{CreateIfMissing: true})

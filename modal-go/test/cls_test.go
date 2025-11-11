@@ -12,6 +12,7 @@ func TestClsCall(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
+	tc := newModalClient(t)
 
 	cls, err := tc.Cls.FromName(ctx, "libmodal-test-support", "EchoCls", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -46,6 +47,7 @@ func TestClsCall(t *testing.T) {
 func TestClsNotFound(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
+	tc := newModalClient(t)
 
 	_, err := tc.Cls.FromName(context.Background(), "libmodal-test-support", "NotRealClassName", nil)
 	g.Expect(err).Should(gomega.BeAssignableToTypeOf(modal.NotFoundError{}))
@@ -55,6 +57,7 @@ func TestClsCallInputPlane(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
+	tc := newModalClient(t)
 
 	cls, err := tc.Cls.FromName(ctx, "libmodal-test-support", "EchoClsInputPlane", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())

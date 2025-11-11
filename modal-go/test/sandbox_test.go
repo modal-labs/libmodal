@@ -16,6 +16,7 @@ func TestCreateOneSandbox(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
+	tc := newModalClient(t)
 
 	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -40,6 +41,7 @@ func TestPassCatToStdin(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
+	tc := newModalClient(t)
 
 	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -64,6 +66,7 @@ func TestIgnoreLargeStdout(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
+	tc := newModalClient(t)
 
 	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -91,6 +94,7 @@ func TestSandboxCreateOptions(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
+	tc := newModalClient(t)
 
 	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{
 		CreateIfMissing: true,
@@ -132,6 +136,7 @@ func TestSandboxExecOptions(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
+	tc := newModalClient(t)
 
 	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -162,6 +167,7 @@ func TestSandboxWithVolume(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
+	tc := newModalClient(t)
 
 	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{
 		CreateIfMissing: true,
@@ -194,6 +200,7 @@ func TestSandboxWithReadOnlyVolume(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
+	tc := newModalClient(t)
 
 	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{
 		CreateIfMissing: true,
@@ -232,6 +239,7 @@ func TestSandboxWithTunnels(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
+	tc := newModalClient(t)
 
 	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{
 		CreateIfMissing: true,
@@ -280,6 +288,7 @@ func TestCreateSandboxWithSecrets(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
+	tc := newModalClient(t)
 
 	secret, err := tc.Secrets.FromName(ctx, "libmodal-test-secret", &modal.SecretFromNameParams{RequiredKeys: []string{"c"}})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -296,10 +305,12 @@ func TestCreateSandboxWithSecrets(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(string(output)).To(gomega.Equal("hello world\n"))
 }
+
 func TestSandboxPollAndReturnCode(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
+	tc := newModalClient(t)
 
 	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -333,6 +344,7 @@ func TestSandboxPollAfterFailure(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
+	tc := newModalClient(t)
 
 	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -358,6 +370,7 @@ func TestCreateSandboxWithNetworkAccessParams(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
+	tc := newModalClient(t)
 
 	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{
 		CreateIfMissing: true,
@@ -400,6 +413,7 @@ func TestSandboxExecSecret(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
+	tc := newModalClient(t)
 
 	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -428,6 +442,7 @@ func TestSandboxFromId(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
+	tc := newModalClient(t)
 
 	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -449,6 +464,7 @@ func TestSandboxWithWorkdir(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
+	tc := newModalClient(t)
 
 	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -481,6 +497,7 @@ func TestSandboxSetTagsAndList(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
+	tc := newModalClient(t)
 
 	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -519,6 +536,7 @@ func TestSandboxTags(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
+	tc := newModalClient(t)
 
 	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -576,6 +594,7 @@ func TestSandboxListByAppId(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
+	tc := newModalClient(t)
 
 	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -604,6 +623,7 @@ func TestNamedSandbox(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
+	tc := newModalClient(t)
 
 	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -641,6 +661,7 @@ func TestNamedSandboxNotFound(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
+	tc := newModalClient(t)
 
 	_, err := tc.Sandboxes.FromName(ctx, "libmodal-test", "non-existent-sandbox", nil)
 	g.Expect(err).Should(gomega.HaveOccurred())

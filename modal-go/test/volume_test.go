@@ -15,6 +15,7 @@ func TestVolumeFromName(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
+	tc := newModalClient(t)
 
 	volume, err := tc.Volumes.FromName(ctx, "libmodal-test-volume", &modal.VolumeFromNameParams{
 		CreateIfMissing: true,
@@ -32,6 +33,7 @@ func TestVolumeReadOnly(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
+	tc := newModalClient(t)
 
 	volume, err := tc.Volumes.FromName(ctx, "libmodal-test-volume", &modal.VolumeFromNameParams{
 		CreateIfMissing: true,
@@ -51,6 +53,7 @@ func TestVolumeReadOnly(t *testing.T) {
 func TestVolumeEphemeral(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
+	tc := newModalClient(t)
 
 	volume, err := tc.Volumes.Ephemeral(context.Background(), nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
