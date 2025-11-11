@@ -39,6 +39,7 @@ export class CloudBucketMount {
         !url.hostname.endsWith("r2.cloudflarestorage.com") &&
         !url.hostname.endsWith("storage.googleapis.com")
       ) {
+        // eslint-disable-next-line no-console
         console.warn(
           "CloudBucketMount received unrecognized bucket endpoint URL. " +
             "Assuming AWS S3 configuration as fallback.",
