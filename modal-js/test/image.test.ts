@@ -59,12 +59,14 @@ test("ImageFromAwsEcr", async () => {
   });
   expect(app.appId).toBeTruthy();
 
-  const image = tc.images.fromAwsEcr(
-    "459781239556.dkr.ecr.us-east-1.amazonaws.com/ecr-private-registry-test-7522615:python",
-    await tc.secrets.fromName("libmodal-aws-ecr-test", {
-      requiredKeys: ["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"],
-    }),
-  );
+  const image = await tc.images
+    .fromAwsEcr(
+      "459781239556.dkr.ecr.us-east-1.amazonaws.com/ecr-private-registry-test-7522615:python",
+      await tc.secrets.fromName("libmodal-aws-ecr-test", {
+        requiredKeys: ["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"],
+      }),
+    )
+    .build(app);
   expect(image.imageId).toBeTruthy();
   expect(image.imageId).toMatch(/^im-/);
 });
@@ -75,12 +77,14 @@ test("ImageFromGcpArtifactRegistry", { timeout: 30_000 }, async () => {
   });
   expect(app.appId).toBeTruthy();
 
-  const image = tc.images.fromGcpArtifactRegistry(
-    "us-east1-docker.pkg.dev/modal-prod-367916/private-repo-test/my-image",
-    await tc.secrets.fromName("libmodal-gcp-artifact-registry-test", {
-      requiredKeys: ["SERVICE_ACCOUNT_JSON"],
-    }),
-  );
+  const image = await tc.images
+    .fromGcpArtifactRegistry(
+      "us-east1-docker.pkg.dev/modal-prod-367916/private-repo-test/my-image",
+      await tc.secrets.fromName("libmodal-gcp-artifact-registry-test", {
+        requiredKeys: ["SERVICE_ACCOUNT_JSON"],
+      }),
+    )
+    .build(app);
   expect(image.imageId).toBeTruthy();
   expect(image.imageId).toMatch(/^im-/);
 });

@@ -469,6 +469,7 @@ export type ClientOptions = {
 /**
  * @deprecated Use {@link ModalClient `new ModalClient()`} instead.
  */
+// eslint-disable-next-line @typescript-eslint/no-deprecated
 export function initializeClient(options: ClientOptions) {
   defaultClientOptions = {
     tokenId: options.tokenId,

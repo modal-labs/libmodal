@@ -18,7 +18,7 @@ test("FunctionCall", async () => {
 });
 
 test("FunctionCallJsMap", async () => {
-  const function_ = await Function_.lookup(
+  const function_ = await tc.functions.fromName(
     "libmodal-test-support",
     "identity_with_repr",
   );
@@ -28,7 +28,7 @@ test("FunctionCallJsMap", async () => {
 });
 
 test("FunctionCallDateTimeRoundtrip", async () => {
-  const function_ = await Function_.lookup(
+  const function_ = await tc.functions.fromName(
     "libmodal-test-support",
     "identity_with_repr",
   );

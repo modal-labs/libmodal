@@ -42,6 +42,13 @@ export default defineConfig([
       "@typescript-eslint/consistent-type-exports": "error",
       "object-shorthand": "error",
       "@typescript-eslint/await-thenable": "error",
+      "@typescript-eslint/no-deprecated": "error",
+    },
+  },
+  {
+    files: ["test/legacy/**/*.{ts,mts,cts}"],
+    rules: {
+      "@typescript-eslint/no-deprecated": "off",
     },
   },
 ]);

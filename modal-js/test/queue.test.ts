@@ -89,7 +89,7 @@ test("QueueNonEphemeral", async () => {
 
   onTestFinished(async () => {
     await tc.queues.delete(queueName);
-    await expect(Queue.lookup(queueName)).rejects.toThrow(); // confirm deletion
+    await expect(tc.queues.fromName(queueName)).rejects.toThrow(); // confirm deletion
   });
 
   await queue1.put("data");
