@@ -217,8 +217,7 @@ func TestQueueDeleteSuccess(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	mock := grpcmock.NewMockClient()
-	defer mock.Close()
+	mock := newGRPCMockClient(t)
 
 	grpcmock.HandleUnary(
 		mock, "/QueueGetOrCreate",
@@ -248,8 +247,7 @@ func TestQueueDeleteWithAllowMissing(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	mock := grpcmock.NewMockClient()
-	defer mock.Close()
+	mock := newGRPCMockClient(t)
 
 	grpcmock.HandleUnary(
 		mock, "/QueueGetOrCreate",
@@ -271,8 +269,7 @@ func TestQueueDeleteWithAllowMissingFalseThrows(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	mock := grpcmock.NewMockClient()
-	defer mock.Close()
+	mock := newGRPCMockClient(t)
 
 	grpcmock.HandleUnary(
 		mock, "/QueueGetOrCreate",

@@ -184,8 +184,7 @@ func TestFunctionGetCurrentStats(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	mock := grpcmock.NewMockClient()
-	defer mock.Close()
+	mock := newGRPCMockClient(t)
 
 	grpcmock.HandleUnary(
 		mock, "/FunctionGet",
@@ -219,8 +218,7 @@ func TestFunctionUpdateAutoscaler(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	mock := grpcmock.NewMockClient()
-	defer mock.Close()
+	mock := newGRPCMockClient(t)
 
 	grpcmock.HandleUnary(
 		mock, "/FunctionGet",
@@ -279,8 +277,7 @@ func TestFunctionGetWebURL(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	mock := grpcmock.NewMockClient()
-	defer mock.Close()
+	mock := newGRPCMockClient(t)
 
 	grpcmock.HandleUnary(
 		mock, "FunctionGet",

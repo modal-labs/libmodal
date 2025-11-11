@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	modal "github.com/modal-labs/libmodal/modal-go"
+	"github.com/modal-labs/libmodal/modal-go/internal/grpcmock"
 	"github.com/onsi/gomega"
 )
 
@@ -25,6 +26,18 @@ func newModalClient(t *testing.T) *modal.Client {
 	})
 
 	return c
+}
+
+func newGRPCMockClient(t *testing.T) *grpcmock.MockClient {
+	t.Helper()
+
+	mock := grpcmock.NewMockClient()
+
+	t.Cleanup(func() {
+		mock.Close()
+	})
+
+	return mock
 }
 
 func terminateSandbox(g *gomega.WithT, sb *modal.Sandbox) {

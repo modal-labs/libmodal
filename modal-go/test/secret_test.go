@@ -73,8 +73,7 @@ func TestSecretDeleteSuccess(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	mock := grpcmock.NewMockClient()
-	defer mock.Close()
+	mock := newGRPCMockClient(t)
 
 	grpcmock.HandleUnary(
 		mock, "/SecretGetOrCreate",
@@ -104,8 +103,7 @@ func TestSecretDeleteWithAllowMissing(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	mock := grpcmock.NewMockClient()
-	defer mock.Close()
+	mock := newGRPCMockClient(t)
 
 	grpcmock.HandleUnary(
 		mock, "/SecretGetOrCreate",
@@ -127,8 +125,7 @@ func TestSecretDeleteWithAllowMissingFalseThrows(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	mock := grpcmock.NewMockClient()
-	defer mock.Close()
+	mock := newGRPCMockClient(t)
 
 	grpcmock.HandleUnary(
 		mock, "/SecretGetOrCreate",

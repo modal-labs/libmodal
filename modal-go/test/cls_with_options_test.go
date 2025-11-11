@@ -24,8 +24,7 @@ func TestClsWithOptionsStacking(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	mock := grpcmock.NewMockClient()
-	defer mock.Close()
+	mock := newGRPCMockClient(t)
 
 	grpcmock.HandleUnary(
 		mock, "FunctionGet",
@@ -85,8 +84,7 @@ func TestClsWithConcurrencyWithBatchingChaining(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	mock := grpcmock.NewMockClient()
-	defer mock.Close()
+	mock := newGRPCMockClient(t)
 
 	grpcmock.HandleUnary(
 		mock, "FunctionGet",
@@ -130,8 +128,7 @@ func TestClsWithOptionsRetries(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	mock := grpcmock.NewMockClient()
-	defer mock.Close()
+	mock := newGRPCMockClient(t)
 
 	grpcmock.HandleUnary(
 		mock, "FunctionGet",
@@ -178,8 +175,7 @@ func TestClsWithOptionsInvalidValues(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	mock := grpcmock.NewMockClient()
-	defer mock.Close()
+	mock := newGRPCMockClient(t)
 
 	grpcmock.HandleUnary(
 		mock, "FunctionGet",
@@ -219,8 +215,7 @@ func TestWithOptionsEmptySecretsDoesNotReplace(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	mock := grpcmock.NewMockClient()
-	defer mock.Close()
+	mock := newGRPCMockClient(t)
 
 	grpcmock.HandleUnary(
 		mock, "FunctionGet",
@@ -255,8 +250,7 @@ func TestWithOptionsEmptyVolumesDoesNotReplace(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	mock := grpcmock.NewMockClient()
-	defer mock.Close()
+	mock := newGRPCMockClient(t)
 
 	grpcmock.HandleUnary(
 		mock, "FunctionGet",
