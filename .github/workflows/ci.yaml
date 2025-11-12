@@ -34,10 +34,13 @@ jobs:
 
       - name: Build submodule client
         working-directory: modal-client
+        env:
+          VIRTUAL_ENV: .venv
         run: |
           uv venv
           uv pip install -r requirements.dev.txt
           uv pip install .
+          uv pip install "synchronicity[compile]~=0.10.3"
           uv run inv protoc
           uv run inv type-stubs
 
@@ -45,6 +48,7 @@ jobs:
         run: uv pip install ./modal-client
 
       - run: |
+          uv pip install ruff
           ruff check test-support/
           ruff format --check test-support/
 
