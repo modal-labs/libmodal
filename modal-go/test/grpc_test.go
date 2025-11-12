@@ -85,6 +85,7 @@ func TestClientRespectsContextDeadline(t *testing.T) {
 				grpc.WithTransportCredentials(insecure.NewCredentials()),
 			)
 			g.Expect(err).ShouldNot(gomega.HaveOccurred())
+			defer conn.Close()
 
 			client, err := modal.NewClientWithOptions(&modal.ClientParams{
 				TokenID:            "test-token-id",
