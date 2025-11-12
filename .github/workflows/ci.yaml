@@ -1,5 +1,8 @@
 name: CI
 
+permissions:
+  id-token: write # id-token is required to for OIDC
+
 on:
   push:
     branches:
@@ -15,6 +18,11 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
         with:
           submodules: true
+
+      - uses: aws-actions/configure-aws-credentials@67fbcbb121271f7775d2e7715933280b06314838 # v1
+        with:
+          role-to-assume: arn:aws:iam::459781239556:role/libmodal-ci-cd-role-62a288d
+          aws-region: us-east-1
 
       - name: Install uv
         uses: astral-sh/setup-uv@22695119d769bdb6f7032ad67b9bca0ef8c4a174 # v5
@@ -45,9 +53,6 @@ jobs:
           MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
           MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
           MODAL_ENVIRONMENT: libmodal
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: us-east-1
           MODAL_SYNC_ENTRYPOINT: 1
 
   js:
