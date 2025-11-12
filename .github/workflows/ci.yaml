@@ -38,6 +38,7 @@ jobs:
           uv venv
           uv pip install -r requirements.dev.txt
           uv pip install .
+          uv pip install "synchronicity[compile]~=0.10.3"
           uv run inv protoc
           uv run inv type-stubs
 
