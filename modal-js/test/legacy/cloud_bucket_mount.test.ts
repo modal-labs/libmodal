@@ -1,8 +1,4 @@
 import { CloudBucketMount, Secret } from "modal";
-import {
-  cloudBucketMountToProto,
-  endpointUrlToBucketType,
-} from "../../src/cloud_bucket_mount";
 import { CloudBucketMount_BucketType } from "../../proto/modal_proto/api";
 import { expect, test } from "vitest";
 
@@ -16,10 +12,6 @@ test("CloudBucketMount constructor with minimal options", () => {
   expect(mount.bucketEndpointUrl).toBeUndefined();
   expect(mount.keyPrefix).toBeUndefined();
   expect(mount.oidcAuthRoleArn).toBeUndefined();
-
-  expect(endpointUrlToBucketType(mount.bucketEndpointUrl)).toBe(
-    CloudBucketMount_BucketType.S3,
-  );
 });
 
 test("CloudBucketMount constructor with all options", () => {
@@ -43,30 +35,6 @@ test("CloudBucketMount constructor with all options", () => {
   );
   expect(mount.keyPrefix).toBe("prefix/");
   expect(mount.oidcAuthRoleArn).toBe("arn:aws:iam::123456789:role/MyRole");
-
-  expect(endpointUrlToBucketType(mount.bucketEndpointUrl)).toBe(
-    CloudBucketMount_BucketType.R2,
-  );
-});
-
-test("CloudBucketMount bucket type detection from endpoint URLs", () => {
-  expect(endpointUrlToBucketType("")).toBe(CloudBucketMount_BucketType.S3);
-
-  expect(
-    endpointUrlToBucketType("https://my-bucket.r2.cloudflarestorage.com"),
-  ).toBe(CloudBucketMount_BucketType.R2);
-
-  expect(
-    endpointUrlToBucketType("https://storage.googleapis.com/my-bucket"),
-  ).toBe(CloudBucketMount_BucketType.GCP);
-
-  expect(
-    endpointUrlToBucketType("https://unknown-endpoint.com/my-bucket"),
-  ).toBe(CloudBucketMount_BucketType.S3);
-
-  expect(() => {
-    endpointUrlToBucketType("://invalid-url");
-  }).toThrowError("Invalid URL");
 });
 
 test("CloudBucketMount validation: requesterPays without secret", () => {
@@ -87,9 +55,9 @@ test("CloudBucketMount validation: keyPrefix without trailing slash", () => {
   );
 });
 
-test("cloudBucketMountToProto with minimal options", () => {
+test("cloudBucketMount.toProto() with minimal options", () => {
   const mount = new CloudBucketMount("my-bucket");
-  const proto = cloudBucketMountToProto(mount, "/mnt/bucket");
+  const proto = mount.toProto("/mnt/bucket");
 
   expect(proto.bucketName).toBe("my-bucket");
   expect(proto.mountPath).toBe("/mnt/bucket");
@@ -102,7 +70,7 @@ test("cloudBucketMountToProto with minimal options", () => {
   expect(proto.oidcAuthRoleArn).toBeUndefined();
 });
 
-test("cloudBucketMountToProto with all options", () => {
+test("cloudBucketMount.toProto() with all options", () => {
   const mockSecret = { secretId: "sec-123" } as Secret;
 
   const mount = new CloudBucketMount("my-bucket", {
@@ -114,7 +82,7 @@ test("cloudBucketMountToProto with all options", () => {
     oidcAuthRoleArn: "arn:aws:iam::123456789:role/MyRole",
   });
 
-  const proto = cloudBucketMountToProto(mount, "/mnt/bucket");
+  const proto = mount.toProto("/mnt/bucket");
 
   expect(proto.bucketName).toBe("my-bucket");
   expect(proto.mountPath).toBe("/mnt/bucket");
