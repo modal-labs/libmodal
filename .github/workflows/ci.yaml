@@ -34,6 +34,8 @@ jobs:
 
       - name: Build submodule client
         working-directory: modal-client
+        env:
+          VIRTUAL_ENV: .venv
         run: |
           uv venv
           uv pip install -r requirements.dev.txt
@@ -46,6 +48,7 @@ jobs:
         run: uv pip install ./modal-client
 
       - run: |
+          uv pip install ruff
           ruff check test-support/
           ruff format --check test-support/
 
