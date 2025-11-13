@@ -41,12 +41,12 @@ func main() {
 		}
 	}()
 
-	log.Printf("Sandbox created: %s", sandbox.SandboxID)
+	fmt.Printf("Sandbox created: %s\n", sandbox.SandboxID)
 
-	log.Printf("Waiting for server to start...")
+	fmt.Println("Waiting for server to start...")
 	time.Sleep(3 * time.Second)
 
-	log.Printf("Getting tunnel information...")
+	fmt.Println("Getting tunnel information...")
 	tunnels, err := sandbox.Tunnels(ctx, 30*time.Second)
 	if err != nil {
 		log.Fatalf("Failed to get tunnels: %v", err)
@@ -57,11 +57,11 @@ func main() {
 		log.Fatalf("No tunnel found for port 8000")
 	}
 
-	log.Printf("Tunnel information:")
-	log.Printf("  URL: %s", tunnel.URL())
-	log.Printf("  Port: %d", tunnel.Port)
+	fmt.Println("Tunnel information:")
+	fmt.Printf("  URL: %s\n", tunnel.URL())
+	fmt.Printf("  Port: %d\n", tunnel.Port)
 
-	log.Printf("\nMaking GET request to the tunneled server at %s", tunnel.URL())
+	fmt.Printf("\nMaking GET request to the tunneled server at %s\n", tunnel.URL())
 
 	// Make a GET request to the tunneled server
 	resp, err := http.Get(tunnel.URL())
@@ -87,5 +87,5 @@ func main() {
 
 	fmt.Printf("\nDirectory listing from server (first 500 chars):\n%s\n", bodyStr)
 
-	log.Printf("\n✅ Successfully connected to the tunneled server!")
+	fmt.Println("\n✅ Successfully connected to the tunneled server!")
 }

@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 
 	"github.com/modal-labs/libmodal/modal-go"
@@ -36,12 +37,12 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to call Cls method: %v", err)
 	}
-	log.Println("Response:", result)
+	fmt.Println("Response:", result)
 
 	// Call the Cls function with kwargs.
 	result, err = function.Remote(ctx, nil, map[string]any{"s": "Hello world!"})
 	if err != nil {
 		log.Fatalf("Failed to call Cls method: %v", err)
 	}
-	log.Println("Response:", result)
+	fmt.Println("Response:", result)
 }

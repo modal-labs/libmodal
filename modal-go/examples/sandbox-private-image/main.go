@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log"
 
@@ -35,7 +36,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create Sandbox: %v", err)
 	}
-	log.Printf("Sandbox: %s\n", sb.SandboxID)
+	fmt.Printf("Sandbox: %s\n", sb.SandboxID)
 	defer func() {
 		if err := sb.Terminate(context.Background()); err != nil {
 			log.Fatalf("Failed to terminate Sandbox %s: %v", sb.SandboxID, err)
@@ -56,5 +57,5 @@ func main() {
 		log.Fatalf("Failed to read from Sandbox stdout: %v", err)
 	}
 
-	log.Printf("output: %s\n", string(output))
+	fmt.Printf("output: %s\n", string(output))
 }

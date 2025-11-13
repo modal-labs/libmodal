@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log"
 
@@ -28,14 +29,14 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create Sandbox: %v", err)
 	}
-	log.Printf("Started Sandbox with A10G GPU: %s", sb.SandboxID)
+	fmt.Printf("Started Sandbox with A10G GPU: %s\n", sb.SandboxID)
 	defer func() {
 		if err := sb.Terminate(context.Background()); err != nil {
 			log.Fatalf("Failed to terminate Sandbox %s: %v", sb.SandboxID, err)
 		}
 	}()
 
-	log.Println("Running `nvidia-smi` in Sandbox:")
+	fmt.Println("Running `nvidia-smi` in Sandbox:")
 
 	p, err := sb.Exec(ctx, []string{"nvidia-smi"}, nil)
 	if err != nil {
@@ -47,5 +48,5 @@ func main() {
 		log.Fatalf("Failed to read stdout: %v", err)
 	}
 
-	log.Printf("%s", string(output))
+	fmt.Printf("%s\n", string(output))
 }

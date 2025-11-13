@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log"
 	"time"
@@ -27,7 +28,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create Sandbox: %v", err)
 	}
-	log.Printf("Started Sandbox: %s", sb.SandboxID)
+	fmt.Printf("Started Sandbox: %s\n", sb.SandboxID)
 	defer func() {
 		if err := sb.Terminate(context.Background()); err != nil {
 			log.Fatalf("Failed to terminate Sandbox %s: %v", sb.SandboxID, err)
@@ -43,26 +44,26 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create file: %v", err)
 	}
-	log.Printf("Created file in first Sandbox")
+	fmt.Println("Created file in first Sandbox")
 
 	snapshotImage, err := sb.SnapshotFilesystem(ctx, 55*time.Second)
 	if err != nil {
 		log.Fatalf("Failed to snapshot filesystem: %v", err)
 	}
-	log.Printf("Filesystem snapshot created with Image ID: %s", snapshotImage.ImageID)
+	fmt.Printf("Filesystem snapshot created with Image ID: %s\n", snapshotImage.ImageID)
 
 	err = sb.Terminate(ctx)
 	if err != nil {
 		log.Fatalf("Failed to terminate Sandbox %s: %v", sb.SandboxID, err)
 	}
-	log.Printf("Terminated first Sandbox")
+	fmt.Println("Terminated first Sandbox")
 
 	// Create new Sandbox from snapshot Image
 	sb2, err := mc.Sandboxes.Create(ctx, app, snapshotImage, nil)
 	if err != nil {
 		log.Fatalf("Failed to create Sandbox from snapshot: %v", err)
 	}
-	log.Printf("Started new Sandbox from snapshot: %s", sb2.SandboxID)
+	fmt.Printf("Started new Sandbox from snapshot: %s\n", sb2.SandboxID)
 
 	defer func() {
 		if err := sb2.Terminate(context.Background()); err != nil {
@@ -79,5 +80,5 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to read output: %v", err)
 	}
-	log.Printf("File data read in second Sandbox: %s", string(content))
+	fmt.Printf("File data read in second Sandbox: %s\n", string(content))
 }

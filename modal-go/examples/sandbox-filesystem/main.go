@@ -27,7 +27,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create Sandbox: %v", err)
 	}
-	log.Printf("Started Sandbox: %s", sb.SandboxID)
+	fmt.Printf("Started Sandbox: %s\n", sb.SandboxID)
 
 	defer func() {
 		if err := sb.Terminate(context.Background()); err != nil {
@@ -61,7 +61,7 @@ func main() {
 		log.Fatalf("Failed to read file: %v", err)
 	}
 
-	fmt.Printf("File content:\n%s", string(content))
+	fmt.Printf("File content:\n%s\n", string(content))
 	if err := reader.Close(); err != nil {
 		log.Fatalf("Failed to close file: %v", err)
 	}
