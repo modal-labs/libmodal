@@ -176,7 +176,7 @@ test("SandboxWithVolume", async () => {
 
 test("SandboxWithReadOnlyVolume", async () => {
   const app = await App.lookup("libmodal-test", { createIfMissing: true });
-  const image = await Image.fromRegistry("alpine:3.21");
+  const image = Image.fromRegistry("alpine:3.21");
 
   const volume = await Volume.fromName("libmodal-test-sandbox-volume", {
     createIfMissing: true,

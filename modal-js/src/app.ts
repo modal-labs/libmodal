@@ -117,6 +117,7 @@ export class App {
   /**
    * @deprecated Use {@link AppService#fromName client.apps.fromName()} instead.
    */
+  // eslint-disable-next-line @typescript-eslint/no-deprecated
   static async lookup(name: string, options: LookupOptions = {}): Promise<App> {
     return getDefaultClient().apps.fromName(name, options);
   }
