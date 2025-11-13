@@ -57,20 +57,14 @@ func TestFunctionCallGoMap(t *testing.T) {
 	function, err := tc.Functions.FromName(ctx, "libmodal-test-support", "identity_with_repr", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	// Represent Python kwargs.
 	inputArg := map[string]any{"s": "hello"}
 	result, err := function.Remote(ctx, []any{inputArg}, nil)
-	t.Log("result", result)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	// "Explode" result into two parts, assuming it's a slice/array of length 2.
 	resultSlice, ok := result.([]any)
 	g.Expect(ok).Should(gomega.BeTrue())
 	g.Expect(len(resultSlice)).Should(gomega.Equal(2))
 
-	// Assert and type the first element as string
-	identityResult := resultSlice[0]
-	// Use custom comparison for deep equality ignoring concrete types (e.g. map[string]interface{} vs map[string]any)
-	g.Expect(compareFlexible(identityResult, inputArg)).Should(gomega.BeTrue())
+	g.Expect(compareFlexible(resultSlice[0], inputArg)).Should(gomega.BeTrue())
 
 	reprResult, ok := resultSlice[1].(string)
 	g.Expect(ok).Should(gomega.BeTrue())
@@ -86,7 +80,6 @@ func TestFunctionCallDateTimeRoundtrip(t *testing.T) {
 	function, err := tc.Functions.FromName(ctx, "libmodal-test-support", "identity_with_repr", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	// Test: Send a Go time.Time to Python and see how it's represented
 	testTime := time.Date(2024, 1, 15, 10, 30, 45, 123456789, time.UTC)
 	result, err := function.Remote(ctx, []any{testTime}, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -96,32 +89,19 @@ func TestFunctionCallDateTimeRoundtrip(t *testing.T) {
 	g.Expect(ok).Should(gomega.BeTrue())
 	g.Expect(len(resultSlice)).Should(gomega.Equal(2))
 
-	// Check what we got back (should be the original time, potentially with precision loss)
-	identityResult := resultSlice[0]
-	t.Logf("Go sent: %s", testTime.String())
-	t.Logf("Go received back: %+v (type: %T)", identityResult, identityResult)
-
-	// Check the Python representation
 	reprResult, ok := resultSlice[1].(string)
 	g.Expect(ok).Should(gomega.BeTrue())
-	t.Logf("Python repr: %s", reprResult)
 
 	g.Expect(reprResult).Should(gomega.ContainSubstring("datetime.datetime"))
 	g.Expect(reprResult).Should(gomega.ContainSubstring("2024"))
-	t.Logf("✅ SUCCESS: Go time.Time was received as Python datetime.datetime")
 
-	// Verify the roundtrip - we should get back a time.Time
-	receivedTime, ok := identityResult.(time.Time)
+	receivedTime, ok := resultSlice[0].(time.Time)
 	g.Expect(ok).Should(gomega.BeTrue())
 
-	// Check precision
 	timeDiff := testTime.Sub(receivedTime)
 	if timeDiff < 0 {
 		timeDiff = -timeDiff
 	}
-	t.Logf("Original time: %v", testTime)
-	t.Logf("Received time: %v", receivedTime)
-	t.Logf("Time difference after roundtrip: %v (%v nanoseconds)", timeDiff, timeDiff.Nanoseconds())
 
 	// Python's datetime has microsecond precision (not nanosecond)
 	// CBOR encodes time.Time with TimeRFC3339Nano (nanosecond precision)
@@ -134,7 +114,6 @@ func TestFunctionCallDateTimeRoundtrip(t *testing.T) {
 	// So we should lose exactly 789 nanoseconds
 	g.Expect(timeDiff).Should(gomega.BeNumerically("<", time.Microsecond))
 
-	// Verify the times are equal when truncated to microseconds
 	g.Expect(receivedTime.Truncate(time.Microsecond)).Should(gomega.Equal(testTime.Truncate(time.Microsecond)))
 }
 

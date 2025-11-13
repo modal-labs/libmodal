@@ -10,11 +10,9 @@ test("FunctionCall", async () => {
     "echo_string",
   );
 
-  // Represent Python kwargs.
   const resultKwargs = await function_.remote([], { s: "hello" });
   expect(resultKwargs).toBe("output: hello");
 
-  // Try the same, but with args.
   const resultArgs = await function_.remote(["hello"]);
   expect(resultArgs).toBe("output: hello");
 });
@@ -25,7 +23,6 @@ test("FunctionCallJsMap", async () => {
     "identity_with_repr",
   );
 
-  // Represent Python kwargs.
   const resultKwargs = await function_.remote([new Map([["a", "b"]])]);
   expect(resultKwargs).toStrictEqual([{ a: "b" }, "{'a': 'b'}"]);
 });
@@ -36,26 +33,17 @@ test("FunctionCallDateTimeRoundtrip", async () => {
     "identity_with_repr",
   );
 
-  // Test: Send a JS Date to Python and see how it's represented
   const testDate = new Date("2024-01-15T10:30:45.123Z");
   const result = await function_.remote([testDate]);
 
-  // Parse the result - identity_with_repr returns [input, repr(input)]
   expect(Array.isArray(result)).toBe(true);
   expect(result).toHaveLength(2);
 
   const [identityResult, reprResult] = result as [unknown, string];
 
-  console.log("JS sent:", testDate.toISOString());
-  console.log("JS received back:", identityResult);
-  console.log("Python repr:", reprResult);
-
-  // Check the Python representation
   expect(reprResult).toContain("datetime.datetime");
   expect(reprResult).toContain("2024");
-  console.log("✅ SUCCESS: JS Date was received as Python datetime.datetime");
 
-  // Verify the roundtrip - we should get back a Date
   expect(identityResult).toBeInstanceOf(Date);
   const receivedDate = identityResult as Date;
 
@@ -63,9 +51,6 @@ test("FunctionCallDateTimeRoundtrip", async () => {
   // Python datetime has microsecond precision
   // We should get back millisecond precision (lose sub-millisecond)
   const timeDiff = Math.abs(testDate.getTime() - receivedDate.getTime());
-  console.log(
-    `Time difference after roundtrip: ${timeDiff}ms (${timeDiff * 1000000}ns)`,
-  );
 
   // JavaScript Date only has millisecond precision, so we should have no loss
   expect(timeDiff).toBeLessThan(1); // Less than 1 millisecond
