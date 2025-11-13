@@ -16,6 +16,7 @@ func TestFunctionCall(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
+	tc := newTestClient(t)
 
 	function, err := tc.Functions.FromName(ctx, "libmodal-test-support", "echo_string", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -36,6 +37,7 @@ func TestFunctionCallPreCborVersionError(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
+	tc := newTestClient(t)
 
 	function, err := tc.Functions.FromName(ctx, "test-support-1-1", "identity_with_repr", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -50,6 +52,8 @@ func TestFunctionCallGoMap(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
+	tc := newTestClient(t)
+
 	function, err := tc.Functions.FromName(ctx, "libmodal-test-support", "identity_with_repr", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
@@ -71,14 +75,14 @@ func TestFunctionCallGoMap(t *testing.T) {
 	reprResult, ok := resultSlice[1].(string)
 	g.Expect(ok).Should(gomega.BeTrue())
 	g.Expect(reprResult).Should(gomega.Equal(`{'s': 'hello'}`))
-
 }
 
 func TestFunctionCallDateTimeRoundtrip(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
-
 	ctx := context.Background()
+	tc := newTestClient(t)
+
 	function, err := tc.Functions.FromName(ctx, "libmodal-test-support", "identity_with_repr", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
@@ -138,6 +142,7 @@ func TestFunctionCallLargeInput(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
+	tc := newTestClient(t)
 
 	function, err := tc.Functions.FromName(ctx, "libmodal-test-support", "bytelength", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -153,6 +158,7 @@ func TestFunctionNotFound(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
+	tc := newTestClient(t)
 
 	_, err := tc.Functions.FromName(ctx, "libmodal-test-support", "not_a_real_function", nil)
 	g.Expect(err).Should(gomega.BeAssignableToTypeOf(modal.NotFoundError{}))
@@ -162,6 +168,7 @@ func TestFunctionCallInputPlane(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
+	tc := newTestClient(t)
 
 	function, err := tc.Functions.FromName(ctx, "libmodal-test-support", "input_plane", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -177,10 +184,7 @@ func TestFunctionGetCurrentStats(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	mock := grpcmock.NewMockClient()
-	defer func() {
-		g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
-	}()
+	mock := newGRPCMockClient(t)
 
 	grpcmock.HandleUnary(
 		mock, "/FunctionGet",
@@ -205,6 +209,8 @@ func TestFunctionGetCurrentStats(t *testing.T) {
 	stats, err := f.GetCurrentStats(ctx)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(stats).To(gomega.Equal(&modal.FunctionStats{Backlog: 3, NumTotalRunners: 7}))
+
+	g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
 }
 
 func TestFunctionUpdateAutoscaler(t *testing.T) {
@@ -212,10 +218,7 @@ func TestFunctionUpdateAutoscaler(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	mock := grpcmock.NewMockClient()
-	defer func() {
-		g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
-	}()
+	mock := newGRPCMockClient(t)
 
 	grpcmock.HandleUnary(
 		mock, "/FunctionGet",
@@ -263,6 +266,8 @@ func TestFunctionUpdateAutoscaler(t *testing.T) {
 		MinContainers: ptrU32(2),
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
 }
 
 func ptrU32(v uint32) *uint32 { return &v }
@@ -272,10 +277,7 @@ func TestFunctionGetWebURL(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	mock := grpcmock.NewMockClient()
-	defer func() {
-		g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
-	}()
+	mock := newGRPCMockClient(t)
 
 	grpcmock.HandleUnary(
 		mock, "FunctionGet",
@@ -305,12 +307,15 @@ func TestFunctionGetWebURL(t *testing.T) {
 	wef, err := mock.Functions.FromName(ctx, "libmodal-test-support", "web_endpoint", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(wef.GetWebURL()).To(gomega.Equal("https://endpoint.internal"))
+
+	g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
 }
 
 func TestFunctionFromNameWithDotNotation(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
+	tc := newTestClient(t)
 
 	_, err := tc.Functions.FromName(ctx, "libmodal-test-support", "MyClass.myMethod", nil)
 	g.Expect(err).Should(gomega.HaveOccurred())
@@ -321,6 +326,7 @@ func TestWebEndpointRemoteCallError(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
+	tc := newTestClient(t)
 
 	function, err := tc.Functions.FromName(ctx, "libmodal-test-support", "web_endpoint_echo", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -335,6 +341,7 @@ func TestWebEndpointSpawnCallError(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
+	tc := newTestClient(t)
 
 	function, err := tc.Functions.FromName(ctx, "libmodal-test-support", "web_endpoint_echo", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())

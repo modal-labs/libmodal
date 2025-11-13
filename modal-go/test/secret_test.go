@@ -16,6 +16,7 @@ func TestSecretFromName(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
+	tc := newTestClient(t)
 
 	secret, err := tc.Secrets.FromName(ctx, "libmodal-test-secret", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -30,6 +31,7 @@ func TestSecretFromNameWithRequiredKeys(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
+	tc := newTestClient(t)
 
 	secret, err := tc.Secrets.FromName(ctx, "libmodal-test-secret", &modal.SecretFromNameParams{
 		RequiredKeys: []string{"a", "b", "c"},
@@ -47,6 +49,7 @@ func TestSecretFromMap(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
+	tc := newTestClient(t)
 
 	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -70,10 +73,7 @@ func TestSecretDeleteSuccess(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	mock := grpcmock.NewMockClient()
-	defer func() {
-		g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
-	}()
+	mock := newGRPCMockClient(t)
 
 	grpcmock.HandleUnary(
 		mock, "/SecretGetOrCreate",
@@ -94,6 +94,8 @@ func TestSecretDeleteSuccess(t *testing.T) {
 
 	err := mock.Secrets.Delete(ctx, "test-secret", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
 }
 
 func TestSecretDeleteWithAllowMissing(t *testing.T) {
@@ -101,10 +103,7 @@ func TestSecretDeleteWithAllowMissing(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	mock := grpcmock.NewMockClient()
-	defer func() {
-		g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
-	}()
+	mock := newGRPCMockClient(t)
 
 	grpcmock.HandleUnary(
 		mock, "/SecretGetOrCreate",
@@ -117,6 +116,8 @@ func TestSecretDeleteWithAllowMissing(t *testing.T) {
 		AllowMissing: true,
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
 }
 
 func TestSecretDeleteWithAllowMissingFalseThrows(t *testing.T) {
@@ -124,10 +125,7 @@ func TestSecretDeleteWithAllowMissingFalseThrows(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
-	mock := grpcmock.NewMockClient()
-	defer func() {
-		g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
-	}()
+	mock := newGRPCMockClient(t)
 
 	grpcmock.HandleUnary(
 		mock, "/SecretGetOrCreate",
@@ -142,4 +140,6 @@ func TestSecretDeleteWithAllowMissingFalseThrows(t *testing.T) {
 	g.Expect(err).Should(gomega.HaveOccurred())
 	var notFoundErr modal.NotFoundError
 	g.Expect(err).Should(gomega.BeAssignableToTypeOf(notFoundErr))
+
+	g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
 }

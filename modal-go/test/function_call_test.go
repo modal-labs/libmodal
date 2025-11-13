@@ -13,6 +13,7 @@ func TestFunctionSpawn(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
+	tc := newTestClient(t)
 
 	function, err := tc.Functions.FromName(
 		ctx,
@@ -63,6 +64,7 @@ func TestFunctionCallGet0(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
+	tc := newTestClient(t)
 
 	sleep, _ := tc.Functions.FromName(
 		ctx,
