@@ -139,3 +139,111 @@ func TestVolumeDeleteWithAllowMissingFalseThrows(t *testing.T) {
 	var notFoundErr modal.NotFoundError
 	g.Expect(err).Should(gomega.BeAssignableToTypeOf(notFoundErr))
 }
+
+func TestVolumeList(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+
+	mock := grpcmock.NewMockClient()
+	defer func() {
+		g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
+	}()
+
+	// First page - return 2 items (less than page size of 100, so no second page needed)
+	grpcmock.HandleUnary(
+		mock, "/VolumeList",
+		func(req *pb.VolumeListRequest) (*pb.VolumeListResponse, error) {
+			g.Expect(req.GetPagination().GetMaxObjects()).To(gomega.Equal(int32(100)))
+			return pb.VolumeListResponse_builder{
+				Items: []*pb.VolumeListItem{
+					pb.VolumeListItem_builder{
+						VolumeId: "vo-1",
+						Metadata: pb.VolumeMetadata_builder{
+							Name: "volume-1",
+							CreationInfo: pb.CreationInfo_builder{
+								CreatedAt: 1000.0,
+							}.Build(),
+						}.Build(),
+					}.Build(),
+					pb.VolumeListItem_builder{
+						VolumeId: "vo-2",
+						Metadata: pb.VolumeMetadata_builder{
+							Name: "volume-2",
+							CreationInfo: pb.CreationInfo_builder{
+								CreatedAt: 900.0,
+							}.Build(),
+						}.Build(),
+					}.Build(),
+				},
+			}.Build(), nil
+		},
+	)
+
+	iter, err := mock.Volumes.List(ctx, nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	volumes := []string{}
+	for volume, err := range iter {
+		g.Expect(err).ShouldNot(gomega.HaveOccurred())
+		volumes = append(volumes, volume.Name)
+	}
+
+	g.Expect(volumes).To(gomega.Equal([]string{"volume-1", "volume-2"}))
+}
+
+func TestVolumeListWithMaxObjects(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+
+	mock := grpcmock.NewMockClient()
+	defer func() {
+		g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
+	}()
+
+	maxObjects := 5
+	grpcmock.HandleUnary(
+		mock, "/VolumeList",
+		func(req *pb.VolumeListRequest) (*pb.VolumeListResponse, error) {
+			// Should request exactly 5 items
+			g.Expect(req.GetPagination().GetMaxObjects()).To(gomega.Equal(int32(5)))
+			return pb.VolumeListResponse_builder{
+				Items: []*pb.VolumeListItem{
+					pb.VolumeListItem_builder{
+						VolumeId: "vo-1",
+						Metadata: pb.VolumeMetadata_builder{
+							Name: "volume-1",
+							CreationInfo: pb.CreationInfo_builder{
+								CreatedAt: 1000.0,
+							}.Build(),
+						}.Build(),
+					}.Build(),
+					pb.VolumeListItem_builder{
+						VolumeId: "vo-2",
+						Metadata: pb.VolumeMetadata_builder{
+							Name: "volume-2",
+							CreationInfo: pb.CreationInfo_builder{
+								CreatedAt: 900.0,
+							}.Build(),
+						}.Build(),
+					}.Build(),
+				},
+			}.Build(), nil
+		},
+	)
+
+	iter, err := mock.Volumes.List(ctx, &modal.VolumeListParams{
+		MaxObjects: &maxObjects,
+	})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	count := 0
+	for volume, err := range iter {
+		g.Expect(err).ShouldNot(gomega.HaveOccurred())
+		g.Expect(volume).ShouldNot(gomega.BeNil())
+		count++
+	}
+
+	g.Expect(count).To(gomega.Equal(2))
+}

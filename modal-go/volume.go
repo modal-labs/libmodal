@@ -3,6 +3,8 @@ package modal
 import (
 	"context"
 	"fmt"
+	"iter"
+	"time"
 
 	pb "github.com/modal-labs/libmodal/modal-go/proto/modal_proto"
 	"google.golang.org/grpc/codes"
@@ -13,6 +15,7 @@ import (
 type VolumeService interface {
 	FromName(ctx context.Context, name string, params *VolumeFromNameParams) (*Volume, error)
 	Ephemeral(ctx context.Context, params *VolumeEphemeralParams) (*Volume, error)
+	List(ctx context.Context, params *VolumeListParams) (iter.Seq2[*Volume, error], error)
 	Delete(ctx context.Context, name string, params *VolumeDeleteParams) error
 }
 
@@ -24,6 +27,8 @@ type Volume struct {
 	Name            string
 	readOnly        bool
 	cancelEphemeral context.CancelFunc
+
+	metadata *pb.VolumeMetadata
 }
 
 // VolumeFromNameParams are options for finding Modal Volumes.
@@ -57,17 +62,15 @@ func (s *volumeServiceImpl) FromName(ctx context.Context, name string, params *V
 	}
 
 	s.client.logger.DebugContext(ctx, "Retrieved Volume", "volume_id", resp.GetVolumeId(), "volume_name", name)
-	return &Volume{VolumeID: resp.GetVolumeId(), Name: name, readOnly: false, cancelEphemeral: nil}, nil
+	return newVolume(resp.GetVolumeId(), resp.GetMetadata()), nil
 }
 
 // ReadOnly configures Volume to mount as read-only.
 func (v *Volume) ReadOnly() *Volume {
-	return &Volume{
-		VolumeID:        v.VolumeID,
-		Name:            v.Name,
-		readOnly:        true,
-		cancelEphemeral: v.cancelEphemeral,
-	}
+	readOnlyVolume := newVolume(v.VolumeID, v.metadata)
+	readOnlyVolume.readOnly = true
+	readOnlyVolume.cancelEphemeral = v.cancelEphemeral
+	return readOnlyVolume
 }
 
 // IsReadOnly returns true if the Volume is configured to mount as read-only.
@@ -84,6 +87,13 @@ type VolumeEphemeralParams struct {
 type VolumeDeleteParams struct {
 	Environment  string
 	AllowMissing bool
+}
+
+// VolumeListParams are options for client.Volumes.List.
+type VolumeListParams struct {
+	Environment   string
+	MaxObjects    *int
+	CreatedBefore *time.Time
 }
 
 // Ephemeral creates a nameless, temporary Volume, that persists until CloseEphemeral is called, or the process exits.
@@ -110,11 +120,9 @@ func (s *volumeServiceImpl) Ephemeral(ctx context.Context, params *VolumeEphemer
 		return err
 	})
 
-	return &Volume{
-		VolumeID:        resp.GetVolumeId(),
-		readOnly:        false,
-		cancelEphemeral: cancel,
-	}, nil
+	volume := newVolume(resp.GetVolumeId(), resp.GetMetadata())
+	volume.cancelEphemeral = cancel
+	return volume, nil
 }
 
 // CloseEphemeral deletes an ephemeral Volume, only used with VolumeEphemeral.
@@ -126,6 +134,75 @@ func (v *Volume) CloseEphemeral() {
 		// used with `defer` like CloseEphemeral should not return errors.
 		panic(fmt.Sprintf("Volume %s is not ephemeral", v.VolumeID))
 	}
+}
+
+// List lists Volumes for the current environment, optionally filtered by creation date and limited in count.
+func (s *volumeServiceImpl) List(ctx context.Context, params *VolumeListParams) (iter.Seq2[*Volume, error], error) {
+	if params == nil {
+		params = &VolumeListParams{}
+	}
+
+	return func(yield func(*Volume, error) bool) {
+		var itemsYielded int
+		var createdBefore float64
+
+		if params.CreatedBefore != nil {
+			createdBefore = float64(params.CreatedBefore.Unix())
+		}
+
+		for {
+			if err := ctx.Err(); err != nil {
+				yield(nil, err)
+				return
+			}
+
+			// Calculate dynamic page size like Python does
+			maxPageSize := int32(100)
+			if params.MaxObjects != nil {
+				remaining := *params.MaxObjects - itemsYielded
+				if remaining <= 0 {
+					return
+				}
+				if remaining < 100 {
+					maxPageSize = int32(remaining)
+				}
+			}
+
+			resp, err := s.client.cpClient.VolumeList(ctx, pb.VolumeListRequest_builder{
+				EnvironmentName: environmentName(params.Environment, s.client.profile),
+				Pagination: pb.ListPagination_builder{
+					MaxObjects:    maxPageSize,
+					CreatedBefore: createdBefore,
+				}.Build(),
+			}.Build())
+
+			if err != nil {
+				yield(nil, err)
+				return
+			}
+
+			items := resp.GetItems()
+			if len(items) == 0 {
+				return
+			}
+
+			for _, item := range items {
+				volume := newVolume(item.GetVolumeId(), item.GetMetadata())
+				if !yield(volume, nil) {
+					return // Consumer stopped iteration
+				}
+				itemsYielded++
+			}
+
+			// Check if we're done (received fewer items than requested)
+			if len(items) < int(maxPageSize) {
+				return
+			}
+
+			// Use last item's timestamp as cursor for next page
+			createdBefore = items[len(items)-1].GetMetadata().GetCreationInfo().GetCreatedAt()
+		}
+	}, nil
 }
 
 // Delete deletes a named Volume.
@@ -158,4 +235,21 @@ func (s *volumeServiceImpl) Delete(ctx context.Context, name string, params *Vol
 
 	s.client.logger.DebugContext(ctx, "Deleted Volume", "volume_name", name, "volume_id", volume.VolumeID)
 	return nil
+}
+
+// newVolume creates a Volume with metadata.
+// This is the unified constructor used across FromName, Ephemeral, List, etc.
+func newVolume(volumeID string, metadata *pb.VolumeMetadata) *Volume {
+	name := ""
+	if metadata != nil {
+		name = metadata.GetName()
+	}
+
+	return &Volume{
+		VolumeID:        volumeID,
+		Name:            name,
+		readOnly:        false,
+		cancelEphemeral: nil,
+		metadata:        metadata,
+	}
 }
