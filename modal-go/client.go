@@ -200,7 +200,7 @@ func NewClientWithOptions(params *ClientParams) (*Client, error) {
 
 // ipClient returns the input plane client for the given server URL.
 // It creates a new client if one doesn't exist for that specific server URL, otherwise it returns the existing client.
-func (c *Client) ipClient(serverURL string) (pb.ModalClientClient, error) {
+func (c *Client) ipClient(ctx context.Context, serverURL string) (pb.ModalClientClient, error) {
 	c.mu.RLock()
 	if client, ok := c.ipClients[serverURL]; ok {
 		c.mu.RUnlock()
@@ -215,7 +215,7 @@ func (c *Client) ipClient(serverURL string) (pb.ModalClientClient, error) {
 		return client, nil
 	}
 
-	c.logger.Debug("Creating input plane client", "server_url", serverURL)
+	c.logger.DebugContext(ctx, "Creating input plane client", "server_url", serverURL)
 	prof := c.profile
 	prof.ServerURL = serverURL
 	conn, client, err := newClient(prof, c, c.additionalUnaryInterceptors, c.additionalStreamInterceptors)
