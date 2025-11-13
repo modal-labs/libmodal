@@ -48,5 +48,5 @@ func main() {
 		log.Fatalf("Failed to read stdout: %v", err)
 	}
 
-	fmt.Printf("%s", string(output))
+	fmt.Printf("%s\n", string(output))
 }

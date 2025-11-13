@@ -84,5 +84,5 @@ for i in range(50000):
 	if err != nil {
 		log.Fatalf("Failed to read stdout: %v", err)
 	}
-	fmt.Printf("Got environment variable c=%v", string(secretStdout))
+	fmt.Printf("Got environment variable c=%v\n", string(secretStdout))
 }

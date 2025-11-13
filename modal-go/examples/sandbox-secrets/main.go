@@ -51,5 +51,5 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to read output: %v", err)
 	}
-	fmt.Printf("Sandbox environment variables from Secrets:\n%v", string(output))
+	fmt.Printf("Sandbox environment variables from Secrets:\n%v\n", string(output))
 }

@@ -60,5 +60,5 @@ func main() {
 		log.Fatalf("Failed to read from Sandbox stdout: %v", err)
 	}
 
-	fmt.Printf("Sandbox directory listing of /mnt/s3-bucket:\n%s", string(output))
+	fmt.Printf("Sandbox directory listing of /mnt/s3-bucket:\n%s\n", string(output))
 }

@@ -61,7 +61,7 @@ func main() {
 		log.Fatalf("Failed to read file: %v", err)
 	}
 
-	fmt.Printf("File content:\n%s", string(content))
+	fmt.Printf("File content:\n%s\n", string(content))
 	if err := reader.Close(); err != nil {
 		log.Fatalf("Failed to close file: %v", err)
 	}

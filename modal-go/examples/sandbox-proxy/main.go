@@ -52,5 +52,5 @@ func main() {
 		log.Fatalf("Failed to read IP output: %v", err)
 	}
 
-	fmt.Printf("External IP: %s", string(ip))
+	fmt.Printf("External IP: %s\n", string(ip))
 }

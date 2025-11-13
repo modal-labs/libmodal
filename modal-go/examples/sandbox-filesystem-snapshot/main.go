@@ -80,5 +80,5 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to read output: %v", err)
 	}
-	fmt.Printf("File data read in second Sandbox: %s", string(content))
+	fmt.Printf("File data read in second Sandbox: %s\n", string(content))
 }
