@@ -32,7 +32,10 @@ func (s *slowModalServer) AppGetOrCreate(ctx context.Context, req *pb.AppGetOrCr
 }
 
 func (s *slowModalServer) AuthTokenGet(ctx context.Context, req *pb.AuthTokenGetRequest) (*pb.AuthTokenGetResponse, error) {
-	return pb.AuthTokenGetResponse_builder{Token: "test-token"}.Build(), nil
+	// Mock JWT with "x" mock header, base64 enc of {"exp":9999999999}, and "x" mock signature,
+	// since AuthTokenManager.FetchToken() warns if the JWT doesn't have an "exp" field.
+	const mockJWT = "x.eyJleHAiOjk5OTk5OTk5OTl9.x"
+	return pb.AuthTokenGetResponse_builder{Token: mockJWT}.Build(), nil
 }
 
 func TestClientRespectsContextDeadline(t *testing.T) {
