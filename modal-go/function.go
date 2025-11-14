@@ -10,6 +10,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -197,7 +198,7 @@ func (f *Function) createInput(ctx context.Context, args []any, kwargs map[strin
 	dataFormat := pb.DataFormat_DATA_FORMAT_CBOR
 	var argsBlobID *string
 	if len(argsBytes) > maxObjectSizeBytes {
-		blobID, err := blobUpload(ctx, f.client.cpClient, argsBytes)
+		blobID, err := blobUpload(ctx, f.client.cpClient, f.client.logger, argsBytes)
 		if err != nil {
 			return nil, err
 		}
@@ -381,7 +382,7 @@ func (f *Function) GetWebURL() string {
 }
 
 // blobUpload uploads a blob to storage and returns its ID.
-func blobUpload(ctx context.Context, client pb.ModalClientClient, data []byte) (string, error) {
+func blobUpload(ctx context.Context, client pb.ModalClientClient, logger *slog.Logger, data []byte) (string, error) {
 	md5sum := md5.Sum(data)
 	sha256sum := sha256.Sum256(data)
 	contentMd5 := base64.StdEncoding.EncodeToString(md5sum[:])
@@ -411,7 +412,11 @@ func blobUpload(ctx context.Context, client pb.ModalClientClient, data []byte) (
 		if err != nil {
 			return "", fmt.Errorf("failed to upload blob: %w", err)
 		}
-		defer func() { _ = uploadResp.Body.Close() }()
+		defer func() {
+			if err := uploadResp.Body.Close(); err != nil {
+				logger.DebugContext(ctx, "failed to close upload response body", "error", err.Error())
+			}
+		}()
 		if uploadResp.StatusCode < 200 || uploadResp.StatusCode >= 300 {
 			return "", fmt.Errorf("failed blob upload: %s", uploadResp.Status)
 		}
