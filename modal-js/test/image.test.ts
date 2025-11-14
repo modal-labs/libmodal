@@ -1,5 +1,5 @@
 import { tc } from "../test-support/test-client";
-import { expect, test } from "vitest";
+import { expect, onTestFinished, test } from "vitest";
 import { createMockModalClients } from "../test-support/grpc_mock";
 import { Secret } from "../src/secret";
 import { App } from "../src/app";
@@ -99,8 +99,8 @@ test("CreateOneSandboxTopLevelImageAPI", async () => {
   expect(image.imageId).toBeFalsy();
 
   const sb = await tc.sandboxes.create(app, image);
+  onTestFinished(async () => await sb.terminate());
   expect(sb.sandboxId).toBeTruthy();
-  await sb.terminate();
 
   expect(image.imageId).toMatch(/^im-/);
 });
@@ -120,8 +120,8 @@ test("CreateOneSandboxTopLevelImageAPISecret", async () => {
   expect(image.imageId).toBeFalsy();
 
   const sb = await tc.sandboxes.create(app, image);
+  onTestFinished(async () => await sb.terminate());
   expect(sb.sandboxId).toBeTruthy();
-  await sb.terminate();
 
   expect(image.imageId).toMatch(/^im-/);
 });
@@ -141,8 +141,8 @@ test("ImageFromAwsEcrTopLevel", async () => {
   expect(image.imageId).toBeFalsy();
 
   const sb = await tc.sandboxes.create(app, image);
+  onTestFinished(async () => await sb.terminate());
   expect(sb.sandboxId).toBeTruthy();
-  await sb.terminate();
 
   expect(image.imageId).toMatch(/^im-/);
 });
@@ -162,8 +162,8 @@ test("ImageFromGcpEcrTopLevel", async () => {
   expect(image.imageId).toBeFalsy();
 
   const sb = await tc.sandboxes.create(app, image);
+  onTestFinished(async () => await sb.terminate());
   expect(sb.sandboxId).toBeTruthy();
-  await sb.terminate();
 
   expect(image.imageId).toMatch(/^im-/);
 });
@@ -208,11 +208,10 @@ test("DockerfileCommands", async () => {
   const sb = await tc.sandboxes.create(app, image, {
     command: ["cat", "/root/hello.txt"],
   });
+  onTestFinished(async () => await sb.terminate());
 
   const stdout = await sb.stdout.readText();
   expect(stdout).toBe("hey\n");
-
-  await sb.terminate();
 });
 
 test("DockerfileCommandsEmptyArrayNoOp", () => {
@@ -242,11 +241,10 @@ test("DockerfileCommandsChaining", async () => {
       "/root/layer3.txt",
     ],
   });
+  onTestFinished(async () => await sb.terminate());
 
   const stdout = await sb.stdout.readText();
   expect(stdout).toBe("unset\nhello\nunset\n");
-
-  await sb.terminate();
 });
 
 test("DockerfileCommandsCopyCommandValidation", () => {

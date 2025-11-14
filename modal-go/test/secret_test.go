@@ -62,6 +62,7 @@ func TestSecretFromMap(t *testing.T) {
 
 	sb, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{Secrets: []*modal.Secret{secret}, Command: []string{"printenv", "key"}})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	defer terminateSandbox(g, sb)
 
 	output, err := io.ReadAll(sb.Stdout)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())

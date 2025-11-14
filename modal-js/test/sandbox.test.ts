@@ -15,9 +15,11 @@ test("CreateOneSandbox", async () => {
   const image = tc.images.fromRegistry("alpine:3.21");
 
   const sb = await tc.sandboxes.create(app, image);
+  onTestFinished(async () => {
+    await sb.terminate();
+    expect(await sb.wait()).toBe(137);
+  });
   expect(sb.sandboxId).toBeTruthy();
-  await sb.terminate();
-  expect(await sb.wait()).toBe(137);
 });
 
 test("PassCatToStdin", async () => {
@@ -26,18 +28,14 @@ test("PassCatToStdin", async () => {
   });
   const image = tc.images.fromRegistry("alpine:3.21");
 
-  // Spawn a sandbox running the "cat" command.
   const sb = await tc.sandboxes.create(app, image, { command: ["cat"] });
+  onTestFinished(async () => await sb.terminate());
 
-  // Write to the sandbox's stdin and read from its stdout.
   await sb.stdin.writeText("this is input that should be mirrored by cat");
   await sb.stdin.close();
   expect(await sb.stdout.readText()).toBe(
     "this is input that should be mirrored by cat",
   );
-
-  // Terminate the sandbox.
-  await sb.terminate();
 });
 
 test("IgnoreLargeStdout", async () => {
@@ -47,16 +45,14 @@ test("IgnoreLargeStdout", async () => {
   const image = tc.images.fromRegistry("python:3.13-alpine");
 
   const sb = await tc.sandboxes.create(app, image);
-  try {
-    const p = await sb.exec(["python", "-c", `print("a" * 1_000_000)`], {
-      stdout: "ignore",
-    });
-    expect(await p.stdout.readText()).toBe(""); // Stdout is ignored
-    // Stdout should be consumed after cancel, without blocking the process.
-    expect(await p.wait()).toBe(0);
-  } finally {
-    await sb.terminate();
-  }
+  onTestFinished(async () => await sb.terminate());
+
+  const p = await sb.exec(["python", "-c", `print("a" * 1_000_000)`], {
+    stdout: "ignore",
+  });
+  expect(await p.stdout.readText()).toBe(""); // Stdout is ignored
+  // Stdout should be consumed after cancel, without blocking the process.
+  expect(await p.wait()).toBe(0);
 });
 
 test("SandboxCreateOptions", async () => {
@@ -71,10 +67,7 @@ test("SandboxCreateOptions", async () => {
     regions: ["us-east-1", "us-west-2"],
     verbose: true,
   });
-
-  onTestFinished(async () => {
-    await sandbox.terminate();
-  });
+  onTestFinished(async () => await sandbox.terminate());
 
   expect(sandbox).toBeDefined();
   expect(sandbox.sandboxId).toMatch(/^sb-/);
@@ -102,18 +95,14 @@ test("SandboxExecOptions", async () => {
   const image = tc.images.fromRegistry("alpine:3.21");
 
   const sb = await tc.sandboxes.create(app, image);
-  try {
-    // Test with a custom working directory and timeout.
-    const p = await sb.exec(["pwd"], {
-      workdir: "/tmp",
-      timeoutMs: 5000,
-    });
+  onTestFinished(async () => await sb.terminate());
+  const p = await sb.exec(["pwd"], {
+    workdir: "/tmp",
+    timeoutMs: 5000,
+  });
 
-    expect(await p.stdout.readText()).toBe("/tmp\n");
-    expect(await p.wait()).toBe(0);
-  } finally {
-    await sb.terminate();
-  }
+  expect(await p.stdout.readText()).toBe("/tmp\n");
+  expect(await p.wait()).toBe(0);
 });
 
 test("parseGpuConfig", () => {
@@ -177,6 +166,7 @@ test("SandboxWithVolume", async () => {
     command: ["echo", "volume test"],
     volumes: { "/mnt/test": volume },
   });
+  onTestFinished(async () => await sandbox.terminate());
 
   expect(sandbox).toBeDefined();
   expect(sandbox.sandboxId).toMatch(/^sb-/);
@@ -202,11 +192,10 @@ test("SandboxWithReadOnlyVolume", async () => {
     command: ["sh", "-c", "echo 'test' > /mnt/test/test.txt"],
     volumes: { "/mnt/test": readOnlyVolume },
   });
+  onTestFinished(async () => await sb.terminate());
 
   expect(await sb.wait()).toBe(1);
   expect(await sb.stderr.readText()).toContain("Read-only file system");
-
-  await sb.terminate();
 });
 
 test("SandboxWithTunnels", async () => {
@@ -220,6 +209,7 @@ test("SandboxWithTunnels", async () => {
     encryptedPorts: [8443],
     unencryptedPorts: [8080],
   });
+  onTestFinished(async () => await sandbox.terminate());
 
   expect(sandbox).toBeDefined();
   expect(sandbox.sandboxId).toMatch(/^sb-/);
@@ -245,8 +235,6 @@ test("SandboxWithTunnels", async () => {
     unencryptedTunnel.unencryptedHost,
     unencryptedTunnel.unencryptedPort,
   ]);
-
-  await sandbox.terminate();
 });
 
 test("CreateSandboxWithSecrets", async () => {
@@ -264,7 +252,7 @@ test("CreateSandboxWithSecrets", async () => {
     command: ["printenv", "c"],
     secrets: [secret],
   });
-  expect(sandbox).toBeDefined();
+  onTestFinished(async () => await sandbox.terminate());
 
   const result = await sandbox.stdout.readText();
   expect(result).toBe("hello world\n");
@@ -281,12 +269,8 @@ test("CreateSandboxWithNetworkAccessParams", async () => {
     blockNetwork: false,
     cidrAllowlist: ["10.0.0.0/8", "192.168.0.0/16"],
   });
+  onTestFinished(async () => await sb.terminate());
 
-  onTestFinished(async () => {
-    await sb.terminate();
-  });
-
-  expect(sb).toBeDefined();
   expect(sb.sandboxId).toMatch(/^sb-/);
 
   const exitCode = await sb.wait();
@@ -316,6 +300,7 @@ test("SandboxPollAndReturnCode", async () => {
   const image = tc.images.fromRegistry("alpine:3.21");
 
   const sandbox = await tc.sandboxes.create(app, image, { command: ["cat"] });
+  onTestFinished(async () => await sandbox.terminate());
 
   expect(await sandbox.poll()).toBeNull();
 
@@ -336,6 +321,7 @@ test("SandboxPollAfterFailure", async () => {
   const sandbox = await tc.sandboxes.create(app, image, {
     command: ["sh", "-c", "exit 42"],
   });
+  onTestFinished(async () => await sandbox.terminate());
 
   expect(await sandbox.wait()).toBe(42);
   expect(await sandbox.poll()).toBe(42);
@@ -348,11 +334,7 @@ test("SandboxExecSecret", async () => {
   const image = tc.images.fromRegistry("alpine:3.21");
 
   const sb = await tc.sandboxes.create(app, image);
-  expect(sb.sandboxId).toBeTruthy();
-
-  onTestFinished(async () => {
-    await sb.terminate();
-  });
+  onTestFinished(async () => await sb.terminate());
 
   const secret = await tc.secrets.fromName("libmodal-test-secret", {
     requiredKeys: ["c"],
@@ -373,9 +355,8 @@ test("SandboxFromId", async () => {
   const image = tc.images.fromRegistry("alpine:3.21");
 
   const sb = await tc.sandboxes.create(app, image);
-  onTestFinished(async () => {
-    await sb.terminate();
-  });
+  onTestFinished(async () => await sb.terminate());
+
   const sbFromId = await tc.sandboxes.fromId(sb.sandboxId);
   expect(sbFromId.sandboxId).toBe(sb.sandboxId);
 });
@@ -390,10 +371,7 @@ test("SandboxWithWorkdir", async () => {
     command: ["pwd"],
     workdir: "/tmp",
   });
-
-  onTestFinished(async () => {
-    await sb.terminate();
-  });
+  onTestFinished(async () => await sb.terminate());
 
   expect(await sb.stdout.readText()).toBe("/tmp\n");
 });
@@ -418,9 +396,7 @@ test("SandboxSetTagsAndList", async () => {
   const image = tc.images.fromRegistry("alpine:3.21");
 
   const sb = await tc.sandboxes.create(app, image);
-  onTestFinished(async () => {
-    await sb.terminate();
-  });
+  onTestFinished(async () => await sb.terminate());
 
   const unique = `${Math.random()}`;
 
@@ -446,9 +422,7 @@ test("SandboxSetMultipleTagsAndList", async () => {
   const image = tc.images.fromRegistry("alpine:3.21");
 
   const sb = await tc.sandboxes.create(app, image);
-  onTestFinished(async () => {
-    await sb.terminate();
-  });
+  onTestFinished(async () => await sb.terminate());
 
   const tagA = `A-${Math.random()}`;
   const tagB = `B-${Math.random()}`;
@@ -494,9 +468,7 @@ test("SandboxListByAppId", async () => {
   const image = tc.images.fromRegistry("alpine:3.21");
 
   const sb = await tc.sandboxes.create(app, image);
-  onTestFinished(async () => {
-    await sb.terminate();
-  });
+  onTestFinished(async () => await sb.terminate());
 
   let count = 0;
   for await (const s of tc.sandboxes.list({ appId: app.appId })) {
@@ -519,10 +491,7 @@ test("NamedSandbox", async () => {
     name: sandboxName,
     command: ["sleep", "60"],
   });
-
-  onTestFinished(async () => {
-    await sb.terminate();
-  });
+  onTestFinished(async () => await sb.terminate());
 
   const sb1FromName = await tc.sandboxes.fromName("libmodal-test", sandboxName);
   expect(sb1FromName.sandboxId).toBe(sb.sandboxId);

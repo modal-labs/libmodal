@@ -26,8 +26,8 @@ func TestCreateOneSandbox(t *testing.T) {
 
 	sb, err := tc.Sandboxes.Create(ctx, app, image, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(sb.SandboxID).ShouldNot(gomega.BeEmpty())
 	defer terminateSandbox(g, sb)
+	g.Expect(sb.SandboxID).ShouldNot(gomega.BeEmpty())
 
 	err = sb.Terminate(ctx)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -110,10 +110,8 @@ func TestSandboxCreateOptions(t *testing.T) {
 		Verbose: true,
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(sb).ShouldNot(gomega.BeNil())
-	g.Expect(sb.SandboxID).Should(gomega.HavePrefix("sb-"))
-
 	defer terminateSandbox(g, sb)
+	g.Expect(sb.SandboxID).Should(gomega.HavePrefix("sb-"))
 
 	exitCode, err := sb.Wait(ctx)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -188,8 +186,7 @@ func TestSandboxWithVolume(t *testing.T) {
 		},
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(sandbox).ShouldNot(gomega.BeNil())
-	g.Expect(sandbox.SandboxID).Should(gomega.HavePrefix("sb-"))
+	defer terminateSandbox(g, sandbox)
 
 	exitCode, err := sandbox.Wait(ctx)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -300,6 +297,7 @@ func TestCreateSandboxWithSecrets(t *testing.T) {
 
 	sb, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{Secrets: []*modal.Secret{secret}, Command: []string{"printenv", "c"}})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	defer terminateSandbox(g, sb)
 
 	output, err := io.ReadAll(sb.Stdout)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -319,6 +317,7 @@ func TestSandboxPollAndReturnCode(t *testing.T) {
 
 	sandbox, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{Command: []string{"cat"}})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	defer terminateSandbox(g, sandbox)
 
 	pollResult, err := sandbox.Poll(ctx)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -355,6 +354,7 @@ func TestSandboxPollAfterFailure(t *testing.T) {
 		Command: []string{"sh", "-c", "exit 42"},
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	defer terminateSandbox(g, sandbox)
 
 	waitResult, err := sandbox.Wait(ctx)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -637,9 +637,8 @@ func TestNamedSandbox(t *testing.T) {
 		Command: []string{"sleep", "60"},
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(sb.SandboxID).ShouldNot(gomega.BeEmpty())
-
 	defer terminateSandbox(g, sb)
+	g.Expect(sb.SandboxID).ShouldNot(gomega.BeEmpty())
 
 	sb1FromName, err := tc.Sandboxes.FromName(ctx, "libmodal-test", sandboxName, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())

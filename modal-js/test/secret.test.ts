@@ -1,5 +1,5 @@
 import { tc } from "../test-support/test-client";
-import { expect, test } from "vitest";
+import { expect, onTestFinished, test } from "vitest";
 import { mergeEnvIntoSecrets } from "../src/secret";
 import { createMockModalClients } from "../test-support/grpc_mock";
 import { NotFoundError } from "../src/errors";
@@ -44,6 +44,7 @@ test("SecretFromObject", async () => {
     command: ["printenv", "key"],
     secrets: [secret],
   });
+  onTestFinished(async () => await sandbox.terminate());
 
   const output = await sandbox.stdout.readText();
   expect(output).toBe("value\n");

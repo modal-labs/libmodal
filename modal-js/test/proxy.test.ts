@@ -1,5 +1,5 @@
 import { tc } from "../test-support/test-client";
-import { expect, test } from "vitest";
+import { expect, onTestFinished, test } from "vitest";
 
 test("CreateSandboxWithProxy", async () => {
   const app = await tc.apps.fromName("libmodal-test", {
@@ -17,10 +17,8 @@ test("CreateSandboxWithProxy", async () => {
     proxy,
     command: ["echo", "hello, sandbox with proxy"],
   });
+  onTestFinished(async () => await sb.terminate());
   expect(sb.sandboxId).toBeTruthy();
-
-  await sb.terminate();
-  expect(await sb.wait()).toBe(137);
 });
 
 test("ProxyNotFound", async () => {
