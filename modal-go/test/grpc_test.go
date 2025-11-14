@@ -88,7 +88,11 @@ func TestClientRespectsContextDeadline(t *testing.T) {
 				grpc.WithTransportCredentials(insecure.NewCredentials()),
 			)
 			g.Expect(err).ShouldNot(gomega.HaveOccurred())
-			defer conn.Close()
+			defer func() {
+				if err := conn.Close(); err != nil {
+					t.Logf("failed to close gRPC connection: %v", err)
+				}
+			}()
 
 			client, err := modal.NewClientWithOptions(&modal.ClientParams{
 				TokenID:            "test-token-id",

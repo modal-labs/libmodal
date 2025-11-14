@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"iter"
+	"log/slog"
 	"strings"
 	"sync"
 	"time"
@@ -354,12 +355,12 @@ func newSandbox(client *Client, sandboxID string) *Sandbox {
 	sb.Stdin = inputStreamSb(client.cpClient, sandboxID)
 	sb.Stdout = &lazyStreamReader{
 		initFunc: func() io.ReadCloser {
-			return outputStreamSb(client.cpClient, sandboxID, pb.FileDescriptor_FILE_DESCRIPTOR_STDOUT)
+			return outputStreamSb(client.cpClient, client.logger, sandboxID, pb.FileDescriptor_FILE_DESCRIPTOR_STDOUT)
 		},
 	}
 	sb.Stderr = &lazyStreamReader{
 		initFunc: func() io.ReadCloser {
-			return outputStreamSb(client.cpClient, sandboxID, pb.FileDescriptor_FILE_DESCRIPTOR_STDERR)
+			return outputStreamSb(client.cpClient, client.logger, sandboxID, pb.FileDescriptor_FILE_DESCRIPTOR_STDERR)
 		},
 	}
 	return sb
@@ -486,7 +487,7 @@ func (sb *Sandbox) Exec(ctx context.Context, command []string, params *SandboxEx
 		"exec_id", resp.GetExecId(),
 		"sandbox_id", sb.SandboxID,
 		"command", command)
-	return newContainerProcess(sb.client.cpClient, resp.GetExecId(), *params), nil
+	return newContainerProcess(sb.client.cpClient, sb.client.logger, resp.GetExecId(), *params), nil
 }
 
 // Open opens a file in the Sandbox filesystem.
@@ -760,7 +761,7 @@ type ContainerProcess struct {
 	cpClient pb.ModalClientClient
 }
 
-func newContainerProcess(cpClient pb.ModalClientClient, execID string, params SandboxExecParams) *ContainerProcess {
+func newContainerProcess(cpClient pb.ModalClientClient, logger *slog.Logger, execID string, params SandboxExecParams) *ContainerProcess {
 	stdoutBehavior := Pipe
 	stderrBehavior := Pipe
 	if params.Stdout != "" {
@@ -778,7 +779,7 @@ func newContainerProcess(cpClient pb.ModalClientClient, execID string, params Sa
 	} else {
 		cp.Stdout = &lazyStreamReader{
 			initFunc: func() io.ReadCloser {
-				return outputStreamCp(cpClient, execID, pb.FileDescriptor_FILE_DESCRIPTOR_STDOUT)
+				return outputStreamCp(cpClient, logger, execID, pb.FileDescriptor_FILE_DESCRIPTOR_STDOUT)
 			},
 		}
 	}
@@ -787,7 +788,7 @@ func newContainerProcess(cpClient pb.ModalClientClient, execID string, params Sa
 	} else {
 		cp.Stderr = &lazyStreamReader{
 			initFunc: func() io.ReadCloser {
-				return outputStreamCp(cpClient, execID, pb.FileDescriptor_FILE_DESCRIPTOR_STDERR)
+				return outputStreamCp(cpClient, logger, execID, pb.FileDescriptor_FILE_DESCRIPTOR_STDERR)
 			},
 		}
 	}
@@ -927,11 +928,15 @@ func (l *lazyStreamReader) Close() error {
 	return nil
 }
 
-func outputStreamSb(cpClient pb.ModalClientClient, sandboxID string, fd pb.FileDescriptor) io.ReadCloser {
+func outputStreamSb(cpClient pb.ModalClientClient, logger *slog.Logger, sandboxID string, fd pb.FileDescriptor) io.ReadCloser {
 	pr, pw := nio.Pipe(buffer.New(64 * 1024))
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
-		defer pw.Close()
+		defer func() {
+			if err := pw.Close(); err != nil {
+				logger.DebugContext(ctx, "failed to close pipe writer", "error", err.Error())
+			}
+		}()
 		defer cancel()
 		lastIndex := "0-0"
 		completed := false
@@ -951,7 +956,10 @@ func outputStreamSb(cpClient pb.ModalClientClient, sandboxID string, fd pb.FileD
 					retries--
 					continue
 				}
-				pw.CloseWithError(fmt.Errorf("error getting output stream: %w", err))
+				streamErr := fmt.Errorf("error getting output stream: %w", err)
+				if closeErr := pw.CloseWithError(streamErr); closeErr != nil {
+					logger.DebugContext(ctx, "failed to close pipe writer with error", "error", closeErr.Error(), "stream_error", streamErr.Error())
+				}
 				return
 			}
 			for {
@@ -964,7 +972,10 @@ func outputStreamSb(cpClient pb.ModalClientClient, sandboxID string, fd pb.FileD
 						if isRetryableGrpc(err) && retries > 0 {
 							retries--
 						} else {
-							pw.CloseWithError(fmt.Errorf("error getting output stream: %w", err))
+							streamErr := fmt.Errorf("error getting output stream: %w", err)
+							if closeErr := pw.CloseWithError(streamErr); closeErr != nil {
+								logger.DebugContext(ctx, "failed to close pipe writer with error", "error", closeErr.Error(), "stream_error", streamErr.Error())
+							}
 							return
 						}
 					}
@@ -973,7 +984,9 @@ func outputStreamSb(cpClient pb.ModalClientClient, sandboxID string, fd pb.FileD
 				lastIndex = batch.GetEntryId()
 				for _, item := range batch.GetItems() {
 					// On error, writer has been closed. Still consume the rest of the channel.
-					pw.Write([]byte(item.GetData()))
+					if _, err := pw.Write([]byte(item.GetData())); err != nil {
+						logger.DebugContext(ctx, "failed to write to pipe", "error", err.Error())
+					}
 				}
 				if batch.GetEof() {
 					completed = true
@@ -985,11 +998,15 @@ func outputStreamSb(cpClient pb.ModalClientClient, sandboxID string, fd pb.FileD
 	return &cancelOnCloseReader{ReadCloser: pr, cancel: cancel}
 }
 
-func outputStreamCp(cpClient pb.ModalClientClient, execID string, fd pb.FileDescriptor) io.ReadCloser {
+func outputStreamCp(cpClient pb.ModalClientClient, logger *slog.Logger, execID string, fd pb.FileDescriptor) io.ReadCloser {
 	pr, pw := nio.Pipe(buffer.New(64 * 1024))
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
-		defer pw.Close()
+		defer func() {
+			if err := pw.Close(); err != nil {
+				logger.DebugContext(ctx, "failed to close pipe writer", "error", err.Error())
+			}
+		}()
 		defer cancel()
 		var lastIndex uint64
 		completed := false
@@ -1010,7 +1027,10 @@ func outputStreamCp(cpClient pb.ModalClientClient, execID string, fd pb.FileDesc
 					retries--
 					continue
 				}
-				pw.CloseWithError(fmt.Errorf("error getting output stream: %w", err))
+				streamErr := fmt.Errorf("error getting output stream: %w", err)
+				if closeErr := pw.CloseWithError(streamErr); closeErr != nil {
+					logger.DebugContext(ctx, "failed to close pipe writer with error", "error", closeErr.Error(), "stream_error", streamErr.Error())
+				}
 				return
 			}
 			for {
@@ -1023,7 +1043,10 @@ func outputStreamCp(cpClient pb.ModalClientClient, execID string, fd pb.FileDesc
 						if isRetryableGrpc(err) && retries > 0 {
 							retries--
 						} else {
-							pw.CloseWithError(fmt.Errorf("error getting output stream: %w", err))
+							streamErr := fmt.Errorf("error getting output stream: %w", err)
+							if closeErr := pw.CloseWithError(streamErr); closeErr != nil {
+								logger.DebugContext(ctx, "failed to close pipe writer with error", "error", closeErr.Error(), "stream_error", streamErr.Error())
+							}
 							return
 						}
 					}
@@ -1032,7 +1055,9 @@ func outputStreamCp(cpClient pb.ModalClientClient, execID string, fd pb.FileDesc
 				lastIndex = batch.GetBatchIndex()
 				for _, item := range batch.GetItems() {
 					// On error, writer has been closed. Still consume the rest of the channel.
-					pw.Write(item.GetMessageBytes())
+					if _, err := pw.Write(item.GetMessageBytes()); err != nil {
+						logger.DebugContext(ctx, "failed to write to pipe", "error", err.Error())
+					}
 				}
 				if batch.HasExitCode() {
 					completed = true
