@@ -4,7 +4,6 @@ import { parseRetries } from "../src/retries";
 
 test("parseRetries", async () => {
   const r = parseRetries(3)!;
-  expect(r).toBeDefined();
   expect(r.maxRetries).toBe(3);
   expect(r.backoffCoefficient).toBe(1.0);
   expect(r.initialDelayMs).toBe(1000);

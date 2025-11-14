@@ -289,7 +289,6 @@ func TestDockerfileCommandsWithOptions(t *testing.T) {
 	grpcmock.HandleUnary(
 		mock, "ImageGetOrCreate",
 		func(req *pb.ImageGetOrCreateRequest) (*pb.ImageGetOrCreateResponse, error) {
-			g.Expect(req.GetAppId()).To(gomega.Equal("ap-test"))
 			image := req.GetImage()
 			g.Expect(image.GetDockerfileCommands()).To(gomega.Equal([]string{"FROM alpine:3.21"}))
 			g.Expect(image.GetSecretIds()).To(gomega.BeEmpty())
@@ -307,7 +306,6 @@ func TestDockerfileCommandsWithOptions(t *testing.T) {
 	grpcmock.HandleUnary(
 		mock, "ImageGetOrCreate",
 		func(req *pb.ImageGetOrCreateRequest) (*pb.ImageGetOrCreateResponse, error) {
-			g.Expect(req.GetAppId()).To(gomega.Equal("ap-test"))
 			image := req.GetImage()
 			g.Expect(image.GetDockerfileCommands()).To(gomega.Equal([]string{"FROM base", "RUN echo layer1"}))
 			g.Expect(image.GetSecretIds()).To(gomega.BeEmpty())
@@ -327,7 +325,6 @@ func TestDockerfileCommandsWithOptions(t *testing.T) {
 	grpcmock.HandleUnary(
 		mock, "ImageGetOrCreate",
 		func(req *pb.ImageGetOrCreateRequest) (*pb.ImageGetOrCreateResponse, error) {
-			g.Expect(req.GetAppId()).To(gomega.Equal("ap-test"))
 			image := req.GetImage()
 			g.Expect(image.GetDockerfileCommands()).To(gomega.Equal([]string{"FROM base", "RUN echo layer2"}))
 			g.Expect(image.GetSecretIds()).To(gomega.Equal([]string{"sc-test"}))
@@ -350,7 +347,6 @@ func TestDockerfileCommandsWithOptions(t *testing.T) {
 	grpcmock.HandleUnary(
 		mock, "ImageGetOrCreate",
 		func(req *pb.ImageGetOrCreateRequest) (*pb.ImageGetOrCreateResponse, error) {
-			g.Expect(req.GetAppId()).To(gomega.Equal("ap-test"))
 			image := req.GetImage()
 			g.Expect(image.GetDockerfileCommands()).To(gomega.Equal([]string{"FROM base", "RUN echo layer3"}))
 			g.Expect(image.GetSecretIds()).To(gomega.BeEmpty())

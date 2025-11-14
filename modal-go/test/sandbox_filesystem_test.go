@@ -173,7 +173,6 @@ func TestSandboxFileOpenModes(t *testing.T) {
 	sb := createSandbox(ctx, g, c)
 	defer terminateSandbox(g, sb)
 
-	// Test write mode (truncates)
 	content1 := []byte("Initial content")
 	writer, err := sb.Open(ctx, "/tmp/modes.txt", "w")
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -183,7 +182,6 @@ func TestSandboxFileOpenModes(t *testing.T) {
 	err = writer.Close()
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	// Test read mode
 	reader1, err := sb.Open(ctx, "/tmp/modes.txt", "r")
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	readContent1, err := io.ReadAll(reader1)
@@ -192,7 +190,6 @@ func TestSandboxFileOpenModes(t *testing.T) {
 	err = reader1.Close()
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	// Test append mode
 	content2 := []byte(" appended")
 	appender, err := sb.Open(ctx, "/tmp/modes.txt", "a")
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())

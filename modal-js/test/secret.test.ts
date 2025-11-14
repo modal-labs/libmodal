@@ -1,13 +1,11 @@
 import { tc } from "../test-support/test-client";
-import { expect, test } from "vitest";
+import { expect, onTestFinished, test } from "vitest";
 import { mergeEnvIntoSecrets } from "../src/secret";
 import { createMockModalClients } from "../test-support/grpc_mock";
 import { NotFoundError } from "../src/errors";
 
 test("SecretFromName", async () => {
   const secret = await tc.secrets.fromName("libmodal-test-secret");
-  expect(secret).toBeDefined();
-  expect(secret.secretId).toBeDefined();
   expect(secret.secretId).toMatch(/^st-/);
   expect(secret.name).toBe("libmodal-test-secret");
 
@@ -21,7 +19,7 @@ test("SecretFromNameWithRequiredKeys", async () => {
   const secret = await tc.secrets.fromName("libmodal-test-secret", {
     requiredKeys: ["a", "b", "c"],
   });
-  expect(secret).toBeDefined();
+  expect(secret.secretId).toMatch(/^st-/);
 
   const promise = tc.secrets.fromName("libmodal-test-secret", {
     requiredKeys: ["a", "b", "c", "missing-key"],
@@ -33,19 +31,20 @@ test("SecretFromNameWithRequiredKeys", async () => {
 
 test("SecretFromObject", async () => {
   const secret = await tc.secrets.fromObject({ key: "value" });
-  expect(secret).toBeDefined();
+  expect(secret.secretId).toMatch(/^st-/);
 
   const app = await tc.apps.fromName("libmodal-test", {
     createIfMissing: true,
   });
   const image = tc.images.fromRegistry("alpine:3.21");
 
-  const sandbox = await tc.sandboxes.create(app, image, {
+  const sb = await tc.sandboxes.create(app, image, {
     command: ["printenv", "key"],
     secrets: [secret],
   });
+  onTestFinished(async () => await sb.terminate());
 
-  const output = await sandbox.stdout.readText();
+  const output = await sb.stdout.readText();
   expect(output).toBe("value\n");
 });
 

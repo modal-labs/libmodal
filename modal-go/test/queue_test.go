@@ -59,12 +59,10 @@ func TestQueueSuite1(t *testing.T) {
 	g.Expect(err).ToNot(gomega.HaveOccurred())
 	defer queue.CloseEphemeral()
 
-	// queue.len() == 0
 	n, err := queue.Len(ctx, nil)
 	g.Expect(err).ToNot(gomega.HaveOccurred())
 	g.Expect(n).To(gomega.Equal(0))
 
-	// put / len / get
 	g.Expect(queue.Put(ctx, 123, nil)).ToNot(gomega.HaveOccurred())
 
 	n, err = queue.Len(ctx, nil)
@@ -91,7 +89,6 @@ func TestQueueSuite1(t *testing.T) {
 	g.Expect(err).ToNot(gomega.HaveOccurred())
 	g.Expect(n).To(gomega.Equal(0))
 
-	// putMany + iterator
 	g.Expect(queue.PutMany(ctx, []any{1, 2, 3}, nil)).ToNot(gomega.HaveOccurred())
 
 	results := make([]int64, 0, 3)

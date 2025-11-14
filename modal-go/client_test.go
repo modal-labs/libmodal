@@ -15,7 +15,6 @@ import (
 func TestClientWithLogger(t *testing.T) {
 	g := gomega.NewWithT(t)
 
-	// Use a buffer to capture log output
 	r, w, err := os.Pipe()
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 

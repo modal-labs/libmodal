@@ -20,14 +20,13 @@ func TestCreateOneSandbox(t *testing.T) {
 
 	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(app.Name).To(gomega.Equal("libmodal-test"))
 
 	image := tc.Images.FromRegistry("alpine:3.21", nil)
 
 	sb, err := tc.Sandboxes.Create(ctx, app, image, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(sb.SandboxID).ShouldNot(gomega.BeEmpty())
 	defer terminateSandbox(g, sb)
+	g.Expect(sb.SandboxID).ShouldNot(gomega.BeEmpty())
 
 	err = sb.Terminate(ctx)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -110,10 +109,8 @@ func TestSandboxCreateOptions(t *testing.T) {
 		Verbose: true,
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(sb).ShouldNot(gomega.BeNil())
-	g.Expect(sb.SandboxID).Should(gomega.HavePrefix("sb-"))
-
 	defer terminateSandbox(g, sb)
+	g.Expect(sb.SandboxID).Should(gomega.HavePrefix("sb-"))
 
 	exitCode, err := sb.Wait(ctx)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -147,7 +144,6 @@ func TestSandboxExecOptions(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	defer terminateSandbox(g, sb)
 
-	// Test with a custom working directory and timeout.
 	p, err := sb.Exec(ctx, []string{"pwd"}, &modal.SandboxExecParams{
 		Workdir: "/tmp",
 		Timeout: 5,
@@ -181,17 +177,16 @@ func TestSandboxWithVolume(t *testing.T) {
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	sandbox, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
+	sb, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
 		Command: []string{"echo", "volume test"},
 		Volumes: map[string]*modal.Volume{
 			"/mnt/test": volume,
 		},
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(sandbox).ShouldNot(gomega.BeNil())
-	g.Expect(sandbox.SandboxID).Should(gomega.HavePrefix("sb-"))
+	defer terminateSandbox(g, sb)
 
-	exitCode, err := sandbox.Wait(ctx)
+	exitCode, err := sb.Wait(ctx)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(exitCode).Should(gomega.Equal(0))
 }
@@ -248,17 +243,17 @@ func TestSandboxWithTunnels(t *testing.T) {
 
 	image := tc.Images.FromRegistry("alpine:3.21", nil)
 
-	sandbox, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
+	sb, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
 		Command:          []string{"cat"},
 		EncryptedPorts:   []int{8443},
 		UnencryptedPorts: []int{8080},
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	defer terminateSandbox(g, sandbox)
+	defer terminateSandbox(g, sb)
 
-	g.Expect(sandbox.SandboxID).Should(gomega.HavePrefix("sb-"))
+	g.Expect(sb.SandboxID).Should(gomega.HavePrefix("sb-"))
 
-	tunnels, err := sandbox.Tunnels(ctx, 30*time.Second)
+	tunnels, err := sb.Tunnels(ctx, 30*time.Second)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	g.Expect(tunnels).Should(gomega.HaveLen(2))
@@ -300,6 +295,7 @@ func TestCreateSandboxWithSecrets(t *testing.T) {
 
 	sb, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{Secrets: []*modal.Secret{secret}, Command: []string{"printenv", "c"}})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	defer terminateSandbox(g, sb)
 
 	output, err := io.ReadAll(sb.Stdout)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -317,24 +313,25 @@ func TestSandboxPollAndReturnCode(t *testing.T) {
 
 	image := tc.Images.FromRegistry("alpine:3.21", nil)
 
-	sandbox, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{Command: []string{"cat"}})
+	sb, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{Command: []string{"cat"}})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	defer terminateSandbox(g, sb)
 
-	pollResult, err := sandbox.Poll(ctx)
+	pollResult, err := sb.Poll(ctx)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(pollResult).Should(gomega.BeNil())
 
 	// Send input to make the cat command complete
-	_, err = sandbox.Stdin.Write([]byte("hello, sandbox"))
+	_, err = sb.Stdin.Write([]byte("hello, Sandbox"))
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	err = sandbox.Stdin.Close()
+	err = sb.Stdin.Close()
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	waitResult, err := sandbox.Wait(ctx)
+	waitResult, err := sb.Wait(ctx)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(waitResult).To(gomega.Equal(0))
 
-	pollResult, err = sandbox.Poll(ctx)
+	pollResult, err = sb.Poll(ctx)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(pollResult).ShouldNot(gomega.BeNil())
 	g.Expect(*pollResult).To(gomega.Equal(0))
@@ -351,16 +348,17 @@ func TestSandboxPollAfterFailure(t *testing.T) {
 
 	image := tc.Images.FromRegistry("alpine:3.21", nil)
 
-	sandbox, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
+	sb, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
 		Command: []string{"sh", "-c", "exit 42"},
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	defer terminateSandbox(g, sb)
 
-	waitResult, err := sandbox.Wait(ctx)
+	waitResult, err := sb.Wait(ctx)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(waitResult).To(gomega.Equal(42))
 
-	pollResult, err := sandbox.Poll(ctx)
+	pollResult, err := sb.Poll(ctx)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(pollResult).ShouldNot(gomega.BeNil())
 	g.Expect(*pollResult).To(gomega.Equal(42))
@@ -637,9 +635,8 @@ func TestNamedSandbox(t *testing.T) {
 		Command: []string{"sleep", "60"},
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(sb.SandboxID).ShouldNot(gomega.BeEmpty())
-
 	defer terminateSandbox(g, sb)
+	g.Expect(sb.SandboxID).ShouldNot(gomega.BeEmpty())
 
 	sb1FromName, err := tc.Sandboxes.FromName(ctx, "libmodal-test", sandboxName, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())

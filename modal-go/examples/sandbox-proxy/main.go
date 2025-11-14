@@ -33,9 +33,9 @@ func main() {
 		Proxy: proxy,
 	})
 	if err != nil {
-		log.Fatalf("Failed to create sandbox: %v", err)
+		log.Fatalf("Failed to create Sandbox: %v", err)
 	}
-	fmt.Printf("Created sandbox with proxy: %s\n", sb.SandboxID)
+	fmt.Printf("Created Sandbox with proxy: %s\n", sb.SandboxID)
 	defer func() {
 		if err := sb.Terminate(context.Background()); err != nil {
 			log.Fatalf("Failed to terminate Sandbox %s: %v", sb.SandboxID, err)

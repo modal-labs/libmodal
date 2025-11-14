@@ -13,15 +13,16 @@ test("QueueInvalidName", async () => {
 
 test("QueueEphemeral", async () => {
   const queue = await tc.queues.ephemeral();
+  onTestFinished(() => queue.closeEphemeral());
   expect(queue.name).toBeUndefined();
   await queue.put(123);
   expect(await queue.len()).toBe(1);
   expect(await queue.get()).toBe(123);
-  queue.closeEphemeral();
 });
 
 test("QueueSuite1", async () => {
   const queue = await tc.queues.ephemeral();
+  onTestFinished(() => queue.closeEphemeral());
   expect(await queue.len()).toBe(0);
 
   await queue.put(123);
@@ -40,7 +41,6 @@ test("QueueSuite1", async () => {
     results.push(item);
   }
   expect(results).toEqual([1, 2, 3]);
-  queue.closeEphemeral();
 });
 
 test("QueueSuite2", async () => {
@@ -58,27 +58,27 @@ test("QueueSuite2", async () => {
   };
 
   const queue = await tc.queues.ephemeral();
+  onTestFinished(() => queue.closeEphemeral());
   await Promise.all([producer(queue), consumer(queue)]);
   expect(results).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
-  queue.closeEphemeral();
 });
 
 test("QueuePutAndGetMany", async () => {
   const queue = await tc.queues.ephemeral();
+  onTestFinished(() => queue.closeEphemeral());
   await queue.putMany([1, 2, 3]);
   expect(await queue.len()).toBe(3);
   expect(await queue.getMany(3)).toEqual([1, 2, 3]);
-  queue.closeEphemeral();
 });
 
 test("QueueNonBlocking", async () => {
   // Assuming the queue is available, these operations
   // Should succeed immediately.
   const queue = await tc.queues.ephemeral();
+  onTestFinished(() => queue.closeEphemeral());
   await queue.put(123, { timeoutMs: 0 });
   expect(await queue.len()).toBe(1);
   expect(await queue.get({ timeoutMs: 0 })).toBe(123);
-  queue.closeEphemeral();
 });
 
 test("QueueNonEphemeral", async () => {

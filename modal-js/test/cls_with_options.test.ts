@@ -23,9 +23,7 @@ test("Cls.withOptions stacking", async () => {
   mock.handleUnary("FunctionBindParams", (req: any) => {
     expect(req).toMatchObject({ functionId: "fid" });
     const fo = req.functionOptions;
-    expect(fo).toBeDefined();
     expect(fo.timeoutSecs).toBe(60);
-    expect(fo.resources).toBeDefined();
     expect(fo.resources.milliCpu).toBe(250);
     expect(fo.resources.memoryMb).toBe(256);
     expect(fo.resources.gpuConfig).toBeDefined();
@@ -69,7 +67,6 @@ test("Cls.withConcurrency/withConcurrency/withBatching chaining", async () => {
   mock.handleUnary("FunctionBindParams", (req: any) => {
     expect(req).toMatchObject({ functionId: "fid" });
     const fo = req.functionOptions;
-    expect(fo).toBeDefined();
     expect(fo.timeoutSecs).toBe(60);
     expect(fo.maxConcurrentInputs).toBe(10);
     expect(fo.batchMaxSize).toBe(11);
@@ -99,7 +96,6 @@ test("Cls.withOptions retries", async () => {
 
   mock.handleUnary("FunctionBindParams", (req: any) => {
     const fo = req.functionOptions;
-    expect(fo).toBeDefined();
     expect(fo.retryPolicy).toMatchObject({
       retries: 3,
       backoffCoefficient: 1.0,
@@ -113,7 +109,6 @@ test("Cls.withOptions retries", async () => {
 
   mock.handleUnary("FunctionBindParams", (req: any) => {
     const fo = req.functionOptions;
-    expect(fo).toBeDefined();
     expect(fo.retryPolicy).toMatchObject({
       retries: 2,
       backoffCoefficient: 2.0,
@@ -210,8 +205,6 @@ test("withOptions({ cpu, cpuLimit }) sets milliCpu and milliCpuMax", async () =>
   mock.handleUnary("FunctionBindParams", (req: any) => {
     expect(req).toMatchObject({ functionId: "fid" });
     const fo = req.functionOptions;
-    expect(fo).toBeDefined();
-    expect(fo.resources).toBeDefined();
     expect(fo.resources.milliCpu).toBe(2000);
     expect(fo.resources.milliCpuMax).toBe(4500);
     return { boundFunctionId: "fid-1", handleMetadata: {} };
@@ -266,8 +259,6 @@ test("withOptions({ memory, memoryLimit }) sets memoryMb and memoryMbMax", async
   mock.handleUnary("FunctionBindParams", (req: any) => {
     expect(req).toMatchObject({ functionId: "fid" });
     const fo = req.functionOptions;
-    expect(fo).toBeDefined();
-    expect(fo.resources).toBeDefined();
     expect(fo.resources.memoryMb).toBe(1024);
     expect(fo.resources.memoryMbMax).toBe(2048);
     return { boundFunctionId: "fid-1", handleMetadata: {} };

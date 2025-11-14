@@ -26,7 +26,7 @@ func main() {
 	// Create a Sandbox with Python's built-in HTTP server
 	image := mc.Images.FromRegistry("python:3.12-alpine", nil)
 
-	sandbox, err := mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
+	sb, err := mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
 		Command:        []string{"python3", "-m", "http.server", "8000"},
 		EncryptedPorts: []int{8000},
 		Timeout:        1 * time.Minute,
@@ -36,18 +36,18 @@ func main() {
 		log.Fatalf("Failed to create Sandbox: %v", err)
 	}
 	defer func() {
-		if err := sandbox.Terminate(context.Background()); err != nil {
-			log.Fatalf("Failed to terminate Sandbox %s: %v", sandbox.SandboxID, err)
+		if err := sb.Terminate(context.Background()); err != nil {
+			log.Fatalf("Failed to terminate Sandbox %s: %v", sb.SandboxID, err)
 		}
 	}()
 
-	fmt.Printf("Sandbox created: %s\n", sandbox.SandboxID)
+	fmt.Printf("Sandbox created: %s\n", sb.SandboxID)
 
 	fmt.Println("Waiting for server to start...")
 	time.Sleep(3 * time.Second)
 
 	fmt.Println("Getting tunnel information...")
-	tunnels, err := sandbox.Tunnels(ctx, 30*time.Second)
+	tunnels, err := sb.Tunnels(ctx, 30*time.Second)
 	if err != nil {
 		log.Fatalf("Failed to get tunnels: %v", err)
 	}
