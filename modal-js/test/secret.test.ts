@@ -38,13 +38,13 @@ test("SecretFromObject", async () => {
   });
   const image = tc.images.fromRegistry("alpine:3.21");
 
-  const sandbox = await tc.sandboxes.create(app, image, {
+  const sb = await tc.sandboxes.create(app, image, {
     command: ["printenv", "key"],
     secrets: [secret],
   });
-  onTestFinished(async () => await sandbox.terminate());
+  onTestFinished(async () => await sb.terminate());
 
-  const output = await sandbox.stdout.readText();
+  const output = await sb.stdout.readText();
   expect(output).toBe("value\n");
 });
 

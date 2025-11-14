@@ -18,7 +18,7 @@ test("snapshotFilesystem", async () => {
 
   await sb.terminate();
 
-  // Create new sandbox from snapshot
+  // Create new Sandbox from snapshot
   const sb2 = await tc.sandboxes.create(app, snapshotImage);
   onTestFinished(async () => await sb2.terminate());
 

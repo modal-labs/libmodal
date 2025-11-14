@@ -84,7 +84,7 @@ export type SandboxCreateParams = {
   /** Timeout of the Sandbox container in milliseconds, defaults to 10 minutes. */
   timeoutMs?: number;
 
-  /** The amount of time in milliseconds that a sandbox can be idle before being terminated. */
+  /** The amount of time in milliseconds that a Sandbox can be idle before being terminated. */
   idleTimeoutMs?: number;
 
   /** Working directory of the Sandbox. */
@@ -333,7 +333,7 @@ export async function buildSandboxCreateRequestProto(
  * Normally only ever accessed via the client as:
  * ```typescript
  * const modal = new ModalClient();
- * const sandbox = await modal.sandboxes.create(app, image);
+ * const sb = await modal.sandboxes.create(app, image);
  * ```
  */
 export class SandboxService {

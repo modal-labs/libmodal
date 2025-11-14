@@ -58,17 +58,17 @@ test("SandboxCreateOptions", async () => {
   });
   const image = tc.images.fromRegistry("alpine:3.21");
 
-  const sandbox = await tc.sandboxes.create(app, image, {
+  const sb = await tc.sandboxes.create(app, image, {
     command: ["echo", "hello, params"],
     cloud: "aws",
     regions: ["us-east-1", "us-west-2"],
     verbose: true,
   });
-  onTestFinished(async () => await sandbox.terminate());
+  onTestFinished(async () => await sb.terminate());
 
-  expect(sandbox.sandboxId).toMatch(/^sb-/);
+  expect(sb.sandboxId).toMatch(/^sb-/);
 
-  const exitCode = await sandbox.wait();
+  const exitCode = await sb.wait();
   expect(exitCode).toBe(0);
 
   await expect(
@@ -158,15 +158,15 @@ test("SandboxWithVolume", async () => {
     createIfMissing: true,
   });
 
-  const sandbox = await tc.sandboxes.create(app, image, {
+  const sb = await tc.sandboxes.create(app, image, {
     command: ["echo", "volume test"],
     volumes: { "/mnt/test": volume },
   });
-  onTestFinished(async () => await sandbox.terminate());
+  onTestFinished(async () => await sb.terminate());
 
-  expect(sandbox.sandboxId).toMatch(/^sb-/);
+  expect(sb.sandboxId).toMatch(/^sb-/);
 
-  const exitCode = await sandbox.wait();
+  const exitCode = await sb.wait();
   expect(exitCode).toBe(0);
 });
 
@@ -199,16 +199,16 @@ test("SandboxWithTunnels", async () => {
   });
   const image = tc.images.fromRegistry("alpine:3.21");
 
-  const sandbox = await tc.sandboxes.create(app, image, {
+  const sb = await tc.sandboxes.create(app, image, {
     command: ["cat"],
     encryptedPorts: [8443],
     unencryptedPorts: [8080],
   });
-  onTestFinished(async () => await sandbox.terminate());
+  onTestFinished(async () => await sb.terminate());
 
-  expect(sandbox.sandboxId).toMatch(/^sb-/);
+  expect(sb.sandboxId).toMatch(/^sb-/);
 
-  const tunnels = await sandbox.tunnels();
+  const tunnels = await sb.tunnels();
   expect(Object.keys(tunnels)).toHaveLength(2);
 
   // Test encrypted tunnel (port 8443)
@@ -241,13 +241,13 @@ test("CreateSandboxWithSecrets", async () => {
     requiredKeys: ["c"],
   });
 
-  const sandbox = await tc.sandboxes.create(app, image, {
+  const sb = await tc.sandboxes.create(app, image, {
     command: ["printenv", "c"],
     secrets: [secret],
   });
-  onTestFinished(async () => await sandbox.terminate());
+  onTestFinished(async () => await sb.terminate());
 
-  const result = await sandbox.stdout.readText();
+  const result = await sb.stdout.readText();
   expect(result).toBe("hello world\n");
 });
 
@@ -292,17 +292,17 @@ test("SandboxPollAndReturnCode", async () => {
   });
   const image = tc.images.fromRegistry("alpine:3.21");
 
-  const sandbox = await tc.sandboxes.create(app, image, { command: ["cat"] });
-  onTestFinished(async () => await sandbox.terminate());
+  const sb = await tc.sandboxes.create(app, image, { command: ["cat"] });
+  onTestFinished(async () => await sb.terminate());
 
-  expect(await sandbox.poll()).toBeNull();
+  expect(await sb.poll()).toBeNull();
 
   // Send input to make the cat command complete
-  await sandbox.stdin.writeText("hello, sandbox");
-  await sandbox.stdin.close();
+  await sb.stdin.writeText("hello, Sandbox");
+  await sb.stdin.close();
 
-  expect(await sandbox.wait()).toBe(0);
-  expect(await sandbox.poll()).toBe(0);
+  expect(await sb.wait()).toBe(0);
+  expect(await sb.poll()).toBe(0);
 });
 
 test("SandboxPollAfterFailure", async () => {
@@ -311,13 +311,13 @@ test("SandboxPollAfterFailure", async () => {
   });
   const image = tc.images.fromRegistry("alpine:3.21");
 
-  const sandbox = await tc.sandboxes.create(app, image, {
+  const sb = await tc.sandboxes.create(app, image, {
     command: ["sh", "-c", "exit 42"],
   });
-  onTestFinished(async () => await sandbox.terminate());
+  onTestFinished(async () => await sb.terminate());
 
-  expect(await sandbox.wait()).toBe(42);
-  expect(await sandbox.poll()).toBe(42);
+  expect(await sb.wait()).toBe(42);
+  expect(await sb.poll()).toBe(42);
 });
 
 test("SandboxExecSecret", async () => {

@@ -15,12 +15,12 @@ const ephemeralSecret = await modal.secrets.fromObject({
   d: "123",
 });
 
-const sandbox = await modal.sandboxes.create(app, image, {
+const sb = await modal.sandboxes.create(app, image, {
   command: ["sh", "-lc", "printenv | grep -E '^c|d='"],
   secrets: [secret, ephemeralSecret],
 });
 
-console.log("Sandbox created:", sandbox.sandboxId);
+console.log("Sandbox created:", sb.sandboxId);
 
 console.log("Sandbox environment variables from Secrets:");
-console.log(await sandbox.stdout.readText());
+console.log(await sb.stdout.readText());

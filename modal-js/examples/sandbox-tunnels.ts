@@ -8,17 +8,17 @@ const app = await modal.apps.fromName("libmodal-example", {
 
 // Create a Sandbox with Python's built-in HTTP server
 const image = modal.images.fromRegistry("python:3.12-alpine");
-const sandbox = await modal.sandboxes.create(app, image, {
+const sb = await modal.sandboxes.create(app, image, {
   command: ["python3", "-m", "http.server", "8000"],
   encryptedPorts: [8000],
   timeoutMs: 60000, // 1 minute
   idleTimeoutMs: 30000, // 30 seconds
 });
 
-console.log("Sandbox created:", sandbox.sandboxId);
+console.log("Sandbox created:", sb.sandboxId);
 
 console.log("Getting tunnel information...");
-const tunnels = await sandbox.tunnels();
+const tunnels = await sb.tunnels();
 
 console.log("Waiting for server to start...");
 await new Promise((resolve) => setTimeout(resolve, 3000));
@@ -38,4 +38,4 @@ console.log(html.substring(0, 500));
 
 console.log("\n✅ Successfully connected to the tunneled server!");
 
-await sandbox.terminate();
+await sb.terminate();

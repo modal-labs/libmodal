@@ -22,43 +22,43 @@ func main() {
 
 	image := mc.Images.FromRegistry("alpine:3.21", nil)
 
-	// Create a sandbox that waits for input, then exits with code 42
-	sandbox, err := mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
+	// Create a Sandbox that waits for input, then exits with code 42
+	sb, err := mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
 		Command: []string{"sh", "-c", "read line; exit 42"},
 	})
 	if err != nil {
 		log.Fatalf("Failed to create Sandbox: %v", err)
 	}
-	fmt.Printf("Started Sandbox: %s\n", sandbox.SandboxID)
+	fmt.Printf("Started Sandbox: %s\n", sb.SandboxID)
 	defer func() {
-		if err := sandbox.Terminate(context.Background()); err != nil {
-			log.Fatalf("Failed to terminate Sandbox %s: %v", sandbox.SandboxID, err)
+		if err := sb.Terminate(context.Background()); err != nil {
+			log.Fatalf("Failed to terminate Sandbox %s: %v", sb.SandboxID, err)
 		}
 	}()
 
-	initialPoll, err := sandbox.Poll(ctx)
+	initialPoll, err := sb.Poll(ctx)
 	if err != nil {
 		log.Fatalf("Failed to poll Sandbox: %v", err)
 	}
 	fmt.Printf("Poll result while running: %v\n", initialPoll)
 
 	fmt.Println("\nSending input to trigger completion...")
-	_, err = sandbox.Stdin.Write([]byte("hello, goodbye\n"))
+	_, err = sb.Stdin.Write([]byte("hello, goodbye\n"))
 	if err != nil {
 		log.Fatalf("Failed to write to stdin: %v", err)
 	}
-	err = sandbox.Stdin.Close()
+	err = sb.Stdin.Close()
 	if err != nil {
 		log.Fatalf("Failed to close stdin: %v", err)
 	}
 
-	exitCode, err := sandbox.Wait(ctx)
+	exitCode, err := sb.Wait(ctx)
 	if err != nil {
 		log.Fatalf("Failed to wait for Sandbox: %v", err)
 	}
 	fmt.Printf("\nSandbox completed with exit code: %d\n", exitCode)
 
-	finalPoll, err := sandbox.Poll(ctx)
+	finalPoll, err := sb.Poll(ctx)
 	if err != nil {
 		log.Fatalf("Failed to poll Sandbox after completion: %v", err)
 	}

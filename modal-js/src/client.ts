@@ -72,7 +72,7 @@ export type ModalGrpcClient = Client<
  *
  * const app = await modal.apps.fromName("my-app");
  * const image = modal.images.fromRegistry("python:3.13");
- * const sandbox = await modal.sandboxes.create(app, image);
+ * const sb = await modal.sandboxes.create(app, image);
  * ```
  */
 export class ModalClient {

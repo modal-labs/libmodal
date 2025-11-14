@@ -15,7 +15,7 @@ test("CreateSandboxWithProxy", async () => {
 
   const sb = await tc.sandboxes.create(app, image, {
     proxy,
-    command: ["echo", "hello, sandbox with proxy"],
+    command: ["echo", "hello, Sandbox with proxy"],
   });
   onTestFinished(async () => await sb.terminate());
   expect(sb.sandboxId).toBeTruthy();
