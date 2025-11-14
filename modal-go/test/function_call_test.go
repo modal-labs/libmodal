@@ -50,11 +50,9 @@ func TestFunctionSpawn(t *testing.T) {
 	_, err = functionCall.Get(ctx, nil)
 	g.Expect(err).Should(gomega.HaveOccurred())
 
-	// Spawn function with long running input.
 	functionCall, err = sleep.Spawn(ctx, nil, map[string]any{"t": 5})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	// Get is now expected to timeout.
 	timeout := 1 * time.Second
 	_, err = functionCall.Get(ctx, &modal.FunctionCallGetParams{Timeout: &timeout})
 	g.Expect(err).Should(gomega.HaveOccurred())

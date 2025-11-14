@@ -144,7 +144,6 @@ func TestSandboxExecOptions(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	defer terminateSandbox(g, sb)
 
-	// Test with a custom working directory and timeout.
 	p, err := sb.Exec(ctx, []string{"pwd"}, &modal.SandboxExecParams{
 		Workdir: "/tmp",
 		Timeout: 5,

@@ -21,12 +21,10 @@ func TestFunctionCall(t *testing.T) {
 	function, err := tc.Functions.FromName(ctx, "libmodal-test-support", "echo_string", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	// Represent Python kwargs.
 	result, err := function.Remote(ctx, nil, map[string]any{"s": "hello"})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(result).Should(gomega.Equal("output: hello"))
 
-	// Try the same, but with args.
 	result, err = function.Remote(ctx, []any{"hello"}, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(result).Should(gomega.Equal("output: hello"))
@@ -42,7 +40,6 @@ func TestFunctionCallPreCborVersionError(t *testing.T) {
 	function, err := tc.Functions.FromName(ctx, "test-support-1-1", "identity_with_repr", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	// Represent Python kwargs.
 	_, err = function.Remote(ctx, nil, map[string]any{"s": "hello"})
 	g.Expect(err).Should(gomega.HaveOccurred())
 	g.Expect(err.Error()).Should(gomega.ContainSubstring("Redeploy with Modal Python SDK >= 1.2"))
@@ -152,7 +149,6 @@ func TestFunctionCallInputPlane(t *testing.T) {
 	function, err := tc.Functions.FromName(ctx, "libmodal-test-support", "input_plane", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	// Try the same, but with args.
 	result, err := function.Remote(ctx, []any{"hello"}, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(result).Should(gomega.Equal("output: hello"))
