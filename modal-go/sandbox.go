@@ -931,7 +931,7 @@ func outputStreamSb(cpClient pb.ModalClientClient, sandboxID string, fd pb.FileD
 	pr, pw := nio.Pipe(buffer.New(64 * 1024))
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
-		defer pw.Close()
+		defer func() { _ = pw.Close() }()
 		defer cancel()
 		lastIndex := "0-0"
 		completed := false
@@ -951,7 +951,7 @@ func outputStreamSb(cpClient pb.ModalClientClient, sandboxID string, fd pb.FileD
 					retries--
 					continue
 				}
-				pw.CloseWithError(fmt.Errorf("error getting output stream: %w", err))
+				_ = pw.CloseWithError(fmt.Errorf("error getting output stream: %w", err))
 				return
 			}
 			for {
@@ -964,7 +964,7 @@ func outputStreamSb(cpClient pb.ModalClientClient, sandboxID string, fd pb.FileD
 						if isRetryableGrpc(err) && retries > 0 {
 							retries--
 						} else {
-							pw.CloseWithError(fmt.Errorf("error getting output stream: %w", err))
+							_ = pw.CloseWithError(fmt.Errorf("error getting output stream: %w", err))
 							return
 						}
 					}
@@ -973,7 +973,7 @@ func outputStreamSb(cpClient pb.ModalClientClient, sandboxID string, fd pb.FileD
 				lastIndex = batch.GetEntryId()
 				for _, item := range batch.GetItems() {
 					// On error, writer has been closed. Still consume the rest of the channel.
-					pw.Write([]byte(item.GetData()))
+					_, _ = pw.Write([]byte(item.GetData()))
 				}
 				if batch.GetEof() {
 					completed = true
@@ -989,7 +989,7 @@ func outputStreamCp(cpClient pb.ModalClientClient, execID string, fd pb.FileDesc
 	pr, pw := nio.Pipe(buffer.New(64 * 1024))
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
-		defer pw.Close()
+		defer func() { _ = pw.Close() }()
 		defer cancel()
 		var lastIndex uint64
 		completed := false
@@ -1010,7 +1010,7 @@ func outputStreamCp(cpClient pb.ModalClientClient, execID string, fd pb.FileDesc
 					retries--
 					continue
 				}
-				pw.CloseWithError(fmt.Errorf("error getting output stream: %w", err))
+				_ = pw.CloseWithError(fmt.Errorf("error getting output stream: %w", err))
 				return
 			}
 			for {
@@ -1023,7 +1023,7 @@ func outputStreamCp(cpClient pb.ModalClientClient, execID string, fd pb.FileDesc
 						if isRetryableGrpc(err) && retries > 0 {
 							retries--
 						} else {
-							pw.CloseWithError(fmt.Errorf("error getting output stream: %w", err))
+							_ = pw.CloseWithError(fmt.Errorf("error getting output stream: %w", err))
 							return
 						}
 					}
@@ -1032,7 +1032,7 @@ func outputStreamCp(cpClient pb.ModalClientClient, execID string, fd pb.FileDesc
 				lastIndex = batch.GetBatchIndex()
 				for _, item := range batch.GetItems() {
 					// On error, writer has been closed. Still consume the rest of the channel.
-					pw.Write(item.GetMessageBytes())
+					_, _ = pw.Write(item.GetMessageBytes())
 				}
 				if batch.HasExitCode() {
 					completed = true

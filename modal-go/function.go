@@ -411,7 +411,7 @@ func blobUpload(ctx context.Context, client pb.ModalClientClient, data []byte) (
 		if err != nil {
 			return "", fmt.Errorf("failed to upload blob: %w", err)
 		}
-		defer uploadResp.Body.Close()
+		defer func() { _ = uploadResp.Body.Close() }()
 		if uploadResp.StatusCode < 200 || uploadResp.StatusCode >= 300 {
 			return "", fmt.Errorf("failed blob upload: %s", uploadResp.Status)
 		}

@@ -258,7 +258,7 @@ func blobDownload(ctx context.Context, client pb.ModalClientClient, blobID strin
 	if err != nil {
 		return nil, fmt.Errorf("failed to download blob: %w", err)
 	}
-	defer s3resp.Body.Close()
+	defer func() { _ = s3resp.Body.Close() }()
 	buf, err := io.ReadAll(s3resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read blob data: %w", err)

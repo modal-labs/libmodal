@@ -68,7 +68,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to make GET request: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		log.Fatalf("HTTP error! status: %d", resp.StatusCode)
