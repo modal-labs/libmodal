@@ -14,14 +14,17 @@ func TestGetConfigPath_WithEnvVar(t *testing.T) {
 	originalPath := os.Getenv("MODAL_CONFIG_PATH")
 	defer func() {
 		if originalPath != "" {
-			os.Setenv("MODAL_CONFIG_PATH", originalPath)
+			err := os.Setenv("MODAL_CONFIG_PATH", originalPath)
+			g.Expect(err).ShouldNot(gomega.HaveOccurred())
 		} else {
-			os.Unsetenv("MODAL_CONFIG_PATH")
+			err := os.Unsetenv("MODAL_CONFIG_PATH")
+			g.Expect(err).ShouldNot(gomega.HaveOccurred())
 		}
 	}()
 
 	customPath := "/custom/path/to/config.toml"
-	os.Setenv("MODAL_CONFIG_PATH", customPath)
+	err := os.Setenv("MODAL_CONFIG_PATH", customPath)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	path, err := configFilePath()
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -34,13 +37,16 @@ func TestGetConfigPath_WithoutEnvVar(t *testing.T) {
 	originalPath := os.Getenv("MODAL_CONFIG_PATH")
 	defer func() {
 		if originalPath != "" {
-			os.Setenv("MODAL_CONFIG_PATH", originalPath)
+			err := os.Setenv("MODAL_CONFIG_PATH", originalPath)
+			g.Expect(err).ShouldNot(gomega.HaveOccurred())
 		} else {
-			os.Unsetenv("MODAL_CONFIG_PATH")
+			err := os.Unsetenv("MODAL_CONFIG_PATH")
+			g.Expect(err).ShouldNot(gomega.HaveOccurred())
 		}
 	}()
 
-	os.Unsetenv("MODAL_CONFIG_PATH")
+	err := os.Unsetenv("MODAL_CONFIG_PATH")
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	path, err := configFilePath()
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
