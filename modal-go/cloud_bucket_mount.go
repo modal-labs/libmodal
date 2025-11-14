@@ -24,6 +24,7 @@ type CloudBucketMount struct {
 	BucketEndpointURL *string
 	KeyPrefix         *string
 	OidcAuthRoleArn   *string
+	bucketType        pb.CloudBucketMount_BucketType
 }
 
 // CloudBucketMountParams are options for creating a CloudBucketMount.
@@ -53,10 +54,27 @@ func (s *cloudBucketMountServiceImpl) New(bucketName string, params *CloudBucket
 	}
 
 	if mount.BucketEndpointURL != nil {
-		_, err := url.Parse(*mount.BucketEndpointURL)
+		parsedURL, err := url.Parse(*mount.BucketEndpointURL)
 		if err != nil {
 			return nil, fmt.Errorf("invalid bucket endpoint URL: %w", err)
 		}
+
+		hostname := parsedURL.Hostname()
+		if strings.HasSuffix(hostname, "r2.cloudflarestorage.com") {
+			mount.bucketType = pb.CloudBucketMount_R2
+		} else if strings.HasSuffix(hostname, "storage.googleapis.com") {
+			mount.bucketType = pb.CloudBucketMount_GCP
+		} else {
+			mount.bucketType = pb.CloudBucketMount_S3
+			if s.client != nil && s.client.logger != nil {
+				s.client.logger.Debug(
+					"CloudBucketMount received unrecognized bucket endpoint URL. Assuming AWS S3 configuration as fallback.",
+					"BucketEndpointURL", *mount.BucketEndpointURL,
+				)
+			}
+		}
+	} else {
+		mount.bucketType = pb.CloudBucketMount_S3
 	}
 
 	if mount.RequesterPays && mount.Secret == nil {
@@ -70,34 +88,10 @@ func (s *cloudBucketMountServiceImpl) New(bucketName string, params *CloudBucket
 	return mount, nil
 }
 
-func getBucketTypeFromEndpointURL(bucketEndpointURL *string) (pb.CloudBucketMount_BucketType, error) {
-	if bucketEndpointURL == nil {
-		return pb.CloudBucketMount_S3, nil
-	}
-
-	parsedURL, err := url.Parse(*bucketEndpointURL)
-	if err != nil {
-		return pb.CloudBucketMount_S3, fmt.Errorf("failed to parse bucketEndpointURL '%s': %w", *bucketEndpointURL, err)
-	}
-
-	hostname := parsedURL.Hostname()
-	if strings.HasSuffix(hostname, "r2.cloudflarestorage.com") {
-		return pb.CloudBucketMount_R2, nil
-	} else if strings.HasSuffix(hostname, "storage.googleapis.com") {
-		return pb.CloudBucketMount_GCP, nil
-	}
-	return pb.CloudBucketMount_S3, nil
-}
-
 func (c *CloudBucketMount) toProto(mountPath string) (*pb.CloudBucketMount, error) {
 	credentialsSecretID := ""
 	if c.Secret != nil {
 		credentialsSecretID = c.Secret.SecretID
-	}
-
-	bucketType, err := getBucketTypeFromEndpointURL(c.BucketEndpointURL)
-	if err != nil {
-		return nil, err
 	}
 
 	return pb.CloudBucketMount_builder{
@@ -105,7 +99,7 @@ func (c *CloudBucketMount) toProto(mountPath string) (*pb.CloudBucketMount, erro
 		MountPath:           mountPath,
 		CredentialsSecretId: credentialsSecretID,
 		ReadOnly:            c.ReadOnly,
-		BucketType:          bucketType,
+		BucketType:          c.bucketType,
 		RequesterPays:       c.RequesterPays,
 		BucketEndpointUrl:   c.BucketEndpointURL,
 		KeyPrefix:           c.KeyPrefix,

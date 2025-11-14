@@ -45,7 +45,6 @@ import { Image } from "./image";
 import type { Volume } from "./volume";
 import type { Proxy } from "./proxy";
 import type { CloudBucketMount } from "./cloud_bucket_mount";
-import { cloudBucketMountToProto } from "./cloud_bucket_mount";
 import type { App } from "./app";
 import { parseGpuConfig } from "./app";
 import { checkForRenamedParams } from "./validation";
@@ -184,7 +183,7 @@ export async function buildSandboxCreateRequestProto(
 
   const cloudBucketMounts: CloudBucketMountProto[] = params.cloudBucketMounts
     ? Object.entries(params.cloudBucketMounts).map(([mountPath, mount]) =>
-        cloudBucketMountToProto(mount, mountPath),
+        mount.toProto(mountPath),
       )
     : [];
 

@@ -1,4 +1,4 @@
-import { ModalClient, CloudBucketMount } from "modal";
+import { ModalClient } from "modal";
 
 const modal = new ModalClient();
 
@@ -12,7 +12,7 @@ const secret = await modal.secrets.fromName("libmodal-aws-bucket-secret");
 const sb = await modal.sandboxes.create(app, image, {
   command: ["sh", "-c", "ls -la /mnt/s3-bucket"],
   cloudBucketMounts: {
-    "/mnt/s3-bucket": new CloudBucketMount("my-s3-bucket", {
+    "/mnt/s3-bucket": modal.cloudBucketMounts.create("my-s3-bucket", {
       secret,
       keyPrefix: "data/",
       readOnly: true,
