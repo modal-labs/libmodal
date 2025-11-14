@@ -1,5 +1,5 @@
 import { tc } from "../test-support/test-client";
-import { expect, test } from "vitest";
+import { expect, onTestFinished, test } from "vitest";
 import { createMockModalClients } from "../test-support/grpc_mock";
 import { NotFoundError } from "../src/errors";
 
@@ -35,11 +35,12 @@ test("Volume.readOnly", async () => {
 
 test("VolumeEphemeral", async () => {
   const volume = await tc.volumes.ephemeral();
+  onTestFinished(() => volume.closeEphemeral());
+
   expect(volume.name).toBeUndefined();
   expect(volume.volumeId).toMatch(/^vo-/);
   expect(volume.isReadOnly).toBe(false);
   expect(volume.readOnly().isReadOnly).toBe(true);
-  volume.closeEphemeral();
 });
 
 test("VolumeDelete success", async () => {

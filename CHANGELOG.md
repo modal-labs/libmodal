@@ -6,6 +6,7 @@ Both client libraries are pre-1.0, and they have separate versioning.
 
 - Enabled goroutine leak detection for all tests by default.
 - Fixed a few remaining goroutine leaks.
+- Test clean-ups: ensure we always terminate Sandboxes, close ephemeral objects, etc.
 - Added debug logging to `CloudBucketMount` creation in Go, bringing it in line with the JS SDK.
 - Updated the API for creating `CloudBucketMount`s in JS, using the same `modal.cloudBucketMounts.create()` pattern as other Modal objects, bringing it in line with the Go SDK.
 
