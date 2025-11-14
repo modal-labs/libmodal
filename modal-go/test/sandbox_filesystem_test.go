@@ -76,7 +76,9 @@ func TestSandboxAppendToFileBinary(t *testing.T) {
 	appender, err := sb.Open(ctx, "/tmp/append.txt", "a")
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	moreText := []byte{7, 8, 9, 10}
-	appender.Write(moreText)
+	n, err = appender.Write(moreText)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(n).Should(gomega.Equal(len(moreText)))
 
 	reader, err := sb.Open(ctx, "/tmp/append.txt", "r")
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
