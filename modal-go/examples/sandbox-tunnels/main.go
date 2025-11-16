@@ -68,7 +68,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to make GET request: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if cerr := resp.Body.Close(); cerr != nil {
+			log.Printf("Failed to close response body: %v", cerr)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		log.Fatalf("HTTP error! status: %d", resp.StatusCode)

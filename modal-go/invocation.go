@@ -8,6 +8,7 @@ import (
 	"time"
 
 	pb "github.com/modal-labs/libmodal/modal-go/proto/modal_proto"
+	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -243,14 +244,19 @@ func processResult(ctx context.Context, client pb.ModalClientClient, result *pb.
 }
 
 // blobDownload downloads a blob by its ID.
-func blobDownload(ctx context.Context, client pb.ModalClientClient, blobID string) ([]byte, error) {
+type blobGetter interface {
+	BlobGet(ctx context.Context, in *pb.BlobGetRequest, opts ...grpc.CallOption) (*pb.BlobGetResponse, error)
+}
+
+func blobDownload(ctx context.Context, client blobGetter, blobID string) ([]byte, error) {
 	resp, err := client.BlobGet(ctx, pb.BlobGetRequest_builder{
 		BlobId: blobID,
 	}.Build())
 	if err != nil {
 		return nil, err
 	}
-	req, err := http.NewRequestWithContext(ctx, "GET", resp.GetDownloadUrl(), nil)
+	downloadURL := resp.GetDownloadUrl()
+	req, err := http.NewRequestWithContext(ctx, "GET", downloadURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create download request: %w", err)
 	}
@@ -259,6 +265,17 @@ func blobDownload(ctx context.Context, client pb.ModalClientClient, blobID strin
 		return nil, fmt.Errorf("failed to download blob: %w", err)
 	}
 	defer s3resp.Body.Close()
+	if s3resp.StatusCode < http.StatusOK || s3resp.StatusCode >= 300 {
+		const maxErrorBodyBytes = 4096
+		errorPreview, readErr := io.ReadAll(io.LimitReader(s3resp.Body, maxErrorBodyBytes))
+		if readErr != nil {
+			return nil, fmt.Errorf("blob download failed (blob_id=%s url=%s status=%d): unable to read error body: %w", blobID, downloadURL, s3resp.StatusCode, readErr)
+		}
+		if len(errorPreview) > 0 {
+			return nil, fmt.Errorf("blob download failed (blob_id=%s url=%s status=%d): %s", blobID, downloadURL, s3resp.StatusCode, string(errorPreview))
+		}
+		return nil, fmt.Errorf("blob download failed (blob_id=%s url=%s status=%d)", blobID, downloadURL, s3resp.StatusCode)
+	}
 	buf, err := io.ReadAll(s3resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read blob data: %w", err)
