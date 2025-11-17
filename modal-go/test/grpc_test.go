@@ -11,6 +11,7 @@ import (
 	"github.com/onsi/gomega"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
@@ -89,8 +90,10 @@ func TestClientRespectsContextDeadline(t *testing.T) {
 			)
 			g.Expect(err).ShouldNot(gomega.HaveOccurred())
 			defer func() {
-				if err := conn.Close(); err != nil {
-					t.Errorf("failed to close gRPC connection: %v", err)
+				if conn.GetState() != connectivity.Shutdown {
+					if err := conn.Close(); err != nil {
+						t.Errorf("failed to close gRPC connection: %v", err)
+					}
 				}
 			}()
 
