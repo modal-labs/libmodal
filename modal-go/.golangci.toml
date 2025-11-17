@@ -7,6 +7,7 @@ enable = [
   "ineffassign",
   "staticcheck",
   "unused",
+  "usetesting",
 ]
 
 [linters.settings.staticcheck]
