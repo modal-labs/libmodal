@@ -90,7 +90,7 @@ func TestClientRespectsContextDeadline(t *testing.T) {
 			g.Expect(err).ShouldNot(gomega.HaveOccurred())
 			defer func() {
 				if err := conn.Close(); err != nil {
-					t.Logf("failed to close gRPC connection: %v", err)
+					t.Errorf("failed to close gRPC connection: %v", err)
 				}
 			}()
 
