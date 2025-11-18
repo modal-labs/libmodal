@@ -47,7 +47,7 @@ func (fc *FunctionCall) Get(ctx context.Context, params *FunctionCallGetParams) 
 	if params == nil {
 		params = &FunctionCallGetParams{}
 	}
-	invocation := controlPlaneInvocationFromFunctionCallID(fc.client.cpClient, fc.FunctionCallID)
+	invocation := controlPlaneInvocationFromFunctionCallID(fc.client.cpClient, fc.client.logger, fc.FunctionCallID)
 	return invocation.awaitOutput(ctx, params.Timeout)
 }
 

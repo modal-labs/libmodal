@@ -1,7 +1,14 @@
 version = "2"
 
 [linters]
-disable = ["errcheck"]
+enable = [
+  "errcheck",
+  "govet",
+  "ineffassign",
+  "staticcheck",
+  "unused",
+  "usetesting",
+]
 
 [linters.settings.staticcheck]
 checks = ["all"]

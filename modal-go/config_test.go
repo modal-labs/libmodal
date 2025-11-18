@@ -11,17 +11,8 @@ import (
 func TestGetConfigPath_WithEnvVar(t *testing.T) {
 	g := gomega.NewWithT(t)
 
-	originalPath := os.Getenv("MODAL_CONFIG_PATH")
-	defer func() {
-		if originalPath != "" {
-			os.Setenv("MODAL_CONFIG_PATH", originalPath)
-		} else {
-			os.Unsetenv("MODAL_CONFIG_PATH")
-		}
-	}()
-
 	customPath := "/custom/path/to/config.toml"
-	os.Setenv("MODAL_CONFIG_PATH", customPath)
+	t.Setenv("MODAL_CONFIG_PATH", customPath)
 
 	path, err := configFilePath()
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -31,16 +22,7 @@ func TestGetConfigPath_WithEnvVar(t *testing.T) {
 func TestGetConfigPath_WithoutEnvVar(t *testing.T) {
 	g := gomega.NewWithT(t)
 
-	originalPath := os.Getenv("MODAL_CONFIG_PATH")
-	defer func() {
-		if originalPath != "" {
-			os.Setenv("MODAL_CONFIG_PATH", originalPath)
-		} else {
-			os.Unsetenv("MODAL_CONFIG_PATH")
-		}
-	}()
-
-	os.Unsetenv("MODAL_CONFIG_PATH")
+	t.Setenv("MODAL_CONFIG_PATH", "")
 
 	path, err := configFilePath()
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())

@@ -25,7 +25,8 @@ func TestClientWithLogger(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(client).NotTo(gomega.BeNil())
 
-	w.Close()
+	err = w.Close()
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	output, err := io.ReadAll(r)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())

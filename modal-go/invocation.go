@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -24,10 +25,11 @@ type controlPlaneInvocation struct {
 	inputJwt        string
 
 	cpClient pb.ModalClientClient
+	logger   *slog.Logger
 }
 
 // createControlPlaneInvocation executes a function call and returns a new controlPlaneInvocation.
-func createControlPlaneInvocation(ctx context.Context, cpClient pb.ModalClientClient, functionID string, input *pb.FunctionInput, invocationType pb.FunctionCallInvocationType) (*controlPlaneInvocation, error) {
+func createControlPlaneInvocation(ctx context.Context, cpClient pb.ModalClientClient, logger *slog.Logger, functionID string, input *pb.FunctionInput, invocationType pb.FunctionCallInvocationType) (*controlPlaneInvocation, error) {
 	functionPutInputsItem := pb.FunctionPutInputsItem_builder{
 		Idx:   0,
 		Input: input,
@@ -49,16 +51,17 @@ func createControlPlaneInvocation(ctx context.Context, cpClient pb.ModalClientCl
 		functionCallJwt: functionMapResponse.GetFunctionCallJwt(),
 		inputJwt:        functionMapResponse.GetPipelinedInputs()[0].GetInputJwt(),
 		cpClient:        cpClient,
+		logger:          logger,
 	}, nil
 }
 
 // controlPlaneInvocationFromFunctionCallID creates a controlPlaneInvocation from a function call ID.
-func controlPlaneInvocationFromFunctionCallID(cpClient pb.ModalClientClient, functionCallID string) *controlPlaneInvocation {
-	return &controlPlaneInvocation{FunctionCallID: functionCallID, cpClient: cpClient}
+func controlPlaneInvocationFromFunctionCallID(cpClient pb.ModalClientClient, logger *slog.Logger, functionCallID string) *controlPlaneInvocation {
+	return &controlPlaneInvocation{FunctionCallID: functionCallID, cpClient: cpClient, logger: logger}
 }
 
 func (c *controlPlaneInvocation) awaitOutput(ctx context.Context, timeout *time.Duration) (any, error) {
-	return pollFunctionOutput(ctx, c.cpClient, c.getOutput, timeout)
+	return pollFunctionOutput(ctx, c.cpClient, c.logger, c.getOutput, timeout)
 }
 
 func (c *controlPlaneInvocation) retry(ctx context.Context, retryCount uint32) error {
@@ -108,10 +111,11 @@ type inputPlaneInvocation struct {
 	attemptToken string
 
 	ipClient pb.ModalClientClient
+	logger   *slog.Logger
 }
 
 // createInputPlaneInvocation creates a new InputPlaneInvocation by starting an attempt.
-func createInputPlaneInvocation(ctx context.Context, ipClient pb.ModalClientClient, functionID string, input *pb.FunctionInput) (*inputPlaneInvocation, error) {
+func createInputPlaneInvocation(ctx context.Context, ipClient pb.ModalClientClient, logger *slog.Logger, functionID string, input *pb.FunctionInput) (*inputPlaneInvocation, error) {
 	functionPutInputsItem := pb.FunctionPutInputsItem_builder{
 		Idx:   0,
 		Input: input,
@@ -128,12 +132,13 @@ func createInputPlaneInvocation(ctx context.Context, ipClient pb.ModalClientClie
 		input:        functionPutInputsItem,
 		attemptToken: attemptStartResp.GetAttemptToken(),
 		ipClient:     ipClient,
+		logger:       logger,
 	}, nil
 }
 
 // awaitOutput waits for the output with an optional timeout.
 func (i *inputPlaneInvocation) awaitOutput(ctx context.Context, timeout *time.Duration) (any, error) {
-	return pollFunctionOutput(ctx, i.ipClient, i.getOutput, timeout)
+	return pollFunctionOutput(ctx, i.ipClient, i.logger, i.getOutput, timeout)
 }
 
 // getOutput fetches the output for the current attempt.
@@ -171,7 +176,7 @@ type getOutput func(ctx context.Context, timeout time.Duration) (*pb.FunctionGet
 // pollFunctionOutput repeatedly tries to fetch an output using the provided `getOutput` function, and the specified
 // timeout value. We use a timeout value of 55 seconds if the caller does not specify a timeout value, or if the
 // specified timeout value is greater than 55 seconds.
-func pollFunctionOutput(ctx context.Context, client pb.ModalClientClient, getOutput getOutput, timeout *time.Duration) (any, error) {
+func pollFunctionOutput(ctx context.Context, client pb.ModalClientClient, logger *slog.Logger, getOutput getOutput, timeout *time.Duration) (any, error) {
 	startTime := time.Now()
 	pollTimeout := outputsTimeout
 	if timeout != nil {
@@ -191,7 +196,7 @@ func pollFunctionOutput(ctx context.Context, client pb.ModalClientClient, getOut
 		// Output serialization may fail if any of the output items can't be deserialized
 		// into a supported Go type. Users are expected to serialize outputs correctly.
 		if output != nil {
-			return processResult(ctx, client, output.GetResult(), output.GetDataFormat())
+			return processResult(ctx, client, logger, output.GetResult(), output.GetDataFormat())
 		}
 
 		if timeout != nil {
@@ -206,7 +211,7 @@ func pollFunctionOutput(ctx context.Context, client pb.ModalClientClient, getOut
 }
 
 // processResult processes the result from an invocation.
-func processResult(ctx context.Context, client pb.ModalClientClient, result *pb.GenericResult, dataFormat pb.DataFormat) (any, error) {
+func processResult(ctx context.Context, client pb.ModalClientClient, logger *slog.Logger, result *pb.GenericResult, dataFormat pb.DataFormat) (any, error) {
 	if result == nil {
 		return nil, RemoteError{"Received null result from invocation"}
 	}
@@ -217,7 +222,7 @@ func processResult(ctx context.Context, client pb.ModalClientClient, result *pb.
 	case pb.GenericResult_Data_case:
 		data = result.GetData()
 	case pb.GenericResult_DataBlobId_case:
-		data, err = blobDownload(ctx, client, result.GetDataBlobId())
+		data, err = blobDownload(ctx, client, logger, result.GetDataBlobId())
 		if err != nil {
 			return nil, err
 		}
@@ -243,7 +248,7 @@ func processResult(ctx context.Context, client pb.ModalClientClient, result *pb.
 }
 
 // blobDownload downloads a blob by its ID.
-func blobDownload(ctx context.Context, client pb.ModalClientClient, blobID string) ([]byte, error) {
+func blobDownload(ctx context.Context, client pb.ModalClientClient, logger *slog.Logger, blobID string) ([]byte, error) {
 	resp, err := client.BlobGet(ctx, pb.BlobGetRequest_builder{
 		BlobId: blobID,
 	}.Build())
@@ -258,7 +263,11 @@ func blobDownload(ctx context.Context, client pb.ModalClientClient, blobID strin
 	if err != nil {
 		return nil, fmt.Errorf("failed to download blob: %w", err)
 	}
-	defer s3resp.Body.Close()
+	defer func() {
+		if err := s3resp.Body.Close(); err != nil {
+			logger.DebugContext(ctx, "failed to close download response body", "error", err.Error())
+		}
+	}()
 	buf, err := io.ReadAll(s3resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read blob data: %w", err)
