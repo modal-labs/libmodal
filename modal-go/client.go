@@ -21,6 +21,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 
 	pb "github.com/modal-labs/libmodal/modal-go/proto/modal_proto"
 )
@@ -497,6 +498,7 @@ func retryInterceptor(c *Client) grpc.UnaryClientInterceptor {
 		idempotency := uuid.NewString()
 		start := time.Now()
 		delay := baseDelay
+		var trailers metadata.MD
 
 		for attempt := 0; attempt <= retries; attempt++ {
 			aCtx := metadata.AppendToOutgoingContext(
@@ -505,8 +507,28 @@ func retryInterceptor(c *Client) grpc.UnaryClientInterceptor {
 				"x-retry-attempt", strconv.Itoa(attempt),
 				"x-retry-delay", strconv.FormatFloat(time.Since(start).Seconds(), 'f', 3, 64),
 			)
+			opts = append(opts, grpc.Trailer(&trailers))
 
 			err := inv(aCtx, method, req, reply, cc, opts...)
+			if vals := trailers.Get("grpc-status-details-bin"); len(vals) > 0 {
+				rawString := vals[0]
+				c.logger.DebugContext(ctx, "Found trailer value", "trailer", vals[0])
+				status := &pb.RPCStatus{}
+				proto.Unmarshal([]byte(rawString), status)
+				c.logger.DebugContext(ctx, "Found status", "status", status)
+				specific_details := status.GetDetails()[0]
+				c.logger.DebugContext(ctx, "Found detail", "detail", specific_details)
+
+				appResponse := &pb.AppCreateResponse{}
+
+				if specific_details.MessageIs(appResponse) {
+
+					if err := specific_details.UnmarshalTo(appResponse); err != nil {
+						c.logger.DebugContext(ctx, "Failed to unpack", "error", err)
+					}
+					c.logger.DebugContext(ctx, "unpacked!", "appResponse", appResponse)
+				}
+			}
 			if err == nil {
 				return nil
 			}
