@@ -153,7 +153,10 @@ func buildSandboxCreateRequestProto(appID, imageID string, params SandboxCreateP
 		}.Build()
 	}
 
-	schedulerPlacement := pb.SchedulerPlacement_builder{Regions: params.Regions}.Build()
+	var schedulerPlacement *pb.SchedulerPlacement
+	if len(params.Regions) > 0 {
+		schedulerPlacement = pb.SchedulerPlacement_builder{Regions: params.Regions}.Build()
+	}
 
 	var proxyID *string
 	if params.Proxy != nil {

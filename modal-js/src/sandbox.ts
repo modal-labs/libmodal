@@ -239,9 +239,12 @@ export async function buildSandboxCreateRequestProto(
     };
   }
 
-  const schedulerPlacement = SchedulerPlacement.create({
-    regions: params.regions ?? [],
-  });
+  const schedulerPlacement: SchedulerPlacement | undefined = params.regions
+    ?.length
+    ? SchedulerPlacement.create({
+        regions: params.regions,
+      })
+    : undefined;
 
   let ptyInfo: PTYInfo | undefined;
   if (params.pty) {
