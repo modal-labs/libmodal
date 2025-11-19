@@ -112,6 +112,7 @@ type ClientParams struct {
 
 // NewClientWithOptions generates a new client and allows overriding options in the default profile configuration.
 func NewClientWithOptions(params *ClientParams) (*Client, error) {
+	ctx := context.Background()
 	if params == nil {
 		params = &ClientParams{}
 	}
@@ -161,7 +162,7 @@ func NewClientWithOptions(params *ClientParams) (*Client, error) {
 		additionalStreamInterceptors: params.GRPCStreamInterceptors,
 	}
 
-	logger.Debug("Initializing Modal client", "version", sdkVersion(), "server_url", profile.ServerURL)
+	logger.DebugContext(ctx, "Initializing Modal client", "version", sdkVersion(), "server_url", profile.ServerURL)
 
 	if params.ControlPlaneClient != nil {
 		c.cpClient = &clientWithConn{
@@ -169,7 +170,7 @@ func NewClientWithOptions(params *ClientParams) (*Client, error) {
 			conn:              params.ControlPlaneConn,
 		}
 	} else {
-		conn, client, err := newClient(profile, c, c.additionalUnaryInterceptors, c.additionalStreamInterceptors)
+		conn, client, err := newClient(ctx, profile, c, c.additionalUnaryInterceptors, c.additionalStreamInterceptors)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create control plane client: %w", err)
 		}
@@ -181,7 +182,7 @@ func NewClientWithOptions(params *ClientParams) (*Client, error) {
 		return nil, fmt.Errorf("failed to start auth token manager: %w", err)
 	}
 
-	logger.Debug("Modal client initialized successfully")
+	logger.DebugContext(ctx, "Modal client initialized successfully")
 
 	c.Apps = &appServiceImpl{client: c}
 	c.CloudBucketMounts = &cloudBucketMountServiceImpl{client: c}
@@ -218,7 +219,7 @@ func (c *Client) ipClient(ctx context.Context, serverURL string) (pb.ModalClient
 	c.logger.DebugContext(ctx, "Creating input plane client", "server_url", serverURL)
 	prof := c.profile
 	prof.ServerURL = serverURL
-	conn, client, err := newClient(prof, c, c.additionalUnaryInterceptors, c.additionalStreamInterceptors)
+	conn, client, err := newClient(ctx, prof, c, c.additionalUnaryInterceptors, c.additionalStreamInterceptors)
 	if err != nil {
 		return nil, err
 	}
@@ -228,25 +229,26 @@ func (c *Client) ipClient(ctx context.Context, serverURL string) (pb.ModalClient
 
 // Close stops the background auth token refresh and closes all gRPC connections.
 func (c *Client) Close() {
-	c.logger.Debug("Closing Modal client")
+	ctx := context.Background()
+	c.logger.DebugContext(ctx, "Closing Modal client")
 	c.authTokenManager.Stop()
 
 	if c.cpClient != nil {
 		if err := c.cpClient.Close(); err != nil {
-			c.logger.Warn("Failed to close control plane connection", "error", err)
+			c.logger.WarnContext(ctx, "Failed to close control plane connection", "error", err)
 		}
 	}
 
 	c.mu.Lock()
 	for serverURL, client := range c.ipClients {
 		if err := client.Close(); err != nil {
-			c.logger.Warn("Failed to close input plane connection", "server_url", serverURL, "error", err)
+			c.logger.WarnContext(ctx, "Failed to close input plane connection", "server_url", serverURL, "error", err)
 		}
 	}
 	c.ipClients = map[string]*clientWithConn{}
 	c.mu.Unlock()
 
-	c.logger.Debug("Modal client closed")
+	c.logger.DebugContext(ctx, "Modal client closed")
 }
 
 // Version returns the SDK version.
@@ -298,7 +300,7 @@ func isRetryableGrpc(err error) bool {
 
 // newClient dials the given server URL with auth/timeout/retry interceptors installed.
 // It returns (conn, stub). Close the conn when done.
-func newClient(profile Profile, c *Client, customUnaryInterceptors []grpc.UnaryClientInterceptor, customStreamInterceptors []grpc.StreamClientInterceptor) (*grpc.ClientConn, pb.ModalClientClient, error) {
+func newClient(ctx context.Context, profile Profile, c *Client, customUnaryInterceptors []grpc.UnaryClientInterceptor, customStreamInterceptors []grpc.StreamClientInterceptor) (*grpc.ClientConn, pb.ModalClientClient, error) {
 	var target string
 	var creds credentials.TransportCredentials
 	var scheme string
@@ -314,7 +316,7 @@ func newClient(profile Profile, c *Client, customUnaryInterceptors []grpc.UnaryC
 		return nil, nil, status.Errorf(codes.InvalidArgument, "invalid server URL: %s", profile.ServerURL)
 	}
 
-	c.logger.Debug("Connecting to Modal server", "target", target, "scheme", scheme)
+	c.logger.DebugContext(ctx, "Connecting to Modal server", "target", target, "scheme", scheme)
 
 	unaryInterceptors := []grpc.UnaryClientInterceptor{
 		headerInjectorUnaryInterceptor(profile, c.sdkVersion),
