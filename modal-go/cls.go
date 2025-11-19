@@ -291,6 +291,7 @@ func (c *Cls) bindParameters(ctx context.Context, parameters map[string]any, opt
 		FunctionId:       c.serviceFunctionID,
 		SerializedParams: serializedParams,
 		FunctionOptions:  functionOptions,
+		EnvironmentName:  environmentName("", c.client.profile),
 	}.Build())
 	if err != nil {
 		return "", fmt.Errorf("failed to bind parameters: %w", err)
