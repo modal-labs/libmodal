@@ -320,8 +320,9 @@ export async function buildSandboxCreateRequestProto(
       cloudBucketMounts,
       ptyInfo,
       secretIds,
-      openPorts: openPorts.length > 0 ? { ports: openPorts } : undefined,
-      cloudProviderStr: params.cloud ?? "",
+      openPorts: { ports: openPorts },
+      cloudProviderStr:
+        params.cloud === undefined ? undefined : params.cloud,
       schedulerPlacement,
       verbose: params.verbose ?? false,
       proxyId: params.proxy?.proxyId,

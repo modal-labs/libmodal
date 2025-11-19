@@ -75,11 +75,11 @@ export type EphemeralOptions = {
 /**
  * Parse a GPU configuration string into a GPUConfig object.
  * @param gpu - GPU string in format "type" or "type:count" (e.g. "T4", "A100:2")
- * @returns GPUConfig object or undefined if no GPU specified
+ * @returns GPUConfig object (empty config if no GPU specified)
  */
-export function parseGpuConfig(gpu: string | undefined): GPUConfig | undefined {
+export function parseGpuConfig(gpu: string | undefined): GPUConfig {
   if (!gpu) {
-    return undefined;
+    return GPUConfig.create({});
   }
 
   let gpuType = gpu;
@@ -96,11 +96,11 @@ export function parseGpuConfig(gpu: string | undefined): GPUConfig | undefined {
     }
   }
 
-  return {
+  return GPUConfig.create({
     type: 0, // Deprecated field, but required by proto
     count,
     gpuType: gpuType.toUpperCase(),
-  };
+  });
 }
 
 /** Represents a deployed Modal App. */
