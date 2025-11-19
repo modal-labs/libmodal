@@ -15,6 +15,8 @@ import {
   SchedulerPlacement,
   TunnelType,
   PortSpec,
+  Resources,
+  PortSpecs,
 } from "../proto/modal_proto/api";
 import {
   getDefaultClient,
@@ -190,27 +192,33 @@ export async function buildSandboxCreateRequestProto(
   const openPorts: PortSpec[] = [];
   if (params.encryptedPorts) {
     openPorts.push(
-      ...params.encryptedPorts.map((port) => ({
-        port,
-        unencrypted: false,
-      })),
+      ...params.encryptedPorts.map((port) =>
+        PortSpec.create({
+          port,
+          unencrypted: false,
+        }),
+      ),
     );
   }
   if (params.h2Ports) {
     openPorts.push(
-      ...params.h2Ports.map((port) => ({
-        port,
-        unencrypted: false,
-        tunnelType: TunnelType.TUNNEL_TYPE_H2,
-      })),
+      ...params.h2Ports.map((port) =>
+        PortSpec.create({
+          port,
+          unencrypted: false,
+          tunnelType: TunnelType.TUNNEL_TYPE_H2,
+        }),
+      ),
     );
   }
   if (params.unencryptedPorts) {
     openPorts.push(
-      ...params.unencryptedPorts.map((port) => ({
-        port,
-        unencrypted: true,
-      })),
+      ...params.unencryptedPorts.map((port) =>
+        PortSpec.create({
+          port,
+          unencrypted: true,
+        }),
+      ),
     );
   }
 
@@ -309,18 +317,18 @@ export async function buildSandboxCreateRequestProto(
           : undefined,
       workdir: params.workdir ?? undefined,
       networkAccess,
-      resources: {
+      resources: Resources.create({
         milliCpu,
         milliCpuMax,
         memoryMb,
         memoryMbMax,
         gpuConfig,
-      },
+      }),
       volumeMounts,
       cloudBucketMounts,
       ptyInfo,
       secretIds,
-      openPorts: openPorts.length > 0 ? { ports: openPorts } : undefined,
+      openPorts: PortSpecs.create({ ports: openPorts }),
       cloudProviderStr: params.cloud ?? "",
       schedulerPlacement,
       verbose: params.verbose ?? false,

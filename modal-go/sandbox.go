@@ -97,7 +97,7 @@ func buildSandboxCreateRequestProto(appID, imageID string, params SandboxCreateP
 		ptyInfo = defaultSandboxPTYInfo()
 	}
 
-	var openPorts []*pb.PortSpec
+	openPorts := make([]*pb.PortSpec, 0)
 	for _, port := range params.EncryptedPorts {
 		openPorts = append(openPorts, pb.PortSpec_builder{
 			Port:        uint32(port),
@@ -118,12 +118,9 @@ func buildSandboxCreateRequestProto(appID, imageID string, params SandboxCreateP
 		}.Build())
 	}
 
-	var portSpecs *pb.PortSpecs
-	if len(openPorts) > 0 {
-		portSpecs = pb.PortSpecs_builder{
-			Ports: openPorts,
-		}.Build()
-	}
+	portSpecs := pb.PortSpecs_builder{
+		Ports: openPorts,
+	}.Build()
 
 	secretIds := []string{}
 	for _, secret := range params.Secrets {
