@@ -305,7 +305,7 @@ func (f *Function) createRemoteInvocation(ctx context.Context, input *pb.Functio
 	}
 	inputPlaneURL := metadata.GetInputPlaneUrl()
 	if inputPlaneURL != "" {
-		ipClient, err := f.client.ipClient(inputPlaneURL)
+		ipClient, err := f.client.ipClient(ctx, inputPlaneURL)
 		if err != nil {
 			return nil, err
 		}

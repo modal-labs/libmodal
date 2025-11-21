@@ -82,6 +82,6 @@ func (s *appServiceImpl) FromName(ctx context.Context, name string, params *AppF
 		return nil, err
 	}
 
-	s.client.logger.Debug("Retrieved App", "app_id", resp.GetAppId(), "app_name", name)
+	s.client.logger.DebugContext(ctx, "Retrieved App", "app_id", resp.GetAppId(), "app_name", name)
 	return &App{AppID: resp.GetAppId(), Name: name}, nil
 }
