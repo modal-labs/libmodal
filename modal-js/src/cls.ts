@@ -238,6 +238,7 @@ export class Cls {
       functionId: this.#serviceFunctionId,
       serializedParams,
       functionOptions,
+      environmentName: this.#client.environmentName(),
     });
     return bindResp.boundFunctionId;
   }

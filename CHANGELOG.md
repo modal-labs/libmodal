@@ -9,6 +9,7 @@ Both client libraries are pre-1.0, and they have separate versioning.
 - Test clean-ups: ensure we always terminate Sandboxes, close ephemeral objects, etc.
 - Added debug logging to `CloudBucketMount` creation in Go, bringing it in line with the JS SDK.
 - Updated the API for creating `CloudBucketMount`s in JS, using the same `modal.cloudBucketMounts.create()` pattern as other Modal objects, bringing it in line with the Go SDK.
+- Aligned the way the JS/Go SDKs handle empty/missing fields in gRPC messages, so the behavior is identical to the Python SDK.
 
 ## modal-js/v0.5.4, modal-go/v0.5.4
 
@@ -29,7 +30,7 @@ Both client libraries are pre-1.0, and they have separate versioning.
 - All Go SDK functions that take a Context will respect the timeout of the context.
 - Improved the error message when calling a webhook Function as a normal Function.
 - Allow customizing the config file path via `MODAL_CONFIG_PATH` environment variable (defaults to `~/.modal.toml`).
-- Add support for passing `MODAL_LOGLEVEL=debug` environment variable to also log debug logs, incl. all GRPC calls, etc.
+- Add support for passing `MODAL_LOGLEVEL=debug` environment variable to also log debug logs, incl. all gRPC calls, etc.
 
 ## modal-js/v0.5.0, modal-go/v0.5.0
 

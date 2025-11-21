@@ -12,7 +12,9 @@ func TestParseGPUConfig(t *testing.T) {
 
 	config, err := parseGPUConfig("")
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	g.Expect(config).Should(gomega.BeNil())
+	g.Expect(config).ShouldNot(gomega.BeNil())
+	g.Expect(config.GetCount()).To(gomega.Equal(uint32(0)))
+	g.Expect(config.GetGpuType()).To(gomega.Equal(""))
 
 	config, err = parseGPUConfig("T4")
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())

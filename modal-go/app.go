@@ -26,10 +26,10 @@ type App struct {
 
 // parseGPUConfig parses a GPU configuration string into a GPUConfig object.
 // The GPU string format is "type" or "type:count" (e.g. "T4", "A100:2").
-// Returns nil if gpu is empty, or an error if the format is invalid.
+// Returns an empty config if gpu is empty, or an error if the format is invalid.
 func parseGPUConfig(gpu string) (*pb.GPUConfig, error) {
 	if gpu == "" {
-		return nil, nil
+		return pb.GPUConfig_builder{}.Build(), nil
 	}
 
 	gpuType := gpu

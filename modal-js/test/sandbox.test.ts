@@ -3,7 +3,7 @@ import { parseGpuConfig } from "../src/app";
 import { buildSandboxCreateRequestProto } from "../src/sandbox";
 import { expect, test, onTestFinished } from "vitest";
 import { buildContainerExecRequestProto } from "../src/sandbox";
-import { PTYInfo_PTYType } from "../proto/modal_proto/api";
+import { GPUConfig, PTYInfo_PTYType } from "../proto/modal_proto/api";
 
 test("CreateOneSandbox", async () => {
   const app = await tc.apps.fromName("libmodal-test", {
@@ -102,7 +102,7 @@ test("SandboxExecOptions", async () => {
 });
 
 test("parseGpuConfig", () => {
-  expect(parseGpuConfig(undefined)).toBeUndefined();
+  expect(parseGpuConfig(undefined)).toEqual(GPUConfig.create({}));
   expect(parseGpuConfig("T4")).toEqual({
     type: 0,
     count: 1,
