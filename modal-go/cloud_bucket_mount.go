@@ -1,6 +1,7 @@
 package modal
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 	"strings"
@@ -39,6 +40,7 @@ type CloudBucketMountParams struct {
 
 // New creates a new CloudBucketMount.
 func (s *cloudBucketMountServiceImpl) New(bucketName string, params *CloudBucketMountParams) (*CloudBucketMount, error) {
+	ctx := context.Background()
 	if params == nil {
 		params = &CloudBucketMountParams{}
 	}
@@ -67,7 +69,8 @@ func (s *cloudBucketMountServiceImpl) New(bucketName string, params *CloudBucket
 		} else {
 			mount.bucketType = pb.CloudBucketMount_S3
 			if s.client != nil && s.client.logger != nil {
-				s.client.logger.Debug(
+				s.client.logger.DebugContext(
+					ctx,
 					"CloudBucketMount received unrecognized bucket endpoint URL. Assuming AWS S3 configuration as fallback.",
 					"BucketEndpointURL", *mount.BucketEndpointURL,
 				)
