@@ -10,9 +10,9 @@ export class AuthTokenManager {
   private logger: Logger;
   private currentToken: string = "";
   private tokenExpiry: number = 0;
-  private stopped: boolean = false;
   private timeoutId: NodeJS.Timeout | null = null;
-  private initialTokenPromise: Promise<void> | null = null;
+  private running: boolean = false;
+  private fetchPromise: Promise<void> | null = null;
 
   constructor(client: any, logger: Logger) {
     this.client = client;
@@ -20,17 +20,19 @@ export class AuthTokenManager {
   }
 
   /**
-   * Returns the current cached token.
-   * If the initial token fetch is still in progress, waits for it to complete.
+   * Returns a valid auth token.
+   * If the current token is expired and the manager is running, triggers an on-demand refresh.
    */
   async getToken(): Promise<string> {
-    // If initial fetch is in progress, wait for it
-    if (this.initialTokenPromise) {
-      await this.initialTokenPromise;
-    }
-
     if (this.currentToken && !this.isExpired()) {
       return this.currentToken;
+    }
+
+    if (this.running) {
+      await this.runFetch();
+      if (this.currentToken && !this.isExpired()) {
+        return this.currentToken;
+      }
     }
 
     throw new Error("No valid auth token available");
@@ -77,7 +79,7 @@ export class AuthTokenManager {
    * Background loop that refreshes tokens REFRESH_WINDOW seconds before they expire.
    */
   private async backgroundRefresh(): Promise<void> {
-    while (!this.stopped) {
+    while (this.running) {
       const now = Math.floor(Date.now() / 1000);
       const refreshTime = this.tokenExpiry - REFRESH_WINDOW;
       const delay = Math.max(0, refreshTime - now) * 1000;
@@ -88,13 +90,13 @@ export class AuthTokenManager {
         this.timeoutId.unref();
       });
 
-      if (this.stopped) {
+      if (!this.running) {
         return;
       }
 
       // Fetch new token
       try {
-        await this.fetchToken();
+        await this.runFetch();
       } catch (error) {
         this.logger.error("Failed to refresh auth token", "error", error);
         // Sleep for 5 seconds before trying again on failure
@@ -108,17 +110,19 @@ export class AuthTokenManager {
    * Throws an error if the initial token fetch fails.
    */
   async start(): Promise<void> {
-    // Fetch initial token and store the promise so getToken() can wait for it
-    this.initialTokenPromise = this.fetchToken();
+    if (this.running) {
+      return;
+    }
 
+    this.running = true;
     try {
-      await this.initialTokenPromise;
-    } finally {
-      this.initialTokenPromise = null;
+      await this.runFetch();
+    } catch (error) {
+      this.running = false;
+      throw error;
     }
 
     // Start background refresh loop, do not await
-    this.stopped = false;
     this.backgroundRefresh();
   }
 
@@ -126,7 +130,7 @@ export class AuthTokenManager {
    * Stops the background refresh.
    */
   stop(): void {
-    this.stopped = true;
+    this.running = false;
     if (this.timeoutId) {
       clearTimeout(this.timeoutId);
       this.timeoutId = null;
@@ -159,6 +163,19 @@ export class AuthTokenManager {
   isExpired(): boolean {
     const now = Math.floor(Date.now() / 1000);
     return now >= this.tokenExpiry;
+  }
+
+  private runFetch(): Promise<void> {
+    if (!this.fetchPromise) {
+      this.fetchPromise = (async () => {
+        try {
+          await this.fetchToken();
+        } finally {
+          this.fetchPromise = null;
+        }
+      })();
+    }
+    return this.fetchPromise;
   }
 
   getCurrentToken(): string {

@@ -149,6 +149,36 @@ describe("AuthTokenManager", () => {
     expect(mockClient.authTokenGet).toHaveBeenCalledTimes(1);
   });
 
+  test("TestAuthToken_ConcurrentGetTokenWithExpiredToken", async () => {
+    vi.useFakeTimers();
+    try {
+      const now = Math.floor(Date.now() / 1000);
+      mockClient.setAuthToken(createTestJWT(now + REFRESH_WINDOW + 60));
+
+      await manager.start();
+      mockClient.authTokenGet.mockClear();
+
+      const expiredToken = createTestJWT(now - 10);
+      manager.setToken(expiredToken, now - 10);
+
+      const freshToken = createTestJWT(now + 3600);
+      mockClient.setAuthToken(freshToken);
+
+      const [result1, result2, result3] = await Promise.all([
+        manager.getToken(),
+        manager.getToken(),
+        manager.getToken(),
+      ]);
+
+      expect(result1).toBe(freshToken);
+      expect(result2).toBe(freshToken);
+      expect(result3).toBe(freshToken);
+      expect(mockClient.authTokenGet).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   test("TestAuthToken_GetToken_NoToken", async () => {
     await expect(manager.getToken()).rejects.toThrow(
       "No valid auth token available",
