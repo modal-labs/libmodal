@@ -533,6 +533,7 @@ export type SandboxCreateConnectTokenParams = {
   userMetadata?: string;
 };
 
+/** Credentials return by {@link Sandbox#createConnectToken Sandbox.createConnectToken()}. */
 export type SandboxCreateConnectCredentials = {
   // URL for request
   url: string;
