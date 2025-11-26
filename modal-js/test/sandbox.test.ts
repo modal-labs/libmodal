@@ -4,7 +4,6 @@ import { buildSandboxCreateRequestProto } from "../src/sandbox";
 import { expect, test, onTestFinished } from "vitest";
 import { buildContainerExecRequestProto } from "../src/sandbox";
 import { GPUConfig, PTYInfo_PTYType } from "../proto/modal_proto/api";
-import { g } from "vitest/dist/chunks/suite.d.FvehnV49.js";
 
 test("CreateOneSandbox", async () => {
   const app = await tc.apps.fromName("libmodal-test", {
