@@ -664,3 +664,24 @@ func TestNamedSandboxNotFound(t *testing.T) {
 	g.Expect(err).Should(gomega.HaveOccurred())
 	g.Expect(err.Error()).To(gomega.ContainSubstring("not found"))
 }
+
+func TestConnectToken(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+	tc := newTestClient(t)
+
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	image := tc.Images.FromRegistry("python:3.12-alpine", nil)
+
+	sb, err := tc.Sandboxes.Create(ctx, app, image, nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	defer terminateSandbox(g, sb)
+
+	creds, err := sb.CreateConnectToken(ctx, &modal.SandboxCreateConnectToken{UserMetadata: "abc"})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(creds.Token).ShouldNot(gomega.BeEmpty())
+	g.Expect(creds.URL).ShouldNot(gomega.BeEmpty())
+}

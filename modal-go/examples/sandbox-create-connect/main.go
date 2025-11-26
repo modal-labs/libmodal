@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"log"
-	"time"
 
 	"github.com/modal-labs/libmodal/modal-go"
 )
@@ -24,10 +23,7 @@ func main() {
 	image := mc.Images.FromRegistry("python:3.12-alpine", nil)
 
 	sb, err := mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
-		Command:        []string{"python3", "-m", "http.server", "8000"},
-		EncryptedPorts: []int{8000},
-		Timeout:        1 * time.Minute,
-		IdleTimeout:    30 * time.Second,
+		Command: []string{"python3", "-m", "http.server", "8000"},
 	})
 	if err != nil {
 		log.Fatalf("Failed to create Sandbox: %v", err)
