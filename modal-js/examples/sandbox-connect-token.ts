@@ -12,6 +12,6 @@ const sb = await modal.sandboxes.create(app, image, {
   command: ["python3", "-m", "http.server", "8000"],
 });
 
-const creds = await sb.createConnectToken({userMetadata: "abc"});
+const creds = await sb.createConnectToken({ userMetadata: "abc" });
 console.log("Get url: " + creds.url + " , credentials: " + creds.token);
 await sb.terminate();

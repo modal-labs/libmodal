@@ -499,7 +499,7 @@ type SandboxCreateConnectCredentials struct {
 	Token string
 }
 
-// Create a token for making HTTP connections to the Sandbox.
+// CreateConnectToken creates a token for making HTTP connections to the Sandbox.
 func (sb *Sandbox) CreateConnectToken(ctx context.Context, params *SandboxCreateConnectToken) (*SandboxCreateConnectCredentials, error) {
 	if params == nil {
 		params = &SandboxCreateConnectToken{}

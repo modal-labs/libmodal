@@ -531,14 +531,14 @@ export type SandboxExecParams = {
 export type SandboxCreateConnectTokenParams = {
   /** User metadata to identify token. */
   userMetadata?: string;
-}
+};
 
 export type SandboxCreateConnectCredentials = {
   // URL for request
   url: string;
   // Token credentials
   token: string;
-}
+};
 
 /** A port forwarded from within a running Modal {@link Sandbox}. */
 export class Tunnel {
@@ -797,12 +797,14 @@ export class Sandbox {
   }
 
   // /** Create connect token */
-  async createConnectToken(params?: SandboxCreateConnectTokenParams): Promise<SandboxCreateConnectCredentials> {
+  async createConnectToken(
+    params?: SandboxCreateConnectTokenParams,
+  ): Promise<SandboxCreateConnectCredentials> {
     const resp = await this.#client.cpClient.sandboxCreateConnectToken({
       sandboxId: this.sandboxId,
       userMetadata: params?.userMetadata,
     });
-    return {url: resp.url, token: resp.token};
+    return { url: resp.url, token: resp.token };
   }
 
   async terminate(): Promise<void> {

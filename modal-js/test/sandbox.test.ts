@@ -636,7 +636,7 @@ test("ConnectToken", async () => {
     await sb.terminate();
   });
 
-  const creds = await sb.createConnectToken({userMetadata: "abc"});
+  const creds = await sb.createConnectToken({ userMetadata: "abc" });
   expect(creds.token).toBeTruthy();
   expect(creds.url).toBeTruthy();
-})
+});
