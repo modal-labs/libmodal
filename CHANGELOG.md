@@ -4,7 +4,7 @@ Both client libraries are pre-1.0, and they have separate versioning.
 
 ## Unreleased
 
-- Adds `Sandbox.CreateConnectToken` to Go.
+- Adds `Sandbox.CreateConnectToken` to Go and `Sandbox.createConnectToken` to JS.
 
 ## modal-js/v0.5.5, modal-go/v0.5.5
 

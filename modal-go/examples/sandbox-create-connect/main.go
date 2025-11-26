@@ -38,5 +38,5 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create connect token: %v", err)
 	}
-	log.Printf("Got credentials: %v\n", creds.Token)
+	log.Printf("Got url: %v, credentials: %v\n", creds.URL, creds.Token)
 }
