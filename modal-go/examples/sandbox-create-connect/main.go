@@ -42,9 +42,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create connect token: %v", err)
 	}
-	log.Printf("Got url: %v, credentials: %v\n", creds.URL, creds.Token)
+	fmt.Printf("Got url: %v, credentials: %v\n", creds.URL, creds.Token)
 
-	log.Println("\nConnecting to HTTP server...")
+	fmt.Println("\nConnecting to HTTP server...")
 	req, err := http.NewRequestWithContext(ctx, "GET", creds.URL, nil)
 	if err != nil {
 		log.Fatalf("Failed to create request: %v", err)
@@ -57,11 +57,11 @@ func main() {
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	log.Printf("Response status: %d\n", resp.StatusCode)
+	fmt.Printf("Response status: %d\n", resp.StatusCode)
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Fatalf("Failed to read response body: %v", err)
 	}
 
-	log.Printf("Response body:\n%s\n", string(body))
+	fmt.Printf("Response body:\n%s\n", string(body))
 }
