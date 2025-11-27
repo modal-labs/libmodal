@@ -2,7 +2,10 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"io"
 	"log"
+	"net/http"
 
 	"github.com/modal-labs/libmodal/modal-go"
 )
@@ -22,8 +25,9 @@ func main() {
 	// Create a Sandbox with Python's built-in HTTP server
 	image := mc.Images.FromRegistry("python:3.12-alpine", nil)
 
+	// To use Sandbox Connect Tokens, the server must listen on port 8080.
 	sb, err := mc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
-		Command: []string{"python3", "-m", "http.server", "8000"},
+		Command: []string{"python3", "-m", "http.server", "8080"},
 	})
 	if err != nil {
 		log.Fatalf("Failed to create Sandbox: %v", err)
@@ -39,4 +43,25 @@ func main() {
 		log.Fatalf("Failed to create connect token: %v", err)
 	}
 	log.Printf("Got url: %v, credentials: %v\n", creds.URL, creds.Token)
+
+	log.Println("\nConnecting to HTTP server...")
+	req, err := http.NewRequestWithContext(ctx, "GET", creds.URL, nil)
+	if err != nil {
+		log.Fatalf("Failed to create request: %v", err)
+	}
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", creds.Token))
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		log.Fatalf("Failed to make request: %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	log.Printf("Response status: %d\n", resp.StatusCode)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatalf("Failed to read response body: %v", err)
+	}
+
+	log.Printf("Response body:\n%s\n", string(body))
 }
