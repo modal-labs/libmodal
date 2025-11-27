@@ -490,7 +490,8 @@ func (sb *Sandbox) Exec(ctx context.Context, command []string, params *SandboxEx
 	return newContainerProcess(sb.client.cpClient, sb.client.logger, resp.GetExecId(), *params), nil
 }
 
-type SandboxCreateConnectToken struct {
+// SandboxCreateConnectTokenParams are optional parameters for CreateConnectToken.
+type SandboxCreateConnectTokenParams struct {
 	UserMetadata string
 }
 
@@ -500,9 +501,9 @@ type SandboxCreateConnectCredentials struct {
 }
 
 // CreateConnectToken creates a token for making HTTP connections to the Sandbox.
-func (sb *Sandbox) CreateConnectToken(ctx context.Context, params *SandboxCreateConnectToken) (*SandboxCreateConnectCredentials, error) {
+func (sb *Sandbox) CreateConnectToken(ctx context.Context, params *SandboxCreateConnectTokenParams) (*SandboxCreateConnectCredentials, error) {
 	if params == nil {
-		params = &SandboxCreateConnectToken{}
+		params = &SandboxCreateConnectTokenParams{}
 	}
 	resp, err := sb.client.cpClient.SandboxCreateConnectToken(ctx, pb.SandboxCreateConnectTokenRequest_builder{
 		SandboxId:    sb.SandboxID,

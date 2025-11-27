@@ -38,7 +38,7 @@ func main() {
 		}
 	}()
 
-	creds, err := sb.CreateConnectToken(ctx, &modal.SandboxCreateConnectToken{UserMetadata: "abc"})
+	creds, err := sb.CreateConnectToken(ctx, &modal.SandboxCreateConnectTokenParams{UserMetadata: "abc"})
 	if err != nil {
 		log.Fatalf("Failed to create connect token: %v", err)
 	}

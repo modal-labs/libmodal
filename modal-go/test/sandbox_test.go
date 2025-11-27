@@ -680,7 +680,7 @@ func TestConnectToken(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	defer terminateSandbox(g, sb)
 
-	creds, err := sb.CreateConnectToken(ctx, &modal.SandboxCreateConnectToken{UserMetadata: "abc"})
+	creds, err := sb.CreateConnectToken(ctx, &modal.SandboxCreateConnectTokenParams{UserMetadata: "abc"})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(creds.Token).ShouldNot(gomega.BeEmpty())
 	g.Expect(creds.URL).ShouldNot(gomega.BeEmpty())
