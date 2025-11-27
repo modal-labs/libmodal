@@ -492,9 +492,11 @@ func (sb *Sandbox) Exec(ctx context.Context, command []string, params *SandboxEx
 
 // SandboxCreateConnectTokenParams are optional parameters for CreateConnectToken.
 type SandboxCreateConnectTokenParams struct {
+	// Optional user-provided metadata string that will be added to the headers by the proxy when forwarding requests to the Sandbox.
 	UserMetadata string
 }
 
+// SandboxCreateConnectCredentials contains the URL and token for connecting to a Sandbox.
 type SandboxCreateConnectCredentials struct {
 	URL   string
 	Token string

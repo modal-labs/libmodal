@@ -529,15 +529,13 @@ export type SandboxExecParams = {
 
 /** Optional parameters for {@link Sandbox#createConnectToken Sandbox.createConnectToken()}. */
 export type SandboxCreateConnectTokenParams = {
-  /** User metadata to identify token. */
+  /** Optional user-provided metadata string that will be added to the headers by the proxy when forwarding requests to the Sandbox. */
   userMetadata?: string;
 };
 
-/** Credentials return by {@link Sandbox#createConnectToken Sandbox.createConnectToken()}. */
+/** Credentials returned by {@link Sandbox#createConnectToken Sandbox.createConnectToken()}. */
 export type SandboxCreateConnectCredentials = {
-  // URL for request
   url: string;
-  // Token credentials
   token: string;
 };
 
@@ -797,7 +795,9 @@ export class Sandbox {
     return this.#taskId;
   }
 
-  // /** Create connect token */
+  /**
+   * Create a token for making HTTP connections to the Sandbox.
+   */
   async createConnectToken(
     params?: SandboxCreateConnectTokenParams,
   ): Promise<SandboxCreateConnectCredentials> {
