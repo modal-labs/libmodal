@@ -490,6 +490,33 @@ func (sb *Sandbox) Exec(ctx context.Context, command []string, params *SandboxEx
 	return newContainerProcess(sb.client.cpClient, sb.client.logger, resp.GetExecId(), *params), nil
 }
 
+// SandboxCreateConnectTokenParams are optional parameters for CreateConnectToken.
+type SandboxCreateConnectTokenParams struct {
+	// Optional user-provided metadata string that will be added to the headers by the proxy when forwarding requests to the Sandbox.
+	UserMetadata string
+}
+
+// SandboxCreateConnectCredentials contains the URL and token for connecting to a Sandbox.
+type SandboxCreateConnectCredentials struct {
+	URL   string
+	Token string
+}
+
+// CreateConnectToken creates a token for making HTTP connections to the Sandbox.
+func (sb *Sandbox) CreateConnectToken(ctx context.Context, params *SandboxCreateConnectTokenParams) (*SandboxCreateConnectCredentials, error) {
+	if params == nil {
+		params = &SandboxCreateConnectTokenParams{}
+	}
+	resp, err := sb.client.cpClient.SandboxCreateConnectToken(ctx, pb.SandboxCreateConnectTokenRequest_builder{
+		SandboxId:    sb.SandboxID,
+		UserMetadata: params.UserMetadata,
+	}.Build())
+	if err != nil {
+		return nil, err
+	}
+	return &SandboxCreateConnectCredentials{URL: resp.GetUrl(), Token: resp.GetToken()}, nil
+}
+
 // Open opens a file in the Sandbox filesystem.
 // The mode parameter follows the same conventions as os.OpenFile:
 // "r" for read-only, "w" for write-only (truncates), "a" for append, etc.

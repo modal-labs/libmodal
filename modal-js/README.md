@@ -45,6 +45,7 @@ We also provide a number of examples:
 - [Check the status and exit code of a Sandbox](https://github.com/modal-labs/libmodal/blob/main/modal-js/examples/sandbox-poll.ts)
 - [Access Sandbox filesystem](https://github.com/modal-labs/libmodal/blob/main/modal-js/examples/sandbox-filesystem.ts)
 - [Expose ports on a Sandbox using Tunnels](https://github.com/modal-labs/libmodal/blob/main/modal-js/examples/sandbox-tunnels.ts)
+- [Create connect tokens for a Sandbox](https://github.com/modal-labs/libmodal/blob/main/modal-js/examples/sandbox-connect-token.ts)
 - [Include Secrets in Sandbox](https://github.com/modal-labs/libmodal/blob/main/modal-js/examples/sandbox-secrets.ts)
 - [Mount a Volume to a Sandbox](https://github.com/modal-labs/libmodal/blob/main/modal-js/examples/sandbox-volume.ts), and same but [with an ephemeral Volume](https://github.com/modal-labs/libmodal/blob/main/modal-js/examples/sandbox-volume-ephemeral.ts)
 - [Mount a cloud bucket to a Sandbox](https://github.com/modal-labs/libmodal/blob/main/modal-js/examples/sandbox-cloud-bucket.ts)
