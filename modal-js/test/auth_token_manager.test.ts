@@ -1,7 +1,7 @@
 import { describe, test, expect, vi, beforeEach, afterEach } from "vitest";
 import jwt from "jsonwebtoken";
 import { ModalClient } from "../src/client";
-import { AuthTokenManager } from "../src/auth_token_manager";
+import { AuthTokenManager, REFRESH_WINDOW } from "../src/auth_token_manager";
 import { newLogger } from "../src/logger";
 
 async function eventually(
@@ -149,6 +149,36 @@ describe("AuthTokenManager", () => {
     expect(mockClient.authTokenGet).toHaveBeenCalledTimes(1);
   });
 
+  test("TestAuthToken_ConcurrentGetTokenWithExpiredToken", async () => {
+    vi.useFakeTimers();
+    try {
+      const now = Math.floor(Date.now() / 1000);
+      mockClient.setAuthToken(createTestJWT(now + REFRESH_WINDOW + 60));
+
+      await manager.start();
+      mockClient.authTokenGet.mockClear();
+
+      const expiredToken = createTestJWT(now - 10);
+      manager.setToken(expiredToken, now - 10);
+
+      const freshToken = createTestJWT(now + 3600);
+      mockClient.setAuthToken(freshToken);
+
+      const [result1, result2, result3] = await Promise.all([
+        manager.getToken(),
+        manager.getToken(),
+        manager.getToken(),
+      ]);
+
+      expect(result1).toBe(freshToken);
+      expect(result2).toBe(freshToken);
+      expect(result3).toBe(freshToken);
+      expect(mockClient.authTokenGet).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   test("TestAuthToken_GetToken_NoToken", async () => {
     await expect(manager.getToken()).rejects.toThrow(
       "No valid auth token available",
@@ -166,6 +196,49 @@ describe("AuthTokenManager", () => {
     manager.stop();
 
     await new Promise((resolve) => setTimeout(resolve, 100));
+  });
+
+  test("TestAuthToken_HandlesEventLoopFreeze", async () => {
+    // Use fake timers so we can control both timers and system time
+    vi.useFakeTimers();
+    try {
+      const baseTime = new Date("2025-01-01T00:00:00Z");
+      vi.setSystemTime(baseTime);
+      const baseTimeSeconds = Math.floor(baseTime.getTime() / 1000);
+      const firstRefreshDelaySeconds = 5;
+
+      // Want it to trigger refresh firstRefreshDelaySeconds from "now".
+      const tokenOneExpirySeconds =
+        baseTimeSeconds + REFRESH_WINDOW + firstRefreshDelaySeconds;
+
+      // First fetch happens when the manager starts.
+      const tokenOne = createTestJWT(tokenOneExpirySeconds);
+      mockClient.setAuthToken(tokenOne);
+      await manager.start();
+      expect(mockClient.authTokenGet).toHaveBeenCalledTimes(1);
+
+      // Simulate an event-loop "freeze" where time moves forward but timeouts don't fire.
+      // getToken() should see tokenOne expired, and fetch tokenTwo.
+      const tokenTwo = createTestJWT(tokenOneExpirySeconds + 3600);
+      mockClient.setAuthToken(tokenTwo);
+      vi.setSystemTime(new Date((tokenOneExpirySeconds + 1) * 1000));
+      await expect(manager.getToken()).resolves.toBe(tokenTwo);
+      expect(mockClient.authTokenGet).toHaveBeenCalledTimes(2);
+
+      // Advance timers and check that the background refresh fetches tokenThree.
+      const tokenThree = createTestJWT(tokenOneExpirySeconds + 2 * 3600);
+      mockClient.setAuthToken(tokenThree);
+      await vi.advanceTimersByTimeAsync(firstRefreshDelaySeconds * 1000);
+      await eventually(
+        () =>
+          manager.getCurrentToken() === tokenThree &&
+          mockClient.authTokenGet.mock.calls.length === 3,
+        2000,
+        10,
+      );
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

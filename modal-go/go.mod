@@ -14,6 +14,7 @@ require (
 	github.com/onsi/gomega v1.37.0
 	github.com/pelletier/go-toml/v2 v2.2.4
 	go.uber.org/goleak v1.3.0
+	golang.org/x/sync v0.13.0
 	google.golang.org/grpc v1.72.0
 	google.golang.org/protobuf v1.36.6
 )

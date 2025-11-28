@@ -7,10 +7,12 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
 	pb "github.com/modal-labs/libmodal/modal-go/proto/modal_proto"
+	"golang.org/x/sync/singleflight"
 )
 
 const (
@@ -32,6 +34,10 @@ type AuthTokenManager struct {
 	cancelFn context.CancelFunc
 
 	tokenAndExpiry atomic.Value
+
+	mu         sync.Mutex
+	running    bool
+	fetchGroup singleflight.Group
 }
 
 func NewAuthTokenManager(client pb.ModalClientClient, logger *slog.Logger) *AuthTokenManager {
@@ -51,31 +57,63 @@ func NewAuthTokenManager(client pb.ModalClientClient, logger *slog.Logger) *Auth
 // Start the token refresh goroutine.
 // Returns an error if the initial token fetch fails.
 func (m *AuthTokenManager) Start(ctx context.Context) error {
+	m.mu.Lock()
+	if m.running {
+		m.mu.Unlock()
+		return nil
+	}
+	m.running = true
 	refreshCtx, cancel := context.WithCancel(ctx)
 	m.cancelFn = cancel
-	if _, err := m.FetchToken(refreshCtx); err != nil {
-		cancel()
-		m.cancelFn = nil
+	m.mu.Unlock()
+
+	if err := m.runFetch(refreshCtx); err != nil {
+		m.Stop()
 		return fmt.Errorf("failed to fetch initial auth token: %w", err)
 	}
+
 	go m.backgroundRefresh(refreshCtx)
 	return nil
 }
 
 // Stop the refresh goroutine.
 func (m *AuthTokenManager) Stop() {
-	if m.cancelFn != nil {
-		m.cancelFn()
-		m.cancelFn = nil
+	m.mu.Lock()
+	m.running = false
+	cancelFn := m.cancelFn
+	m.cancelFn = nil
+	m.mu.Unlock()
+
+	if cancelFn != nil {
+		cancelFn()
 	}
 }
 
-// GetToken returns the current cached token.
-func (m *AuthTokenManager) GetToken(ctx context.Context) (string, error) {
-	token := m.GetCurrentToken()
+// runFetch fetches a token, ensuring only one fetch is in progress at a time.
+func (m *AuthTokenManager) runFetch(ctx context.Context) error {
+	_, err, _ := m.fetchGroup.Do("fetch", func() (interface{}, error) {
+		return m.FetchToken(ctx)
+	})
+	return err
+}
 
-	if token != "" && !m.IsExpired() {
+// GetToken returns a valid auth token.
+// If the current token is expired and the manager is running, triggers an on-demand refresh.
+func (m *AuthTokenManager) GetToken(ctx context.Context) (string, error) {
+	if token := m.GetCurrentToken(); token != "" && !m.IsExpired() {
 		return token, nil
+	}
+
+	m.mu.Lock()
+	running := m.running
+	m.mu.Unlock()
+
+	if running {
+		if err := m.runFetch(ctx); err == nil {
+			if token := m.GetCurrentToken(); token != "" && !m.IsExpired() {
+				return token, nil
+			}
+		}
 	}
 
 	return "", fmt.Errorf("no valid auth token available")
@@ -107,7 +145,7 @@ func (m *AuthTokenManager) backgroundRefresh(ctx context.Context) {
 		}
 
 		// Refresh the token
-		if _, err := m.FetchToken(ctx); err != nil {
+		if err := m.runFetch(ctx); err != nil {
 			m.logger.ErrorContext(ctx, "Failed to refresh auth token", "error", err)
 			// Sleep for 5 seconds before trying again on failure
 			select {
