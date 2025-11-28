@@ -19,7 +19,7 @@ jobs:
         with:
           submodules: true
 
-      - uses: aws-actions/configure-aws-credentials@67fbcbb121271f7775d2e7715933280b06314838 # v1
+      - uses: aws-actions/configure-aws-credentials@be2e7ad815e27b890489a89ce2717b0f9e26b56e # v4
         with:
           role-to-assume: arn:aws:iam::459781239556:role/libmodal-ci-cd-role-62a288d
           aws-region: us-east-1
