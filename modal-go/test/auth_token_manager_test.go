@@ -3,6 +3,7 @@ package test
 import (
 	"context"
 	"log/slog"
+	"sync"
 	"testing"
 	"time"
 
@@ -16,6 +17,8 @@ import (
 type mockAuthClient struct {
 	pb.ModalClientClient
 	authToken string
+	mu        sync.Mutex
+	callCount int
 }
 
 func newMockAuthClient() *mockAuthClient {
@@ -23,13 +26,32 @@ func newMockAuthClient() *mockAuthClient {
 }
 
 func (m *mockAuthClient) setAuthToken(token string) {
+	m.mu.Lock()
 	m.authToken = token
+	m.mu.Unlock()
 }
 
 func (m *mockAuthClient) AuthTokenGet(ctx context.Context, req *pb.AuthTokenGetRequest, opts ...grpc.CallOption) (*pb.AuthTokenGetResponse, error) {
+	m.mu.Lock()
+	token := m.authToken
+	m.callCount++
+	m.mu.Unlock()
+
 	return pb.AuthTokenGetResponse_builder{
-		Token: m.authToken,
+		Token: token,
 	}.Build(), nil
+}
+
+func (m *mockAuthClient) getCallCount() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.callCount
+}
+
+func (m *mockAuthClient) resetCallCount() {
+	m.mu.Lock()
+	m.callCount = 0
+	m.mu.Unlock()
 }
 
 func createTestJWT(expiry int64) string {
@@ -148,6 +170,45 @@ func TestAuthTokenManager_GetToken_ExpiredToken(t *testing.T) {
 
 	_, err := manager.GetToken(context.Background())
 	g.Expect(err).Should(gomega.HaveOccurred())
+}
+
+func TestAuthToken_ConcurrentGetTokenWithExpiredToken(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	mockClient := newMockAuthClient()
+	now := time.Now().Unix()
+	initialToken := createTestJWT(now + modal.RefreshWindow + 3600)
+	mockClient.setAuthToken(initialToken)
+
+	manager := modal.NewAuthTokenManager(mockClient, slog.Default())
+	err := manager.Start(context.Background())
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	defer manager.Stop()
+
+	mockClient.resetCallCount()
+
+	expiredToken := createTestJWT(now - 10)
+	manager.SetToken(expiredToken, now-10)
+
+	freshToken := createTestJWT(now + 7200)
+	mockClient.setAuthToken(freshToken)
+
+	var wg sync.WaitGroup
+	results := make([]string, 3)
+	for i := range 3 {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+			token, err := manager.GetToken(context.Background())
+			g.Expect(err).ShouldNot(gomega.HaveOccurred())
+			results[idx] = token
+		}(i)
+	}
+	wg.Wait()
+
+	g.Expect(results).Should(gomega.HaveEach(freshToken))
+	g.Expect(mockClient.getCallCount()).Should(gomega.Equal(1))
 }
 
 func TestClient_Close(t *testing.T) {
