@@ -113,10 +113,11 @@ func (m *AuthTokenManager) GetToken(ctx context.Context) (string, error) {
 	m.mu.Unlock()
 
 	if running {
-		if err := m.runFetch(ctx); err != nil {
-			return "", err
+		if err := m.runFetch(ctx); err == nil {
+			if token := m.GetCurrentToken(); token != "" && !m.IsExpired() {
+				return token, nil
+			}
 		}
-		return m.GetCurrentToken(), nil
 	}
 
 	return "", fmt.Errorf("no valid auth token available")
