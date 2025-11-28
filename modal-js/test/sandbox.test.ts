@@ -623,3 +623,19 @@ test("buildSandboxCreateRequestProto negative Memory", async () => {
     }),
   ).rejects.toThrow("must be a positive number");
 });
+
+test("ConnectToken", async () => {
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
+  const image = tc.images.fromRegistry("python:3.12-alpine");
+
+  const sb = await tc.sandboxes.create(app, image);
+  onTestFinished(async () => {
+    await sb.terminate();
+  });
+
+  const creds = await sb.createConnectToken({ userMetadata: "abc" });
+  expect(creds.token).toBeTruthy();
+  expect(creds.url).toBeTruthy();
+});

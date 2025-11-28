@@ -527,6 +527,18 @@ export type SandboxExecParams = {
   pty?: boolean;
 };
 
+/** Optional parameters for {@link Sandbox#createConnectToken Sandbox.createConnectToken()}. */
+export type SandboxCreateConnectTokenParams = {
+  /** Optional user-provided metadata string that will be added to the headers by the proxy when forwarding requests to the Sandbox. */
+  userMetadata?: string;
+};
+
+/** Credentials returned by {@link Sandbox#createConnectToken Sandbox.createConnectToken()}. */
+export type SandboxCreateConnectCredentials = {
+  url: string;
+  token: string;
+};
+
 /** A port forwarded from within a running Modal {@link Sandbox}. */
 export class Tunnel {
   /** @ignore */
@@ -781,6 +793,19 @@ export class Sandbox {
       this.#taskId = resp.taskId;
     }
     return this.#taskId;
+  }
+
+  /**
+   * Create a token for making HTTP connections to the Sandbox.
+   */
+  async createConnectToken(
+    params?: SandboxCreateConnectTokenParams,
+  ): Promise<SandboxCreateConnectCredentials> {
+    const resp = await this.#client.cpClient.sandboxCreateConnectToken({
+      sandboxId: this.sandboxId,
+      userMetadata: params?.userMetadata,
+    });
+    return { url: resp.url, token: resp.token };
   }
 
   async terminate(): Promise<void> {
