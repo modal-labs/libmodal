@@ -68,11 +68,7 @@ func (m *AuthTokenManager) Start(ctx context.Context) error {
 	m.mu.Unlock()
 
 	if err := m.runFetch(refreshCtx); err != nil {
-		cancel()
-		m.mu.Lock()
-		m.running = false
-		m.cancelFn = nil
-		m.mu.Unlock()
+		m.Stop()
 		return fmt.Errorf("failed to fetch initial auth token: %w", err)
 	}
 
