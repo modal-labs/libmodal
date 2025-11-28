@@ -83,7 +83,7 @@ export type SandboxCreateParams = {
   /** GPU reservation for the Sandbox (e.g. "A100", "T4:2", "A100-80GB:4"). */
   gpu?: string;
 
-  /** Timeout of the Sandbox container in milliseconds, defaults to 10 minutes. */
+  /** Maximum lifetime of the Sandbox in milliseconds. Defaults to 5 minutes. */
   timeoutMs?: number;
 
   /** The amount of time in milliseconds that a Sandbox can be idle before being terminated. */
@@ -310,7 +310,7 @@ export async function buildSandboxCreateRequestProto(
       entrypointArgs: params.command ?? ["sleep", "48h"],
       imageId,
       timeoutSecs:
-        params.timeoutMs != undefined ? params.timeoutMs / 1000 : 600,
+        params.timeoutMs != undefined ? params.timeoutMs / 1000 : 300,
       idleTimeoutSecs:
         params.idleTimeoutMs != undefined
           ? params.idleTimeoutMs / 1000

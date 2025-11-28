@@ -183,7 +183,7 @@ func TestSandboxCreateRequestProto_DefaultValues(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	def := req.GetDefinition()
-	g.Expect(def.GetTimeoutSecs()).To(gomega.Equal(uint32(0)))
+	g.Expect(def.GetTimeoutSecs()).To(gomega.Equal(uint32(300)))
 	g.Expect(def.GetEntrypointArgs()).To(gomega.BeEmpty())
 	g.Expect(def.GetNetworkAccess().GetNetworkAccessType()).To(gomega.Equal(pb.NetworkAccess_OPEN))
 	g.Expect(def.GetNetworkAccess().GetAllowedCidrs()).To(gomega.BeEmpty())

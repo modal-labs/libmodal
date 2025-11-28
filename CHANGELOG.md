@@ -4,7 +4,8 @@ Both client libraries are pre-1.0, and they have separate versioning.
 
 ## Unreleased
 
-- Adds `Sandbox.CreateConnectToken` to Go and `Sandbox.createConnectToken` to JS.
+- Added `Sandbox.CreateConnectToken` to Go and `Sandbox.createConnectToken` to JS.
+- Set default Sandbox timeout to 5 minutes for both JS and Go SDKs, to align with the Python SDK.
 
 ## modal-js/v0.5.5, modal-go/v0.5.5
 
@@ -34,7 +35,7 @@ Both client libraries are pre-1.0, and they have separate versioning.
 - All Go SDK functions that take a Context will respect the timeout of the context.
 - Improved the error message when calling a webhook Function as a normal Function.
 - Allow customizing the config file path via `MODAL_CONFIG_PATH` environment variable (defaults to `~/.modal.toml`).
-- Add support for passing `MODAL_LOGLEVEL=debug` environment variable to also log debug logs, incl. all gRPC calls, etc.
+- Added support for passing `MODAL_LOGLEVEL=debug` environment variable to also log debug logs, incl. all gRPC calls, etc.
 
 ## modal-js/v0.5.0, modal-go/v0.5.0
 
