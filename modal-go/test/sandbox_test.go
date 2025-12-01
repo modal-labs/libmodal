@@ -697,9 +697,17 @@ func TestSandboxInvalidTimeouts(t *testing.T) {
 
 	image := tc.Images.FromRegistry("alpine:3.21", nil)
 
+	_, err = tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{Timeout: -1 * time.Second})
+	g.Expect(err).Should(gomega.HaveOccurred())
+	g.Expect(err.Error()).Should(gomega.ContainSubstring("must be non-negative"))
+
 	_, err = tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{Timeout: 1500 * time.Millisecond})
 	g.Expect(err).Should(gomega.HaveOccurred())
 	g.Expect(err.Error()).Should(gomega.ContainSubstring("whole number of seconds"))
+
+	_, err = tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{IdleTimeout: -2 * time.Second})
+	g.Expect(err).Should(gomega.HaveOccurred())
+	g.Expect(err.Error()).Should(gomega.ContainSubstring("must be non-negative"))
 
 	_, err = tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{IdleTimeout: 2500 * time.Millisecond})
 	g.Expect(err).Should(gomega.HaveOccurred())
@@ -708,6 +716,10 @@ func TestSandboxInvalidTimeouts(t *testing.T) {
 	sb, err := tc.Sandboxes.Create(ctx, app, image, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	defer terminateSandbox(g, sb)
+
+	_, err = sb.Exec(ctx, []string{"echo", "test"}, &modal.SandboxExecParams{Timeout: -5 * time.Second})
+	g.Expect(err).Should(gomega.HaveOccurred())
+	g.Expect(err.Error()).Should(gomega.ContainSubstring("must be non-negative"))
 
 	_, err = sb.Exec(ctx, []string{"echo", "test"}, &modal.SandboxExecParams{Timeout: 3500 * time.Millisecond})
 	g.Expect(err).Should(gomega.HaveOccurred())

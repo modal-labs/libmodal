@@ -686,8 +686,24 @@ test("sandboxInvalidTimeouts", async () => {
   const image = tc.images.fromRegistry("alpine:3.21");
 
   await expect(
+    tc.sandboxes.create(app, image, { timeoutMs: 0 }),
+  ).rejects.toThrow(/timeoutMs must be positive/);
+
+  await expect(
+    tc.sandboxes.create(app, image, { timeoutMs: -1000 }),
+  ).rejects.toThrow(/timeoutMs must be positive/);
+
+  await expect(
     tc.sandboxes.create(app, image, { timeoutMs: 1500 }),
   ).rejects.toThrow(/timeoutMs must be a multiple of 1000ms/);
+
+  await expect(
+    tc.sandboxes.create(app, image, { idleTimeoutMs: 0 }),
+  ).rejects.toThrow(/idleTimeoutMs must be positive/);
+
+  await expect(
+    tc.sandboxes.create(app, image, { idleTimeoutMs: -2000 }),
+  ).rejects.toThrow(/idleTimeoutMs must be positive/);
 
   await expect(
     tc.sandboxes.create(app, image, { idleTimeoutMs: 2500 }),
@@ -695,6 +711,14 @@ test("sandboxInvalidTimeouts", async () => {
 
   const sandbox = await tc.sandboxes.create(app, image);
   onTestFinished(async () => await sandbox.terminate());
+
+  await expect(
+    sandbox.exec(["echo", "test"], { timeoutMs: 0 }),
+  ).rejects.toThrow(/timeoutMs must be positive/);
+
+  await expect(
+    sandbox.exec(["echo", "test"], { timeoutMs: -5000 }),
+  ).rejects.toThrow(/timeoutMs must be positive/);
 
   await expect(
     sandbox.exec(["echo", "test"], { timeoutMs: 1500 }),
