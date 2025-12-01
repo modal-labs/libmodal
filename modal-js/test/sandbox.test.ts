@@ -3,7 +3,11 @@ import { parseGpuConfig } from "../src/app";
 import { buildSandboxCreateRequestProto } from "../src/sandbox";
 import { expect, test, onTestFinished } from "vitest";
 import { buildContainerExecRequestProto } from "../src/sandbox";
-import { GPUConfig, PTYInfo_PTYType } from "../proto/modal_proto/api";
+import {
+  GPUConfig,
+  PTYInfo_PTYType,
+  NetworkAccess_NetworkAccessType,
+} from "../proto/modal_proto/api";
 
 test("CreateOneSandbox", async () => {
   const app = await tc.apps.fromName("libmodal-test", {
@@ -526,6 +530,15 @@ test("buildContainerExecRequestProto with PTY", async () => {
   expect(ptyInfo.noTerminateOnIdleStdin).toBe(true);
 });
 
+test("buildContainerExecRequestProto_defaults", async () => {
+  const req = await buildContainerExecRequestProto("task-123", ["bash"]);
+
+  expect(req.workdir).toBeUndefined();
+  expect(req.timeoutSecs).toBe(0);
+  expect(req.secretIds).toEqual([]);
+  expect(req.ptyInfo).toBeUndefined();
+});
+
 test("buildSandboxCreateRequestProto without PTY", async () => {
   const req = await buildSandboxCreateRequestProto("app-123", "img-456");
 
@@ -638,4 +651,30 @@ test("ConnectToken", async () => {
   const creds = await sb.createConnectToken({ userMetadata: "abc" });
   expect(creds.token).toBeTruthy();
   expect(creds.url).toBeTruthy();
+});
+
+test("buildSandboxCreateRequestProto_defaults", async () => {
+  const req = await buildSandboxCreateRequestProto("app-123", "img-456");
+  const def = req.definition!;
+
+  expect(def.timeoutSecs).toBe(600);
+  expect(def.entrypointArgs).toEqual(["sleep", "48h"]);
+  expect(def.networkAccess?.networkAccessType).toBe(
+    NetworkAccess_NetworkAccessType.OPEN,
+  );
+  expect(def.networkAccess?.allowedCidrs).toEqual([]);
+  expect(def.verbose).toBe(false);
+  expect(def.cloudProviderStr).toBe("");
+  expect(def.resources?.milliCpu).toBe(0);
+  expect(def.resources?.memoryMb).toBe(0);
+  expect(def.ptyInfo).toBeUndefined();
+  expect(def.idleTimeoutSecs).toBeUndefined();
+  expect(def.workdir).toBeUndefined();
+  expect(def.schedulerPlacement).toBeUndefined();
+  expect(def.proxyId).toBeUndefined();
+  expect(def.volumeMounts).toEqual([]);
+  expect(def.cloudBucketMounts).toEqual([]);
+  expect(def.secretIds).toEqual([]);
+  expect(def.openPorts?.ports).toEqual([]);
+  expect(def.name).toBeUndefined();
 });
