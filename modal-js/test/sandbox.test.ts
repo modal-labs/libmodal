@@ -658,7 +658,7 @@ test("buildSandboxCreateRequestProto_defaults", async () => {
   const def = req.definition!;
 
   expect(def.timeoutSecs).toBe(300);
-  expect(def.entrypointArgs).toEqual(["sleep", "48h"]);
+  expect(def.entrypointArgs).toEqual([]);
   expect(def.networkAccess?.networkAccessType).toBe(
     NetworkAccess_NetworkAccessType.OPEN,
   );

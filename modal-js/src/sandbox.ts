@@ -306,8 +306,7 @@ export async function buildSandboxCreateRequestProto(
   return SandboxCreateRequest.create({
     appId,
     definition: {
-      // Sleep default is implicit in image builder version <=2024.10
-      entrypointArgs: params.command ?? ["sleep", "48h"],
+      entrypointArgs: params.command ?? [],
       imageId,
       timeoutSecs:
         params.timeoutMs != undefined ? params.timeoutMs / 1000 : 300,
