@@ -165,14 +165,22 @@ func buildSandboxCreateRequestProto(appID, imageID string, params SandboxCreateP
 		workdir = &params.Workdir
 	}
 
-	timeoutSecs := uint32(params.Timeout.Seconds())
-	if timeoutSecs == 0 {
+	var timeoutSecs uint32
+	if params.Timeout == 0 {
 		timeoutSecs = 300
+	} else {
+		if params.Timeout%time.Second != 0 {
+			return nil, fmt.Errorf("timeout must be a whole number of seconds, got %v", params.Timeout)
+		}
+		timeoutSecs = uint32(params.Timeout / time.Second)
 	}
 
 	var idleTimeoutSecs *uint32
 	if params.IdleTimeout != 0 {
-		v := uint32(params.IdleTimeout.Seconds())
+		if params.IdleTimeout%time.Second != 0 {
+			return nil, fmt.Errorf("idleTimeout must be a whole number of seconds, got %v", params.IdleTimeout)
+		}
+		v := uint32(params.IdleTimeout / time.Second)
 		idleTimeoutSecs = &v
 	}
 
@@ -451,11 +459,19 @@ func buildContainerExecRequestProto(taskID string, command []string, params Sand
 		ptyInfo = defaultSandboxPTYInfo()
 	}
 
+	var timeoutSecs uint32
+	if params.Timeout != 0 {
+		if params.Timeout%time.Second != 0 {
+			return nil, fmt.Errorf("timeout must be a whole number of seconds, got %v", params.Timeout)
+		}
+		timeoutSecs = uint32(params.Timeout / time.Second)
+	}
+
 	return pb.ContainerExecRequest_builder{
 		TaskId:      taskID,
 		Command:     command,
 		Workdir:     workdir,
-		TimeoutSecs: uint32(params.Timeout.Seconds()),
+		TimeoutSecs: timeoutSecs,
 		SecretIds:   secretIds,
 		PtyInfo:     ptyInfo,
 	}.Build(), nil

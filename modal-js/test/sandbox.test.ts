@@ -678,3 +678,25 @@ test("buildSandboxCreateRequestProto_defaults", async () => {
   expect(def.openPorts?.ports).toEqual([]);
   expect(def.name).toBeUndefined();
 });
+
+test("sandboxInvalidTimeouts", async () => {
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
+  const image = tc.images.fromRegistry("alpine:3.21");
+
+  await expect(
+    tc.sandboxes.create(app, image, { timeoutMs: 1500 }),
+  ).rejects.toThrow(/timeoutMs must be a multiple of 1000ms/);
+
+  await expect(
+    tc.sandboxes.create(app, image, { idleTimeoutMs: 2500 }),
+  ).rejects.toThrow(/idleTimeoutMs must be a multiple of 1000ms/);
+
+  const sandbox = await tc.sandboxes.create(app, image);
+  onTestFinished(async () => await sandbox.terminate());
+
+  await expect(
+    sandbox.exec(["echo", "test"], { timeoutMs: 1500 }),
+  ).rejects.toThrow(/timeoutMs must be a multiple of 1000ms/);
+});

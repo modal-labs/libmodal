@@ -593,6 +593,12 @@ export async function buildContainerExecRequestProto(
 ): Promise<ContainerExecRequest> {
   checkForRenamedParams(params, { timeout: "timeoutMs" });
 
+  if (params?.timeoutMs && params.timeoutMs % 1000 !== 0) {
+    throw new Error(
+      `timeoutMs must be a multiple of 1000ms, got ${params.timeoutMs}`,
+    );
+  }
+
   const secretIds = (params?.secrets || []).map((secret) => secret.secretId);
 
   let ptyInfo: PTYInfo | undefined;

@@ -146,7 +146,7 @@ func TestSandboxExecOptions(t *testing.T) {
 
 	p, err := sb.Exec(ctx, []string{"pwd"}, &modal.SandboxExecParams{
 		Workdir: "/tmp",
-		Timeout: 5,
+		Timeout: 5 * time.Second,
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
@@ -684,4 +684,32 @@ func TestConnectToken(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(creds.Token).ShouldNot(gomega.BeEmpty())
 	g.Expect(creds.URL).ShouldNot(gomega.BeEmpty())
+}
+
+func TestSandboxInvalidTimeouts(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+	tc := newTestClient(t)
+
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	image := tc.Images.FromRegistry("alpine:3.21", nil)
+
+	_, err = tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{Timeout: 1500 * time.Millisecond})
+	g.Expect(err).Should(gomega.HaveOccurred())
+	g.Expect(err.Error()).Should(gomega.ContainSubstring("whole number of seconds"))
+
+	_, err = tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{IdleTimeout: 2500 * time.Millisecond})
+	g.Expect(err).Should(gomega.HaveOccurred())
+	g.Expect(err.Error()).Should(gomega.ContainSubstring("whole number of seconds"))
+
+	sb, err := tc.Sandboxes.Create(ctx, app, image, nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	defer terminateSandbox(g, sb)
+
+	_, err = sb.Exec(ctx, []string{"echo", "test"}, &modal.SandboxExecParams{Timeout: 3500 * time.Millisecond})
+	g.Expect(err).Should(gomega.HaveOccurred())
+	g.Expect(err.Error()).Should(gomega.ContainSubstring("whole number of seconds"))
 }
