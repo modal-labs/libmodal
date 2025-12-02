@@ -83,7 +83,7 @@ export type SandboxCreateParams = {
   /** GPU reservation for the Sandbox (e.g. "A100", "T4:2", "A100-80GB:4"). */
   gpu?: string;
 
-  /** Timeout of the Sandbox container in milliseconds, defaults to 10 minutes. */
+  /** Maximum lifetime of the Sandbox in milliseconds. Defaults to 5 minutes. */
   timeoutMs?: number;
 
   /** The amount of time in milliseconds that a Sandbox can be idle before being terminated. */
@@ -159,9 +159,17 @@ export async function buildSandboxCreateRequestProto(
   const gpuConfig = parseGpuConfig(params.gpu);
 
   // The gRPC API only accepts a whole number of seconds.
+  if (params.timeoutMs != undefined && params.timeoutMs <= 0) {
+    throw new Error(`timeoutMs must be positive, got ${params.timeoutMs}`);
+  }
   if (params.timeoutMs && params.timeoutMs % 1000 !== 0) {
     throw new Error(
       `timeoutMs must be a multiple of 1000ms, got ${params.timeoutMs}`,
+    );
+  }
+  if (params.idleTimeoutMs != undefined && params.idleTimeoutMs <= 0) {
+    throw new Error(
+      `idleTimeoutMs must be positive, got ${params.idleTimeoutMs}`,
     );
   }
   if (params.idleTimeoutMs && params.idleTimeoutMs % 1000 !== 0) {
@@ -306,11 +314,10 @@ export async function buildSandboxCreateRequestProto(
   return SandboxCreateRequest.create({
     appId,
     definition: {
-      // Sleep default is implicit in image builder version <=2024.10
-      entrypointArgs: params.command ?? ["sleep", "48h"],
+      entrypointArgs: params.command ?? [],
       imageId,
       timeoutSecs:
-        params.timeoutMs != undefined ? params.timeoutMs / 1000 : 600,
+        params.timeoutMs != undefined ? params.timeoutMs / 1000 : 300,
       idleTimeoutSecs:
         params.idleTimeoutMs != undefined
           ? params.idleTimeoutMs / 1000
@@ -593,6 +600,15 @@ export async function buildContainerExecRequestProto(
   params?: SandboxExecParams,
 ): Promise<ContainerExecRequest> {
   checkForRenamedParams(params, { timeout: "timeoutMs" });
+
+  if (params?.timeoutMs != undefined && params.timeoutMs <= 0) {
+    throw new Error(`timeoutMs must be positive, got ${params.timeoutMs}`);
+  }
+  if (params?.timeoutMs && params.timeoutMs % 1000 !== 0) {
+    throw new Error(
+      `timeoutMs must be a multiple of 1000ms, got ${params.timeoutMs}`,
+    );
+  }
 
   const secretIds = (params?.secrets || []).map((secret) => secret.secretId);
 

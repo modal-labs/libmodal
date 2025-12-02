@@ -35,7 +35,7 @@ type SandboxCreateParams struct {
 	MemoryMiB         int                          // Memory request in MiB.
 	MemoryLimitMiB    int                          // Hard memory limit in MiB. Zero means no limit.
 	GPU               string                       // GPU reservation for the Sandbox (e.g. "A100", "T4:2", "A100-80GB:4").
-	Timeout           time.Duration                // Maximum lifetime for the Sandbox.
+	Timeout           time.Duration                // Maximum lifetime of the Sandbox. Defaults to 5 minutes. If you pass zero you get the default 5 minutes.
 	IdleTimeout       time.Duration                // The amount of time that a Sandbox can be idle before being terminated.
 	Workdir           string                       // Working directory of the Sandbox.
 	Command           []string                     // Command to run in the Sandbox on startup.
@@ -165,9 +165,30 @@ func buildSandboxCreateRequestProto(appID, imageID string, params SandboxCreateP
 		workdir = &params.Workdir
 	}
 
+	if params.Timeout < 0 {
+		return nil, fmt.Errorf("timeout must be non-negative, got %v", params.Timeout)
+	}
+	if params.Timeout%time.Second != 0 {
+		return nil, fmt.Errorf("timeout must be a whole number of seconds, got %v", params.Timeout)
+	}
+	timeoutSecs := uint32(params.Timeout / time.Second)
+	// Ideally we would forbid an explicit zero Timeout, but we can't distinguish between the
+	// SandboxCreateParams{Timeout: 0} case that we'd like to warn about, and the SandboxCreateParams{} case
+	// where Timeout gets initialized to zero by default.
+	// Since Timeout=0 doesn't really make sense, we default to 5 minutes even if it's explicitly set to 0.
+	if timeoutSecs == 0 {
+		timeoutSecs = 300
+	}
+
 	var idleTimeoutSecs *uint32
 	if params.IdleTimeout != 0 {
-		v := uint32(params.IdleTimeout.Seconds())
+		if params.IdleTimeout < 0 {
+			return nil, fmt.Errorf("idleTimeout must be non-negative, got %v", params.IdleTimeout)
+		}
+		if params.IdleTimeout%time.Second != 0 {
+			return nil, fmt.Errorf("idleTimeout must be a whole number of seconds, got %v", params.IdleTimeout)
+		}
+		v := uint32(params.IdleTimeout / time.Second)
 		idleTimeoutSecs = &v
 	}
 
@@ -229,7 +250,7 @@ func buildSandboxCreateRequestProto(appID, imageID string, params SandboxCreateP
 			EntrypointArgs:     params.Command,
 			ImageId:            imageID,
 			SecretIds:          secretIds,
-			TimeoutSecs:        uint32(params.Timeout.Seconds()),
+			TimeoutSecs:        timeoutSecs,
 			IdleTimeoutSecs:    idleTimeoutSecs,
 			Workdir:            workdir,
 			NetworkAccess:      networkAccess,
@@ -446,11 +467,19 @@ func buildContainerExecRequestProto(taskID string, command []string, params Sand
 		ptyInfo = defaultSandboxPTYInfo()
 	}
 
+	if params.Timeout < 0 {
+		return nil, fmt.Errorf("timeout must be non-negative, got %v", params.Timeout)
+	}
+	if params.Timeout%time.Second != 0 {
+		return nil, fmt.Errorf("timeout must be a whole number of seconds, got %v", params.Timeout)
+	}
+	timeoutSecs := uint32(params.Timeout / time.Second)
+
 	return pb.ContainerExecRequest_builder{
 		TaskId:      taskID,
 		Command:     command,
 		Workdir:     workdir,
-		TimeoutSecs: uint32(params.Timeout.Seconds()),
+		TimeoutSecs: timeoutSecs,
 		SecretIds:   secretIds,
 		PtyInfo:     ptyInfo,
 	}.Build(), nil

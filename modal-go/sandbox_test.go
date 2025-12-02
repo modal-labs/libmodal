@@ -65,6 +65,18 @@ func TestContainerExecProto_WithPTY(t *testing.T) {
 	g.Expect(ptyInfo.GetNoTerminateOnIdleStdin()).To(gomega.BeTrue())
 }
 
+func TestContainerExecRequestProto_DefaultValues(t *testing.T) {
+	g := gomega.NewWithT(t)
+
+	req, err := buildContainerExecRequestProto("task-123", []string{"bash"}, SandboxExecParams{})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	g.Expect(req.GetWorkdir()).To(gomega.BeEmpty())
+	g.Expect(req.GetTimeoutSecs()).To(gomega.Equal(uint32(0)))
+	g.Expect(req.GetSecretIds()).To(gomega.BeEmpty())
+	g.Expect(req.GetPtyInfo()).To(gomega.BeNil())
+}
+
 func TestSandboxCreateRequestProto_WithCPUAndCPULimit(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
@@ -161,4 +173,32 @@ func TestSandboxCreateRequestProto_NegativeMemory(t *testing.T) {
 	})
 	g.Expect(err).Should(gomega.HaveOccurred())
 	g.Expect(err.Error()).To(gomega.ContainSubstring("must be a positive number"))
+}
+
+func TestSandboxCreateRequestProto_DefaultValues(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	req, err := buildSandboxCreateRequestProto("app-123", "img-456", SandboxCreateParams{})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	def := req.GetDefinition()
+	g.Expect(def.GetTimeoutSecs()).To(gomega.Equal(uint32(300)))
+	g.Expect(def.GetEntrypointArgs()).To(gomega.BeEmpty())
+	g.Expect(def.GetNetworkAccess().GetNetworkAccessType()).To(gomega.Equal(pb.NetworkAccess_OPEN))
+	g.Expect(def.GetNetworkAccess().GetAllowedCidrs()).To(gomega.BeEmpty())
+	g.Expect(def.GetVerbose()).To(gomega.BeFalse())
+	g.Expect(def.GetCloudProviderStr()).To(gomega.BeEmpty())
+	g.Expect(def.GetResources().GetMilliCpu()).To(gomega.Equal(uint32(0)))
+	g.Expect(def.GetResources().GetMemoryMb()).To(gomega.Equal(uint32(0)))
+	g.Expect(def.GetPtyInfo()).To(gomega.BeNil())
+	g.Expect(def.HasIdleTimeoutSecs()).To(gomega.BeFalse())
+	g.Expect(def.GetWorkdir()).To(gomega.BeEmpty())
+	g.Expect(def.GetSchedulerPlacement()).To(gomega.BeNil())
+	g.Expect(def.GetProxyId()).To(gomega.BeEmpty())
+	g.Expect(def.GetVolumeMounts()).To(gomega.BeEmpty())
+	g.Expect(def.GetCloudBucketMounts()).To(gomega.BeEmpty())
+	g.Expect(def.GetSecretIds()).To(gomega.BeEmpty())
+	g.Expect(def.GetOpenPorts().GetPorts()).To(gomega.BeEmpty())
+	g.Expect(def.GetName()).To(gomega.Equal(""))
 }
