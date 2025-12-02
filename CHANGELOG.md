@@ -4,10 +4,13 @@ Both client libraries are pre-1.0, and they have separate versioning.
 
 ## Unreleased
 
-- Added `Sandbox.CreateConnectToken` to Go and `Sandbox.createConnectToken` to JS.
 - Align parameter defaults to be consistent with the Python SDK:
   - Set default Sandbox timeout to 5 minutes (was previously 10 minutes in the JS SDK).
   - Leave the Sandbox entrypoint args empty by default in the JS SDK (was previously `["sleep", "48h"]`).
+
+## modal-js/v0.5.6, modal-go/v0.5.6
+
+- Added `Sandbox.CreateConnectToken` to Go and `Sandbox.createConnectToken` to JS.
 
 ## modal-js/v0.5.5, modal-go/v0.5.5
 
