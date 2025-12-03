@@ -724,3 +724,28 @@ test("sandboxInvalidTimeouts", async () => {
     sandbox.exec(["echo", "test"], { timeoutMs: 1500 }),
   ).rejects.toThrow(/timeoutMs must be a multiple of 1000ms/);
 });
+
+
+test("testSandboxExperimentalDocker", async () => {
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
+  const image = tc.images.fromRegistry("alpine:3.21");
+
+	// With experimental option should include /var/lib/docker
+  const sb = await tc.sandboxes.create(app, image, {experimentalOptions: {"enable_docker": true}});
+  onTestFinished(async () => {
+    await sb.terminate();
+  });
+
+  const p = await sb.exec(["test", "-d", "/var/lib/docker"]);
+  expect(await p.wait()).toBe(0);
+
+	// Without experimental option should **not** include /var/lib/docker
+  const sbDefault = await tc.sandboxes.create(app, image);
+  onTestFinished(async () => {
+    await sbDefault.terminate();
+  });
+  const pDefault = await sbDefault.exec(["test", "-d", "/var/lib/docker"]);
+  expect(await pDefault.wait()).toBe(1);
+});

@@ -725,3 +725,39 @@ func TestSandboxInvalidTimeouts(t *testing.T) {
 	g.Expect(err).Should(gomega.HaveOccurred())
 	g.Expect(err.Error()).Should(gomega.ContainSubstring("whole number of seconds"))
 }
+
+func TestSandboxExperimentalDocker(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+	tc := newTestClient(t)
+
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	image := tc.Images.FromRegistry("alpine:3.21", nil)
+
+	// With experimental option should include /var/lib/docker
+	options := map[string]bool{"enable_docker": true}
+	sb, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{ExperimentalOptions: options})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	defer terminateSandbox(g, sb)
+
+	p, err := sb.Exec(ctx, []string{"test", "-d", "/var/lib/docker"}, nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	exitCode, err := p.Wait(ctx)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(exitCode).Should(gomega.Equal(0))
+
+	// Without experimental option should **not** include /var/lib/docker
+	sbDefault, err := tc.Sandboxes.Create(ctx, app, image, nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	defer terminateSandbox(g, sbDefault)
+	p, err = sbDefault.Exec(ctx, []string{"test", "-d", "/var/lib/docker"}, nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	exitCode, err = p.Wait(ctx)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(exitCode).Should(gomega.Equal(1))
+}

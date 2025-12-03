@@ -142,6 +142,9 @@ export type SandboxCreateParams = {
 
   /** Optional name for the Sandbox. Unique within an App. */
   name?: string;
+
+  /** Optional experimental options. */
+  experimentalOptions?: Record<string, boolean>;
 };
 
 export async function buildSandboxCreateRequestProto(
@@ -341,6 +344,7 @@ export async function buildSandboxCreateRequestProto(
       verbose: params.verbose ?? false,
       proxyId: params.proxy?.proxyId,
       name: params.name,
+      experimentalOptions: params.experimentalOptions,
     },
   });
 }
