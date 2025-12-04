@@ -156,6 +156,7 @@ export class CloudBucketMount {
       bucketEndpointUrl: this.bucketEndpointUrl,
       keyPrefix: this.keyPrefix,
       oidcAuthRoleArn: this.oidcAuthRoleArn,
+      forcePathStyle: false,
     };
   }
 }

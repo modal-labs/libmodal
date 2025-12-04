@@ -62,6 +62,7 @@ export { Retries } from "./retries";
 export type {
   SandboxExecParams,
   SandboxFromNameParams,
+  SandboxFromSnapshotParams,
   SandboxCreateConnectCredentials,
   SandboxCreateConnectTokenParams,
   StdioBehavior,
@@ -70,7 +71,12 @@ export type {
   SandboxListParams,
   SandboxCreateParams,
 } from "./sandbox";
-export { ContainerProcess, Sandbox, SandboxService } from "./sandbox";
+export {
+  ContainerProcess,
+  Sandbox,
+  SandboxService,
+  SandboxSnapshot,
+} from "./sandbox";
 export type { ModalReadStream, ModalWriteStream } from "./streams";
 export {
   Secret,

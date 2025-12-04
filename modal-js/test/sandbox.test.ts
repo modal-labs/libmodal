@@ -724,3 +724,29 @@ test("sandboxInvalidTimeouts", async () => {
     sandbox.exec(["echo", "test"], { timeoutMs: 1500 }),
   ).rejects.toThrow(/timeoutMs must be a multiple of 1000ms/);
 });
+
+test("buildSandboxCreateRequestProto with experimentalOptions", async () => {
+  const req = await buildSandboxCreateRequestProto("app-123", "img-456", {
+    experimentalOptions: { enable_docker: true },
+  });
+
+  const def = req.definition!;
+  expect(def.experimentalOptions).toEqual({ enable_docker: true });
+});
+
+test("buildSandboxCreateRequestProto with _experimentalEnableSnapshot", async () => {
+  const req = await buildSandboxCreateRequestProto("app-123", "img-456", {
+    _experimentalEnableSnapshot: true,
+  });
+
+  const def = req.definition!;
+  expect(def.enableSnapshot).toBe(true);
+});
+
+test("buildSandboxCreateRequestProto defaults experimental fields", async () => {
+  const req = await buildSandboxCreateRequestProto("app-123", "img-456");
+  const def = req.definition!;
+
+  expect(def.experimentalOptions).toEqual({});
+  expect(def.enableSnapshot).toBe(false);
+});
