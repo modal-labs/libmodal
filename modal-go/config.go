@@ -118,7 +118,3 @@ func firstNonEmpty(values ...string) string {
 func environmentName(environment string, profile Profile) string {
 	return firstNonEmpty(environment, profile.Environment)
 }
-
-func imageBuilderVersion(version string, profile Profile) string {
-	return firstNonEmpty(version, profile.ImageBuilderVersion, "2024.10")
-}
