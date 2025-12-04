@@ -7,7 +7,12 @@ import {
   GPUConfig,
   PTYInfo_PTYType,
   NetworkAccess_NetworkAccessType,
+  GenericResult_GenericStatus,
+  ImageGetOrCreateResponse,
+  AppGetOrCreateResponse,
+  SandboxCreateResponse,
 } from "../proto/modal_proto/api";
+import { createMockModalClients } from "../test-support/grpc_mock";
 
 test("CreateOneSandbox", async () => {
   const app = await tc.apps.fromName("libmodal-test", {
@@ -748,4 +753,44 @@ test("testSandboxExperimentalDocker", async () => {
   });
   const pDefault = await sbDefault.exec(["test", "-d", "/var/lib/docker"]);
   expect(await pDefault.wait()).toBe(1);
+});
+
+
+// Skipping because we can not mock out SandboxGetLogs
+test.skip("testSandboxExperimentalDockerMock", async () => {
+  const { mockClient: mc, mockCpClient: mock } = createMockModalClients();
+
+  const options = {"enable_docker": true};
+  mock.handleUnary("/SandboxCreate", (req: any): SandboxCreateResponse => {
+    expect(req.definition?.experimentalOptions).toMatchObject(options);
+    return { sandboxId: "sb-1234"};
+  });
+
+  mock.handleUnary("/AppGetOrCreate", (_: any): AppGetOrCreateResponse => {
+    return { appId: "ap-1234"};
+  });
+
+
+  const app = await mc.apps.fromName("libmodal-test", {createIfMissing: true});
+
+  mock.handleUnary("ImageGetOrCreate", (_: any): ImageGetOrCreateResponse => {
+    return { imageId: "im-123", result: {
+        status: GenericResult_GenericStatus.GENERIC_STATUS_SUCCESS,
+        exception: "",
+        exitcode: 0,
+        traceback: "",
+        serializedTb: new Uint8Array(0),
+        tbLineCache: new Uint8Array(0),
+        propagationReason: ""
+     },
+     metadata: undefined,
+    };
+  });
+
+  const image = mc.images.fromRegistry("alpine:3.21");
+
+  const sb = await mc.sandboxes.create(app, image, {experimentalOptions: options});
+  expect(sb.sandboxId).toEqual("sb-1234")
+
+  mock.assertExhausted();
 });

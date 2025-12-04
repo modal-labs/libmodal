@@ -9,6 +9,9 @@ import (
 	"time"
 
 	"github.com/modal-labs/libmodal/modal-go"
+	"github.com/modal-labs/libmodal/modal-go/internal/grpcmock"
+
+	pb "github.com/modal-labs/libmodal/modal-go/proto/modal_proto"
 	"github.com/onsi/gomega"
 )
 
@@ -760,4 +763,55 @@ func TestSandboxExperimentalDocker(t *testing.T) {
 	exitCode, err = p.Wait(ctx)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(exitCode).Should(gomega.Equal(1))
+}
+
+func TestSandboxExperimentalDockerMock(t *testing.T) {
+	t.Skip("Unable to mock out SandboxGetLogs")
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	options := map[string]bool{"enable_docker": true}
+	mock := newGRPCMockClient(t)
+
+	grpcmock.HandleUnary(
+		mock, "SandboxCreate",
+		func(req *pb.SandboxCreateRequest) (*pb.SandboxCreateResponse, error) {
+			g.Expect(req.GetDefinition().GetExperimentalOptions()).Should(gomega.Equal(options))
+			return pb.SandboxCreateResponse_builder{
+				SandboxId: "sb-123",
+			}.Build(), nil
+		},
+	)
+	grpcmock.HandleUnary(
+		mock, "AppGetOrCreate",
+		func(req *pb.AppGetOrCreateRequest) (*pb.AppGetOrCreateResponse, error) {
+			return pb.AppGetOrCreateResponse_builder{
+				AppId: "ap-1234",
+			}.Build(), nil
+		},
+	)
+
+	grpcmock.HandleUnary(
+		mock, "ImageGetOrCreate",
+		func(req *pb.ImageGetOrCreateRequest) (*pb.ImageGetOrCreateResponse, error) {
+			return pb.ImageGetOrCreateResponse_builder{
+				ImageId: "im-123",
+				Result: pb.GenericResult_builder{
+					Status: pb.GenericResult_GENERIC_STATUS_SUCCESS,
+				}.Build(),
+			}.Build(), nil
+		},
+	)
+
+	ctx := context.Background()
+	app, err := mock.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	image := mock.Images.FromRegistry("alpine:3.21", nil)
+	sb, err := mock.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{ExperimentalOptions: options})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	g.Expect(sb.SandboxID).Should(gomega.Equal("sb-123"))
+
+	g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
 }
