@@ -17,6 +17,7 @@ import {
   PortSpec,
   Resources,
   PortSpecs,
+  SandboxRestoreRequest_SandboxNameOverrideType,
 } from "../proto/modal_proto/api";
 import {
   getDefaultClient,
@@ -142,6 +143,19 @@ export type SandboxCreateParams = {
 
   /** Optional name for the Sandbox. Unique within an App. */
   name?: string;
+
+  /**
+   * Experimental options for server-side features.
+   * For example: `{ enable_docker: true }` to enable Docker support.
+   */
+  experimentalOptions?: Record<string, boolean>;
+
+  /**
+   * Enable memory snapshots for this Sandbox (experimental).
+   * When enabled, you can use `_experimentalSnapshot()` to take memory snapshots
+   * that can be restored with `sandboxes._experimentalFromSnapshot()`.
+   */
+  _experimentalEnableSnapshot?: boolean;
 };
 
 export async function buildSandboxCreateRequestProto(
@@ -341,6 +355,8 @@ export async function buildSandboxCreateRequestProto(
       verbose: params.verbose ?? false,
       proxyId: params.proxy?.proxyId,
       name: params.name,
+      experimentalOptions: params.experimentalOptions ?? {},
+      enableSnapshot: params._experimentalEnableSnapshot ?? false,
     },
   });
 }
@@ -496,6 +512,130 @@ export class SandboxService {
         throw err;
       }
     }
+  }
+
+  /**
+   * Restore a Sandbox from a memory snapshot (experimental).
+   *
+   * Creates a new Sandbox from a previously taken memory snapshot.
+   * The snapshot must have been created using {@link Sandbox#_experimentalSnapshot sandbox._experimentalSnapshot()}.
+   *
+   * @param snapshot - The {@link SandboxSnapshot} to restore from
+   * @param params - Optional parameters for the restored Sandbox
+   * @returns Promise that resolves to a restored {@link Sandbox}
+   */
+  async _experimentalFromSnapshot(
+    snapshot: SandboxSnapshot,
+    params?: SandboxFromSnapshotParams,
+  ): Promise<Sandbox> {
+    let restoreReq;
+
+    if (params?.name !== undefined) {
+      // Explicit name provided (could be null to clear name or a string)
+      if (params.name === null) {
+        restoreReq = {
+          snapshotId: snapshot.snapshotId,
+          sandboxNameOverrideType:
+            SandboxRestoreRequest_SandboxNameOverrideType.SANDBOX_NAME_OVERRIDE_TYPE_NONE,
+        };
+      } else {
+        restoreReq = {
+          snapshotId: snapshot.snapshotId,
+          sandboxNameOverride: params.name,
+          sandboxNameOverrideType:
+            SandboxRestoreRequest_SandboxNameOverrideType.SANDBOX_NAME_OVERRIDE_TYPE_STRING,
+        };
+      }
+    } else {
+      // No name parameter - use UNSPECIFIED to keep original name behavior
+      restoreReq = {
+        snapshotId: snapshot.snapshotId,
+        sandboxNameOverrideType:
+          SandboxRestoreRequest_SandboxNameOverrideType.SANDBOX_NAME_OVERRIDE_TYPE_UNSPECIFIED,
+      };
+    }
+
+    let restoreResp;
+    try {
+      restoreResp = await this.#client.cpClient.sandboxRestore(restoreReq);
+    } catch (err) {
+      if (err instanceof ClientError && err.code === Status.ALREADY_EXISTS) {
+        throw new AlreadyExistsError(err.details || err.message);
+      }
+      throw err;
+    }
+
+    const sandbox = await this.fromId(restoreResp.sandboxId);
+
+    // Wait for the sandbox to be ready
+    const taskIdResp = await this.#client.cpClient.sandboxGetTaskId({
+      sandboxId: restoreResp.sandboxId,
+      waitUntilReady: true,
+      timeout: 55.0,
+    });
+
+    if (
+      taskIdResp.taskResult &&
+      taskIdResp.taskResult.status !==
+        GenericResult_GenericStatus.GENERIC_STATUS_UNSPECIFIED &&
+      taskIdResp.taskResult.status !==
+        GenericResult_GenericStatus.GENERIC_STATUS_SUCCESS
+    ) {
+      throw new Error(
+        `Sandbox restore failed: ${taskIdResp.taskResult.exception || "Unknown error"}`,
+      );
+    }
+
+    return sandbox;
+  }
+}
+
+/** Optional parameters for {@link SandboxService#_experimentalFromSnapshot sandboxes._experimentalFromSnapshot()}. */
+export type SandboxFromSnapshotParams = {
+  /**
+   * Optional name for the restored Sandbox.
+   * - `undefined`: Keep the original snapshot's name behavior
+   * - `null`: Clear the name (no name)
+   * - `string`: Set a new name for the restored Sandbox
+   */
+  name?: string | null;
+};
+
+/**
+ * A memory snapshot of a Sandbox (experimental).
+ *
+ * Sandbox memory snapshots are in **early preview**.
+ *
+ * A `SandboxSnapshot` object lets you interact with a stored Sandbox snapshot that was created by calling
+ * `._experimentalSnapshot()` on a Sandbox instance. This includes both the filesystem and memory state of
+ * the original Sandbox at the time the snapshot was taken.
+ *
+ * Use {@link SandboxService#_experimentalFromSnapshot sandboxes._experimentalFromSnapshot()} to restore
+ * a Sandbox from a snapshot.
+ */
+export class SandboxSnapshot {
+  readonly snapshotId: string;
+
+  /** @ignore */
+  constructor(_client: ModalClient, snapshotId: string) {
+    // Note: client is passed for potential future use but not stored currently
+    this.snapshotId = snapshotId;
+  }
+
+  /**
+   * Construct a `SandboxSnapshot` object from a snapshot ID.
+   *
+   * @param client - The Modal client to use
+   * @param snapshotId - The snapshot ID
+   * @returns Promise that resolves to a {@link SandboxSnapshot}
+   */
+  static async fromId(
+    client: ModalClient,
+    snapshotId: string,
+  ): Promise<SandboxSnapshot> {
+    // Verify the snapshot exists
+    await client.cpClient.sandboxSnapshotGet({ snapshotId });
+    return new SandboxSnapshot(client, snapshotId);
   }
 }
 
@@ -927,6 +1067,44 @@ export class Sandbox {
     });
 
     return Sandbox.#getReturnCode(resp.result);
+  }
+
+  /**
+   * Take a memory snapshot of the Sandbox (experimental).
+   *
+   * This creates a snapshot of both the filesystem and memory state of the Sandbox.
+   * The Sandbox must have been created with `_experimentalEnableSnapshot: true`.
+   *
+   * The snapshot can be restored using {@link SandboxService#_experimentalFromSnapshot sandboxes._experimentalFromSnapshot()}.
+   *
+   * @returns Promise that resolves to a {@link SandboxSnapshot}
+   */
+  async _experimentalSnapshot(): Promise<SandboxSnapshot> {
+    await this.#getTaskId(); // Ensure the sandbox has started
+
+    const snapResp = await this.#client.cpClient.sandboxSnapshot({
+      sandboxId: this.sandboxId,
+    });
+
+    const snapshotId = snapResp.snapshotId;
+
+    // Wait for the snapshot to succeed. This is implemented as a second idempotent RPC
+    // because the snapshot itself may take a while to complete.
+    const waitResp = await this.#client.cpClient.sandboxSnapshotWait({
+      snapshotId,
+      timeout: 55.0,
+    });
+
+    if (
+      waitResp.result?.status !==
+      GenericResult_GenericStatus.GENERIC_STATUS_SUCCESS
+    ) {
+      throw new Error(
+        `Sandbox memory snapshot failed: ${waitResp.result?.exception || "Unknown error"}`,
+      );
+    }
+
+    return new SandboxSnapshot(this.#client, snapshotId);
   }
 
   /**
