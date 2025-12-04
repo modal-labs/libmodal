@@ -730,15 +730,16 @@ test("sandboxInvalidTimeouts", async () => {
   ).rejects.toThrow(/timeoutMs must be a multiple of 1000ms/);
 });
 
-
 test("testSandboxExperimentalDocker", async () => {
   const app = await tc.apps.fromName("libmodal-test", {
     createIfMissing: true,
   });
   const image = tc.images.fromRegistry("alpine:3.21");
 
-	// With experimental option should include /var/lib/docker
-  const sb = await tc.sandboxes.create(app, image, {experimentalOptions: {"enable_docker": true}});
+  // With experimental option should include /var/lib/docker
+  const sb = await tc.sandboxes.create(app, image, {
+    experimentalOptions: { enable_docker: true },
+  });
   onTestFinished(async () => {
     await sb.terminate();
   });
@@ -746,7 +747,7 @@ test("testSandboxExperimentalDocker", async () => {
   const p = await sb.exec(["test", "-d", "/var/lib/docker"]);
   expect(await p.wait()).toBe(0);
 
-	// Without experimental option should **not** include /var/lib/docker
+  // Without experimental option should **not** include /var/lib/docker
   const sbDefault = await tc.sandboxes.create(app, image);
   onTestFinished(async () => {
     await sbDefault.terminate();
@@ -755,42 +756,46 @@ test("testSandboxExperimentalDocker", async () => {
   expect(await pDefault.wait()).toBe(1);
 });
 
-
 // Skipping because we can not mock out SandboxGetLogs
 test.skip("testSandboxExperimentalDockerMock", async () => {
   const { mockClient: mc, mockCpClient: mock } = createMockModalClients();
 
-  const options = {"enable_docker": true};
+  const options = { enable_docker: true };
   mock.handleUnary("/SandboxCreate", (req: any): SandboxCreateResponse => {
     expect(req.definition?.experimentalOptions).toMatchObject(options);
-    return { sandboxId: "sb-1234"};
+    return { sandboxId: "sb-1234" };
   });
 
   mock.handleUnary("/AppGetOrCreate", (_: any): AppGetOrCreateResponse => {
-    return { appId: "ap-1234"};
+    return { appId: "ap-1234" };
   });
 
-
-  const app = await mc.apps.fromName("libmodal-test", {createIfMissing: true});
+  const app = await mc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
 
   mock.handleUnary("ImageGetOrCreate", (_: any): ImageGetOrCreateResponse => {
-    return { imageId: "im-123", result: {
+    return {
+      imageId: "im-123",
+      result: {
         status: GenericResult_GenericStatus.GENERIC_STATUS_SUCCESS,
         exception: "",
         exitcode: 0,
         traceback: "",
         serializedTb: new Uint8Array(0),
         tbLineCache: new Uint8Array(0),
-        propagationReason: ""
-     },
-     metadata: undefined,
+        propagationReason: "",
+      },
+      metadata: undefined,
     };
   });
 
   const image = mc.images.fromRegistry("alpine:3.21");
 
-  const sb = await mc.sandboxes.create(app, image, {experimentalOptions: options});
-  expect(sb.sandboxId).toEqual("sb-1234")
+  const sb = await mc.sandboxes.create(app, image, {
+    experimentalOptions: options,
+  });
+  expect(sb.sandboxId).toEqual("sb-1234");
 
   mock.assertExhausted();
 });
