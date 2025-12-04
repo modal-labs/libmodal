@@ -225,12 +225,16 @@ func (image *Image) Build(ctx context.Context, app *App) (*Image, error) {
 		return image, nil
 	}
 
-	image.client.logger.DebugContext(ctx, "Building image", "app_id", app.AppID)
-
 	for _, currentLayer := range image.layers {
 		if err := validateDockerfileCommands(currentLayer.commands); err != nil {
 			return nil, err
 		}
+	}
+
+	envName := environmentName("", image.client.profile)
+	builderVersion, err := image.client.imageBuilderVersion(ctx, envName)
+	if err != nil {
+		return nil, err
 	}
 
 	var currentImageID string
@@ -285,7 +289,7 @@ func (image *Image) Build(ctx context.Context, app *App) (*Image, error) {
 					ContextFiles:        []*pb.ImageContextFile{},
 					BaseImages:          baseImages,
 				}.Build(),
-				BuilderVersion: imageBuilderVersion("", image.client.profile),
+				BuilderVersion: builderVersion,
 				ForceBuild:     currentLayer.forceBuild,
 			}.Build(),
 		)
