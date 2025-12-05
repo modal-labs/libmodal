@@ -231,7 +231,7 @@ func (image *Image) Build(ctx context.Context, app *App) (*Image, error) {
 		}
 	}
 
-	envName := environmentName("", image.client.profile)
+	envName := image.client.profile.Environment
 	builderVersion, err := image.client.imageBuilderVersion(ctx, envName)
 	if err != nil {
 		return nil, err
@@ -239,6 +239,7 @@ func (image *Image) Build(ctx context.Context, app *App) (*Image, error) {
 
 	var currentImageID string
 
+	image.client.logger.DebugContext(ctx, "Starting Image build", "app_id", app.AppID, "builder_version", builderVersion, "env_name", envName)
 	for i, currentLayer := range image.layers {
 		if err := ctx.Err(); err != nil {
 			return nil, err

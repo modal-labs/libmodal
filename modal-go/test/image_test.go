@@ -287,6 +287,20 @@ func TestDockerfileCommandsWithOptions(t *testing.T) {
 	mock := newGRPCMockClient(t)
 
 	grpcmock.HandleUnary(
+		mock, "EnvironmentGetOrCreate",
+		func(req *pb.EnvironmentGetOrCreateRequest) (*pb.EnvironmentGetOrCreateResponse, error) {
+			return pb.EnvironmentGetOrCreateResponse_builder{
+				EnvironmentId: "env-123",
+				Metadata: pb.EnvironmentMetadata_builder{
+					Settings: pb.EnvironmentSettings_builder{
+						ImageBuilderVersion: "2024.10",
+					}.Build(),
+				}.Build(),
+			}.Build(), nil
+		},
+	)
+
+	grpcmock.HandleUnary(
 		mock, "ImageGetOrCreate",
 		func(req *pb.ImageGetOrCreateRequest) (*pb.ImageGetOrCreateResponse, error) {
 			image := req.GetImage()
