@@ -281,7 +281,18 @@ export class Image {
       return this;
     }
 
-    this.#client.logger.debug("Building image", "app_id", app.appId);
+    const envName = this.#client.profile.environment || "";
+    const builderVersion = await this.#client.getImageBuilderVersion();
+
+    this.#client.logger.debug(
+      "Starting Image build",
+      "app_id",
+      app.appId,
+      "builder_version",
+      builderVersion,
+      "env_name",
+      envName,
+    );
 
     let baseImageId: string | undefined;
 
@@ -318,7 +329,7 @@ export class Image {
           contextFiles: [],
           baseImages,
         }),
-        builderVersion: this.#client.imageBuilderVersion(),
+        builderVersion,
         forceBuild: layer.forceBuild || false,
       });
 
