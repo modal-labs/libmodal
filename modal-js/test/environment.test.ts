@@ -1,4 +1,4 @@
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
 import { ModalClient } from "../src/client";
 import { MockGrpcClient } from "../test-support/grpc_mock";
 
@@ -47,6 +47,9 @@ function createMockEnvironmentClient(): {
 }
 
 test("GetEnvironmentCached", async () => {
+  // Temporarily unset the env var so we fetch from server
+  vi.stubEnv("MODAL_IMAGE_BUILDER_VERSION", undefined);
+
   const { mockClient, mock, getCallCount } = createMockEnvironmentClient();
 
   mock.handleUnary("/EnvironmentGetOrCreate", () => {
@@ -99,6 +102,8 @@ test("GetEnvironmentCached", async () => {
   mockClient.close();
   mockClientDev.close();
   newMockClientDev.close();
+
+  vi.unstubAllEnvs();
 });
 
 test("ImageBuilderVersion_LocalConfigHasPrecedence", async () => {

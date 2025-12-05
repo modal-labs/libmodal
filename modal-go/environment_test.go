@@ -51,9 +51,10 @@ func (m *mockEnvironmentClient) getCallCount() int {
 }
 
 func TestGetEnvironmentCached(t *testing.T) {
-	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
+
+	t.Setenv("MODAL_IMAGE_BUILDER_VERSION", "")
 
 	mockClient := &mockEnvironmentClient{}
 	mockClient.envs.Store("", pb.EnvironmentGetOrCreateResponse_builder{
