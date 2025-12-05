@@ -11,6 +11,14 @@ import (
 	"google.golang.org/grpc"
 )
 
+// mockAuthTokenResponse returns a mock AuthTokenGetResponse with a JWT that has a far-future
+// expiration time. The JWT structure is: mock header + base64({"exp":9999999999}) + mock signature.
+// This prevents warnings from AuthTokenManager.FetchToken() which expects an "exp" field.
+func mockAuthTokenResponse() (*pb.AuthTokenGetResponse, error) {
+	const mockJWT = "x.eyJleHAiOjk5OTk5OTk5OTl9.x"
+	return pb.AuthTokenGetResponse_builder{Token: mockJWT}.Build(), nil
+}
+
 type mockEnvironmentClient struct {
 	pb.ModalClientClient
 	callCount atomic.Int64
@@ -35,9 +43,7 @@ func (m *mockEnvironmentClient) EnvironmentGetOrCreate(ctx context.Context, req 
 }
 
 func (m *mockEnvironmentClient) AuthTokenGet(ctx context.Context, req *pb.AuthTokenGetRequest, opts ...grpc.CallOption) (*pb.AuthTokenGetResponse, error) {
-	return pb.AuthTokenGetResponse_builder{
-		Token: "test-token",
-	}.Build(), nil
+	return mockAuthTokenResponse()
 }
 
 func (m *mockEnvironmentClient) getCallCount() int {
