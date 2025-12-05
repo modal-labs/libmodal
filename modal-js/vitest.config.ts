@@ -8,6 +8,9 @@ export default defineConfig({
     slowTestThreshold: 5_000,
     testTimeout: 20_000,
     reporters: ["verbose"],
+    env: {
+      MODAL_IMAGE_BUILDER_VERSION: "2024.10", // TODO: temporary until we've fixed the build env for tests
+    },
   },
   resolve: {
     alias: {
