@@ -201,6 +201,19 @@ test("DockerfileCommandsCopyCommandValidation", () => {
 test("DockerfileCommandsWithOptions", async () => {
   const { mockClient: mc, mockCpClient: mock } = createMockModalClients();
 
+  mock.handleUnary("/EnvironmentGetOrCreate", () => {
+    return {
+      environmentId: "env-123",
+      metadata: {
+        name: "",
+        settings: {
+          imageBuilderVersion: "2024.10",
+          webhookSuffix: "",
+        },
+      },
+    };
+  });
+
   mock.handleUnary("/ImageGetOrCreate", (req: any) => {
     expect(req).toMatchObject({
       appId: "ap-test",
