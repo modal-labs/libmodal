@@ -86,7 +86,7 @@ func (s *functionServiceImpl) FromName(ctx context.Context, appName string, name
 	resp, err := s.client.cpClient.FunctionGet(ctx, pb.FunctionGetRequest_builder{
 		AppName:         appName,
 		ObjectTag:       name,
-		EnvironmentName: environmentName(params.Environment, s.client.profile),
+		EnvironmentName: firstNonEmpty(params.Environment, s.client.profile.Environment),
 	}.Build())
 
 	if status, ok := status.FromError(err); ok && status.Code() == codes.NotFound {

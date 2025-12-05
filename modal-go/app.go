@@ -71,7 +71,7 @@ func (s *appServiceImpl) FromName(ctx context.Context, name string, params *AppF
 
 	resp, err := s.client.cpClient.AppGetOrCreate(ctx, pb.AppGetOrCreateRequest_builder{
 		AppName:            name,
-		EnvironmentName:    environmentName(params.Environment, s.client.profile),
+		EnvironmentName:    firstNonEmpty(params.Environment, s.client.profile.Environment),
 		ObjectCreationType: creationType,
 	}.Build())
 
