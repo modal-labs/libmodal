@@ -245,6 +245,9 @@ func buildSandboxCreateRequestProto(appID, imageID string, params SandboxCreateP
 		resourcesBuilder.MemoryMbMax = memoryMbMax
 	}
 
+	// The public interface uses map[string]any so that we can add support for any experimental
+	// option type in the future. Currently, the proto only supports map[string]bool so we validate
+	// the input here.
 	protoExperimentalOptions := map[string]bool{}
 	for name, value := range params.ExperimentalOptions {
 		boolValue, ok := value.(bool)

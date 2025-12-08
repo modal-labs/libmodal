@@ -776,8 +776,7 @@ func TestSandboxExperimentalDockerNotBool(t *testing.T) {
 
 	image := tc.Images.FromRegistry("alpine:3.21", nil)
 
-	// With experimental option should include /var/lib/docker
-	options := map[string]any{"enable_docker": "abc"}
+	options := map[string]any{"enable_docker": "not-a-bool"}
 	_, err = tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{ExperimentalOptions: options})
 	g.Expect(err).Should(gomega.HaveOccurred())
 	g.Expect(err.Error()).Should(gomega.ContainSubstring("must be a bool"))
@@ -788,12 +787,13 @@ func TestSandboxExperimentalDockerMock(t *testing.T) {
 	g := gomega.NewWithT(t)
 
 	options := map[string]any{"enable_docker": true}
+	expectedOptoins := map[string]bool{"enable_docker": true}
 	mock := newGRPCMockClient(t)
 
 	grpcmock.HandleUnary(
 		mock, "SandboxCreate",
 		func(req *pb.SandboxCreateRequest) (*pb.SandboxCreateResponse, error) {
-			g.Expect(req.GetDefinition().GetExperimentalOptions()).Should(gomega.Equal(options))
+			g.Expect(req.GetDefinition().GetExperimentalOptions()).Should(gomega.Equal(expectedOptoins))
 			return pb.SandboxCreateResponse_builder{
 				SandboxId: "sb-123",
 			}.Build(), nil

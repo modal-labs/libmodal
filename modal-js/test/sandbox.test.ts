@@ -756,6 +756,19 @@ test("testSandboxExperimentalDocker", async () => {
   expect(await pDefault.wait()).toBe(1);
 });
 
+test("testSandboxExperimentalDockerNotBool", async () => {
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
+  const image = tc.images.fromRegistry("alpine:3.21");
+
+  await expect(
+    tc.sandboxes.create(app, image, {
+      experimentalOptions: { enable_docker: "not-a-bool" },
+    }),
+  ).rejects.toThrow("must be a bool");
+});
+
 // Skipping because creating a sandbox starts a log stream through `SandoxGetLogs`.
 // Enable this test when we adjust sandbox.create to start the stream on
 // `read`, which would match the implementation in `modal-go`.
