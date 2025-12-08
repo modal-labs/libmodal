@@ -54,7 +54,7 @@ type SandboxCreateParams struct {
 	Verbose             bool                         // Enable verbose logging.
 	Proxy               *Proxy                       // Reference to a Modal Proxy to use in front of this Sandbox.
 	Name                string                       // Optional name for the Sandbox. Unique within an App.
-	ExperimentalOptions map[string]bool
+	ExperimentalOptions map[string]any               // Experimental options
 }
 
 // buildSandboxCreateRequestProto builds a SandboxCreateRequest proto from options.
@@ -245,6 +245,15 @@ func buildSandboxCreateRequestProto(appID, imageID string, params SandboxCreateP
 		resourcesBuilder.MemoryMbMax = memoryMbMax
 	}
 
+	protoExperimentalOptions := map[string]bool{}
+	for name, value := range params.ExperimentalOptions {
+		boolValue, ok := value.(bool)
+		if !ok {
+			return nil, fmt.Errorf("experimental option '%s' must be a bool, got %T", name, value)
+		}
+		protoExperimentalOptions[name] = boolValue
+	}
+
 	return pb.SandboxCreateRequest_builder{
 		AppId: appID,
 		Definition: pb.Sandbox_builder{
@@ -265,7 +274,7 @@ func buildSandboxCreateRequestProto(appID, imageID string, params SandboxCreateP
 			Verbose:             params.Verbose,
 			ProxyId:             proxyID,
 			Name:                &params.Name,
-			ExperimentalOptions: params.ExperimentalOptions,
+			ExperimentalOptions: protoExperimentalOptions,
 		}.Build(),
 	}.Build(), nil
 }
