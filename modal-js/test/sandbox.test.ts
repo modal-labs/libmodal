@@ -756,7 +756,9 @@ test("testSandboxExperimentalDocker", async () => {
   expect(await pDefault.wait()).toBe(1);
 });
 
-// Skipping because we can not mock out SandboxGetLogs
+// Skipping because creating a sandbox starts a log stream through `SandoxGetLogs`.
+// Enable this test when we adjust sandbox.create to start the stream on
+// `read`, which would match the implementation in `modal-go`.
 test.skip("testSandboxExperimentalDockerMock", async () => {
   const { mockClient: mc, mockCpClient: mock } = createMockModalClients();
 

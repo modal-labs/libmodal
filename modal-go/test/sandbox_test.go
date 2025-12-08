@@ -766,7 +766,6 @@ func TestSandboxExperimentalDocker(t *testing.T) {
 }
 
 func TestSandboxExperimentalDockerMock(t *testing.T) {
-	t.Skip("Unable to mock out SandboxGetLogs")
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
