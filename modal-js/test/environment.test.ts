@@ -73,7 +73,8 @@ test("GetEnvironmentCached", async () => {
   expect(version2).toBe("2024.10");
   expect(getCallCount()).toBe(1); // got "" from cache
 
-  const { mockClient: mockClientDev, mock: mockDev } = createMockEnvironmentClient();
+  const { mockClient: mockClientDev, mock: mockDev } =
+    createMockEnvironmentClient();
 
   mockDev.handleUnary("/EnvironmentGetOrCreate", () => {
     return {

@@ -187,7 +187,11 @@ export class ModalClient {
   }
 
   private async doFetchEnvironment(name?: string): Promise<Environment> {
-    this.logger.debug("Fetching environment from server", "environment_name", name ?? "");
+    this.logger.debug(
+      "Fetching environment from server",
+      "environment_name",
+      name ?? "",
+    );
 
     const resp = await this.cpClient.environmentGetOrCreate({
       deploymentName: name ?? "",
@@ -207,9 +211,12 @@ export class ModalClient {
 
     this.logger.debug(
       "Cached environment",
-      "environment_name", name,
-      "environment_id", env.id,
-      "image_builder_version", env.settings.imageBuilderVersion,
+      "environment_name",
+      name,
+      "environment_id",
+      env.id,
+      "image_builder_version",
+      env.settings.imageBuilderVersion,
     );
 
     return env;
