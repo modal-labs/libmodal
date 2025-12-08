@@ -142,6 +142,9 @@ export type SandboxCreateParams = {
 
   /** Optional name for the Sandbox. Unique within an App. */
   name?: string;
+
+  /** Optional experimental options. */
+  experimentalOptions?: Record<string, any>;
 };
 
 export async function buildSandboxCreateRequestProto(
@@ -311,6 +314,25 @@ export async function buildSandboxCreateRequestProto(
     }
   }
 
+  // The public interface uses Record<string, any> so that we can add support for any experimental
+  // option type in the future. Currently, the proto only supports Record<string, boolean> so we validate
+  // the input here.
+  const protoExperimentalOptions: Record<string, boolean> =
+    params.experimentalOptions
+      ? Object.entries(params.experimentalOptions).reduce(
+          (acc, [name, value]) => {
+            if (typeof value !== "boolean") {
+              throw new Error(
+                `experimental option '${name}' must be a boolean, got ${value}`,
+              );
+            }
+            acc[name] = Boolean(value);
+            return acc;
+          },
+          {} as Record<string, boolean>,
+        )
+      : {};
+
   return SandboxCreateRequest.create({
     appId,
     definition: {
@@ -341,6 +363,7 @@ export async function buildSandboxCreateRequestProto(
       verbose: params.verbose ?? false,
       proxyId: params.proxy?.proxyId,
       name: params.name,
+      experimentalOptions: protoExperimentalOptions,
     },
   });
 }

@@ -7,7 +7,12 @@ import {
   GPUConfig,
   PTYInfo_PTYType,
   NetworkAccess_NetworkAccessType,
+  GenericResult_GenericStatus,
+  ImageGetOrCreateResponse,
+  AppGetOrCreateResponse,
+  SandboxCreateResponse,
 } from "../proto/modal_proto/api";
+import { createMockModalClients } from "../test-support/grpc_mock";
 
 test("CreateOneSandbox", async () => {
   const app = await tc.apps.fromName("libmodal-test", {
@@ -723,4 +728,89 @@ test("sandboxInvalidTimeouts", async () => {
   await expect(
     sandbox.exec(["echo", "test"], { timeoutMs: 1500 }),
   ).rejects.toThrow(/timeoutMs must be a multiple of 1000ms/);
+});
+
+test("testSandboxExperimentalDocker", async () => {
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
+  const image = tc.images.fromRegistry("alpine:3.21");
+
+  // With experimental option should include /var/lib/docker
+  const sb = await tc.sandboxes.create(app, image, {
+    experimentalOptions: { enable_docker: true },
+  });
+  onTestFinished(async () => {
+    await sb.terminate();
+  });
+
+  const p = await sb.exec(["test", "-d", "/var/lib/docker"]);
+  expect(await p.wait()).toBe(0);
+
+  // Without experimental option should **not** include /var/lib/docker
+  const sbDefault = await tc.sandboxes.create(app, image);
+  onTestFinished(async () => {
+    await sbDefault.terminate();
+  });
+  const pDefault = await sbDefault.exec(["test", "-d", "/var/lib/docker"]);
+  expect(await pDefault.wait()).toBe(1);
+});
+
+test("testSandboxExperimentalDockerNotBool", async () => {
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
+  const image = tc.images.fromRegistry("alpine:3.21");
+
+  await expect(
+    tc.sandboxes.create(app, image, {
+      experimentalOptions: { enable_docker: "not-a-bool" },
+    }),
+  ).rejects.toThrow("must be a bool");
+});
+
+// Skipping because creating a sandbox starts a log stream through `SandoxGetLogs`.
+// Enable this test when we adjust sandbox.create to start the stream on
+// `read`, which would match the implementation in `modal-go`.
+test.skip("testSandboxExperimentalDockerMock", async () => {
+  const { mockClient: mc, mockCpClient: mock } = createMockModalClients();
+
+  const options = { enable_docker: true };
+  mock.handleUnary("/SandboxCreate", (req: any): SandboxCreateResponse => {
+    expect(req.definition?.experimentalOptions).toMatchObject(options);
+    return { sandboxId: "sb-1234" };
+  });
+
+  mock.handleUnary("/AppGetOrCreate", (_: any): AppGetOrCreateResponse => {
+    return { appId: "ap-1234" };
+  });
+
+  const app = await mc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
+
+  mock.handleUnary("ImageGetOrCreate", (_: any): ImageGetOrCreateResponse => {
+    return {
+      imageId: "im-123",
+      result: {
+        status: GenericResult_GenericStatus.GENERIC_STATUS_SUCCESS,
+        exception: "",
+        exitcode: 0,
+        traceback: "",
+        serializedTb: new Uint8Array(0),
+        tbLineCache: new Uint8Array(0),
+        propagationReason: "",
+      },
+      metadata: undefined,
+    };
+  });
+
+  const image = mc.images.fromRegistry("alpine:3.21");
+
+  const sb = await mc.sandboxes.create(app, image, {
+    experimentalOptions: options,
+  });
+  expect(sb.sandboxId).toEqual("sb-1234");
+
+  mock.assertExhausted();
 });
