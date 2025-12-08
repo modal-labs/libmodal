@@ -197,15 +197,12 @@ export class ModalClient {
       deploymentName: name ?? "",
     });
 
-    const metadata = resp.metadata!;
-    const settings = metadata.settings!;
-
     const env: Environment = {
       id: resp.environmentId,
-      name: metadata.name,
+      name: resp.metadata?.name ?? "",
       settings: {
-        imageBuilderVersion: settings.imageBuilderVersion,
-        webhookSuffix: settings.webhookSuffix,
+        imageBuilderVersion: resp.metadata?.settings?.imageBuilderVersion ?? "",
+        webhookSuffix: resp.metadata?.settings?.webhookSuffix ?? "",
       },
     };
 
