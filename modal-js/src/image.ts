@@ -117,7 +117,14 @@ export class ImageService {
   }
 
   /**
-   * Delete an {@link Image} by ID. Warning: Deletion is irreversible and will prevent Apps/Sandboxes from using the Image.
+   * Delete an {@link Image} by ID.
+   *
+   * Deletion is irreversible and will prevent Apps/Sandboxes from using the Image.
+   *
+   * Note: When building an Image, each chained method call will create an
+   * intermediate Image layer, each with its own ID. Deleting an Image will not
+   * delete any of its intermediate layers, only the image identified by the
+   * provided ID.
    */
   async delete(imageId: string, _: ImageDeleteParams = {}): Promise<void> {
     try {
