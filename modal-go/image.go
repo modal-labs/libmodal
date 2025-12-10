@@ -336,7 +336,7 @@ func (image *Image) Build(ctx context.Context, app *App) (*Image, error) {
 // ImageDeleteParams are options for deleting an Image.
 type ImageDeleteParams struct{}
 
-// Delete deletes an Image by ID. Warning: This removes an *entire Image*, and cannot be undone.
+// Delete deletes an Image by ID. Warning: Deletion is irreversible and will prevent Apps/Sandboxes from using the Image.
 func (s *imageServiceImpl) Delete(ctx context.Context, imageID string, params *ImageDeleteParams) error {
 	_, err := s.client.cpClient.ImageDelete(ctx, pb.ImageDeleteRequest_builder{ImageId: imageID}.Build())
 	if status, ok := status.FromError(err); ok && status.Code() == codes.NotFound {

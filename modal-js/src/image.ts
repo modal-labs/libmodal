@@ -117,7 +117,7 @@ export class ImageService {
   }
 
   /**
-   * Delete an {@link Image} by ID. Warning: This removes an *entire Image*, and cannot be undone.
+   * Delete an {@link Image} by ID. Warning: Deletion is irreversible and will prevent Apps/Sandboxes from using the Image.
    */
   async delete(imageId: string, _: ImageDeleteParams = {}): Promise<void> {
     try {
