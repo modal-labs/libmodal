@@ -4,7 +4,8 @@ Both client libraries are pre-1.0, and they have separate versioning.
 
 ## Unreleased
 
-No unreleased changes.
+**Breaking changes:**
+- The JS and Go SDKs now read the [Image Builder Version](https://modal.com/docs/guide/images#image-builder-updates) from your Modal account settings, like the Python SDK (see Image Config in Settings in the web UI). Previously they used version `2024.10`. If your account version is newer, your Images will rebuild once (then be cached as usual), so beware that the first run after upgrading may take longer than usual.
 
 ## modal-js/v0.6.0, modal-go/v0.6.0
 
