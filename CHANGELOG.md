@@ -4,7 +4,10 @@ Both client libraries are pre-1.0, and they have separate versioning.
 
 ## Unreleased
 
-No unreleased changes.
+- Added an optional `forceBuild` parameter to `images.fromRegistry`, `images.fromAwsEcr`, `images.fromGcpArtifactRegistry`, and `Image.build` to the JS SDK.
+
+**Breaking changes:**
+- Added `...Params` struct arguments, and an optional `ForceBuild` parameter, to `Images.FromRegistry`, `Images.FromAwsEcr`, `Images.FromGcpArtifactRegistry`, and `Image.Build` to the Go SDK.
 
 ## modal-js/v0.6.0, modal-go/v0.6.0
 

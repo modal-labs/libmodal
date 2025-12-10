@@ -55,8 +55,13 @@ export class ImageService {
    *
    * @param tag - The registry tag for the Image.
    * @param secret - Optional. A Secret containing credentials for registry authentication.
+   * @param params - Optional configuration parameters.
    */
-  fromRegistry(tag: string, secret?: Secret): Image {
+  fromRegistry(
+    tag: string,
+    secret?: Secret,
+    params?: ImageFromRegistryParams,
+  ): Image {
     let imageRegistryConfig;
     if (secret) {
       if (!(secret instanceof Secret)) {
@@ -69,7 +74,14 @@ export class ImageService {
         secretId: secret.secretId,
       };
     }
-    return new Image(this.#client, "", tag, imageRegistryConfig);
+    return new Image(
+      this.#client,
+      "",
+      tag,
+      imageRegistryConfig,
+      undefined,
+      params?.forceBuild,
+    );
   }
 
   /**
@@ -77,8 +89,13 @@ export class ImageService {
    *
    * @param tag - The registry tag for the Image.
    * @param secret - A Secret containing credentials for registry authentication.
+   * @param params - Optional configuration parameters.
    */
-  fromAwsEcr(tag: string, secret: Secret): Image {
+  fromAwsEcr(
+    tag: string,
+    secret: Secret,
+    params?: ImageFromAwsEcrParams,
+  ): Image {
     let imageRegistryConfig;
     if (secret) {
       if (!(secret instanceof Secret)) {
@@ -91,7 +108,14 @@ export class ImageService {
         secretId: secret.secretId,
       };
     }
-    return new Image(this.#client, "", tag, imageRegistryConfig);
+    return new Image(
+      this.#client,
+      "",
+      tag,
+      imageRegistryConfig,
+      undefined,
+      params?.forceBuild,
+    );
   }
 
   /**
@@ -99,8 +123,13 @@ export class ImageService {
    *
    * @param tag - The registry tag for the Image.
    * @param secret - A Secret containing credentials for registry authentication.
+   * @param params - Optional configuration parameters.
    */
-  fromGcpArtifactRegistry(tag: string, secret: Secret): Image {
+  fromGcpArtifactRegistry(
+    tag: string,
+    secret: Secret,
+    params?: ImageFromGcpArtifactRegistryParams,
+  ): Image {
     let imageRegistryConfig;
     if (secret) {
       if (!(secret instanceof Secret)) {
@@ -113,7 +142,14 @@ export class ImageService {
         secretId: secret.secretId,
       };
     }
-    return new Image(this.#client, "", tag, imageRegistryConfig);
+    return new Image(
+      this.#client,
+      "",
+      tag,
+      imageRegistryConfig,
+      undefined,
+      params?.forceBuild,
+    );
   }
 
   /**
@@ -146,6 +182,30 @@ export class ImageService {
 /** Optional parameters for {@link ImageService#delete client.images.delete()}. */
 export type ImageDeleteParams = Record<never, never>;
 
+/** Optional parameters for {@link ImageService#fromRegistry client.images.fromRegistry()}. */
+export type ImageFromRegistryParams = {
+  /** Ignore cached builds, similar to 'docker build --no-cache'. */
+  forceBuild?: boolean;
+};
+
+/** Optional parameters for {@link ImageService#fromAwsEcr client.images.fromAwsEcr()}. */
+export type ImageFromAwsEcrParams = {
+  /** Ignore cached builds, similar to 'docker build --no-cache'. */
+  forceBuild?: boolean;
+};
+
+/** Optional parameters for {@link ImageService#fromGcpArtifactRegistry client.images.fromGcpArtifactRegistry()}. */
+export type ImageFromGcpArtifactRegistryParams = {
+  /** Ignore cached builds, similar to 'docker build --no-cache'. */
+  forceBuild?: boolean;
+};
+
+/** Optional parameters for {@link Image#build Image.build()}. */
+export type ImageBuildParams = {
+  /** Ignore cached builds, similar to 'docker build --no-cache'. */
+  forceBuild?: boolean;
+};
+
 /** Optional parameters for {@link Image#dockerfileCommands Image.dockerfileCommands()}. */
 export type ImageDockerfileCommandsParams = {
   /** Environment variables to set in the build environment. */
@@ -177,6 +237,7 @@ export class Image {
   #tag: string;
   #imageRegistryConfig?: ImageRegistryConfig;
   #layers: Layer[];
+  #forceBuild: boolean;
 
   /** @ignore */
   constructor(
@@ -185,6 +246,7 @@ export class Image {
     tag: string,
     imageRegistryConfig?: ImageRegistryConfig,
     layers?: Layer[],
+    forceBuild?: boolean,
   ) {
     this.#client = client;
     this.#imageId = imageId;
@@ -199,6 +261,7 @@ export class Image {
         forceBuild: false,
       },
     ];
+    this.#forceBuild = forceBuild || false;
   }
   get imageId(): string {
     return this.#imageId;
@@ -271,18 +334,23 @@ export class Image {
       forceBuild: params?.forceBuild,
     };
 
-    return new Image(this.#client, "", this.#tag, this.#imageRegistryConfig, [
-      ...this.#layers,
-      newLayer,
-    ]);
+    return new Image(
+      this.#client,
+      "",
+      this.#tag,
+      this.#imageRegistryConfig,
+      [...this.#layers, newLayer],
+      this.#forceBuild,
+    );
   }
 
   /**
    * Eagerly builds an Image on Modal.
    *
    * @param app - App to use to build the Image.
+   * @param params - Optional configuration parameters.
    */
-  async build(app: App): Promise<Image> {
+  async build(app: App, params?: ImageBuildParams): Promise<Image> {
     if (this.imageId !== "") {
       // Image is already built with an Image ID
       return this;
@@ -291,6 +359,7 @@ export class Image {
     this.#client.logger.debug("Building image", "app_id", app.appId);
 
     let baseImageId: string | undefined;
+    let forceBuild = this.#forceBuild || params?.forceBuild || false;
 
     for (let i = 0; i < this.#layers.length; i++) {
       const layer = this.#layers[i];
@@ -315,6 +384,8 @@ export class Image {
         baseImages = [{ dockerTag: "base", imageId: baseImageId! }];
       }
 
+      forceBuild = forceBuild || layer.forceBuild || false;
+
       const resp = await this.#client.cpClient.imageGetOrCreate({
         appId: app.appId,
         image: ImageProto.create({
@@ -326,7 +397,7 @@ export class Image {
           baseImages,
         }),
         builderVersion: this.#client.imageBuilderVersion(),
-        forceBuild: layer.forceBuild || false,
+        forceBuild,
       });
 
       let result: GenericResult;
