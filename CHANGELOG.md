@@ -4,6 +4,10 @@ Both client libraries are pre-1.0, and they have separate versioning.
 
 ## Unreleased
 
+No unreleased changes.
+
+## modal-js/v0.6.0, modal-go/v0.6.0
+
 - Align parameter defaults to be consistent with the Python SDK:
   - Set default Sandbox timeout to 5 minutes (was previously 10 minutes in the JS SDK).
   - Leave the Sandbox entrypoint args empty by default in the JS SDK (was previously `["sleep", "48h"]`).
