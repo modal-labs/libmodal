@@ -4,10 +4,16 @@ Both client libraries are pre-1.0, and they have separate versioning.
 
 ## Unreleased
 
-- Align parameter defaults to be consistent with the Python SDK:
+No unreleased changes.
+
+## modal-js/v0.6.0, modal-go/v0.6.0
+
+- Added `enable_docker` experimental option to `Sandbox.Create` to Go and `Sandbox.create` to JS.
+
+**Breaking changes:**
+- Changed Sandbox parameter defaults to be consistent with the Python SDK:
   - Set default Sandbox timeout to 5 minutes (was previously 10 minutes in the JS SDK).
   - Leave the Sandbox entrypoint args empty by default in the JS SDK (was previously `["sleep", "48h"]`).
-- Adds `enable_docker` experimental option to `Sandbox.Create` to Go and `Sandbox.create` to JS.
 
 ## modal-js/v0.5.6, modal-go/v0.5.6
 
