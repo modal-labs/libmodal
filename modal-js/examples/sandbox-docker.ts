@@ -23,7 +23,6 @@ RUN curl -o /usr/share/cowsay/cows/docker.cow https://raw.githubusercontent.com/
 ENTRYPOINT ["/usr/games/cowsay", "-f", "docker.cow"]
 `;
 
-// try {
 const writeHandle = await sb.open("/build/Dockerfile", "w");
 const encoder = new TextEncoder();
 await writeHandle.write(encoder.encode(dockerFile))
