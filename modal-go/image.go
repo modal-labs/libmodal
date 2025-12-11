@@ -338,7 +338,7 @@ type ImageDeleteParams struct{}
 
 // Delete deletes an Image by ID.
 //
-// Deletion is irreversible and will prevent Apps/Sandboxes from using the Image.
+// Deletion is irreversible and will prevent Functions/Sandboxes from using the Image.
 //
 // Note: When building an Image, each chained method call will create an
 // intermediate Image layer, each with its own ID. Deleting an Image will not
