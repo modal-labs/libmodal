@@ -1,5 +1,5 @@
 import { tc } from "../test-support/test-client";
-import { expect, onTestFinished, test } from "vitest";
+import { expect, onTestFinished, test, vi } from "vitest";
 import { createMockModalClients } from "../test-support/grpc_mock";
 import { Secret } from "../src/secret";
 import { App } from "../src/app";
@@ -41,9 +41,14 @@ test("ImageFromRegistryWithSecret", async () => {
   const image = await tc.images
     .fromRegistry(
       "us-east1-docker.pkg.dev/modal-prod-367916/private-repo-test/my-image",
-      await tc.secrets.fromName("libmodal-gcp-artifact-registry-test", {
-        requiredKeys: ["REGISTRY_USERNAME", "REGISTRY_PASSWORD"],
-      }),
+      {
+        secret: await tc.secrets.fromName(
+          "libmodal-gcp-artifact-registry-test",
+          {
+            requiredKeys: ["REGISTRY_USERNAME", "REGISTRY_PASSWORD"],
+          },
+        ),
+      },
     )
     .build(app);
   expect(image.imageId).toBeTruthy();
@@ -277,4 +282,188 @@ test("DockerfileCommandsWithOptions", async () => {
   expect(image.imageId).toBe("im-layer3");
 
   mock.assertExhausted();
+});
+
+test.each([
+  {
+    name: "FromRegistryWithForceBuild",
+    createImage: (
+      mc: ReturnType<typeof createMockModalClients>["mockClient"],
+    ) =>
+      mc.images
+        .fromRegistry("alpine:3.21", { forceBuild: true })
+        .build(new App("ap-test", "libmodal-test")),
+  },
+  {
+    name: "FromAwsEcrWithForceBuild",
+    createImage: (
+      mc: ReturnType<typeof createMockModalClients>["mockClient"],
+    ) =>
+      mc.images
+        .fromAwsEcr("alpine:3.21", new Secret("sc-test", "test_secret"), {
+          forceBuild: true,
+        })
+        .build(new App("ap-test", "libmodal-test")),
+  },
+  {
+    name: "FromGcpArtifactRegistryWithForceBuild",
+    createImage: (
+      mc: ReturnType<typeof createMockModalClients>["mockClient"],
+    ) =>
+      mc.images
+        .fromGcpArtifactRegistry(
+          "alpine:3.21",
+          new Secret("sc-test", "test_secret"),
+          { forceBuild: true },
+        )
+        .build(new App("ap-test", "libmodal-test")),
+  },
+  {
+    name: "BuildWithForceBuildParam",
+    createImage: (
+      mc: ReturnType<typeof createMockModalClients>["mockClient"],
+    ) =>
+      mc.images
+        .fromRegistry("alpine:3.21")
+        .build(new App("ap-test", "libmodal-test"), { forceBuild: true }),
+  },
+])("$name", async ({ createImage }) => {
+  const { mockClient: mc, mockCpClient: mock } = createMockModalClients();
+
+  mock.handleUnary("/ImageGetOrCreate", (req: any) => {
+    expect(req).toMatchObject({
+      appId: "ap-test",
+      forceBuild: true,
+    });
+    return { imageId: "im-test", result: { status: 1 } };
+  });
+
+  const image = await createImage(mc);
+
+  expect(image.imageId).toBe("im-test");
+  mock.assertExhausted();
+});
+
+test("ForceBuildPropagation", async () => {
+  const { mockClient: mc, mockCpClient: mock } = createMockModalClients();
+
+  // from fromRegistry, without forceBuild
+  mock.handleUnary("/ImageGetOrCreate", (req: any) => {
+    expect(req).toMatchObject({
+      appId: "ap-test",
+      image: {
+        dockerfileCommands: ["FROM alpine:3.21"],
+      },
+      forceBuild: false,
+    });
+    return { imageId: "im-base", result: { status: 1 } };
+  });
+
+  // from dockerfileCommands, with forceBuild: true
+  mock.handleUnary("/ImageGetOrCreate", (req: any) => {
+    expect(req).toMatchObject({
+      appId: "ap-test",
+      image: {
+        dockerfileCommands: ["FROM base", "RUN echo test"],
+        baseImages: [{ dockerTag: "base", imageId: "im-base" }],
+      },
+      forceBuild: true,
+    });
+    return { imageId: "im-layer1", result: { status: 1 } };
+  });
+
+  // from second dockerfileCommands, without forceBuild, should still have forceBuild: true, propagated from previous layer
+  mock.handleUnary("/ImageGetOrCreate", (req: any) => {
+    expect(req).toMatchObject({
+      appId: "ap-test",
+      image: {
+        dockerfileCommands: ["FROM base", "RUN echo test2"],
+        baseImages: [{ dockerTag: "base", imageId: "im-layer1" }],
+      },
+      forceBuild: true,
+    });
+    return { imageId: "im-layer2", result: { status: 1 } };
+  });
+
+  const image = await mc.images
+    .fromRegistry("alpine:3.21")
+    .dockerfileCommands(["RUN echo test"], { forceBuild: true })
+    .dockerfileCommands(["RUN echo test2"])
+    .build(new App("ap-test", "libmodal-test"));
+
+  expect(image.imageId).toBe("im-layer2");
+  mock.assertExhausted();
+});
+
+test("ForceBuildBackPropagation", async () => {
+  const { mockClient: mc, mockCpClient: mock } = createMockModalClients();
+
+  // from fromRegistry, without forceBuild, should still have forceBuild: true, overridden by .build
+  mock.handleUnary("/ImageGetOrCreate", (req: any) => {
+    expect(req).toMatchObject({
+      appId: "ap-test",
+      image: {
+        dockerfileCommands: ["FROM alpine:3.21"],
+      },
+      forceBuild: true,
+    });
+    return { imageId: "im-base", result: { status: 1 } };
+  });
+
+  // from dockerfileCommands, without forceBuild, should still have forceBuild: true, overridden by .build
+  mock.handleUnary("/ImageGetOrCreate", (req: any) => {
+    expect(req).toMatchObject({
+      appId: "ap-test",
+      image: {
+        dockerfileCommands: ["FROM base", "RUN echo test"],
+        baseImages: [{ dockerTag: "base", imageId: "im-base" }],
+      },
+      forceBuild: true,
+    });
+    return { imageId: "im-layer1", result: { status: 1 } };
+  });
+
+  const image = await mc.images
+    .fromRegistry("alpine:3.21", undefined)
+    .dockerfileCommands(["RUN echo test"])
+    .build(new App("ap-test", "libmodal-test"), { forceBuild: true });
+
+  expect(image.imageId).toBe("im-layer1");
+  mock.assertExhausted();
+});
+
+test("ForceBuildFromEnvironmentVariable", async () => {
+  vi.stubEnv("MODAL_FORCE_BUILD", "true");
+
+  const { mockClient: mc, mockCpClient: mock } = createMockModalClients();
+
+  mock.handleUnary("/ImageGetOrCreate", (req: any) => {
+    expect(req).toMatchObject({
+      appId: "ap-test",
+      forceBuild: true,
+    });
+    return { imageId: "im-base", result: { status: 1 } };
+  });
+
+  mock.handleUnary("/ImageGetOrCreate", (req: any) => {
+    expect(req).toMatchObject({
+      appId: "ap-test",
+      image: {
+        dockerfileCommands: ["FROM base", "RUN echo test"],
+        baseImages: [{ dockerTag: "base", imageId: "im-base" }],
+      },
+      forceBuild: true,
+    });
+    return { imageId: "im-layer1", result: { status: 1 } };
+  });
+
+  const image = await mc.images
+    .fromRegistry("alpine:3.21")
+    .dockerfileCommands(["RUN echo test"])
+    .build(new App("ap-test", "libmodal-test"));
+
+  expect(image.imageId).toBe("im-layer1");
+  mock.assertExhausted();
+
+  vi.unstubAllEnvs();
 });

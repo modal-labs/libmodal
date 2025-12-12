@@ -288,7 +288,7 @@ func (s *sandboxServiceImpl) Create(ctx context.Context, app *App, image *Image,
 		params = &SandboxCreateParams{}
 	}
 
-	image, err := image.Build(ctx, app)
+	image, err := image.Build(ctx, app, nil)
 	if err != nil {
 		return nil, err
 	}

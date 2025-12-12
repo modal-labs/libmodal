@@ -4,7 +4,12 @@ Both client libraries are pre-1.0, and they have separate versioning.
 
 ## Unreleased
 
-No unreleased changes.
+- Added support for the `MODAL_FORCE_BUILD` environment variable and `force_build` config option for `modal.toml`. When set, this applies to all image builds.
+- Added an optional `forceBuild` parameter to `images.fromRegistry`, `images.fromAwsEcr`, `images.fromGcpArtifactRegistry`, and `Image.build` to the JS SDK.
+- Added `secret` field to `ImageFromRegistryParams` in the JS SDK to match the Go SDK pattern. The separate `secret` parameter in `images.fromRegistry()` is now deprecated.
+
+**Breaking changes:**
+- Added `...Params` struct arguments, and an optional `ForceBuild` parameter, to `Images.FromRegistry`, `Images.FromAwsEcr`, `Images.FromGcpArtifactRegistry`, and `Image.Build` to the Go SDK.
 
 ## modal-js/v0.6.0, modal-go/v0.6.0
 

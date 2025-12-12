@@ -55,8 +55,12 @@ export {
 export {
   Image,
   ImageService,
+  type ImageBuildParams,
   type ImageDeleteParams,
   type ImageDockerfileCommandsParams,
+  type ImageFromAwsEcrParams,
+  type ImageFromGcpArtifactRegistryParams,
+  type ImageFromRegistryParams,
 } from "./image";
 export { Retries } from "./retries";
 export type {
