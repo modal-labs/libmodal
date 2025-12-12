@@ -14,8 +14,8 @@ import (
 // ImageService provides Image related operations.
 type ImageService interface {
 	FromRegistry(tag string, params *ImageFromRegistryParams) *Image
-	FromAwsEcr(tag string, secret *Secret) *Image
-	FromGcpArtifactRegistry(tag string, secret *Secret) *Image
+	FromAwsEcr(tag string, secret *Secret, params *ImageFromAwsEcrParams) *Image
+	FromGcpArtifactRegistry(tag string, secret *Secret, params *ImageFromGcpArtifactRegistryParams) *Image
 	FromID(ctx context.Context, imageID string) (*Image, error)
 	Delete(ctx context.Context, imageID string, params *ImageDeleteParams) error
 }
@@ -53,13 +53,30 @@ type Image struct {
 	imageRegistryConfig *pb.ImageRegistryConfig
 	tag                 string
 	layers              []layer
+	forceBuild          bool
 
 	client *Client
 }
 
 // ImageFromRegistryParams are options for creating an Image from a registry.
 type ImageFromRegistryParams struct {
-	Secret *Secret // Secret for private registry authentication.
+	Secret     *Secret // Secret containing credentials for private registry authentication.
+	ForceBuild bool    // Ignore cached builds, similar to 'docker build --no-cache'.
+}
+
+// ImageFromAwsEcrParams are options for creating an Image from AWS ECR.
+type ImageFromAwsEcrParams struct {
+	ForceBuild bool // Ignore cached builds, similar to 'docker build --no-cache'.
+}
+
+// ImageFromGcpArtifactRegistryParams are options for creating an Image from GCP Artifact Registry.
+type ImageFromGcpArtifactRegistryParams struct {
+	ForceBuild bool // Ignore cached builds, similar to 'docker build --no-cache'.
+}
+
+// ImageBuildParams are options for Image.Build().
+type ImageBuildParams struct {
+	ForceBuild bool // Ignore cached builds, similar to 'docker build --no-cache'.
 }
 
 // FromRegistry builds a Modal Image from a public or private image registry without any changes.
@@ -80,12 +97,16 @@ func (s *imageServiceImpl) FromRegistry(tag string, params *ImageFromRegistryPar
 		imageRegistryConfig: imageRegistryConfig,
 		tag:                 tag,
 		layers:              []layer{{}},
+		forceBuild:          params.ForceBuild,
 		client:              s.client,
 	}
 }
 
 // FromAwsEcr creates an Image from an AWS ECR tag
-func (s *imageServiceImpl) FromAwsEcr(tag string, secret *Secret) *Image {
+func (s *imageServiceImpl) FromAwsEcr(tag string, secret *Secret, params *ImageFromAwsEcrParams) *Image {
+	if params == nil {
+		params = &ImageFromAwsEcrParams{}
+	}
 	imageRegistryConfig := pb.ImageRegistryConfig_builder{
 		RegistryAuthType: pb.RegistryAuthType_REGISTRY_AUTH_TYPE_AWS,
 		SecretId:         secret.SecretID,
@@ -96,12 +117,16 @@ func (s *imageServiceImpl) FromAwsEcr(tag string, secret *Secret) *Image {
 		imageRegistryConfig: imageRegistryConfig,
 		tag:                 tag,
 		layers:              []layer{{}},
+		forceBuild:          params.ForceBuild,
 		client:              s.client,
 	}
 }
 
 // FromGcpArtifactRegistry creates an Image from a GCP Artifact Registry tag.
-func (s *imageServiceImpl) FromGcpArtifactRegistry(tag string, secret *Secret) *Image {
+func (s *imageServiceImpl) FromGcpArtifactRegistry(tag string, secret *Secret, params *ImageFromGcpArtifactRegistryParams) *Image {
+	if params == nil {
+		params = &ImageFromGcpArtifactRegistryParams{}
+	}
 	imageRegistryConfig := pb.ImageRegistryConfig_builder{
 		RegistryAuthType: pb.RegistryAuthType_REGISTRY_AUTH_TYPE_GCP,
 		SecretId:         secret.SecretID,
@@ -111,6 +136,7 @@ func (s *imageServiceImpl) FromGcpArtifactRegistry(tag string, secret *Secret) *
 		imageRegistryConfig: imageRegistryConfig,
 		tag:                 tag,
 		layers:              []layer{{}},
+		forceBuild:          params.ForceBuild,
 		client:              s.client,
 	}
 }
@@ -166,6 +192,7 @@ func (image *Image) DockerfileCommands(commands []string, params *ImageDockerfil
 		tag:                 image.tag,
 		imageRegistryConfig: image.imageRegistryConfig,
 		layers:              newLayers,
+		forceBuild:          image.forceBuild,
 		client:              image.client,
 	}
 }
@@ -219,7 +246,7 @@ func (image *Image) waitForBuildIteration(ctx context.Context, imageID string, l
 }
 
 // Build eagerly builds an Image on Modal.
-func (image *Image) Build(ctx context.Context, app *App) (*Image, error) {
+func (image *Image) Build(ctx context.Context, app *App, params *ImageBuildParams) (*Image, error) {
 	// Image is already hyrdated
 	if image.ImageID != "" {
 		return image, nil
@@ -233,8 +260,12 @@ func (image *Image) Build(ctx context.Context, app *App) (*Image, error) {
 		}
 	}
 
-	var currentImageID string
+	forceBuild := image.client.profile.ForceBuild || image.forceBuild
+	if params != nil {
+		forceBuild = forceBuild || params.ForceBuild
+	}
 
+	var currentImageID string
 	for i, currentLayer := range image.layers {
 		if err := ctx.Err(); err != nil {
 			return nil, err
@@ -273,6 +304,8 @@ func (image *Image) Build(ctx context.Context, app *App) (*Image, error) {
 			}.Build()}
 		}
 
+		forceBuild = forceBuild || currentLayer.forceBuild
+
 		resp, err := image.client.cpClient.ImageGetOrCreate(
 			ctx,
 			pb.ImageGetOrCreateRequest_builder{
@@ -286,7 +319,7 @@ func (image *Image) Build(ctx context.Context, app *App) (*Image, error) {
 					BaseImages:          baseImages,
 				}.Build(),
 				BuilderVersion: imageBuilderVersion("", image.client.profile),
-				ForceBuild:     currentLayer.forceBuild,
+				ForceBuild:     forceBuild,
 			}.Build(),
 		)
 		if err != nil {

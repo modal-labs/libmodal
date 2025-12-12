@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/pelletier/go-toml/v2"
 )
@@ -20,6 +21,7 @@ type Profile struct {
 	Environment         string
 	ImageBuilderVersion string
 	LogLevel            string
+	ForceBuild          bool
 }
 
 // rawProfile mirrors the TOML structure on disk.
@@ -30,6 +32,7 @@ type rawProfile struct {
 	Environment         string `toml:"environment"`
 	ImageBuilderVersion string `toml:"image_builder_version"`
 	LogLevel            string `toml:"loglevel"`
+	ForceBuild          bool   `toml:"force_build"`
 	Active              bool   `toml:"active"`
 }
 
@@ -95,6 +98,7 @@ func getProfile(name string, cfg config) Profile {
 	environment := firstNonEmpty(os.Getenv("MODAL_ENVIRONMENT"), raw.Environment)
 	imageBuilderVersion := firstNonEmpty(os.Getenv("MODAL_IMAGE_BUILDER_VERSION"), raw.ImageBuilderVersion)
 	logLevel := firstNonEmpty(os.Getenv("MODAL_LOGLEVEL"), raw.LogLevel)
+	forceBuild := envBool("MODAL_FORCE_BUILD") || raw.ForceBuild
 
 	return Profile{
 		ServerURL:           serverURL,
@@ -103,6 +107,7 @@ func getProfile(name string, cfg config) Profile {
 		Environment:         environment,
 		ImageBuilderVersion: imageBuilderVersion,
 		LogLevel:            logLevel,
+		ForceBuild:          forceBuild,
 	}
 }
 
@@ -113,6 +118,11 @@ func firstNonEmpty(values ...string) string {
 		}
 	}
 	return ""
+}
+
+func envBool(key string) bool {
+	v := strings.ToLower(os.Getenv(key))
+	return v != "" && v != "0" && v != "false"
 }
 
 func environmentName(environment string, profile Profile) string {
