@@ -41,9 +41,14 @@ test("ImageFromRegistryWithSecret", async () => {
   const image = await tc.images
     .fromRegistry(
       "us-east1-docker.pkg.dev/modal-prod-367916/private-repo-test/my-image",
-      await tc.secrets.fromName("libmodal-gcp-artifact-registry-test", {
-        requiredKeys: ["REGISTRY_USERNAME", "REGISTRY_PASSWORD"],
-      }),
+      {
+        secret: await tc.secrets.fromName(
+          "libmodal-gcp-artifact-registry-test",
+          {
+            requiredKeys: ["REGISTRY_USERNAME", "REGISTRY_PASSWORD"],
+          },
+        ),
+      },
     )
     .build(app);
   expect(image.imageId).toBeTruthy();
@@ -286,7 +291,7 @@ test.each([
       mc: ReturnType<typeof createMockModalClients>["mockClient"],
     ) =>
       mc.images
-        .fromRegistry("alpine:3.21", undefined, { forceBuild: true })
+        .fromRegistry("alpine:3.21", { forceBuild: true })
         .build(new App("ap-test", "libmodal-test")),
   },
   {

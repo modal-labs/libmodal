@@ -54,21 +54,33 @@ export class ImageService {
    * Creates an {@link Image} from a raw registry tag, optionally using a {@link Secret} for authentication.
    *
    * @param tag - The registry tag for the Image.
-   * @param secret - Optional. A Secret containing credentials for registry authentication.
-   * @param params - Optional configuration parameters.
+   * @param params - Optional configuration parameters including Secret for authentication.
    */
+  fromRegistry(tag: string, params?: ImageFromRegistryParams): Image;
+  /**
+   * Creates an {@link Image} from a raw registry tag, optionally using a {@link Secret} for authentication.
+   *
+   * @param tag - The registry tag for the Image.
+   * @param secret - Optional. A Secret containing credentials for registry authentication.
+   * @deprecated Pass secret via params instead: `fromRegistry(tag, { secret })`
+   */
+  fromRegistry(tag: string, secret?: Secret): Image;
   fromRegistry(
     tag: string,
-    secret?: Secret,
-    params?: ImageFromRegistryParams,
+    secretOrParams?: Secret | ImageFromRegistryParams,
   ): Image {
+    let secret: Secret | undefined;
+    let params: ImageFromRegistryParams | undefined;
+
+    if (secretOrParams instanceof Secret) {
+      secret = secretOrParams;
+    } else {
+      params = secretOrParams;
+      secret = params?.secret;
+    }
+
     let imageRegistryConfig;
     if (secret) {
-      if (!(secret instanceof Secret)) {
-        throw new TypeError(
-          "secret must be a reference to an existing Secret, e.g. `await Secret.fromName('my_secret')`",
-        );
-      }
       imageRegistryConfig = {
         registryAuthType: RegistryAuthType.REGISTRY_AUTH_TYPE_STATIC_CREDS,
         secretId: secret.secretId,
@@ -184,6 +196,8 @@ export type ImageDeleteParams = Record<never, never>;
 
 /** Optional parameters for {@link ImageService#fromRegistry client.images.fromRegistry()}. */
 export type ImageFromRegistryParams = {
+  /** Secret containing credentials for private registry authentication. */
+  secret?: Secret;
   /** Ignore cached builds, similar to 'docker build --no-cache'. */
   forceBuild?: boolean;
 };
@@ -278,7 +292,7 @@ export class Image {
    * @deprecated Use {@link ImageService#fromRegistry client.images.fromRegistry()} instead.
    */
   static fromRegistry(tag: string, secret?: Secret): Image {
-    return getDefaultClient().images.fromRegistry(tag, secret);
+    return getDefaultClient().images.fromRegistry(tag, { secret });
   }
 
   /**
