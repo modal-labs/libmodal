@@ -359,7 +359,11 @@ export class Image {
     this.#client.logger.debug("Building image", "app_id", app.appId);
 
     let baseImageId: string | undefined;
-    let forceBuild = this.#forceBuild || params?.forceBuild || false;
+    let forceBuild =
+      this.#client.profile.forceBuild ||
+      this.#forceBuild ||
+      params?.forceBuild ||
+      false;
 
     for (let i = 0; i < this.#layers.length; i++) {
       const layer = this.#layers[i];

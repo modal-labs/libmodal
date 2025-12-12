@@ -1,5 +1,5 @@
 import { tc } from "../test-support/test-client";
-import { expect, onTestFinished, test } from "vitest";
+import { expect, onTestFinished, test, vi } from "vitest";
 import { createMockModalClients } from "../test-support/grpc_mock";
 import { Secret } from "../src/secret";
 import { App } from "../src/app";
@@ -425,4 +425,40 @@ test("ForceBuildBackPropagation", async () => {
 
   expect(image.imageId).toBe("im-layer1");
   mock.assertExhausted();
+});
+
+test("ForceBuildFromEnvironmentVariable", async () => {
+  vi.stubEnv("MODAL_FORCE_BUILD", "true");
+
+  const { mockClient: mc, mockCpClient: mock } = createMockModalClients();
+
+  mock.handleUnary("/ImageGetOrCreate", (req: any) => {
+    expect(req).toMatchObject({
+      appId: "ap-test",
+      forceBuild: true,
+    });
+    return { imageId: "im-base", result: { status: 1 } };
+  });
+
+  mock.handleUnary("/ImageGetOrCreate", (req: any) => {
+    expect(req).toMatchObject({
+      appId: "ap-test",
+      image: {
+        dockerfileCommands: ["FROM base", "RUN echo test"],
+        baseImages: [{ dockerTag: "base", imageId: "im-base" }],
+      },
+      forceBuild: true,
+    });
+    return { imageId: "im-layer1", result: { status: 1 } };
+  });
+
+  const image = await mc.images
+    .fromRegistry("alpine:3.21")
+    .dockerfileCommands(["RUN echo test"])
+    .build(new App("ap-test", "libmodal-test"));
+
+  expect(image.imageId).toBe("im-layer1");
+  mock.assertExhausted();
+
+  vi.unstubAllEnvs();
 });

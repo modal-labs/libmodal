@@ -13,6 +13,7 @@ interface Config {
     environment?: string;
     imageBuilderVersion?: string;
     loglevel?: string;
+    force_build?: boolean;
     active?: boolean;
   };
 }
@@ -25,6 +26,7 @@ export interface Profile {
   environment?: string;
   imageBuilderVersion?: string;
   logLevel?: string;
+  forceBuild?: boolean;
 }
 
 export function configFilePath(): string {
@@ -59,6 +61,12 @@ function readConfigFile(): Config {
 // synchronously, for instance.
 const config: Config = readConfigFile();
 
+function toBoolean(value: string | undefined): boolean {
+  if (!value) return false;
+  const lower = value.toLowerCase();
+  return lower !== "" && lower !== "0" && lower !== "false";
+}
+
 export function getProfile(profileName?: string): Profile {
   if (!profileName) {
     for (const [name, profileData] of Object.entries(config)) {
@@ -85,6 +93,8 @@ export function getProfile(profileName?: string): Profile {
       process.env["MODAL_IMAGE_BUILDER_VERSION"] ||
       profileData.imageBuilderVersion,
     logLevel: process.env["MODAL_LOGLEVEL"] || profileData.loglevel,
+    forceBuild:
+      toBoolean(process.env["MODAL_FORCE_BUILD"]) || profileData.force_build,
   };
   return profile as Profile; // safe to null-cast because of check above
 }
