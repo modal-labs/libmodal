@@ -29,6 +29,19 @@ import { getSDKVersion } from "./version";
 import { checkForRenamedParams } from "./validation";
 import { createLogger, type Logger, type LogLevel } from "./logger";
 
+/** Represents a Modal Environment with its server-provided settings. */
+interface Environment {
+  id: string;
+  name: string;
+  settings: EnvironmentSettings;
+}
+
+/** Environment-scoped configuration from the server. */
+interface EnvironmentSettings {
+  imageBuilderVersion: string;
+  webhookSuffix: string;
+}
+
 export interface ModalClientParams {
   tokenId?: string;
   tokenSecret?: string;
@@ -96,6 +109,8 @@ export class ModalClient {
   private ipClients: Map<string, ModalGrpcClient>;
   private authTokenManager: AuthTokenManager | null = null;
   private customMiddleware: ClientMiddleware[];
+  private environmentsCache: Map<string, Environment>;
+  private environmentFetchPromises: Map<string, Promise<Environment>>;
 
   constructor(params?: ModalClientParams) {
     checkForRenamedParams(params, { timeout: "timeoutMs" });
@@ -120,6 +135,8 @@ export class ModalClient {
 
     this.customMiddleware = params?.grpcMiddleware ?? [];
     this.ipClients = new Map();
+    this.environmentsCache = new Map();
+    this.environmentFetchPromises = new Map();
     this.cpClient = params?.cpClient ?? this.createClient(this.profile);
 
     this.logger.debug("Modal client initialized successfully");
@@ -141,8 +158,78 @@ export class ModalClient {
     return environment || this.profile.environment || "";
   }
 
-  imageBuilderVersion(version?: string): string {
-    return version || this.profile.imageBuilderVersion || "2024.10";
+  /**
+   * Fetches an environment from the server, caching the result.
+   * Pass undefined for name to get the default environment.
+   */
+  private async fetchEnvironment(name?: string): Promise<Environment> {
+    const cacheKey = name ?? "";
+    const cached = this.environmentsCache.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    const inProgress = this.environmentFetchPromises.get(cacheKey);
+    if (inProgress) {
+      return inProgress;
+    }
+
+    const promise = this.doFetchEnvironment(name);
+    this.environmentFetchPromises.set(cacheKey, promise);
+
+    try {
+      const env = await promise;
+      this.environmentsCache.set(cacheKey, env);
+      return env;
+    } finally {
+      this.environmentFetchPromises.delete(cacheKey);
+    }
+  }
+
+  private async doFetchEnvironment(name?: string): Promise<Environment> {
+    this.logger.debug(
+      "Fetching environment from server",
+      "environment_name",
+      name ?? "",
+    );
+
+    const resp = await this.cpClient.environmentGetOrCreate({
+      deploymentName: name ?? "",
+    });
+
+    const env: Environment = {
+      id: resp.environmentId,
+      name: resp.metadata?.name ?? "",
+      settings: {
+        imageBuilderVersion: resp.metadata?.settings?.imageBuilderVersion ?? "",
+        webhookSuffix: resp.metadata?.settings?.webhookSuffix ?? "",
+      },
+    };
+
+    this.logger.debug(
+      "Cached environment",
+      "environment_name",
+      name,
+      "environment_id",
+      env.id,
+      "image_builder_version",
+      env.settings.imageBuilderVersion,
+    );
+
+    return env;
+  }
+
+  /**
+   * Returns the image builder version to use for image builds.
+   * Precedence: local config > server-provided value.
+   */
+  async getImageBuilderVersion(): Promise<string> {
+    if (this.profile.imageBuilderVersion) {
+      return this.profile.imageBuilderVersion;
+    }
+
+    const env = await this.fetchEnvironment(this.profile.environment);
+    return env.settings.imageBuilderVersion;
   }
 
   /** @ignore */

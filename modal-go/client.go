@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"golang.org/x/sync/singleflight"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
@@ -74,6 +75,8 @@ type Client struct {
 	logger                       *slog.Logger
 	cpClient                     *clientWithConn            // control plane client
 	ipClients                    map[string]*clientWithConn // input plane clients
+	environmentsCache            sync.Map
+	environmentGroup             singleflight.Group
 	authTokenManager             *AuthTokenManager
 	additionalUnaryInterceptors  []grpc.UnaryClientInterceptor
 	additionalStreamInterceptors []grpc.StreamClientInterceptor

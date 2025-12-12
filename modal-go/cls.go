@@ -100,7 +100,7 @@ func (s *clsServiceImpl) FromName(ctx context.Context, appName string, name stri
 	serviceFunction, err := s.client.cpClient.FunctionGet(ctx, pb.FunctionGetRequest_builder{
 		AppName:         appName,
 		ObjectTag:       serviceFunctionName,
-		EnvironmentName: environmentName(params.Environment, s.client.profile),
+		EnvironmentName: firstNonEmpty(params.Environment, s.client.profile.Environment),
 	}.Build())
 
 	if status, ok := status.FromError(err); ok && status.Code() == codes.NotFound {
@@ -291,7 +291,7 @@ func (c *Cls) bindParameters(ctx context.Context, parameters map[string]any, opt
 		FunctionId:       c.serviceFunctionID,
 		SerializedParams: serializedParams,
 		FunctionOptions:  functionOptions,
-		EnvironmentName:  environmentName("", c.client.profile),
+		EnvironmentName:  c.client.profile.Environment,
 	}.Build())
 	if err != nil {
 		return "", fmt.Errorf("failed to bind parameters: %w", err)
