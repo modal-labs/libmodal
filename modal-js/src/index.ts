@@ -70,7 +70,12 @@ export type {
   SandboxListParams,
   SandboxCreateParams,
 } from "./sandbox";
-export { ContainerProcess, Sandbox, SandboxService } from "./sandbox";
+export {
+  ContainerProcess,
+  ContainerProcessThroughRouter,
+  Sandbox,
+  SandboxService,
+} from "./sandbox";
 export type { ModalReadStream, ModalWriteStream } from "./streams";
 export {
   Secret,
@@ -80,6 +85,7 @@ export {
   type SecretDeleteParams,
 } from "./secret";
 export { SandboxFile, type SandboxFileMode } from "./sandbox_filesystem";
+export { TaskCommandRouterClientImpl } from "./task_command_router_client";
 export {
   Volume,
   VolumeService,

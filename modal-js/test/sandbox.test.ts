@@ -1,8 +1,12 @@
 import { tc } from "../test-support/test-client";
 import { parseGpuConfig } from "../src/app";
-import { buildSandboxCreateRequestProto } from "../src/sandbox";
+import {
+  buildSandboxCreateRequestProto,
+  buildContainerExecRequestProto,
+  buildTaskExecStartRequestProto,
+  validateExecArgs,
+} from "../src/sandbox";
 import { expect, test, onTestFinished } from "vitest";
-import { buildContainerExecRequestProto } from "../src/sandbox";
 import {
   GPUConfig,
   PTYInfo_PTYType,
@@ -814,3 +818,90 @@ test.skip("testSandboxExperimentalDockerMock", async () => {
 
   mock.assertExhausted();
 });
+
+test("validateExecArgs with args within limit", () => {
+  expect(() => validateExecArgs(["echo", "hello"])).not.toThrow();
+
+  expect(() => validateExecArgs(["a".repeat(2 ** 16 - 10)])).not.toThrow();
+});
+
+test("validateExecArgs with args exceeding ARG_MAX", () => {
+  const longArg = "a".repeat(2 ** 16 + 1);
+  const args = [longArg];
+  expect(() => validateExecArgs(args)).toThrow(
+    "Total length of CMD arguments must be less than",
+  );
+});
+
+test("buildContainerExecThroughCommandRouterRequestProto defaults", () => {
+  const req = buildTaskExecStartRequestProto("task-123", "exec-456", ["bash"]);
+
+  expect(req.taskId).toBe("task-123");
+  expect(req.execId).toBe("exec-456");
+  expect(req.commandArgs).toEqual(["bash"]);
+  expect(req.stdoutConfig).toBe(1); // TASK_EXEC_STDOUT_CONFIG_PIPE
+  expect(req.stderrConfig).toBe(1); // TASK_EXEC_STDERR_CONFIG_PIPE
+  expect(req.timeoutSecs).toBeUndefined();
+  expect(req.workdir).toBeUndefined();
+  expect(req.secretIds).toEqual([]);
+  expect(req.ptyInfo).toBeUndefined();
+  expect(req.runtimeDebug).toBe(false);
+});
+
+test("buildContainerExecThroughCommandRouterRequestProto with stdout ignore", () => {
+  const req = buildTaskExecStartRequestProto("task-123", "exec-456", ["bash"], {
+    stdout: "ignore",
+    stderr: "ignore",
+  });
+
+  expect(req.stdoutConfig).toBe(0); // TASK_EXEC_STDOUT_CONFIG_DEVNULL
+  expect(req.stderrConfig).toBe(0); // TASK_EXEC_STDERR_CONFIG_DEVNULL
+});
+
+test("buildContainerExecThroughCommandRouterRequestProto with PTY", () => {
+  const req = buildTaskExecStartRequestProto("task-123", "exec-456", ["bash"], {
+    pty: true,
+  });
+
+  const ptyInfo = req.ptyInfo!;
+  expect(ptyInfo.enabled).toBe(true);
+  expect(ptyInfo.winszRows).toBe(24);
+  expect(ptyInfo.winszCols).toBe(80);
+  expect(ptyInfo.envTerm).toBe("xterm-256color");
+  expect(ptyInfo.envColorterm).toBe("truecolor");
+  expect(ptyInfo.ptyType).toBe(PTYInfo_PTYType.PTY_TYPE_SHELL);
+});
+
+test("buildContainerExecThroughCommandRouterRequestProto with workdir", () => {
+  const req = buildTaskExecStartRequestProto("task-123", "exec-456", ["pwd"], {
+    workdir: "/tmp",
+  });
+
+  expect(req.workdir).toBe("/tmp");
+});
+
+test("buildContainerExecThroughCommandRouterRequestProto with timeoutMs", () => {
+  const req = buildTaskExecStartRequestProto(
+    "task-123",
+    "exec-456",
+    ["sleep", "10"],
+    { timeoutMs: 5000 },
+  );
+
+  expect(req.timeoutSecs).toBe(5);
+});
+
+test.each([
+  [0, "timeoutMs must be positive"],
+  [-1000, "timeoutMs must be positive"],
+  [1500, "timeoutMs must be a multiple of 1000ms"],
+])(
+  "buildContainerExecThroughCommandRouterRequestProto invalid timeoutMs %d",
+  (timeoutMs, expectedError) => {
+    expect(() =>
+      buildTaskExecStartRequestProto("task-123", "exec-456", ["bash"], {
+        timeoutMs,
+      }),
+    ).toThrow(expectedError);
+  },
+);

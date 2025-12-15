@@ -19,6 +19,13 @@ import {
   PortSpecs,
 } from "../proto/modal_proto/api";
 import {
+  TaskExecStartRequest,
+  TaskExecStdoutConfig,
+  TaskExecStderrConfig,
+} from "../proto/modal_proto/task_command_router";
+import { TaskCommandRouterClientImpl } from "./task_command_router_client";
+import { v4 as uuidv4 } from "uuid";
+import {
   getDefaultClient,
   type ModalClient,
   isRetryableGrpc,
@@ -617,6 +624,26 @@ export function defaultSandboxPTYInfo(): PTYInfo {
   });
 }
 
+// The maximum number of bytes that can be passed to an exec on Linux.
+// Though this is technically a 'server side' limit, it is unlikely to change.
+// getconf ARG_MAX will show this value on a host.
+//
+// By probing in production, the limit is 131072 bytes (2**17).
+// We need some bytes of overhead for the rest of the command line besides the args,
+// e.g. 'runsc exec ...'. So we use 2**16 as the limit.
+export function validateExecArgs(args: string[]): void {
+  const ARG_MAX_BYTES = 2 ** 16;
+
+  // Avoid "[Errno 7] Argument list too long" errors.
+  const totalArgLen = args.reduce((sum, arg) => sum + arg.length, 0);
+  if (totalArgLen > ARG_MAX_BYTES) {
+    throw new InvalidError(
+      `Total length of CMD arguments must be less than ${ARG_MAX_BYTES} bytes (ARG_MAX). ` +
+        `Got ${totalArgLen} bytes.`,
+    );
+  }
+}
+
 export async function buildContainerExecRequestProto(
   taskId: string,
   command: string[],
@@ -650,6 +677,65 @@ export async function buildContainerExecRequestProto(
   });
 }
 
+export function buildTaskExecStartRequestProto(
+  taskId: string,
+  execId: string,
+  command: string[],
+  params?: SandboxExecParams,
+): TaskExecStartRequest {
+  checkForRenamedParams(params, { timeout: "timeoutMs" });
+
+  if (params?.timeoutMs != undefined && params.timeoutMs <= 0) {
+    throw new Error(`timeoutMs must be positive, got ${params.timeoutMs}`);
+  }
+  if (params?.timeoutMs && params.timeoutMs % 1000 !== 0) {
+    throw new Error(
+      `timeoutMs must be a multiple of 1000ms, got ${params.timeoutMs}`,
+    );
+  }
+
+  const stdout = params?.stdout ?? "pipe";
+  const stderr = params?.stderr ?? "pipe";
+
+  let stdoutConfig: TaskExecStdoutConfig;
+  if (stdout === "pipe") {
+    stdoutConfig = TaskExecStdoutConfig.TASK_EXEC_STDOUT_CONFIG_PIPE;
+  } else if (stdout === "ignore") {
+    stdoutConfig = TaskExecStdoutConfig.TASK_EXEC_STDOUT_CONFIG_DEVNULL;
+  } else {
+    throw new Error(`Unsupported stdout behavior: ${stdout}`);
+  }
+
+  let stderrConfig: TaskExecStderrConfig;
+  if (stderr === "pipe") {
+    stderrConfig = TaskExecStderrConfig.TASK_EXEC_STDERR_CONFIG_PIPE;
+  } else if (stderr === "ignore") {
+    stderrConfig = TaskExecStderrConfig.TASK_EXEC_STDERR_CONFIG_DEVNULL;
+  } else {
+    throw new Error(`Unsupported stderr behavior: ${stderr}`);
+  }
+
+  let ptyInfo: PTYInfo | undefined;
+  if (params?.pty) {
+    ptyInfo = defaultSandboxPTYInfo();
+  }
+
+  const secretIds = (params?.secrets || []).map((secret) => secret.secretId);
+
+  return TaskExecStartRequest.create({
+    taskId,
+    execId,
+    commandArgs: command,
+    stdoutConfig,
+    stderrConfig,
+    timeoutSecs: params?.timeoutMs ? params.timeoutMs / 1000 : undefined,
+    workdir: params?.workdir,
+    secretIds,
+    ptyInfo,
+    runtimeDebug: false,
+  });
+}
+
 /** Sandboxes are secure, isolated containers in Modal that boot in seconds. */
 export class Sandbox {
   readonly #client: ModalClient;
@@ -660,6 +746,7 @@ export class Sandbox {
 
   #taskId: string | undefined;
   #tunnels: Record<number, Tunnel> | undefined;
+  #commandRouterClient: TaskCommandRouterClientImpl | null | undefined;
 
   /** @ignore */
   constructor(client: ModalClient, sandboxId: string) {
@@ -771,17 +858,20 @@ export class Sandbox {
   async exec(
     command: string[],
     params?: SandboxExecParams & { mode?: "text" },
-  ): Promise<ContainerProcess<string>>;
+  ): Promise<ContainerProcess<string> | ContainerProcessThroughRouter<string>>;
 
   async exec(
     command: string[],
     params: SandboxExecParams & { mode: "binary" },
-  ): Promise<ContainerProcess<Uint8Array>>;
+  ): Promise<
+    ContainerProcess<Uint8Array> | ContainerProcessThroughRouter<Uint8Array>
+  >;
 
   async exec(
     command: string[],
     params?: SandboxExecParams,
-  ): Promise<ContainerProcess> {
+  ): Promise<ContainerProcess | ContainerProcessThroughRouter> {
+    validateExecArgs(command);
     const taskId = await this.#getTaskId();
 
     const mergedSecrets = await mergeEnvIntoSecrets(
@@ -795,11 +885,25 @@ export class Sandbox {
       env: undefined, // setting env to undefined just to clarify it's not needed anymore
     };
 
-    const req = await buildContainerExecRequestProto(
-      taskId,
-      command,
-      mergedParams,
-    );
+    const commandRouterClient = await this.#getCommandRouterClient(taskId);
+    if (commandRouterClient) {
+      return await this.#execThroughCommandRouter(
+        command,
+        taskId,
+        commandRouterClient,
+        mergedParams,
+      );
+    } else {
+      return await this.#execThroughServer(command, taskId, mergedParams);
+    }
+  }
+
+  async #execThroughServer(
+    command: string[],
+    taskId: string,
+    params?: SandboxExecParams,
+  ): Promise<ContainerProcess> {
+    const req = await buildContainerExecRequestProto(taskId, command, params);
     const resp = await this.#client.cpClient.containerExec(req);
 
     this.#client.logger.debug(
@@ -812,6 +916,43 @@ export class Sandbox {
       command,
     );
     return new ContainerProcess(this.#client, resp.execId, params);
+  }
+
+  async #execThroughCommandRouter(
+    command: string[],
+    taskId: string,
+    commandRouterClient: TaskCommandRouterClientImpl,
+    params?: SandboxExecParams,
+  ): Promise<ContainerProcessThroughRouter> {
+    const execId = uuidv4();
+    const request = buildTaskExecStartRequestProto(
+      taskId,
+      execId,
+      command,
+      params,
+    );
+
+    await commandRouterClient.execStart(request);
+
+    this.#client.logger.debug(
+      "Created ContainerProcess via command router",
+      "exec_id",
+      execId,
+      "sandbox_id",
+      this.sandboxId,
+      "command",
+      command,
+    );
+
+    const deadline = params?.timeoutMs ? Date.now() + params.timeoutMs : null;
+
+    return new ContainerProcessThroughRouter(
+      taskId,
+      execId,
+      commandRouterClient,
+      params,
+      deadline,
+    );
   }
 
   async #getTaskId(): Promise<string> {
@@ -832,6 +973,20 @@ export class Sandbox {
       this.#taskId = resp.taskId;
     }
     return this.#taskId;
+  }
+
+  async #getCommandRouterClient(
+    taskId: string,
+  ): Promise<TaskCommandRouterClientImpl | null> {
+    if (this.#commandRouterClient === undefined) {
+      this.#commandRouterClient = await TaskCommandRouterClientImpl.tryInit(
+        this.#client.cpClient,
+        taskId,
+        this.#client.logger,
+        this.#client.profile,
+      );
+    }
+    return this.#commandRouterClient;
   }
 
   /**
@@ -1052,6 +1207,91 @@ export class ContainerProcess<R extends string | Uint8Array = any> {
   }
 }
 
+/** @ignore */
+export class ContainerProcessThroughRouter<
+  R extends string | Uint8Array = any,
+> {
+  stdin: ModalWriteStream<R>;
+  stdout: ModalReadStream<R>;
+  stderr: ModalReadStream<R>;
+  returncode: number | null = null;
+
+  readonly #taskId: string;
+  readonly #execId: string;
+  readonly #commandRouterClient: TaskCommandRouterClientImpl;
+  readonly #deadline: number | null;
+
+  constructor(
+    taskId: string,
+    execId: string,
+    commandRouterClient: TaskCommandRouterClientImpl,
+    params?: SandboxExecParams,
+    deadline?: number | null,
+  ) {
+    this.#taskId = taskId;
+    this.#execId = execId;
+    this.#commandRouterClient = commandRouterClient;
+    this.#deadline = deadline ?? null;
+
+    const mode = params?.mode ?? "text";
+    const stdout = params?.stdout ?? "pipe";
+    const stderr = params?.stderr ?? "pipe";
+
+    this.stdin = toModalWriteStream(
+      inputStreamRouter<R>(commandRouterClient, taskId, execId),
+    );
+
+    let stdoutStream = streamConsumingIter(
+      outputStreamRouter(
+        commandRouterClient,
+        taskId,
+        execId,
+        FileDescriptor.FILE_DESCRIPTOR_STDOUT,
+        this.#deadline,
+      ),
+    );
+    if (stdout === "ignore") {
+      stdoutStream.cancel();
+      stdoutStream = ReadableStream.from([]);
+    }
+
+    let stderrStream = streamConsumingIter(
+      outputStreamRouter(
+        commandRouterClient,
+        taskId,
+        execId,
+        FileDescriptor.FILE_DESCRIPTOR_STDERR,
+        this.#deadline,
+      ),
+    );
+    if (stderr === "ignore") {
+      stderrStream.cancel();
+      stderrStream = ReadableStream.from([]);
+    }
+
+    if (mode === "text") {
+      this.stdout = toModalReadStream(
+        stdoutStream.pipeThrough(new TextDecoderStream()),
+      ) as ModalReadStream<R>;
+      this.stderr = toModalReadStream(
+        stderrStream.pipeThrough(new TextDecoderStream()),
+      ) as ModalReadStream<R>;
+    } else {
+      this.stdout = toModalReadStream(stdoutStream) as ModalReadStream<R>;
+      this.stderr = toModalReadStream(stderrStream) as ModalReadStream<R>;
+    }
+  }
+
+  async wait(): Promise<number> {
+    const resp = await this.#commandRouterClient.execWait(
+      this.#taskId,
+      this.#execId,
+      this.#deadline,
+    );
+    return resp.code ?? 0;
+  }
+}
+
 // Like _StreamReader with object_type == "sandbox".
 async function* outputStreamSb(
   cpClient: ModalGrpcClient,
@@ -1173,4 +1413,51 @@ function inputStreamCp<R extends string | Uint8Array>(
 
 function encodeIfString(chunk: Uint8Array | string): Uint8Array {
   return typeof chunk === "string" ? new TextEncoder().encode(chunk) : chunk;
+}
+
+async function* outputStreamRouter(
+  commandRouterClient: TaskCommandRouterClientImpl,
+  taskId: string,
+  execId: string,
+  fileDescriptor: FileDescriptor,
+  deadline: number | null,
+): AsyncIterable<Uint8Array> {
+  for await (const batch of commandRouterClient.execStdioRead(
+    taskId,
+    execId,
+    fileDescriptor,
+    deadline,
+  )) {
+    yield batch.data;
+  }
+}
+
+function inputStreamRouter<R extends string | Uint8Array>(
+  commandRouterClient: TaskCommandRouterClientImpl,
+  taskId: string,
+  execId: string,
+): WritableStream<R> {
+  let offset = 0;
+  return new WritableStream<R>({
+    async write(chunk) {
+      const data = encodeIfString(chunk);
+      await commandRouterClient.execStdinWrite(
+        taskId,
+        execId,
+        offset,
+        data,
+        false,
+      );
+      offset += data.length;
+    },
+    async close() {
+      await commandRouterClient.execStdinWrite(
+        taskId,
+        execId,
+        offset,
+        new Uint8Array(0),
+        true,
+      );
+    },
+  });
 }
