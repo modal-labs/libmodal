@@ -398,7 +398,9 @@ export class TaskCommandRouterClientImpl {
     let delayMs = 10;
     const delayFactor = 2;
     let numRetriesRemaining = 10;
-    let numAuthRetries = 0;
+    // Flag to prevent infinite auth retries in the event that the JWT
+    // refresh yields an invalid JWT somehow or that the JWT is otherwise invalid.
+    let didAuthRetry = false;
 
     const retryableStatusCodes = new Set([
       Status.DEADLINE_EXCEEDED,
@@ -426,7 +428,10 @@ export class TaskCommandRouterClientImpl {
 
         try {
           for await (const item of stream) {
-            numAuthRetries = 0;
+            // We successfully authenticated after a JWT refresh, reset the auth retry flag.
+            if (didAuthRetry) {
+              didAuthRetry = false;
+            }
             delayMs = 10;
             offset += item.data.length;
             yield item;
@@ -436,10 +441,12 @@ export class TaskCommandRouterClientImpl {
           if (
             err instanceof ClientError &&
             err.code === Status.UNAUTHENTICATED &&
-            numAuthRetries < 1
+            !didAuthRetry
           ) {
             await this.refreshJwt();
-            numAuthRetries++;
+            // Mark that we've retried authentication for this streaming attempt, to
+            // prevent subsequent retries.
+            didAuthRetry = true;
             continue;
           }
           throw err;
