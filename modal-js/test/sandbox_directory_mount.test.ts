@@ -67,10 +67,13 @@ test("SandboxSnapshotDirectory", async () => {
 
   await sb1.terminate();
 
-  const sb2 = await tc.sandboxes.create(app, snapshotImage);
+  const sb2 = await tc.sandboxes.create(app, baseImage);
   onTestFinished(async () => await sb2.terminate());
 
-  const catProc = await sb2.exec(["cat", "/snapshot.txt"]);
+  await (await sb2.exec(["mkdir", "-p", "/mnt/data"])).wait();
+  await sb2.mountDirectory("/mnt/data", snapshotImage);
+
+  const catProc = await sb2.exec(["cat", "/mnt/data/snapshot.txt"]);
   const output = await catProc.stdout.readText();
   expect(output).toBe("snapshot test content");
 });
