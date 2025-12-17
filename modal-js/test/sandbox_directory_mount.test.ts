@@ -5,7 +5,7 @@ test("SandboxMountDirectoryEmpty", async () => {
   const app = await tc.apps.fromName("libmodal-test", {
     createIfMissing: true,
   });
-  const image = tc.images.fromRegistry("alpine:3.21");
+  const image = tc.images.fromRegistry("debian:12-slim");
 
   const sb = await tc.sandboxes.create(app, image);
   onTestFinished(async () => await sb.terminate());
@@ -20,7 +20,7 @@ test("SandboxMountDirectoryWithImage", async () => {
   const app = await tc.apps.fromName("libmodal-test", {
     createIfMissing: true,
   });
-  const baseImage = tc.images.fromRegistry("alpine:3.21");
+  const baseImage = tc.images.fromRegistry("debian:12-slim");
 
   const sb1 = await tc.sandboxes.create(app, baseImage);
   onTestFinished(async () => await sb1.terminate());
@@ -46,7 +46,7 @@ test("SandboxSnapshotDirectory", async () => {
   const app = await tc.apps.fromName("libmodal-test", {
     createIfMissing: true,
   });
-  const baseImage = tc.images.fromRegistry("alpine:3.21");
+  const baseImage = tc.images.fromRegistry("debian:12-slim");
 
   const sb1 = await tc.sandboxes.create(app, baseImage);
   onTestFinished(async () => await sb1.terminate());
