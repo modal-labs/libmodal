@@ -10,6 +10,7 @@ test("SandboxMountDirectoryEmpty", async () => {
   const sb = await tc.sandboxes.create(app, image);
   onTestFinished(async () => await sb.terminate());
 
+  await (await sb.exec(["mkdir", "-p", "/mnt/empty"])).wait();
   await sb.mountDirectory("/mnt/empty");
 
   const dirCheck = await sb.exec(["test", "-d", "/mnt/empty"]);
@@ -35,6 +36,7 @@ test("SandboxMountDirectoryWithImage", async () => {
   const sb2 = await tc.sandboxes.create(app, baseImage);
   onTestFinished(async () => await sb2.terminate());
 
+  await (await sb2.exec(["mkdir", "-p", "/mnt/data"])).wait();
   await sb2.mountDirectory("/mnt/data", mountImage);
 
   const catProc = await sb2.exec(["cat", "/mnt/data/tmp/test.txt"]);
@@ -51,6 +53,7 @@ test("SandboxSnapshotDirectory", async () => {
   const sb1 = await tc.sandboxes.create(app, baseImage);
   onTestFinished(async () => await sb1.terminate());
 
+  await (await sb1.exec(["mkdir", "-p", "/mnt/data"])).wait();
   await sb1.mountDirectory("/mnt/data");
 
   await sb1.exec([
