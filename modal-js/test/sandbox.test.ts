@@ -905,3 +905,70 @@ test.each([
     ).toThrow(expectedError);
   },
 );
+
+test("SandboxExecStdinStdout", async () => {
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
+  const image = tc.images.fromRegistry("alpine:3.21");
+  const sb = await tc.sandboxes.create(app, image);
+  onTestFinished(async () => await sb.terminate());
+
+  const p = await sb.exec(["sh", "-c", "while read line; do echo $line; done"]);
+  await p.stdin.writeText("foo\n");
+  await p.stdin.writeText("bar\n");
+  await p.stdin.close();
+  expect(await p.stdout.readText()).toBe("foo\nbar\n");
+});
+
+test("SandboxExecWaitExitCode", async () => {
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
+  const image = tc.images.fromRegistry("alpine:3.21");
+  const sb = await tc.sandboxes.create(app, image);
+  onTestFinished(async () => await sb.terminate());
+
+  const p = await sb.exec(["sh", "-c", "exit 42"]);
+  expect(await p.wait()).toBe(42);
+});
+
+test("SandboxExecDoubleRead", async () => {
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
+  const image = tc.images.fromRegistry("alpine:3.21");
+  const sb = await tc.sandboxes.create(app, image);
+  onTestFinished(async () => await sb.terminate());
+
+  const p = await sb.exec(["echo", "hello"]);
+  expect(await p.stdout.readText()).toBe("hello\n");
+  expect(await p.stdout.readText()).toBe("");
+  expect(await p.wait()).toBe(0);
+});
+
+test("SandboxExecBinaryMode", async () => {
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
+  const image = tc.images.fromRegistry("alpine:3.21");
+  const sb = await tc.sandboxes.create(app, image);
+  onTestFinished(async () => await sb.terminate());
+
+  const p = await sb.exec(["printf", "\\x01\\x02\\x03"], { mode: "binary" });
+  const bytes = await p.stdout.readBytes();
+  expect(bytes).toEqual(new Uint8Array([0x01, 0x02, 0x03]));
+  expect(await p.wait()).toBe(0);
+});
+
+test("SandboxExecWithPty", async () => {
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
+  const image = tc.images.fromRegistry("alpine:3.21");
+  const sb = await tc.sandboxes.create(app, image);
+  onTestFinished(async () => await sb.terminate());
+
+  const p = await sb.exec(["echo", "hello"], { pty: true });
+  expect(await p.wait()).toBe(0);
+});
