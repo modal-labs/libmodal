@@ -1156,29 +1156,27 @@ export class ContainerProcess<R extends string | Uint8Array = any> {
 
     this.stdin = toModalWriteStream(inputStreamCp<R>(client.cpClient, execId));
 
-    let stdoutStream = streamConsumingIter(
-      outputStreamCp(
-        client.cpClient,
-        execId,
-        FileDescriptor.FILE_DESCRIPTOR_STDOUT,
-      ),
-    );
-    if (stdout === "ignore") {
-      stdoutStream.cancel();
-      stdoutStream = ReadableStream.from([]);
-    }
+    const stdoutStream =
+      stdout === "ignore"
+        ? ReadableStream.from([])
+        : streamConsumingIter(
+            outputStreamCp(
+              client.cpClient,
+              execId,
+              FileDescriptor.FILE_DESCRIPTOR_STDOUT,
+            ),
+          );
 
-    let stderrStream = streamConsumingIter(
-      outputStreamCp(
-        client.cpClient,
-        execId,
-        FileDescriptor.FILE_DESCRIPTOR_STDERR,
-      ),
-    );
-    if (stderr === "ignore") {
-      stderrStream.cancel();
-      stderrStream = ReadableStream.from([]);
-    }
+    const stderrStream =
+      stderr === "ignore"
+        ? ReadableStream.from([])
+        : streamConsumingIter(
+            outputStreamCp(
+              client.cpClient,
+              execId,
+              FileDescriptor.FILE_DESCRIPTOR_STDERR,
+            ),
+          );
 
     if (mode === "text") {
       this.stdout = toModalReadStream(
@@ -1446,7 +1444,7 @@ function inputStreamRouter<R extends string | Uint8Array>(
         execId,
         offset,
         data,
-        false,
+        false, // eof
       );
       offset += data.length;
     },
@@ -1456,7 +1454,7 @@ function inputStreamRouter<R extends string | Uint8Array>(
         execId,
         offset,
         new Uint8Array(0),
-        true,
+        true, // eof
       );
     },
   });
