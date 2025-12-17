@@ -26,7 +26,12 @@ test("SandboxMountDirectoryWithImage", async () => {
   const sb1 = await tc.sandboxes.create(app, baseImage);
   onTestFinished(async () => await sb1.terminate());
 
-  await sb1.exec(["sh", "-c", "echo -n 'mounted content' > /tmp/test.txt"]);
+  const echoProc = await sb1.exec([
+    "sh",
+    "-c",
+    "echo -n 'mounted content' > /tmp/test.txt",
+  ]);
+  await echoProc.wait();
 
   const mountImage = await sb1.snapshotFilesystem();
   expect(mountImage.imageId).toMatch(/^im-/);
@@ -56,11 +61,12 @@ test("SandboxSnapshotDirectory", async () => {
   await (await sb1.exec(["mkdir", "-p", "/mnt/data"])).wait();
   await sb1.mountDirectory("/mnt/data");
 
-  await sb1.exec([
+  const echoProc = await sb1.exec([
     "sh",
     "-c",
     "echo -n 'snapshot test content' > /mnt/data/snapshot.txt",
   ]);
+  await echoProc.wait();
 
   const snapshotImage = await sb1.snapshotDirectory("/mnt/data");
   expect(snapshotImage.imageId).toMatch(/^im-/);
