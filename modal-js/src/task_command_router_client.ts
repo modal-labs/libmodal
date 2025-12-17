@@ -22,6 +22,9 @@ import {
   TaskExecStdioReadResponse,
   TaskExecWaitRequest,
   TaskExecWaitResponse,
+  TaskMountDirectoryRequest,
+  TaskSnapshotDirectoryRequest,
+  TaskSnapshotDirectoryResponse,
 } from "../proto/modal_proto/task_command_router";
 import {
   TaskGetCommandRouterAccessRequest,
@@ -340,6 +343,20 @@ export class TaskCommandRouterClientImpl {
       }
       throw err;
     }
+  }
+
+  async mountDirectory(request: TaskMountDirectoryRequest): Promise<void> {
+    await callWithRetriesOnTransientErrors(() =>
+      this.callWithAuthRetry(() => this.stub.taskMountDirectory(request)),
+    );
+  }
+
+  async snapshotDirectory(
+    request: TaskSnapshotDirectoryRequest,
+  ): Promise<TaskSnapshotDirectoryResponse> {
+    return await callWithRetriesOnTransientErrors(() =>
+      this.callWithAuthRetry(() => this.stub.taskSnapshotDirectory(request)),
+    );
   }
 
   private async refreshJwt(): Promise<void> {
