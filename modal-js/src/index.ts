@@ -70,12 +70,7 @@ export type {
   SandboxListParams,
   SandboxCreateParams,
 } from "./sandbox";
-export {
-  ContainerProcess,
-  ContainerProcessThroughRouter,
-  Sandbox,
-  SandboxService,
-} from "./sandbox";
+export { ContainerProcess, Sandbox, SandboxService } from "./sandbox";
 export type { ModalReadStream, ModalWriteStream } from "./streams";
 export {
   Secret,

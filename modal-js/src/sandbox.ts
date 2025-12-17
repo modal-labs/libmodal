@@ -5,7 +5,6 @@ import {
   GenericResult_GenericStatus,
   PTYInfo,
   PTYInfo_PTYType,
-  ContainerExecRequest,
   SandboxTagsGetResponse,
   SandboxCreateRequest,
   NetworkAccess,
@@ -644,39 +643,6 @@ export function validateExecArgs(args: string[]): void {
   }
 }
 
-export async function buildContainerExecRequestProto(
-  taskId: string,
-  command: string[],
-  params?: SandboxExecParams,
-): Promise<ContainerExecRequest> {
-  checkForRenamedParams(params, { timeout: "timeoutMs" });
-
-  if (params?.timeoutMs != undefined && params.timeoutMs <= 0) {
-    throw new Error(`timeoutMs must be positive, got ${params.timeoutMs}`);
-  }
-  if (params?.timeoutMs && params.timeoutMs % 1000 !== 0) {
-    throw new Error(
-      `timeoutMs must be a multiple of 1000ms, got ${params.timeoutMs}`,
-    );
-  }
-
-  const secretIds = (params?.secrets || []).map((secret) => secret.secretId);
-
-  let ptyInfo: PTYInfo | undefined;
-  if (params?.pty) {
-    ptyInfo = defaultSandboxPTYInfo();
-  }
-
-  return ContainerExecRequest.create({
-    taskId,
-    command,
-    workdir: params?.workdir,
-    timeoutSecs: params?.timeoutMs ? params.timeoutMs / 1000 : 0,
-    secretIds,
-    ptyInfo,
-  });
-}
-
 export function buildTaskExecStartRequestProto(
   taskId: string,
   execId: string,
@@ -693,6 +659,8 @@ export function buildTaskExecStartRequestProto(
       `timeoutMs must be a multiple of 1000ms, got ${params.timeoutMs}`,
     );
   }
+
+  const secretIds = (params?.secrets || []).map((secret) => secret.secretId);
 
   const stdout = params?.stdout ?? "pipe";
   const stderr = params?.stderr ?? "pipe";
@@ -720,8 +688,6 @@ export function buildTaskExecStartRequestProto(
     ptyInfo = defaultSandboxPTYInfo();
   }
 
-  const secretIds = (params?.secrets || []).map((secret) => secret.secretId);
-
   return TaskExecStartRequest.create({
     taskId,
     execId,
@@ -746,7 +712,7 @@ export class Sandbox {
 
   #taskId: string | undefined;
   #tunnels: Record<number, Tunnel> | undefined;
-  #commandRouterClient: TaskCommandRouterClientImpl | null | undefined;
+  #commandRouterClient: TaskCommandRouterClientImpl | undefined;
 
   /** @ignore */
   constructor(client: ModalClient, sandboxId: string) {
@@ -858,19 +824,17 @@ export class Sandbox {
   async exec(
     command: string[],
     params?: SandboxExecParams & { mode?: "text" },
-  ): Promise<ContainerProcess<string> | ContainerProcessThroughRouter<string>>;
+  ): Promise<ContainerProcess<string>>;
 
   async exec(
     command: string[],
     params: SandboxExecParams & { mode: "binary" },
-  ): Promise<
-    ContainerProcess<Uint8Array> | ContainerProcessThroughRouter<Uint8Array>
-  >;
+  ): Promise<ContainerProcess<Uint8Array>>;
 
   async exec(
     command: string[],
     params?: SandboxExecParams,
-  ): Promise<ContainerProcess | ContainerProcessThroughRouter> {
+  ): Promise<ContainerProcess> {
     validateExecArgs(command);
     const taskId = await this.#getTaskId();
 
@@ -885,57 +849,21 @@ export class Sandbox {
       env: undefined, // setting env to undefined just to clarify it's not needed anymore
     };
 
-    const commandRouterClient = await this.#getCommandRouterClient(taskId);
-    if (commandRouterClient) {
-      return await this.#execThroughCommandRouter(
-        command,
-        taskId,
-        commandRouterClient,
-        mergedParams,
-      );
-    } else {
-      return await this.#execThroughServer(command, taskId, mergedParams);
-    }
-  }
+    const commandRouterClient =
+      await this.#getOrCreateCommandRouterClient(taskId);
 
-  async #execThroughServer(
-    command: string[],
-    taskId: string,
-    params?: SandboxExecParams,
-  ): Promise<ContainerProcess> {
-    const req = await buildContainerExecRequestProto(taskId, command, params);
-    const resp = await this.#client.cpClient.containerExec(req);
-
-    this.#client.logger.debug(
-      "Created ContainerProcess",
-      "exec_id",
-      resp.execId,
-      "sandbox_id",
-      this.sandboxId,
-      "command",
-      command,
-    );
-    return new ContainerProcess(this.#client, resp.execId, params);
-  }
-
-  async #execThroughCommandRouter(
-    command: string[],
-    taskId: string,
-    commandRouterClient: TaskCommandRouterClientImpl,
-    params?: SandboxExecParams,
-  ): Promise<ContainerProcessThroughRouter> {
     const execId = uuidv4();
     const request = buildTaskExecStartRequestProto(
       taskId,
       execId,
       command,
-      params,
+      mergedParams,
     );
 
     await commandRouterClient.execStart(request);
 
     this.#client.logger.debug(
-      "Created ContainerProcess via command router",
+      "Created ContainerProcess",
       "exec_id",
       execId,
       "sandbox_id",
@@ -944,13 +872,15 @@ export class Sandbox {
       command,
     );
 
-    const deadline = params?.timeoutMs ? Date.now() + params.timeoutMs : null;
+    const deadline = mergedParams?.timeoutMs
+      ? Date.now() + mergedParams.timeoutMs
+      : null;
 
-    return new ContainerProcessThroughRouter(
+    return new ContainerProcess(
       taskId,
       execId,
       commandRouterClient,
-      params,
+      mergedParams,
       deadline,
     );
   }
@@ -975,16 +905,22 @@ export class Sandbox {
     return this.#taskId;
   }
 
-  async #getCommandRouterClient(
+  async #getOrCreateCommandRouterClient(
     taskId: string,
-  ): Promise<TaskCommandRouterClientImpl | null> {
+  ): Promise<TaskCommandRouterClientImpl> {
     if (this.#commandRouterClient === undefined) {
-      this.#commandRouterClient = await TaskCommandRouterClientImpl.tryInit(
+      const client = await TaskCommandRouterClientImpl.tryInit(
         this.#client.cpClient,
         taskId,
         this.#client.logger,
         this.#client.profile,
       );
+      if (!client) {
+        throw new Error(
+          "Command router access is not available for this sandbox",
+        );
+      }
+      this.#commandRouterClient = client;
     }
     return this.#commandRouterClient;
   }
@@ -1142,76 +1078,6 @@ export class ContainerProcess<R extends string | Uint8Array = any> {
   stdout: ModalReadStream<R>;
   stderr: ModalReadStream<R>;
 
-  readonly #client: ModalClient;
-  readonly #execId: string;
-
-  constructor(client: ModalClient, execId: string, params?: SandboxExecParams) {
-    this.#client = client;
-    const mode = params?.mode ?? "text";
-    const stdout = params?.stdout ?? "pipe";
-    const stderr = params?.stderr ?? "pipe";
-
-    this.#execId = execId;
-
-    this.stdin = toModalWriteStream(inputStreamCp<R>(client.cpClient, execId));
-
-    const stdoutStream =
-      stdout === "ignore"
-        ? ReadableStream.from([])
-        : streamConsumingIter(
-            outputStreamCp(
-              client.cpClient,
-              execId,
-              FileDescriptor.FILE_DESCRIPTOR_STDOUT,
-            ),
-          );
-
-    const stderrStream =
-      stderr === "ignore"
-        ? ReadableStream.from([])
-        : streamConsumingIter(
-            outputStreamCp(
-              client.cpClient,
-              execId,
-              FileDescriptor.FILE_DESCRIPTOR_STDERR,
-            ),
-          );
-
-    if (mode === "text") {
-      this.stdout = toModalReadStream(
-        stdoutStream.pipeThrough(new TextDecoderStream()),
-      ) as ModalReadStream<R>;
-      this.stderr = toModalReadStream(
-        stderrStream.pipeThrough(new TextDecoderStream()),
-      ) as ModalReadStream<R>;
-    } else {
-      this.stdout = toModalReadStream(stdoutStream) as ModalReadStream<R>;
-      this.stderr = toModalReadStream(stderrStream) as ModalReadStream<R>;
-    }
-  }
-
-  /** Wait for process completion and return the exit code. */
-  async wait(): Promise<number> {
-    while (true) {
-      const resp = await this.#client.cpClient.containerExecWait({
-        execId: this.#execId,
-        timeout: 55,
-      });
-      if (resp.completed) {
-        return resp.exitCode ?? 0;
-      }
-    }
-  }
-}
-
-/** @ignore */
-export class ContainerProcessThroughRouter<
-  R extends string | Uint8Array = any,
-> {
-  stdin: ModalWriteStream<R>;
-  stdout: ModalReadStream<R>;
-  stderr: ModalReadStream<R>;
-
   readonly #taskId: string;
   readonly #execId: string;
   readonly #commandRouterClient: TaskCommandRouterClientImpl;
@@ -1234,11 +1100,11 @@ export class ContainerProcessThroughRouter<
     const stderr = params?.stderr ?? "pipe";
 
     this.stdin = toModalWriteStream(
-      inputStreamRouter<R>(commandRouterClient, taskId, execId),
+      inputStreamCp<R>(commandRouterClient, taskId, execId),
     );
 
     let stdoutStream = streamConsumingIter(
-      outputStreamRouter(
+      outputStreamCp(
         commandRouterClient,
         taskId,
         execId,
@@ -1252,7 +1118,7 @@ export class ContainerProcessThroughRouter<
     }
 
     let stderrStream = streamConsumingIter(
-      outputStreamRouter(
+      outputStreamCp(
         commandRouterClient,
         taskId,
         execId,
@@ -1278,6 +1144,7 @@ export class ContainerProcessThroughRouter<
     }
   }
 
+  /** Wait for process completion and return the exit code. */
   async wait(): Promise<number> {
     const resp = await this.#commandRouterClient.execWait(
       this.#taskId,
@@ -1320,41 +1187,6 @@ async function* outputStreamSb(
   }
 }
 
-// Like _StreamReader with object_type == "container_process".
-async function* outputStreamCp(
-  cpClient: ModalGrpcClient,
-  execId: string,
-  fileDescriptor: FileDescriptor,
-): AsyncIterable<Uint8Array> {
-  let lastIndex = 0;
-  let completed = false;
-  let retries = 10;
-  while (!completed) {
-    try {
-      const outputIterator = cpClient.containerExecGetOutput({
-        execId,
-        fileDescriptor,
-        timeout: 55,
-        getRawBytes: true,
-        lastBatchIndex: lastIndex,
-      });
-      for await (const batch of outputIterator) {
-        lastIndex = batch.batchIndex;
-        yield* batch.items.map((item) => item.messageBytes);
-        if (batch.exitCode !== undefined) {
-          // The container process exited. Python code also doesn't handle this
-          // exit code, so we don't either right now.
-          completed = true;
-          break;
-        }
-      }
-    } catch (err) {
-      if (isRetryableGrpc(err) && retries > 0) retries--;
-      else throw err;
-    }
-  }
-}
-
 function inputStreamSb(
   cpClient: ModalGrpcClient,
   sandboxId: string,
@@ -1379,39 +1211,7 @@ function inputStreamSb(
   });
 }
 
-function inputStreamCp<R extends string | Uint8Array>(
-  cpClient: ModalGrpcClient,
-  execId: string,
-): WritableStream<R> {
-  let messageIndex = 1;
-  return new WritableStream<R>({
-    async write(chunk) {
-      await cpClient.containerExecPutInput({
-        execId,
-        input: {
-          message: encodeIfString(chunk),
-          messageIndex,
-        },
-      });
-      messageIndex++;
-    },
-    async close() {
-      await cpClient.containerExecPutInput({
-        execId,
-        input: {
-          messageIndex,
-          eof: true,
-        },
-      });
-    },
-  });
-}
-
-function encodeIfString(chunk: Uint8Array | string): Uint8Array {
-  return typeof chunk === "string" ? new TextEncoder().encode(chunk) : chunk;
-}
-
-async function* outputStreamRouter(
+async function* outputStreamCp(
   commandRouterClient: TaskCommandRouterClientImpl,
   taskId: string,
   execId: string,
@@ -1428,7 +1228,7 @@ async function* outputStreamRouter(
   }
 }
 
-function inputStreamRouter<R extends string | Uint8Array>(
+function inputStreamCp<R extends string | Uint8Array>(
   commandRouterClient: TaskCommandRouterClientImpl,
   taskId: string,
   execId: string,
@@ -1456,4 +1256,8 @@ function inputStreamRouter<R extends string | Uint8Array>(
       );
     },
   });
+}
+
+function encodeIfString(chunk: Uint8Array | string): Uint8Array {
+  return typeof chunk === "string" ? new TextEncoder().encode(chunk) : chunk;
 }
