@@ -1141,7 +1141,6 @@ export class ContainerProcess<R extends string | Uint8Array = any> {
   stdin: ModalWriteStream<R>;
   stdout: ModalReadStream<R>;
   stderr: ModalReadStream<R>;
-  returncode: number | null = null;
 
   readonly #client: ModalClient;
   readonly #execId: string;
@@ -1212,7 +1211,6 @@ export class ContainerProcessThroughRouter<
   stdin: ModalWriteStream<R>;
   stdout: ModalReadStream<R>;
   stderr: ModalReadStream<R>;
-  returncode: number | null = null;
 
   readonly #taskId: string;
   readonly #execId: string;
