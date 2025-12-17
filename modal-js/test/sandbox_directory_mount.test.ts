@@ -11,7 +11,7 @@ test("SandboxMountDirectoryEmpty", async () => {
   onTestFinished(async () => await sb.terminate());
 
   await (await sb.exec(["mkdir", "-p", "/mnt/empty"])).wait();
-  await sb.mountDirectory("/mnt/empty");
+  await sb.experimentalMountImage("/mnt/empty");
 
   const dirCheck = await sb.exec(["test", "-d", "/mnt/empty"]);
   expect(await dirCheck.wait()).toBe(0);
@@ -42,7 +42,7 @@ test("SandboxMountDirectoryWithImage", async () => {
   onTestFinished(async () => await sb2.terminate());
 
   await (await sb2.exec(["mkdir", "-p", "/mnt/data"])).wait();
-  await sb2.mountDirectory("/mnt/data", mountImage);
+  await sb2.experimentalMountImage("/mnt/data", mountImage);
 
   const catProc = await sb2.exec(["cat", "/mnt/data/tmp/test.txt"]);
   const output = await catProc.stdout.readText();
@@ -59,7 +59,7 @@ test("SandboxSnapshotDirectory", async () => {
   onTestFinished(async () => await sb1.terminate());
 
   await (await sb1.exec(["mkdir", "-p", "/mnt/data"])).wait();
-  await sb1.mountDirectory("/mnt/data");
+  await sb1.experimentalMountImage("/mnt/data");
 
   const echoProc = await sb1.exec([
     "sh",
@@ -68,7 +68,7 @@ test("SandboxSnapshotDirectory", async () => {
   ]);
   await echoProc.wait();
 
-  const snapshotImage = await sb1.snapshotDirectory("/mnt/data");
+  const snapshotImage = await sb1.experimentalSnapshotDirectory("/mnt/data");
   expect(snapshotImage.imageId).toMatch(/^im-/);
 
   await sb1.terminate();
@@ -77,7 +77,7 @@ test("SandboxSnapshotDirectory", async () => {
   onTestFinished(async () => await sb2.terminate());
 
   await (await sb2.exec(["mkdir", "-p", "/mnt/data"])).wait();
-  await sb2.mountDirectory("/mnt/data", snapshotImage);
+  await sb2.experimentalMountImage("/mnt/data", snapshotImage);
 
   const catProc = await sb2.exec(["cat", "/mnt/data/snapshot.txt"]);
   const output = await catProc.stdout.readText();

@@ -1038,14 +1038,10 @@ export class Sandbox {
    * @param path - The path where the directory should be mounted
    * @param image - Optional {@link Image} to mount. If undefined, mounts an empty directory.
    */
-  async mountDirectory(path: string, image?: Image): Promise<void> {
+  async experimentalMountImage(path: string, image?: Image): Promise<void> {
     const taskId = await this.#getTaskId();
-    const commandRouterClient = await this.#getCommandRouterClient(taskId);
-    if (!commandRouterClient) {
-      throw new InvalidError(
-        "Mounting directories it not enabled - please contact Modal support",
-      );
-    }
+    const commandRouterClient =
+      await this.#getOrCreateCommandRouterClient(taskId);
 
     const pathBytes = new TextEncoder().encode(path);
     const imageId = image?.imageId ?? "";
@@ -1064,14 +1060,10 @@ export class Sandbox {
    * @param path - The path of the directory to snapshot
    * @returns Promise that resolves to an {@link Image}
    */
-  async snapshotDirectory(path: string): Promise<Image> {
+  async experimentalSnapshotDirectory(path: string): Promise<Image> {
     const taskId = await this.#getTaskId();
-    const commandRouterClient = await this.#getCommandRouterClient(taskId);
-    if (!commandRouterClient) {
-      throw new InvalidError(
-        "Snapshotting directories it not enabled - please contact Modal support",
-      );
-    }
+    const commandRouterClient =
+      await this.#getOrCreateCommandRouterClient(taskId);
 
     const pathBytes = new TextEncoder().encode(path);
     const request = TaskSnapshotDirectoryRequest.create({
