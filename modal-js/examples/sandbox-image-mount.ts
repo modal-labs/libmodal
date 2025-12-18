@@ -1,7 +1,20 @@
-// This example shows how to use Image mounts and directory snapshots in Sandboxes.
-// First, we mount an empty image at a directory, clone a git repo into it, and
-// take a snapshot. Then we create a new Sandbox and mount the snapshot, showing
-// how you can persist and reuse directory state across Sandboxes.
+// This example shows how to mount Images in the Sandbox filesystem and take snapshots
+// of them.
+//
+// The feature is still experimental in the sense that the API is subject to change.
+//
+// High level, it allows you to:
+// - Mount any Modal Image at a specific directory within the Sandbox filesystem.
+// - Take a snapshot of that directory, which will create a new Modal Image with
+//   the updated contents of the directory.
+//
+// You can only snapshot directories that have previously been mounted using
+// `Sandbox.experimentalMountImage`. If you want to mount an empty directory,
+// you can pass undefined as the image parameter.
+//
+// For exmaple, you can use this to mount user specific dependencies into a running
+// Sandbox, that is started with a base Image with shared system dependencies. This
+// way, you can update system dependencies and user projects independently.
 
 import { ModalClient } from "modal";
 
@@ -10,6 +23,7 @@ const modal = new ModalClient();
 const app = await modal.apps.fromName("libmodal-example", {
   createIfMissing: true,
 });
+// The base Image you use for the Sandbox must have a /usr/bin/mount binary.
 const baseImage = modal.images.fromRegistry("debian:12-slim");
 
 const sb = await modal.sandboxes.create(app, baseImage);
