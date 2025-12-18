@@ -1103,33 +1103,31 @@ export class ContainerProcess<R extends string | Uint8Array = any> {
       inputStreamCp<R>(commandRouterClient, taskId, execId),
     );
 
-    let stdoutStream = streamConsumingIter(
-      outputStreamCp(
-        commandRouterClient,
-        taskId,
-        execId,
-        FileDescriptor.FILE_DESCRIPTOR_STDOUT,
-        this.#deadline,
-      ),
-    );
-    if (stdout === "ignore") {
-      stdoutStream.cancel();
-      stdoutStream = ReadableStream.from([]);
-    }
+    const stdoutStream =
+      stdout === "ignore"
+        ? ReadableStream.from([])
+        : streamConsumingIter(
+            outputStreamCp(
+              commandRouterClient,
+              taskId,
+              execId,
+              FileDescriptor.FILE_DESCRIPTOR_STDOUT,
+              this.#deadline,
+            ),
+          );
 
-    let stderrStream = streamConsumingIter(
-      outputStreamCp(
-        commandRouterClient,
-        taskId,
-        execId,
-        FileDescriptor.FILE_DESCRIPTOR_STDERR,
-        this.#deadline,
-      ),
-    );
-    if (stderr === "ignore") {
-      stderrStream.cancel();
-      stderrStream = ReadableStream.from([]);
-    }
+    const stderrStream =
+      stderr === "ignore"
+        ? ReadableStream.from([])
+        : streamConsumingIter(
+            outputStreamCp(
+              commandRouterClient,
+              taskId,
+              execId,
+              FileDescriptor.FILE_DESCRIPTOR_STDERR,
+              this.#deadline,
+            ),
+          );
 
     if (mode === "text") {
       this.stdout = toModalReadStream(
