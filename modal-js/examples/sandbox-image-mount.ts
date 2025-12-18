@@ -65,3 +65,4 @@ console.log(
 );
 
 await sb2.terminate();
+await modal.images.delete(repoSnapshot.imageId);
