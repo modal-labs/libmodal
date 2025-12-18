@@ -1071,6 +1071,11 @@ export class Sandbox {
       path: pathBytes,
     });
     const response = await commandRouterClient.snapshotDirectory(request);
+
+    if (!response.imageId) {
+      throw new Error("Sandbox snapshot directory response missing `imageId`");
+    }
+
     return new Image(this.#client, response.imageId, "");
   }
 
