@@ -941,3 +941,54 @@ test("SandboxExecWithPty", async () => {
   const p = await sb.exec(["echo", "hello"], { pty: true });
   expect(await p.wait()).toBe(0);
 });
+
+test("SandboxExecWaitTimeout", async () => {
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
+  const image = tc.images.fromRegistry("alpine:3.21");
+  const sb = await tc.sandboxes.create(app, image);
+  onTestFinished(async () => await sb.terminate());
+
+  const p = await sb.exec(["sleep", "999"], { timeoutMs: 1000 });
+  const t0 = Date.now();
+  const exitCode = await p.wait();
+  const elapsed = Date.now() - t0;
+
+  expect(elapsed).toBeGreaterThan(800);
+  expect(elapsed).toBeLessThan(1500);
+  expect(exitCode).toBe(0);
+});
+
+test("SandboxExecOutputTimeout", async () => {
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
+  const image = tc.images.fromRegistry("alpine:3.21");
+  const sb = await tc.sandboxes.create(app, image);
+  onTestFinished(async () => await sb.terminate());
+
+  const t0 = Date.now();
+  const p = await sb.exec(["sh", "-c", "echo hi; sleep 999"], {
+    timeoutMs: 1000,
+  });
+
+  // Read stdout and wait - deadline may be exceeded during either operation
+  try {
+    const output = await p.stdout.readText();
+    expect(output).toBe("hi\n");
+
+    const elapsed = Date.now() - t0;
+    expect(elapsed).toBeGreaterThan(1000);
+    expect(elapsed).toBeLessThan(3000);
+
+    const exitCode = await p.wait();
+    expect(exitCode).toBe(0);
+  } catch (error) {
+    expect(String(error)).toMatch(/Deadline exceeded/);
+
+    const elapsed = Date.now() - t0;
+    expect(elapsed).toBeGreaterThan(1000);
+    expect(elapsed).toBeLessThan(3000);
+  }
+});
