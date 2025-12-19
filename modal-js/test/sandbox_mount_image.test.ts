@@ -83,3 +83,22 @@ test("SandboxSnapshotDirectory", async () => {
   const output = await catProc.stdout.readText();
   expect(output).toBe("snapshot test content");
 });
+
+test("SandboxMountDirectoryWithUnbuiltImageThrows", async () => {
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
+  const baseImage = tc.images.fromRegistry("debian:12-slim");
+
+  const sb = await tc.sandboxes.create(app, baseImage);
+  onTestFinished(async () => await sb.terminate());
+
+  await (await sb.exec(["mkdir", "-p", "/mnt/data"])).wait();
+
+  const unbuiltImage = tc.images.fromRegistry("alpine:3.21");
+  expect(unbuiltImage.imageId).toBe("");
+
+  await expect(
+    sb.experimentalMountImage("/mnt/data", unbuiltImage),
+  ).rejects.toThrow("Image must be built before mounting");
+});

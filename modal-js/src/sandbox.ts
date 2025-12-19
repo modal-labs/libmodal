@@ -1043,6 +1043,12 @@ export class Sandbox {
     const commandRouterClient =
       await this.#getOrCreateCommandRouterClient(taskId);
 
+    if (image && !image.imageId) {
+      throw new Error(
+        "Image must be built before mounting. Call `image.build(app)` first.",
+      );
+    }
+
     const pathBytes = new TextEncoder().encode(path);
     const imageId = image?.imageId ?? "";
     const request = TaskMountDirectoryRequest.create({
