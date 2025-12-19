@@ -4,7 +4,7 @@ Both client libraries are pre-1.0, and they have separate versioning.
 
 ## Unreleased
 
-No unreleased changes.
+- Upgraded the internal handling of Sandbox exec to use the new command router interface, which brings greatly improved performance and reliability for exec operations.
 
 ## modal-js/v0.6.0, modal-go/v0.6.0
 
