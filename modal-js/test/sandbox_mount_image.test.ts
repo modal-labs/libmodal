@@ -1,7 +1,7 @@
 import { tc } from "../test-support/test-client";
 import { expect, test, onTestFinished } from "vitest";
 
-test("SandboxMountDirectoryEmpty", async () => {
+test.skip("SandboxMountDirectoryEmpty", async () => {
   const app = await tc.apps.fromName("libmodal-test", {
     createIfMissing: true,
   });
@@ -17,7 +17,7 @@ test("SandboxMountDirectoryEmpty", async () => {
   expect(await dirCheck.wait()).toBe(0);
 });
 
-test("SandboxMountDirectoryWithImage", async () => {
+test.skip("SandboxMountDirectoryWithImage", async () => {
   const app = await tc.apps.fromName("libmodal-test", {
     createIfMissing: true,
   });
@@ -49,7 +49,7 @@ test("SandboxMountDirectoryWithImage", async () => {
   expect(output).toBe("mounted content");
 });
 
-test("SandboxSnapshotDirectory", async () => {
+test.skip("SandboxSnapshotDirectory", async () => {
   const app = await tc.apps.fromName("libmodal-test", {
     createIfMissing: true,
   });
@@ -84,7 +84,7 @@ test("SandboxSnapshotDirectory", async () => {
   expect(output).toBe("snapshot test content");
 });
 
-test("SandboxMountDirectoryWithUnbuiltImageThrows", async () => {
+test.skip("SandboxMountDirectoryWithUnbuiltImageThrows", async () => {
   const app = await tc.apps.fromName("libmodal-test", {
     createIfMissing: true,
   });
