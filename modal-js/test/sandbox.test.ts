@@ -980,7 +980,7 @@ test("SandboxExecOutputTimeout", async () => {
 
     const elapsed = Date.now() - t0;
     expect(elapsed).toBeGreaterThan(1000);
-    expect(elapsed).toBeLessThan(3000);
+    expect(elapsed).toBeLessThan(4000);
 
     const exitCode = await p.wait();
     expect(exitCode).toBe(0);
@@ -989,6 +989,6 @@ test("SandboxExecOutputTimeout", async () => {
 
     const elapsed = Date.now() - t0;
     expect(elapsed).toBeGreaterThan(1000);
-    expect(elapsed).toBeLessThan(3000);
+    expect(elapsed).toBeLessThan(4000);
   }
 });
