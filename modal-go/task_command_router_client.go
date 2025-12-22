@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/url"
 	"strings"
 	"sync"
@@ -22,6 +23,53 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 )
+
+// tlsCredsNoALPN is a TLS credential that skips ALPN enforcement.
+// Starting in grpc-go v1.67, ALPN is enforced by default for TLS connections.
+// However, the task command router server doesn't negotiate ALPN.
+// This performs the TLS handshake without that check.
+// See: https://github.com/grpc/grpc-go/issues/434
+type tlsCredsNoALPN struct{}
+
+func (c *tlsCredsNoALPN) ClientHandshake(ctx context.Context, authority string, rawConn net.Conn) (net.Conn, credentials.AuthInfo, error) {
+	serverName, _, err := net.SplitHostPort(authority)
+	if err != nil {
+		serverName = authority
+	}
+	cfg := &tls.Config{
+		ServerName: serverName,
+		NextProtos: []string{"h2"},
+	}
+
+	conn := tls.Client(rawConn, cfg)
+	if err := conn.HandshakeContext(ctx); err != nil {
+		_ = conn.Close()
+		return nil, nil, err
+	}
+
+	return conn, credentials.TLSInfo{
+		State: conn.ConnectionState(),
+		CommonAuthInfo: credentials.CommonAuthInfo{
+			SecurityLevel: credentials.PrivacyAndIntegrity,
+		},
+	}, nil
+}
+
+func (c *tlsCredsNoALPN) ServerHandshake(net.Conn) (net.Conn, credentials.AuthInfo, error) {
+	return nil, nil, errors.New("tlsCredsNoALPN: server-side not supported")
+}
+
+func (c *tlsCredsNoALPN) Info() credentials.ProtocolInfo {
+	return credentials.ProtocolInfo{SecurityProtocol: "tls", SecurityVersion: "1.2"}
+}
+
+func (c *tlsCredsNoALPN) Clone() credentials.TransportCredentials {
+	return &tlsCredsNoALPN{}
+}
+
+func (c *tlsCredsNoALPN) OverrideServerName(string) error {
+	return errors.New("tlsCredsNoALPN: OverrideServerName not supported")
+}
 
 // retryOptions configures retry behavior for callWithRetriesOnTransientErrors.
 type retryOptions struct {
@@ -204,7 +252,10 @@ func TryInitTaskCommandRouterClient(
 		logger.WarnContext(ctx, "Using insecure TLS for task command router due to MODAL_TASK_COMMAND_ROUTER_INSECURE")
 		creds = insecure.NewCredentials()
 	} else {
-		creds = credentials.NewTLS(&tls.Config{})
+		// Use custom TLS credentials that skip ALPN enforcement.
+		// The command router server may not negotiate ALPN, which causes
+		// grpc-go v1.67+ to fail the handshake.
+		creds = &tlsCredsNoALPN{}
 	}
 
 	conn, err := grpc.NewClient(
@@ -442,6 +493,32 @@ func (c *TaskCommandRouterClient) ExecStdioRead(
 	}()
 
 	return resultCh
+}
+
+// MountDirectory mounts an image at a directory in the container.
+func (c *TaskCommandRouterClient) MountDirectory(ctx context.Context, request *pb.TaskMountDirectoryRequest) error {
+	_, err := callWithRetriesOnTransientErrors(ctx, func() (struct{}, error) {
+		callErr := c.callWithAuthRetry(ctx, func(authCtx context.Context) error {
+			_, err := c.stub.TaskMountDirectory(authCtx, request)
+			return err
+		})
+		return struct{}{}, callErr
+	}, defaultRetryOptions())
+	return err
+}
+
+// SnapshotDirectory snapshots a directory into a new image.
+func (c *TaskCommandRouterClient) SnapshotDirectory(ctx context.Context, request *pb.TaskSnapshotDirectoryRequest) (*pb.TaskSnapshotDirectoryResponse, error) {
+	resp, err := callWithRetriesOnTransientErrors(ctx, func() (*pb.TaskSnapshotDirectoryResponse, error) {
+		var resp *pb.TaskSnapshotDirectoryResponse
+		callErr := c.callWithAuthRetry(ctx, func(authCtx context.Context) error {
+			var err error
+			resp, err = c.stub.TaskSnapshotDirectory(authCtx, request)
+			return err
+		})
+		return resp, callErr
+	}, defaultRetryOptions())
+	return resp, err
 }
 
 func (c *TaskCommandRouterClient) streamStdio(
