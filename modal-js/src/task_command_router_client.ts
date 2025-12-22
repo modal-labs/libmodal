@@ -38,6 +38,14 @@ import type { Profile } from "./config";
 
 type TaskCommandRouterClient = Client<typeof TaskCommandRouterDefinition>;
 
+const RETRYABLE_STATUS_CODES = new Set([
+  Status.DEADLINE_EXCEEDED,
+  Status.UNAVAILABLE,
+  Status.CANCELLED,
+  Status.INTERNAL,
+  Status.UNKNOWN,
+]);
+
 export function parseJwtExpiration(
   jwtToken: string,
   logger: Logger,
@@ -74,14 +82,6 @@ export async function callWithRetriesOnTransientErrors<T>(
   let delayMs = baseDelayMs;
   let numRetries = 0;
 
-  const retryableStatusCodes = new Set([
-    Status.DEADLINE_EXCEEDED,
-    Status.UNAVAILABLE,
-    Status.CANCELLED,
-    Status.INTERNAL,
-    Status.UNKNOWN,
-  ]);
-
   while (true) {
     if (deadlineMs !== null && Date.now() >= deadlineMs) {
       throw new Error("Deadline exceeded");
@@ -92,7 +92,7 @@ export async function callWithRetriesOnTransientErrors<T>(
     } catch (err) {
       if (
         err instanceof ClientError &&
-        retryableStatusCodes.has(err.code) &&
+        RETRYABLE_STATUS_CODES.has(err.code) &&
         (maxRetries === null || numRetries < maxRetries)
       ) {
         if (deadlineMs !== null && Date.now() + delayMs >= deadlineMs) {
@@ -419,14 +419,6 @@ export class TaskCommandRouterClientImpl {
     // refresh yields an invalid JWT somehow or that the JWT is otherwise invalid.
     let didAuthRetry = false;
 
-    const retryableStatusCodes = new Set([
-      Status.DEADLINE_EXCEEDED,
-      Status.UNAVAILABLE,
-      Status.CANCELLED,
-      Status.INTERNAL,
-      Status.UNKNOWN,
-    ]);
-
     while (true) {
       try {
         const timeoutMs =
@@ -471,7 +463,7 @@ export class TaskCommandRouterClientImpl {
       } catch (err) {
         if (
           err instanceof ClientError &&
-          retryableStatusCodes.has(err.code) &&
+          RETRYABLE_STATUS_CODES.has(err.code) &&
           numRetriesRemaining > 0
         ) {
           if (deadline && deadline - Date.now() <= delayMs) {

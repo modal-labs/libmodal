@@ -13,6 +13,7 @@ import (
 
 	"github.com/djherbis/buffer"
 	"github.com/djherbis/nio/v3"
+	"github.com/google/uuid"
 	pb "github.com/modal-labs/libmodal/modal-go/proto/modal_proto"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -366,8 +367,9 @@ type Sandbox struct {
 	Stdout    io.ReadCloser
 	Stderr    io.ReadCloser
 
-	taskID  string
-	tunnels map[int]*Tunnel
+	taskID              string
+	tunnels             map[int]*Tunnel
+	commandRouterClient *TaskCommandRouterClient
 
 	client *Client
 }
@@ -463,12 +465,41 @@ type SandboxExecParams struct {
 	PTY bool
 }
 
-// buildContainerExecRequestProto builds a ContainerExecRequest proto from command and options.
-func buildContainerExecRequestProto(taskID string, command []string, params SandboxExecParams) (*pb.ContainerExecRequest, error) {
-	var workdir *string
-	if params.Workdir != "" {
-		workdir = &params.Workdir
+// ValidateExecArgs checks if command arguments exceed ARG_MAX.
+func ValidateExecArgs(args []string) error {
+	// The maximum number of bytes that can be passed to an exec on Linux.
+	// Though this is technically a 'server side' limit, it is unlikely to change.
+	// getconf ARG_MAX will show this value on a host.
+	//
+	// By probing in production, the limit is 131072 bytes (2**17).
+	// We need some bytes of overhead for the rest of the command line besides the args,
+	// e.g. 'runsc exec ...'. So we use 2**16 as the limit.
+
+	argMaxBytes := 1 << 16
+
+	// Avoid "[Errno 7] Argument list too long" errors.
+	totalLen := 0
+	for _, arg := range args {
+		totalLen += len(arg)
 	}
+	if totalLen > argMaxBytes {
+		return InvalidError{Exception: fmt.Sprintf(
+			"Total length of CMD arguments must be less than %d bytes. Got %d bytes.",
+			argMaxBytes, totalLen,
+		)}
+	}
+	return nil
+}
+
+// BuildTaskExecStartRequestProto builds a TaskExecStartRequest proto from command and options.
+func BuildTaskExecStartRequestProto(taskID, execID string, command []string, params SandboxExecParams) (*pb.TaskExecStartRequest, error) {
+	if params.Timeout < 0 {
+		return nil, fmt.Errorf("timeout must be non-negative, got %v", params.Timeout)
+	}
+	if params.Timeout != 0 && params.Timeout%time.Second != 0 {
+		return nil, fmt.Errorf("timeout must be a whole number of seconds, got %v", params.Timeout)
+	}
+
 	secretIds := []string{}
 	for _, secret := range params.Secrets {
 		if secret != nil {
@@ -476,33 +507,72 @@ func buildContainerExecRequestProto(taskID string, command []string, params Sand
 		}
 	}
 
+	stdout := params.Stdout
+	if stdout == "" {
+		stdout = Pipe
+	}
+	stderr := params.Stderr
+	if stderr == "" {
+		stderr = Pipe
+	}
+
+	var stdoutConfig pb.TaskExecStdoutConfig
+	switch stdout {
+	case Pipe:
+		stdoutConfig = pb.TaskExecStdoutConfig_TASK_EXEC_STDOUT_CONFIG_PIPE
+	case Ignore:
+		stdoutConfig = pb.TaskExecStdoutConfig_TASK_EXEC_STDOUT_CONFIG_DEVNULL
+	default:
+		return nil, fmt.Errorf("unsupported stdout behavior: %s", stdout)
+	}
+
+	var stderrConfig pb.TaskExecStderrConfig
+	switch stderr {
+	case Pipe:
+		stderrConfig = pb.TaskExecStderrConfig_TASK_EXEC_STDERR_CONFIG_PIPE
+	case Ignore:
+		stderrConfig = pb.TaskExecStderrConfig_TASK_EXEC_STDERR_CONFIG_DEVNULL
+	default:
+		return nil, fmt.Errorf("unsupported stderr behavior: %s", stderr)
+	}
+
 	var ptyInfo *pb.PTYInfo
 	if params.PTY {
 		ptyInfo = defaultSandboxPTYInfo()
 	}
 
-	if params.Timeout < 0 {
-		return nil, fmt.Errorf("timeout must be non-negative, got %v", params.Timeout)
+	builder := pb.TaskExecStartRequest_builder{
+		TaskId:       taskID,
+		ExecId:       execID,
+		CommandArgs:  command,
+		StdoutConfig: stdoutConfig,
+		StderrConfig: stderrConfig,
+		Workdir:      nil,
+		SecretIds:    secretIds,
+		PtyInfo:      ptyInfo,
+		RuntimeDebug: false,
 	}
-	if params.Timeout%time.Second != 0 {
-		return nil, fmt.Errorf("timeout must be a whole number of seconds, got %v", params.Timeout)
-	}
-	timeoutSecs := uint32(params.Timeout / time.Second)
 
-	return pb.ContainerExecRequest_builder{
-		TaskId:      taskID,
-		Command:     command,
-		Workdir:     workdir,
-		TimeoutSecs: timeoutSecs,
-		SecretIds:   secretIds,
-		PtyInfo:     ptyInfo,
-	}.Build(), nil
+	if params.Workdir != "" {
+		builder.Workdir = &params.Workdir
+	}
+
+	if params.Timeout > 0 {
+		timeoutSecs := uint32(params.Timeout / time.Second)
+		builder.TimeoutSecs = &timeoutSecs
+	}
+
+	return builder.Build(), nil
 }
 
 // Exec runs a command in the Sandbox and returns text streams.
 func (sb *Sandbox) Exec(ctx context.Context, command []string, params *SandboxExecParams) (*ContainerProcess, error) {
 	if params == nil {
 		params = &SandboxExecParams{}
+	}
+
+	if err := ValidateExecArgs(command); err != nil {
+		return nil, err
 	}
 
 	if err := sb.ensureTaskID(ctx); err != nil {
@@ -518,19 +588,34 @@ func (sb *Sandbox) Exec(ctx context.Context, command []string, params *SandboxEx
 	mergedParams.Secrets = mergedSecrets
 	mergedParams.Env = nil // nil'ing Env just to clarify it's not needed anymore
 
-	req, err := buildContainerExecRequestProto(sb.taskID, command, mergedParams)
+	commandRouterClient, err := sb.getOrCreateCommandRouterClient(ctx, sb.taskID)
 	if err != nil {
 		return nil, err
 	}
-	resp, err := sb.client.cpClient.ContainerExec(ctx, req)
+
+	execID := uuid.New().String()
+	req, err := BuildTaskExecStartRequestProto(sb.taskID, execID, command, mergedParams)
 	if err != nil {
 		return nil, err
 	}
+
+	_, err = commandRouterClient.ExecStart(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
 	sb.client.logger.DebugContext(ctx, "Created ContainerProcess",
-		"exec_id", resp.GetExecId(),
+		"exec_id", execID,
 		"sandbox_id", sb.SandboxID,
 		"command", command)
-	return newContainerProcess(sb.client.cpClient, sb.client.logger, resp.GetExecId(), *params), nil
+
+	var deadline *time.Time
+	if mergedParams.Timeout > 0 {
+		d := time.Now().Add(mergedParams.Timeout)
+		deadline = &d
+	}
+
+	return newContainerProcess(commandRouterClient, sb.client.logger, sb.taskID, execID, mergedParams, deadline), nil
 }
 
 // SandboxCreateConnectTokenParams are optional parameters for CreateConnectToken.
@@ -606,8 +691,38 @@ func (sb *Sandbox) ensureTaskID(ctx context.Context) error {
 	return nil
 }
 
+func (sb *Sandbox) getOrCreateCommandRouterClient(ctx context.Context, taskID string) (*TaskCommandRouterClient, error) {
+	if sb.commandRouterClient == nil {
+		client, err := TryInitTaskCommandRouterClient(
+			ctx,
+			sb.client.cpClient,
+			taskID,
+			sb.client.logger,
+			sb.client.profile,
+		)
+		if err != nil {
+			return nil, err
+		}
+		if client == nil {
+			return nil, fmt.Errorf("command router access is not available for this sandbox")
+		}
+		sb.commandRouterClient = client
+	}
+	return sb.commandRouterClient, nil
+}
+
+// Close closes any resources associated with the Sandbox.
+// This should be called when the Sandbox is no longer needed.
+func (sb *Sandbox) Close() {
+	if sb.commandRouterClient != nil {
+		_ = sb.commandRouterClient.Close()
+		sb.commandRouterClient = nil
+	}
+}
+
 // Terminate stops the Sandbox.
 func (sb *Sandbox) Terminate(ctx context.Context) error {
+	sb.Close()
 	_, err := sb.client.cpClient.SandboxTerminate(ctx, pb.SandboxTerminateRequest_builder{
 		SandboxId: sb.SandboxID,
 	}.Build())
@@ -827,11 +942,13 @@ type ContainerProcess struct {
 	Stdout io.ReadCloser
 	Stderr io.ReadCloser
 
-	execID   string
-	cpClient pb.ModalClientClient
+	taskID              string
+	execID              string
+	commandRouterClient *TaskCommandRouterClient
+	deadline            *time.Time
 }
 
-func newContainerProcess(cpClient pb.ModalClientClient, logger *slog.Logger, execID string, params SandboxExecParams) *ContainerProcess {
+func newContainerProcess(commandRouterClient *TaskCommandRouterClient, logger *slog.Logger, taskID, execID string, params SandboxExecParams, deadline *time.Time) *ContainerProcess {
 	stdoutBehavior := Pipe
 	stderrBehavior := Pipe
 	if params.Stdout != "" {
@@ -841,15 +958,20 @@ func newContainerProcess(cpClient pb.ModalClientClient, logger *slog.Logger, exe
 		stderrBehavior = params.Stderr
 	}
 
-	cp := &ContainerProcess{execID: execID, cpClient: cpClient}
-	cp.Stdin = inputStreamCp(cpClient, execID)
+	cp := &ContainerProcess{
+		taskID:              taskID,
+		execID:              execID,
+		commandRouterClient: commandRouterClient,
+		deadline:            deadline,
+	}
+	cp.Stdin = inputStreamCp(commandRouterClient, taskID, execID)
 
 	if stdoutBehavior == Ignore {
 		cp.Stdout = io.NopCloser(bytes.NewReader(nil))
 	} else {
 		cp.Stdout = &lazyStreamReader{
 			initFunc: func() io.ReadCloser {
-				return outputStreamCp(cpClient, logger, execID, pb.FileDescriptor_FILE_DESCRIPTOR_STDOUT)
+				return outputStreamCp(commandRouterClient, logger, taskID, execID, pb.FileDescriptor_FILE_DESCRIPTOR_STDOUT, deadline)
 			},
 		}
 	}
@@ -858,7 +980,7 @@ func newContainerProcess(cpClient pb.ModalClientClient, logger *slog.Logger, exe
 	} else {
 		cp.Stderr = &lazyStreamReader{
 			initFunc: func() io.ReadCloser {
-				return outputStreamCp(cpClient, logger, execID, pb.FileDescriptor_FILE_DESCRIPTOR_STDERR)
+				return outputStreamCp(commandRouterClient, logger, taskID, execID, pb.FileDescriptor_FILE_DESCRIPTOR_STDERR, deadline)
 			},
 		}
 	}
@@ -868,22 +990,11 @@ func newContainerProcess(cpClient pb.ModalClientClient, logger *slog.Logger, exe
 
 // Wait blocks until the container process exits and returns its exit code.
 func (cp *ContainerProcess) Wait(ctx context.Context) (int, error) {
-	for {
-		if err := ctx.Err(); err != nil {
-			return 0, err
-		}
-
-		resp, err := cp.cpClient.ContainerExecWait(ctx, pb.ContainerExecWaitRequest_builder{
-			ExecId:  cp.execID,
-			Timeout: 55,
-		}.Build())
-		if err != nil {
-			return 0, err
-		}
-		if resp.GetCompleted() {
-			return int(resp.GetExitCode()), nil
-		}
+	resp, err := cp.commandRouterClient.ExecWait(ctx, cp.taskID, cp.execID, cp.deadline)
+	if err != nil {
+		return 0, err
 	}
+	return int(resp.GetCode()), nil
 }
 
 func inputStreamSb(cpClient pb.ModalClientClient, sandboxID string) io.WriteCloser {
@@ -925,40 +1036,28 @@ func (sbs *sbStdin) Close() error {
 	return err
 }
 
-func inputStreamCp(cpClient pb.ModalClientClient, execID string) io.WriteCloser {
-	return &cpStdin{execID: execID, messageIndex: 1, cpClient: cpClient}
+func inputStreamCp(commandRouterClient *TaskCommandRouterClient, taskID, execID string) io.WriteCloser {
+	return &cpStdin{taskID: taskID, execID: execID, offset: 0, commandRouterClient: commandRouterClient}
 }
 
 type cpStdin struct {
-	execID       string
-	messageIndex uint64
-	cpClient     pb.ModalClientClient
+	taskID              string
+	execID              string
+	offset              int64
+	commandRouterClient *TaskCommandRouterClient
 }
 
 func (cps *cpStdin) Write(p []byte) (int, error) {
-	_, err := cps.cpClient.ContainerExecPutInput(context.Background(), pb.ContainerExecPutInputRequest_builder{
-		ExecId: cps.execID,
-		Input: pb.RuntimeInputMessage_builder{
-			Message:      p,
-			MessageIndex: cps.messageIndex,
-		}.Build(),
-	}.Build())
+	err := cps.commandRouterClient.ExecStdinWrite(context.Background(), cps.taskID, cps.execID, cps.offset, p, false)
 	if err != nil {
 		return 0, err
 	}
-	cps.messageIndex++
+	cps.offset += int64(len(p))
 	return len(p), nil
 }
 
 func (cps *cpStdin) Close() error {
-	_, err := cps.cpClient.ContainerExecPutInput(context.Background(), pb.ContainerExecPutInputRequest_builder{
-		ExecId: cps.execID,
-		Input: pb.RuntimeInputMessage_builder{
-			MessageIndex: cps.messageIndex,
-			Eof:          true,
-		}.Build(),
-	}.Build())
-	return err
+	return cps.commandRouterClient.ExecStdinWrite(context.Background(), cps.taskID, cps.execID, cps.offset, nil, true)
 }
 
 // cancelOnCloseReader is used to cancel background goroutines when the stream is closed.
@@ -1068,7 +1167,7 @@ func outputStreamSb(cpClient pb.ModalClientClient, logger *slog.Logger, sandboxI
 	return &cancelOnCloseReader{ReadCloser: pr, cancel: cancel}
 }
 
-func outputStreamCp(cpClient pb.ModalClientClient, logger *slog.Logger, execID string, fd pb.FileDescriptor) io.ReadCloser {
+func outputStreamCp(commandRouterClient *TaskCommandRouterClient, logger *slog.Logger, taskID, execID string, fd pb.FileDescriptor, deadline *time.Time) io.ReadCloser {
 	pr, pw := nio.Pipe(buffer.New(64 * 1024))
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
@@ -1078,61 +1177,21 @@ func outputStreamCp(cpClient pb.ModalClientClient, logger *slog.Logger, execID s
 			}
 		}()
 		defer cancel()
-		var lastIndex uint64
-		completed := false
-		retries := 10
-		for !completed {
-			stream, err := cpClient.ContainerExecGetOutput(ctx, pb.ContainerExecGetOutputRequest_builder{
-				ExecId:         execID,
-				FileDescriptor: fd,
-				Timeout:        55,
-				GetRawBytes:    true,
-				LastBatchIndex: lastIndex,
-			}.Build())
-			if err != nil {
+
+		resultCh := commandRouterClient.ExecStdioRead(ctx, taskID, execID, fd, deadline)
+		for result := range resultCh {
+			if result.Err != nil {
 				if ctx.Err() != nil {
 					return
 				}
-				if isRetryableGrpc(err) && retries > 0 {
-					retries--
-					continue
-				}
-				streamErr := fmt.Errorf("error getting output stream: %w", err)
+				streamErr := fmt.Errorf("error getting output stream: %w", result.Err)
 				if closeErr := pw.CloseWithError(streamErr); closeErr != nil {
 					logger.DebugContext(ctx, "failed to close pipe writer with error", "error", closeErr.Error(), "stream_error", streamErr.Error())
 				}
 				return
 			}
-			for {
-				batch, err := stream.Recv()
-				if err != nil {
-					if ctx.Err() != nil {
-						return
-					}
-					if err != io.EOF {
-						if isRetryableGrpc(err) && retries > 0 {
-							retries--
-						} else {
-							streamErr := fmt.Errorf("error getting output stream: %w", err)
-							if closeErr := pw.CloseWithError(streamErr); closeErr != nil {
-								logger.DebugContext(ctx, "failed to close pipe writer with error", "error", closeErr.Error(), "stream_error", streamErr.Error())
-							}
-							return
-						}
-					}
-					break // we need to retry, either from an EOF or gRPC error
-				}
-				lastIndex = batch.GetBatchIndex()
-				for _, item := range batch.GetItems() {
-					// On error, writer has been closed. Still consume the rest of the channel.
-					if _, err := pw.Write(item.GetMessageBytes()); err != nil {
-						logger.DebugContext(ctx, "failed to write to pipe", "error", err.Error())
-					}
-				}
-				if batch.HasExitCode() {
-					completed = true
-					break
-				}
+			if _, err := pw.Write(result.Response.GetData()); err != nil {
+				logger.DebugContext(ctx, "failed to write to pipe", "error", err.Error())
 			}
 		}
 	}()

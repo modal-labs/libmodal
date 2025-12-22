@@ -639,7 +639,7 @@ export function validateExecArgs(args: string[]): void {
   const totalArgLen = args.reduce((sum, arg) => sum + arg.length, 0);
   if (totalArgLen > ARG_MAX_BYTES) {
     throw new InvalidError(
-      `Total length of CMD arguments must be less than ${ARG_MAX_BYTES} bytes (ARG_MAX). ` +
+      `Total length of CMD arguments must be less than ${ARG_MAX_BYTES} bytes. ` +
         `Got ${totalArgLen} bytes.`,
     );
   }
