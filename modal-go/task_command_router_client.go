@@ -12,10 +12,11 @@ import (
 	"net"
 	"net/url"
 	"strings"
-	"sync"
+	"sync/atomic"
 	"time"
 
 	pb "github.com/modal-labs/libmodal/modal-go/proto/modal_proto"
+	"golang.org/x/sync/singleflight"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
@@ -201,12 +202,12 @@ type TaskCommandRouterClient struct {
 	serverClient pb.ModalClientClient
 	taskID       string
 	serverURL    string
-	jwt          string
-	jwtExp       *int64
+	jwt          atomic.Pointer[string]
+	jwtExp       atomic.Pointer[int64]
 	logger       *slog.Logger
-	closed       bool
+	closed       atomic.Bool
 
-	mu sync.Mutex
+	refreshJwtGroup singleflight.Group
 }
 
 // TryInitTaskCommandRouterClient attempts to initialize a TaskCommandRouterClient.
@@ -276,10 +277,12 @@ func TryInitTaskCommandRouterClient(
 		serverClient: serverClient,
 		taskID:       taskID,
 		serverURL:    resp.GetUrl(),
-		jwt:          resp.GetJwt(),
-		jwtExp:       ParseJwtExpiration(resp.GetJwt(), logger),
 		logger:       logger,
 	}
+	jwt := resp.GetJwt()
+	client.jwt.Store(&jwt)
+	jwtExp := ParseJwtExpiration(jwt, logger)
+	client.jwtExp.Store(jwtExp)
 
 	logger.DebugContext(ctx, "Successfully initialized command router client", "task_id", taskID)
 	return client, nil
@@ -287,14 +290,9 @@ func TryInitTaskCommandRouterClient(
 
 // Close closes the gRPC connection.
 func (c *TaskCommandRouterClient) Close() error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	if c.closed {
+	if !c.closed.CompareAndSwap(false, true) {
 		return nil
 	}
-
-	c.closed = true
 	if c.conn != nil {
 		return c.conn.Close()
 	}
@@ -302,37 +300,45 @@ func (c *TaskCommandRouterClient) Close() error {
 }
 
 func (c *TaskCommandRouterClient) authContext(ctx context.Context) context.Context {
-	return metadata.AppendToOutgoingContext(ctx, "authorization", "Bearer "+c.jwt)
+	return metadata.AppendToOutgoingContext(ctx, "authorization", "Bearer "+*c.jwt.Load())
 }
 
 func (c *TaskCommandRouterClient) refreshJwt(ctx context.Context) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	const jwtRefreshBufferSeconds = 30
 
-	if c.closed {
+	if c.closed.Load() {
 		return errors.New("client is closed")
 	}
 
 	// If the current JWT expiration is already far enough in the future, don't refresh.
-	if c.jwtExp != nil && *c.jwtExp-time.Now().Unix() > 30 {
+	if exp := c.jwtExp.Load(); exp != nil && *exp-time.Now().Unix() > jwtRefreshBufferSeconds {
 		c.logger.DebugContext(ctx, "Skipping JWT refresh because expiration is far enough in the future", "task_id", c.taskID)
 		return nil
 	}
 
-	resp, err := c.serverClient.TaskGetCommandRouterAccess(ctx, pb.TaskGetCommandRouterAccessRequest_builder{
-		TaskId: c.taskID,
-	}.Build())
-	if err != nil {
-		return fmt.Errorf("failed to refresh JWT: %w", err)
-	}
+	_, err, _ := c.refreshJwtGroup.Do("refresh", func() (any, error) {
+		if exp := c.jwtExp.Load(); exp != nil && *exp-time.Now().Unix() > jwtRefreshBufferSeconds {
+			return nil, nil
+		}
 
-	if resp.GetUrl() != c.serverURL {
-		return errors.New("task router URL changed during session")
-	}
+		resp, err := c.serverClient.TaskGetCommandRouterAccess(ctx, pb.TaskGetCommandRouterAccessRequest_builder{
+			TaskId: c.taskID,
+		}.Build())
+		if err != nil {
+			return nil, fmt.Errorf("failed to refresh JWT: %w", err)
+		}
 
-	c.jwt = resp.GetJwt()
-	c.jwtExp = ParseJwtExpiration(resp.GetJwt(), c.logger)
-	return nil
+		if resp.GetUrl() != c.serverURL {
+			return nil, errors.New("task router URL changed during session")
+		}
+
+		jwt := resp.GetJwt()
+		c.jwt.Store(&jwt)
+		jwtExp := ParseJwtExpiration(jwt, c.logger)
+		c.jwtExp.Store(jwtExp)
+		return nil, nil
+	})
+	return err
 }
 
 func (c *TaskCommandRouterClient) callWithAuthRetry(ctx context.Context, fn func(context.Context) error) error {
