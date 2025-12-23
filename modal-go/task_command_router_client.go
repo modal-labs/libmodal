@@ -412,7 +412,8 @@ func (c *TaskCommandRouterClient) ExecPoll(ctx context.Context, taskID, execID s
 	}, opts)
 
 	if err != nil {
-		if st, ok := status.FromError(err); ok && st.Code() == codes.DeadlineExceeded {
+		st, ok := status.FromError(err)
+		if (ok && st.Code() == codes.DeadlineExceeded) || errors.Is(err, errDeadlineExceeded) {
 			return nil, fmt.Errorf("deadline exceeded while polling for exec %s", execID)
 		}
 	}
@@ -451,10 +452,8 @@ func (c *TaskCommandRouterClient) ExecWait(ctx context.Context, taskID, execID s
 	}, opts)
 
 	if err != nil {
-		if st, ok := status.FromError(err); ok && st.Code() == codes.DeadlineExceeded {
-			return nil, fmt.Errorf("deadline exceeded while waiting for exec %s", execID)
-		}
-		if errors.Is(err, errDeadlineExceeded) {
+		st, ok := status.FromError(err)
+		if (ok && st.Code() == codes.DeadlineExceeded) || errors.Is(err, errDeadlineExceeded) {
 			return nil, fmt.Errorf("deadline exceeded while waiting for exec %s", execID)
 		}
 	}
