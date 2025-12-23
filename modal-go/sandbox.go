@@ -372,6 +372,8 @@ type Sandbox struct {
 	commandRouterClient *TaskCommandRouterClient
 
 	client *Client
+
+	mu sync.Mutex // protects commandRouterClient
 }
 
 func defaultSandboxPTYInfo() *pb.PTYInfo {
@@ -692,6 +694,9 @@ func (sb *Sandbox) ensureTaskID(ctx context.Context) error {
 }
 
 func (sb *Sandbox) getOrCreateCommandRouterClient(ctx context.Context, taskID string) (*TaskCommandRouterClient, error) {
+	sb.mu.Lock()
+	defer sb.mu.Unlock()
+
 	if sb.commandRouterClient == nil {
 		client, err := TryInitTaskCommandRouterClient(
 			ctx,
@@ -714,6 +719,9 @@ func (sb *Sandbox) getOrCreateCommandRouterClient(ctx context.Context, taskID st
 // Close closes any resources associated with the Sandbox.
 // This should be called when the Sandbox is no longer needed.
 func (sb *Sandbox) Close() {
+	sb.mu.Lock()
+	defer sb.mu.Unlock()
+
 	if sb.commandRouterClient != nil {
 		_ = sb.commandRouterClient.Close()
 		sb.commandRouterClient = nil
