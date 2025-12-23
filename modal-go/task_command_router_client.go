@@ -99,10 +99,9 @@ var commandRouterRetryableCodes = map[codes.Code]struct{}{
 	codes.Unknown:          {},
 }
 
-// ParseJwtExpiration extracts the expiration time from a JWT token.
+// parseJwtExpiration extracts the expiration time from a JWT token.
 // Returns nil if the token is malformed or doesn't have an exp claim.
-func ParseJwtExpiration(jwt string, logger *slog.Logger) *int64 {
-	ctx := context.Background()
+func parseJwtExpiration(ctx context.Context, jwt string, logger *slog.Logger) *int64 {
 	parts := strings.Split(jwt, ".")
 	if len(parts) != 3 {
 		return nil
@@ -281,7 +280,7 @@ func TryInitTaskCommandRouterClient(
 	}
 	jwt := resp.GetJwt()
 	client.jwt.Store(&jwt)
-	jwtExp := ParseJwtExpiration(jwt, logger)
+	jwtExp := parseJwtExpiration(ctx, jwt, logger)
 	client.jwtExp.Store(jwtExp)
 
 	logger.DebugContext(ctx, "Successfully initialized command router client", "task_id", taskID)
@@ -334,7 +333,7 @@ func (c *TaskCommandRouterClient) refreshJwt(ctx context.Context) error {
 
 		jwt := resp.GetJwt()
 		c.jwt.Store(&jwt)
-		jwtExp := ParseJwtExpiration(jwt, c.logger)
+		jwtExp := parseJwtExpiration(ctx, jwt, c.logger)
 		c.jwtExp.Store(jwtExp)
 		return nil, nil
 	})

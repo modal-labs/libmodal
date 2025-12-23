@@ -36,7 +36,7 @@ func TestParseJwtExpirationWithValidJWT(t *testing.T) {
 	g := gomega.NewWithT(t)
 	exp := time.Now().Unix() + 3600
 	jwt := mockJWT(exp)
-	result := ParseJwtExpiration(jwt, mockLogger())
+	result := parseJwtExpiration(context.Background(), jwt, mockLogger())
 	g.Expect(result).ToNot(gomega.BeNil())
 	g.Expect(*result).To(gomega.Equal(exp))
 }
@@ -45,7 +45,7 @@ func TestParseJwtExpirationWithoutExpClaim(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	jwt := mockJWT(nil)
-	result := ParseJwtExpiration(jwt, mockLogger())
+	result := parseJwtExpiration(context.Background(), jwt, mockLogger())
 	g.Expect(result).To(gomega.BeNil())
 }
 
@@ -53,7 +53,7 @@ func TestParseJwtExpirationWithMalformedJWT(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	jwt := "only.two"
-	result := ParseJwtExpiration(jwt, mockLogger())
+	result := parseJwtExpiration(context.Background(), jwt, mockLogger())
 	g.Expect(result).To(gomega.BeNil())
 }
 
@@ -61,7 +61,7 @@ func TestParseJwtExpirationWithInvalidBase64(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	jwt := "invalid.!!!invalid!!!.signature"
-	result := ParseJwtExpiration(jwt, mockLogger())
+	result := parseJwtExpiration(context.Background(), jwt, mockLogger())
 	g.Expect(result).To(gomega.BeNil())
 }
 
@@ -69,7 +69,7 @@ func TestParseJwtExpirationWithNonNumericExp(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	jwt := mockJWT("not-a-number")
-	result := ParseJwtExpiration(jwt, mockLogger())
+	result := parseJwtExpiration(context.Background(), jwt, mockLogger())
 	g.Expect(result).To(gomega.BeNil())
 }
 
