@@ -533,6 +533,12 @@ func (c *TaskCommandRouterClient) streamStdio(
 	fd pb.TaskExecStdioFileDescriptor,
 	deadline *time.Time,
 ) {
+	if deadline != nil {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithDeadline(ctx, *deadline)
+		defer cancel()
+	}
+
 	var offset int64
 	delay := 10 * time.Millisecond
 	delayFactor := 2.0
@@ -541,21 +547,15 @@ func (c *TaskCommandRouterClient) streamStdio(
 
 	for {
 		if ctx.Err() != nil {
-			resultCh <- stdioReadResult{Err: ctx.Err()}
+			if deadline != nil && ctx.Err() == context.DeadlineExceeded {
+				resultCh <- stdioReadResult{Err: fmt.Errorf("deadline exceeded while streaming stdio for exec %s", execID)}
+			} else {
+				resultCh <- stdioReadResult{Err: ctx.Err()}
+			}
 			return
 		}
 
 		callCtx := c.authContext(ctx)
-		if deadline != nil {
-			timeoutDuration := time.Until(*deadline)
-			if timeoutDuration <= 0 {
-				resultCh <- stdioReadResult{Err: fmt.Errorf("deadline exceeded while streaming stdio for exec %s", execID)}
-				return
-			}
-			var cancel context.CancelFunc
-			callCtx, cancel = context.WithTimeout(callCtx, timeoutDuration)
-			defer cancel()
-		}
 
 		request := pb.TaskExecStdioReadRequest_builder{
 			TaskId:         taskID,
