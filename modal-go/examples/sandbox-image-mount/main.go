@@ -101,7 +101,7 @@ func main() {
 	}
 	defer func() {
 		if err := sb2.Terminate(context.Background()); err != nil {
-			log.Fatalf("Failed to terminate Sandbox %s: %v", sb.SandboxID, err)
+			log.Fatalf("Failed to terminate Sandbox %s: %v", sb2.SandboxID, err)
 		}
 	}()
 	fmt.Printf("Started second Sandbox: %s\n", sb2.SandboxID)

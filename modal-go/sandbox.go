@@ -831,12 +831,11 @@ func (sb *Sandbox) ExperimentalMountImage(ctx context.Context, path string, imag
 		return err
 	}
 
-	if image != nil && image.ImageID == "" {
-		return InvalidError{Exception: "Image must be built before mounting. Call `image.Build(app)` first."}
-	}
-
 	imageID := ""
 	if image != nil {
+		if image.ImageID == "" {
+			return InvalidError{Exception: "Image must be built before mounting. Call `image.Build(app)` first."}
+		}
 		imageID = image.ImageID
 	}
 
