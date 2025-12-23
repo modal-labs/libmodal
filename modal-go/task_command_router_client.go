@@ -369,11 +369,11 @@ func (c *TaskCommandRouterClient) ExecStart(ctx context.Context, request *pb.Tas
 }
 
 // ExecStdinWrite writes data to stdin of an exec.
-func (c *TaskCommandRouterClient) ExecStdinWrite(ctx context.Context, taskID, execID string, offset int64, data []byte, eof bool) error {
+func (c *TaskCommandRouterClient) ExecStdinWrite(ctx context.Context, taskID, execID string, offset uint64, data []byte, eof bool) error {
 	request := pb.TaskExecStdinWriteRequest_builder{
 		TaskId: taskID,
 		ExecId: execID,
-		Offset: uint64(offset),
+		Offset: offset,
 		Data:   data,
 		Eof:    eof,
 	}.Build()

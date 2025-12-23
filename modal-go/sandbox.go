@@ -1051,20 +1051,26 @@ func inputStreamCp(commandRouterClient *TaskCommandRouterClient, taskID, execID 
 type cpStdin struct {
 	taskID              string
 	execID              string
-	offset              int64
 	commandRouterClient *TaskCommandRouterClient
+
+	mu     sync.Mutex // protects offset
+	offset uint64
 }
 
 func (cps *cpStdin) Write(p []byte) (int, error) {
+	cps.mu.Lock()
+	defer cps.mu.Unlock()
 	err := cps.commandRouterClient.ExecStdinWrite(context.Background(), cps.taskID, cps.execID, cps.offset, p, false)
 	if err != nil {
 		return 0, err
 	}
-	cps.offset += int64(len(p))
+	cps.offset += uint64(len(p))
 	return len(p), nil
 }
 
 func (cps *cpStdin) Close() error {
+	cps.mu.Lock()
+	defer cps.mu.Unlock()
 	return cps.commandRouterClient.ExecStdinWrite(context.Background(), cps.taskID, cps.execID, cps.offset, nil, true)
 }
 
