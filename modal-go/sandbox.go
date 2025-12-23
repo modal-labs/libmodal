@@ -816,6 +816,69 @@ func (sb *Sandbox) SnapshotFilesystem(ctx context.Context, timeout time.Duration
 	return &Image{ImageID: resp.GetImageId(), client: sb.client}, nil
 }
 
+// ExperimentalMountImage mounts an Image at a path in the Sandbox filesystem.
+//
+// It's experimental in the sense that the API is subject to change.
+//
+// If image is nil, mounts an empty directory.
+func (sb *Sandbox) ExperimentalMountImage(ctx context.Context, path string, image *Image) error {
+	if err := sb.ensureTaskID(ctx); err != nil {
+		return err
+	}
+
+	crClient, err := sb.getOrCreateCommandRouterClient(ctx, sb.taskID)
+	if err != nil {
+		return err
+	}
+
+	if image != nil && image.ImageID == "" {
+		return InvalidError{Exception: "Image must be built before mounting. Call `image.Build(app)` first."}
+	}
+
+	imageID := ""
+	if image != nil {
+		imageID = image.ImageID
+	}
+
+	request := pb.TaskMountDirectoryRequest_builder{
+		TaskId:  sb.taskID,
+		Path:    []byte(path),
+		ImageId: imageID,
+	}.Build()
+
+	return crClient.MountDirectory(ctx, request)
+}
+
+// ExperimentalSnapshotDirectory snapshots local changes to a previously mounted Image into a new Image.
+//
+// It's experimental in the sense that the API is subject to change.
+func (sb *Sandbox) ExperimentalSnapshotDirectory(ctx context.Context, path string) (*Image, error) {
+	if err := sb.ensureTaskID(ctx); err != nil {
+		return nil, err
+	}
+
+	crClient, err := sb.getOrCreateCommandRouterClient(ctx, sb.taskID)
+	if err != nil {
+		return nil, err
+	}
+
+	request := pb.TaskSnapshotDirectoryRequest_builder{
+		TaskId: sb.taskID,
+		Path:   []byte(path),
+	}.Build()
+
+	response, err := crClient.SnapshotDirectory(ctx, request)
+	if err != nil {
+		return nil, err
+	}
+
+	if response.GetImageId() == "" {
+		return nil, ExecutionError{Exception: "Sandbox snapshot directory response missing `imageId`"}
+	}
+
+	return &Image{ImageID: response.GetImageId(), client: sb.client}, nil
+}
+
 // Poll checks if the Sandbox has finished running.
 // Returns nil if the Sandbox is still running, else returns the exit code.
 func (sb *Sandbox) Poll(ctx context.Context) (*int, error) {
