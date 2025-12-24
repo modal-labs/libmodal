@@ -717,7 +717,9 @@ func (sb *Sandbox) getOrCreateCommandRouterClient(ctx context.Context, taskID st
 }
 
 // Close closes any resources associated with the Sandbox.
-// This should be called when the Sandbox is no longer needed.
+// This should be called when the Sandbox is no longer needed
+// in the local client. The sandbox can still be running and
+// accessed in other clients.
 func (sb *Sandbox) Close() {
 	sb.mu.Lock()
 	defer sb.mu.Unlock()
