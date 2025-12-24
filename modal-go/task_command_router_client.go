@@ -492,7 +492,12 @@ func (c *TaskCommandRouterClient) ExecStdioRead(
 			return
 		}
 
-		c.streamStdio(ctx, resultCh, taskID, execID, srFd, deadline)
+		if deadline != nil {
+			var cancel context.CancelFunc
+			ctx, cancel = context.WithDeadline(ctx, *deadline)
+			defer cancel()
+		}
+		c.streamStdio(ctx, resultCh, taskID, execID, srFd)
 	}()
 
 	return resultCh
@@ -529,13 +534,8 @@ func (c *TaskCommandRouterClient) streamStdio(
 	resultCh chan<- stdioReadResult,
 	taskID, execID string,
 	fd pb.TaskExecStdioFileDescriptor,
-	deadline *time.Time,
 ) {
-	if deadline != nil {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithDeadline(ctx, *deadline)
-		defer cancel()
-	}
+	deadline, hasDeadline := ctx.Deadline()
 
 	var offset int64
 	delay := 10 * time.Millisecond
@@ -545,7 +545,7 @@ func (c *TaskCommandRouterClient) streamStdio(
 
 	for {
 		if ctx.Err() != nil {
-			if deadline != nil && ctx.Err() == context.DeadlineExceeded {
+			if hasDeadline && ctx.Err() == context.DeadlineExceeded {
 				resultCh <- stdioReadResult{Err: ExecTimeoutError{Exception: fmt.Sprintf("deadline exceeded while streaming stdio for exec %s", execID)}}
 			} else {
 				resultCh <- stdioReadResult{Err: ctx.Err()}
@@ -573,7 +573,7 @@ func (c *TaskCommandRouterClient) streamStdio(
 				continue
 			}
 			if _, retryable := commandRouterRetryableCodes[status.Code(err)]; retryable && numRetriesRemaining > 0 {
-				if deadline != nil && time.Until(*deadline) <= delay {
+				if hasDeadline && time.Until(deadline) <= delay {
 					resultCh <- stdioReadResult{Err: ExecTimeoutError{Exception: fmt.Sprintf("deadline exceeded while streaming stdio for exec %s", execID)}}
 					return
 				}
@@ -602,7 +602,7 @@ func (c *TaskCommandRouterClient) streamStdio(
 					break
 				}
 				if _, retryable := commandRouterRetryableCodes[status.Code(err)]; retryable && numRetriesRemaining > 0 {
-					if deadline != nil && time.Until(*deadline) <= delay {
+					if hasDeadline && time.Until(deadline) <= delay {
 						resultCh <- stdioReadResult{Err: ExecTimeoutError{Exception: fmt.Sprintf("deadline exceeded while streaming stdio for exec %s", execID)}}
 						return
 					}
