@@ -100,3 +100,12 @@ type SandboxTimeoutError struct {
 func (e SandboxTimeoutError) Error() string {
 	return "SandboxTimeoutError: " + e.Exception
 }
+
+// ExecTimeoutError is returned when a container exec exceeds its execution duration limit.
+type ExecTimeoutError struct {
+	Exception string
+}
+
+func (e ExecTimeoutError) Error() string {
+	return "ExecTimeoutError: " + e.Exception
+}
