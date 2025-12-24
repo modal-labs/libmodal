@@ -25,7 +25,9 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// tlsCredsNoALPN is a TLS credential that skips ALPN enforcement.
+// tlsCredsNoALPN is a TLS credential that skips ALPN enforcement, implementing
+// the google.golang.org/grpc/credentials#TransportCredentials interface.
+//
 // Starting in grpc-go v1.67, ALPN is enforced by default for TLS connections.
 // However, the task command router server doesn't negotiate ALPN.
 // This performs the TLS handshake without that check.
