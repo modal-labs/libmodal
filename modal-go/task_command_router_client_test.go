@@ -80,8 +80,8 @@ func TestCallWithRetriesOnTransientErrorsSuccessOnFirstAttempt(t *testing.T) {
 	callCount := 0
 	result, err := callWithRetriesOnTransientErrors(ctx, func() (*string, error) {
 		callCount++
-		my_string := "success"
-		return &my_string, nil
+		output := "success"
+		return &output, nil
 	}, defaultRetryOptions())
 
 	g.Expect(err).ToNot(gomega.HaveOccurred())
