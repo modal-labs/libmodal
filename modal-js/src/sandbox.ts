@@ -940,7 +940,21 @@ export class Sandbox {
     return { url: resp.url, token: resp.token };
   }
 
+  /**
+   * Close any resources associated with the Sandbox.
+   * This should be called when the Sandbox is no longer needed
+   * in the local client. The sandbox can still be running and
+   * accessed in other clients.
+   */
+  close(): void {
+    if (this.#commandRouterClient) {
+      this.#commandRouterClient.close();
+      this.#commandRouterClient = undefined;
+    }
+  }
+
   async terminate(): Promise<void> {
+    this.close();
     await this.#client.cpClient.sandboxTerminate({ sandboxId: this.sandboxId });
     this.#taskId = undefined; // Reset task ID after termination
   }
