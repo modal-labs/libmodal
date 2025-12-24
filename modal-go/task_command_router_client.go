@@ -394,7 +394,7 @@ func (c *TaskCommandRouterClient) ExecPoll(ctx context.Context, taskID, execID s
 	}.Build()
 
 	if deadline != nil && time.Now().After(*deadline) {
-		return nil, fmt.Errorf("deadline exceeded while polling for exec %s", execID)
+		return nil, ExecTimeoutError{Exception: fmt.Sprintf("deadline exceeded while polling for exec %s", execID)}
 	}
 
 	opts := defaultRetryOptions()
@@ -413,7 +413,7 @@ func (c *TaskCommandRouterClient) ExecPoll(ctx context.Context, taskID, execID s
 	if err != nil {
 		st, ok := status.FromError(err)
 		if (ok && st.Code() == codes.DeadlineExceeded) || errors.Is(err, errDeadlineExceeded) {
-			return nil, fmt.Errorf("deadline exceeded while polling for exec %s", execID)
+			return nil, ExecTimeoutError{Exception: fmt.Sprintf("deadline exceeded while polling for exec %s", execID)}
 		}
 	}
 	return resp, err
@@ -427,7 +427,7 @@ func (c *TaskCommandRouterClient) ExecWait(ctx context.Context, taskID, execID s
 	}.Build()
 
 	if deadline != nil && time.Now().After(*deadline) {
-		return nil, fmt.Errorf("deadline exceeded while waiting for exec %s", execID)
+		return nil, ExecTimeoutError{Exception: fmt.Sprintf("deadline exceeded while waiting for exec %s", execID)}
 	}
 
 	opts := retryOptions{
@@ -453,7 +453,7 @@ func (c *TaskCommandRouterClient) ExecWait(ctx context.Context, taskID, execID s
 	if err != nil {
 		st, ok := status.FromError(err)
 		if (ok && st.Code() == codes.DeadlineExceeded) || errors.Is(err, errDeadlineExceeded) {
-			return nil, fmt.Errorf("deadline exceeded while waiting for exec %s", execID)
+			return nil, ExecTimeoutError{Exception: fmt.Sprintf("deadline exceeded while waiting for exec %s", execID)}
 		}
 	}
 	return resp, err
@@ -546,7 +546,7 @@ func (c *TaskCommandRouterClient) streamStdio(
 	for {
 		if ctx.Err() != nil {
 			if deadline != nil && ctx.Err() == context.DeadlineExceeded {
-				resultCh <- stdioReadResult{Err: fmt.Errorf("deadline exceeded while streaming stdio for exec %s", execID)}
+				resultCh <- stdioReadResult{Err: ExecTimeoutError{Exception: fmt.Sprintf("deadline exceeded while streaming stdio for exec %s", execID)}}
 			} else {
 				resultCh <- stdioReadResult{Err: ctx.Err()}
 			}
@@ -574,7 +574,7 @@ func (c *TaskCommandRouterClient) streamStdio(
 			}
 			if _, retryable := commandRouterRetryableCodes[status.Code(err)]; retryable && numRetriesRemaining > 0 {
 				if deadline != nil && time.Until(*deadline) <= delay {
-					resultCh <- stdioReadResult{Err: fmt.Errorf("deadline exceeded while streaming stdio for exec %s", execID)}
+					resultCh <- stdioReadResult{Err: ExecTimeoutError{Exception: fmt.Sprintf("deadline exceeded while streaming stdio for exec %s", execID)}}
 					return
 				}
 				c.logger.DebugContext(ctx, "Retrying stdio read with delay", "delay", delay, "error", err)
@@ -603,7 +603,7 @@ func (c *TaskCommandRouterClient) streamStdio(
 				}
 				if _, retryable := commandRouterRetryableCodes[status.Code(err)]; retryable && numRetriesRemaining > 0 {
 					if deadline != nil && time.Until(*deadline) <= delay {
-						resultCh <- stdioReadResult{Err: fmt.Errorf("deadline exceeded while streaming stdio for exec %s", execID)}
+						resultCh <- stdioReadResult{Err: ExecTimeoutError{Exception: fmt.Sprintf("deadline exceeded while streaming stdio for exec %s", execID)}}
 						return
 					}
 					c.logger.DebugContext(ctx, "Retrying stdio read with delay", "delay", delay, "error", err)

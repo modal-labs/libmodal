@@ -35,6 +35,7 @@ import type { ModalGrpcClient } from "./client";
 import { timeoutMiddleware, type TimeoutOptions } from "./client";
 import type { Logger } from "./logger";
 import type { Profile } from "./config";
+import { ExecTimeoutError } from "./errors";
 
 type TaskCommandRouterClient = Client<typeof TaskCommandRouterDefinition>;
 
@@ -294,7 +295,9 @@ export class TaskCommandRouterClientImpl {
     // The timeout here is really a backstop in the event of a hang contacting
     // the command router. Poll should usually be instantaneous.
     if (deadline && deadline <= Date.now()) {
-      throw new Error(`Deadline exceeded while polling for exec ${execId}`);
+      throw new ExecTimeoutError(
+        `Deadline exceeded while polling for exec ${execId}`,
+      );
     }
 
     try {
@@ -307,7 +310,9 @@ export class TaskCommandRouterClientImpl {
       );
     } catch (err) {
       if (err instanceof ClientError && err.code === Status.DEADLINE_EXCEEDED) {
-        throw new Error(`Deadline exceeded while polling for exec ${execId}`);
+        throw new ExecTimeoutError(
+          `Deadline exceeded while polling for exec ${execId}`,
+        );
       }
       throw err;
     }
@@ -321,7 +326,9 @@ export class TaskCommandRouterClientImpl {
     const request = TaskExecWaitRequest.create({ taskId, execId });
 
     if (deadline && deadline <= Date.now()) {
-      throw new Error(`Deadline exceeded while waiting for exec ${execId}`);
+      throw new ExecTimeoutError(
+        `Deadline exceeded while waiting for exec ${execId}`,
+      );
     }
 
     try {
@@ -339,7 +346,9 @@ export class TaskCommandRouterClientImpl {
       );
     } catch (err) {
       if (err instanceof ClientError && err.code === Status.DEADLINE_EXCEEDED) {
-        throw new Error(`Deadline exceeded while waiting for exec ${execId}`);
+        throw new ExecTimeoutError(
+          `Deadline exceeded while waiting for exec ${execId}`,
+        );
       }
       throw err;
     }
@@ -467,7 +476,7 @@ export class TaskCommandRouterClientImpl {
           numRetriesRemaining > 0
         ) {
           if (deadline && deadline - Date.now() <= delayMs) {
-            throw new Error(
+            throw new ExecTimeoutError(
               `Deadline exceeded while streaming stdio for exec ${execId}`,
             );
           }
