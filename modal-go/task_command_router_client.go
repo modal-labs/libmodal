@@ -117,13 +117,10 @@ func parseJwtExpiration(ctx context.Context, jwt string, logger *slog.Logger) *i
 		payloadB64 += "="
 	}
 
-	payloadJSON, err := base64.StdEncoding.DecodeString(payloadB64)
+	payloadJSON, err := base64.URLEncoding.DecodeString(payloadB64)
 	if err != nil {
-		payloadJSON, err = base64.URLEncoding.DecodeString(payloadB64)
-		if err != nil {
-			logger.WarnContext(ctx, "Failed to decode JWT payload", "error", err)
-			return nil
-		}
+		logger.WarnContext(ctx, "Failed to decode JWT payload", "error", err)
+		return nil
 	}
 
 	var payload struct {

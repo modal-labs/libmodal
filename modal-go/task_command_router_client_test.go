@@ -19,14 +19,14 @@ func mockLogger() *slog.Logger {
 }
 
 func mockJWT(exp any) string {
-	header := base64.RawStdEncoding.EncodeToString([]byte(`{"alg":"HS256","typ":"JWT"}`))
+	header := base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"HS256","typ":"JWT"}`))
 	var payloadJSON []byte
 	if exp != nil {
 		payloadJSON, _ = json.Marshal(map[string]any{"exp": exp})
 	} else {
 		payloadJSON, _ = json.Marshal(map[string]any{})
 	}
-	payload := base64.RawStdEncoding.EncodeToString(payloadJSON)
+	payload := base64.RawURLEncoding.EncodeToString(payloadJSON)
 	signature := "fake-signature"
 	return header + "." + payload + "." + signature
 }
