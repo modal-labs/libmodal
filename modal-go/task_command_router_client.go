@@ -259,6 +259,8 @@ func TryInitTaskCommandRouterClient(
 	conn, err := grpc.NewClient(
 		target,
 		grpc.WithTransportCredentials(creds),
+		grpc.WithInitialWindowSize(windowSize),
+		grpc.WithInitialConnWindowSize(windowSize),
 		grpc.WithDefaultCallOptions(
 			grpc.MaxCallRecvMsgSize(maxMessageSize),
 			grpc.MaxCallSendMsgSize(maxMessageSize),

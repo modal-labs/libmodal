@@ -166,14 +166,28 @@ export class TaskCommandRouterClientImpl {
     const port = url.port ? parseInt(url.port) : 443;
     const serverUrl = `${host}:${port}`;
 
+    const channelOptions = {
+      "grpc.max_receive_message_length": 100 * 1024 * 1024,
+      "grpc.max_send_message_length": 100 * 1024 * 1024,
+      "grpc-node.flow_control_window": 64 * 1024 * 1024,
+    };
+
     let channel;
     if (profile.taskCommandRouterInsecure) {
       logger.warn(
         "Using insecure TLS for task command router due to MODAL_TASK_COMMAND_ROUTER_INSECURE",
       );
-      channel = createChannel(serverUrl, ChannelCredentials.createInsecure());
+      channel = createChannel(
+        serverUrl,
+        ChannelCredentials.createInsecure(),
+        channelOptions,
+      );
     } else {
-      channel = createChannel(serverUrl, ChannelCredentials.createSsl());
+      channel = createChannel(
+        serverUrl,
+        ChannelCredentials.createSsl(),
+        channelOptions,
+      );
     }
 
     const client = new TaskCommandRouterClientImpl(
