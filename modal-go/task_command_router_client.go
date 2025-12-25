@@ -22,6 +22,7 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 // tlsCredsNoALPN is a TLS credential that skips ALPN enforcement, implementing
@@ -150,16 +151,15 @@ var errDeadlineExceeded = errors.New("deadline exceeded")
 // callWithRetriesOnTransientErrors retries the given function on transient gRPC errors.
 func callWithRetriesOnTransientErrors[T any](
 	ctx context.Context,
-	fn func() (T, error),
+	fn func() (*T, error),
 	opts retryOptions,
-) (T, error) {
-	var zero T
+) (*T, error) {
 	delay := opts.BaseDelay
 	numRetries := 0
 
 	for {
 		if opts.Deadline != nil && time.Now().After(*opts.Deadline) {
-			return zero, errDeadlineExceeded
+			return nil, errDeadlineExceeded
 		}
 
 		result, err := fn()
@@ -169,24 +169,24 @@ func callWithRetriesOnTransientErrors[T any](
 
 		st, ok := status.FromError(err)
 		if !ok {
-			return zero, err
+			return nil, err
 		}
 
 		if _, retryable := commandRouterRetryableCodes[st.Code()]; !retryable {
-			return zero, err
+			return nil, err
 		}
 
 		if opts.MaxRetries != nil && numRetries >= *opts.MaxRetries {
-			return zero, err
+			return nil, err
 		}
 
 		if opts.Deadline != nil && time.Now().Add(delay).After(*opts.Deadline) {
-			return zero, errDeadlineExceeded
+			return nil, errDeadlineExceeded
 		}
 
 		select {
 		case <-ctx.Done():
-			return zero, ctx.Err()
+			return nil, ctx.Err()
 		case <-time.After(delay):
 		}
 
@@ -340,31 +340,26 @@ func (c *TaskCommandRouterClient) refreshJwt(ctx context.Context) error {
 	return err
 }
 
-func (c *TaskCommandRouterClient) callWithAuthRetry(ctx context.Context, fn func(context.Context) error) error {
-	err := fn(c.authContext(ctx))
+func callWithAuthRetry[T any](ctx context.Context, c *TaskCommandRouterClient, fn func(context.Context) (*T, error)) (*T, error) {
+	resp, err := fn(c.authContext(ctx))
 	if err != nil {
 		if st, ok := status.FromError(err); ok && st.Code() == codes.Unauthenticated {
 			if refreshErr := c.refreshJwt(ctx); refreshErr != nil {
-				return refreshErr
+				return nil, refreshErr
 			}
 			return fn(c.authContext(ctx))
 		}
 	}
-	return err
+	return resp, err
 }
 
 // ExecStart starts a command execution.
 func (c *TaskCommandRouterClient) ExecStart(ctx context.Context, request *pb.TaskExecStartRequest) (*pb.TaskExecStartResponse, error) {
-	var resp *pb.TaskExecStartResponse
-	_, err := callWithRetriesOnTransientErrors(ctx, func() (struct{}, error) {
-		callErr := c.callWithAuthRetry(ctx, func(authCtx context.Context) error {
-			var err error
-			resp, err = c.stub.TaskExecStart(authCtx, request)
-			return err
+	return callWithRetriesOnTransientErrors(ctx, func() (*pb.TaskExecStartResponse, error) {
+		return callWithAuthRetry(ctx, c, func(authCtx context.Context) (*pb.TaskExecStartResponse, error) {
+			return c.stub.TaskExecStart(authCtx, request)
 		})
-		return struct{}{}, callErr
 	}, defaultRetryOptions())
-	return resp, err
 }
 
 // ExecStdinWrite writes data to stdin of an exec.
@@ -377,12 +372,10 @@ func (c *TaskCommandRouterClient) ExecStdinWrite(ctx context.Context, taskID, ex
 		Eof:    eof,
 	}.Build()
 
-	_, err := callWithRetriesOnTransientErrors(ctx, func() (struct{}, error) {
-		callErr := c.callWithAuthRetry(ctx, func(authCtx context.Context) error {
-			_, err := c.stub.TaskExecStdinWrite(authCtx, request)
-			return err
+	_, err := callWithRetriesOnTransientErrors(ctx, func() (*pb.TaskExecStdinWriteResponse, error) {
+		return callWithAuthRetry(ctx, c, func(authCtx context.Context) (*pb.TaskExecStdinWriteResponse, error) {
+			return c.stub.TaskExecStdinWrite(authCtx, request)
 		})
-		return struct{}{}, callErr
 	}, defaultRetryOptions())
 	return err
 }
@@ -402,13 +395,9 @@ func (c *TaskCommandRouterClient) ExecPoll(ctx context.Context, taskID, execID s
 	opts.Deadline = deadline
 
 	resp, err := callWithRetriesOnTransientErrors(ctx, func() (*pb.TaskExecPollResponse, error) {
-		var resp *pb.TaskExecPollResponse
-		callErr := c.callWithAuthRetry(ctx, func(authCtx context.Context) error {
-			var err error
-			resp, err = c.stub.TaskExecPoll(authCtx, request)
-			return err
+		return callWithAuthRetry(ctx, c, func(authCtx context.Context) (*pb.TaskExecPollResponse, error) {
+			return c.stub.TaskExecPoll(authCtx, request)
 		})
-		return resp, callErr
 	}, opts)
 
 	if err != nil {
@@ -439,16 +428,12 @@ func (c *TaskCommandRouterClient) ExecWait(ctx context.Context, taskID, execID s
 	}
 
 	resp, err := callWithRetriesOnTransientErrors(ctx, func() (*pb.TaskExecWaitResponse, error) {
-		var resp *pb.TaskExecWaitResponse
-		callErr := c.callWithAuthRetry(ctx, func(authCtx context.Context) error {
+		return callWithAuthRetry(ctx, c, func(authCtx context.Context) (*pb.TaskExecWaitResponse, error) {
 			// Set a per-call timeout of 60 seconds
 			callCtx, cancel := context.WithTimeout(authCtx, 60*time.Second)
 			defer cancel()
-			var err error
-			resp, err = c.stub.TaskExecWait(callCtx, request)
-			return err
+			return c.stub.TaskExecWait(callCtx, request)
 		})
-		return resp, callErr
 	}, opts)
 
 	if err != nil {
@@ -506,28 +491,21 @@ func (c *TaskCommandRouterClient) ExecStdioRead(
 
 // MountDirectory mounts an image at a directory in the container.
 func (c *TaskCommandRouterClient) MountDirectory(ctx context.Context, request *pb.TaskMountDirectoryRequest) error {
-	_, err := callWithRetriesOnTransientErrors(ctx, func() (struct{}, error) {
-		callErr := c.callWithAuthRetry(ctx, func(authCtx context.Context) error {
-			_, err := c.stub.TaskMountDirectory(authCtx, request)
-			return err
+	_, err := callWithRetriesOnTransientErrors(ctx, func() (*emptypb.Empty, error) {
+		return callWithAuthRetry(ctx, c, func(authCtx context.Context) (*emptypb.Empty, error) {
+			return c.stub.TaskMountDirectory(authCtx, request)
 		})
-		return struct{}{}, callErr
 	}, defaultRetryOptions())
 	return err
 }
 
 // SnapshotDirectory snapshots a directory into a new image.
 func (c *TaskCommandRouterClient) SnapshotDirectory(ctx context.Context, request *pb.TaskSnapshotDirectoryRequest) (*pb.TaskSnapshotDirectoryResponse, error) {
-	resp, err := callWithRetriesOnTransientErrors(ctx, func() (*pb.TaskSnapshotDirectoryResponse, error) {
-		var resp *pb.TaskSnapshotDirectoryResponse
-		callErr := c.callWithAuthRetry(ctx, func(authCtx context.Context) error {
-			var err error
-			resp, err = c.stub.TaskSnapshotDirectory(authCtx, request)
-			return err
+	return callWithRetriesOnTransientErrors(ctx, func() (*pb.TaskSnapshotDirectoryResponse, error) {
+		return callWithAuthRetry(ctx, c, func(authCtx context.Context) (*pb.TaskSnapshotDirectoryResponse, error) {
+			return c.stub.TaskSnapshotDirectory(authCtx, request)
 		})
-		return resp, callErr
 	}, defaultRetryOptions())
-	return resp, err
 }
 
 func (c *TaskCommandRouterClient) streamStdio(

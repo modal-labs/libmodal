@@ -78,13 +78,14 @@ func TestCallWithRetriesOnTransientErrorsSuccessOnFirstAttempt(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 	callCount := 0
-	result, err := callWithRetriesOnTransientErrors(ctx, func() (string, error) {
+	result, err := callWithRetriesOnTransientErrors(ctx, func() (*string, error) {
 		callCount++
-		return "success", nil
+		output := "success"
+		return &output, nil
 	}, defaultRetryOptions())
 
 	g.Expect(err).ToNot(gomega.HaveOccurred())
-	g.Expect(result).To(gomega.Equal("success"))
+	g.Expect(*result).To(gomega.Equal("success"))
 	g.Expect(callCount).To(gomega.Equal(1))
 }
 
@@ -109,16 +110,19 @@ func TestCallWithRetriesOnTransientErrorsRetriesOnTransientCodes(t *testing.T) {
 			g := gomega.NewWithT(t)
 			ctx := context.Background()
 			callCount := 0
-			result, err := callWithRetriesOnTransientErrors(ctx, func() (string, error) {
+			result, err := callWithRetriesOnTransientErrors(ctx, func() (*string, error) {
 				callCount++
+				var output string
 				if callCount == 1 {
-					return "", status.Error(tc.code, tc.message)
+					output = ""
+					return &output, status.Error(tc.code, tc.message)
 				}
-				return "success", nil
+				output = "success"
+				return &output, nil
 			}, retryOptions{BaseDelay: time.Millisecond, DelayFactor: 1, MaxRetries: intPtr(10)})
 
 			g.Expect(err).ToNot(gomega.HaveOccurred())
-			g.Expect(result).To(gomega.Equal("success"))
+			g.Expect(*result).To(gomega.Equal("success"))
 			g.Expect(callCount).To(gomega.Equal(2))
 		})
 	}
@@ -129,9 +133,9 @@ func TestCallWithRetriesOnTransientErrorsNonRetryableError(t *testing.T) {
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 	callCount := 0
-	_, err := callWithRetriesOnTransientErrors(ctx, func() (string, error) {
+	_, err := callWithRetriesOnTransientErrors(ctx, func() (*string, error) {
 		callCount++
-		return "", status.Error(codes.InvalidArgument, "invalid")
+		return nil, status.Error(codes.InvalidArgument, "invalid")
 	}, retryOptions{BaseDelay: time.Millisecond, DelayFactor: 1, MaxRetries: intPtr(10)})
 
 	g.Expect(err).To(gomega.HaveOccurred())
@@ -144,9 +148,9 @@ func TestCallWithRetriesOnTransientErrorsMaxRetriesExceeded(t *testing.T) {
 	ctx := context.Background()
 	callCount := 0
 	maxRetries := 3
-	_, err := callWithRetriesOnTransientErrors(ctx, func() (string, error) {
+	_, err := callWithRetriesOnTransientErrors(ctx, func() (*string, error) {
 		callCount++
-		return "", status.Error(codes.Unavailable, "unavailable")
+		return nil, status.Error(codes.Unavailable, "unavailable")
 	}, retryOptions{BaseDelay: time.Millisecond, DelayFactor: 1, MaxRetries: &maxRetries})
 
 	g.Expect(err).To(gomega.HaveOccurred())
@@ -159,9 +163,9 @@ func TestCallWithRetriesOnTransientErrorsDeadlineExceeded(t *testing.T) {
 	ctx := context.Background()
 	callCount := 0
 	deadline := time.Now().Add(50 * time.Millisecond)
-	_, err := callWithRetriesOnTransientErrors(ctx, func() (string, error) {
+	_, err := callWithRetriesOnTransientErrors(ctx, func() (*string, error) {
 		callCount++
-		return "", status.Error(codes.Unavailable, "unavailable")
+		return nil, status.Error(codes.Unavailable, "unavailable")
 	}, retryOptions{BaseDelay: 100 * time.Millisecond, DelayFactor: 1, MaxRetries: nil, Deadline: &deadline})
 
 	g.Expect(err).To(gomega.HaveOccurred())
