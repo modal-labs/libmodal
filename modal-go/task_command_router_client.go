@@ -578,7 +578,12 @@ func (c *TaskCommandRouterClient) streamStdio(
 					return
 				}
 				c.logger.DebugContext(ctx, "Retrying stdio read with delay", "delay", delay, "error", err)
-				time.Sleep(delay)
+				select {
+				case <-ctx.Done():
+					resultCh <- stdioReadResult{Err: ctx.Err()}
+					return
+				case <-time.After(delay):
+				}
 				delay = time.Duration(float64(delay) * delayFactor)
 				numRetriesRemaining--
 				continue
@@ -607,7 +612,12 @@ func (c *TaskCommandRouterClient) streamStdio(
 						return
 					}
 					c.logger.DebugContext(ctx, "Retrying stdio read with delay", "delay", delay, "error", err)
-					time.Sleep(delay)
+					select {
+					case <-ctx.Done():
+						resultCh <- stdioReadResult{Err: ctx.Err()}
+						return
+					case <-time.After(delay):
+					}
 					delay = time.Duration(float64(delay) * delayFactor)
 					numRetriesRemaining--
 					break
