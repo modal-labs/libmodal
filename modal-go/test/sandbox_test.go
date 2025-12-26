@@ -1034,3 +1034,45 @@ func TestSandboxExecOutputTimeout(t *testing.T) {
 	g.Expect(elapsed).To(gomega.BeNumerically(">", 1*time.Second))
 	g.Expect(elapsed).To(gomega.BeNumerically("<", 15*time.Second))
 }
+
+func TestSandboxDoubleTerminate(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+	tc := newTestClient(t)
+
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+
+	image := tc.Images.FromRegistry("alpine:3.21", nil)
+
+	sb, err := tc.Sandboxes.Create(ctx, app, image, nil)
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+
+	err = sb.Terminate(ctx)
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+
+	err = sb.Terminate(ctx)
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+}
+
+func TestSandboxExecAfterTerminate(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+	tc := newTestClient(t)
+
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+
+	image := tc.Images.FromRegistry("alpine:3.21", nil)
+
+	sb, err := tc.Sandboxes.Create(ctx, app, image, nil)
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+
+	err = sb.Terminate(ctx)
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+
+	_, err = sb.Exec(ctx, []string{"echo", "hello"}, nil)
+	g.Expect(err).To(gomega.HaveOccurred())
+}

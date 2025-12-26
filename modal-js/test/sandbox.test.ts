@@ -992,3 +992,28 @@ test("SandboxExecOutputTimeout", async () => {
     expect(elapsed).toBeLessThan(4000);
   }
 });
+
+test("SandboxDoubleTerminate", async () => {
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
+  const image = tc.images.fromRegistry("alpine:3.21");
+
+  const sb = await tc.sandboxes.create(app, image);
+
+  await sb.terminate();
+  await sb.terminate();
+});
+
+test("SandboxExecAfterTerminate", async () => {
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
+  const image = tc.images.fromRegistry("alpine:3.21");
+
+  const sb = await tc.sandboxes.create(app, image);
+
+  await sb.terminate();
+
+  await expect(sb.exec(["echo", "hello"])).rejects.toThrow();
+});
