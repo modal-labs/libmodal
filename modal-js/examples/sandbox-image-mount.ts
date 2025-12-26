@@ -24,7 +24,9 @@ const app = await modal.apps.fromName("libmodal-example", {
   createIfMissing: true,
 });
 // The base Image you use for the Sandbox must have a /usr/bin/mount binary.
-const baseImage = modal.images.fromRegistry("debian:12-slim");
+const baseImage = modal.images
+  .fromRegistry("debian:12-slim")
+  .dockerfileCommands(["RUN apt-get update && apt-get install -y git"]);
 
 const sb = await modal.sandboxes.create(app, baseImage);
 

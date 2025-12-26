@@ -5,6 +5,7 @@ Both client libraries are pre-1.0, and they have separate versioning.
 ## Unreleased
 
 - Upgraded the internal handling of Sandbox exec to use the new command router interface, which brings greatly improved performance and reliability for exec operations.
+- Added support for experimental features for snapshotting a single directory, and mounting the resulting Image at a specific directory in the Sandbox filesystem.
 
 ## modal-js/v0.6.0, modal-go/v0.6.0
 
