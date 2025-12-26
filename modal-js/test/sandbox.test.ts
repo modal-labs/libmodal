@@ -1017,3 +1017,83 @@ test("SandboxExecAfterTerminate", async () => {
 
   await expect(sb.exec(["echo", "hello"])).rejects.toThrow();
 });
+
+test("SandboxDetachThenExec", async () => {
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
+  const image = tc.images.fromRegistry("alpine:3.21");
+
+  const sb = await tc.sandboxes.create(app, image);
+  onTestFinished(async () => await sb.terminate());
+
+  const p1 = await sb.exec(["echo", "first"]);
+  const exitCode1 = await p1.wait();
+  expect(exitCode1).toBe(0);
+
+  sb.detach();
+
+  // Second exec creates new command router client
+  const p2 = await sb.exec(["echo", "second"]);
+  const exitCode2 = await p2.wait();
+  expect(exitCode2).toBe(0);
+});
+
+test("SandboxDetachIsNonDestructive", async () => {
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
+  const image = tc.images.fromRegistry("alpine:3.21");
+
+  const sb = await tc.sandboxes.create(app, image);
+  onTestFinished(async () => await sb.terminate());
+
+  const sandboxId = sb.sandboxId;
+
+  sb.detach();
+
+  const sbFromId = await tc.sandboxes.fromId(sandboxId);
+  expect(sbFromId.sandboxId).toBe(sandboxId);
+
+  const p = await sbFromId.exec(["echo", "still running"]);
+  const exitCode = await p.wait();
+  expect(exitCode).toBe(0);
+});
+
+test("SandboxDetachIsIdempotent", async () => {
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
+  const image = tc.images.fromRegistry("alpine:3.21");
+
+  const sb = await tc.sandboxes.create(app, image);
+  onTestFinished(async () => await sb.terminate());
+
+  sb.detach();
+  sb.detach();
+});
+
+test("SandboxDetachThenTerminate", async () => {
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
+  const image = tc.images.fromRegistry("alpine:3.21");
+
+  const sb = await tc.sandboxes.create(app, image);
+  onTestFinished(async () => await sb.terminate());
+
+  sb.detach();
+  await sb.terminate();
+});
+
+test("SandboxTerminateThenDetach", async () => {
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
+  const image = tc.images.fromRegistry("alpine:3.21");
+
+  const sb = await tc.sandboxes.create(app, image);
+
+  await sb.terminate();
+  sb.detach();
+});

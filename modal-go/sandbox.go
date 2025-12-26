@@ -716,11 +716,9 @@ func (sb *Sandbox) getOrCreateCommandRouterClient(ctx context.Context, taskID st
 	return sb.commandRouterClient, nil
 }
 
-// Close closes any resources associated with the Sandbox.
-// This should be called when the Sandbox is no longer needed
-// in the local client. The sandbox can still be running and
-// accessed in other clients.
-func (sb *Sandbox) Close() {
+// Detach disconnects from the running Sandbox, and closies the Stdin/Stdout/Stderr streams.
+// The remote Sandbox continues running and can be accessed from other clients.
+func (sb *Sandbox) Detach() {
 	sb.mu.Lock()
 	defer sb.mu.Unlock()
 
@@ -728,11 +726,28 @@ func (sb *Sandbox) Close() {
 		_ = sb.commandRouterClient.Close()
 		sb.commandRouterClient = nil
 	}
+
+	if sb.Stdin != nil {
+		_ = sb.Stdin.Close()
+	}
+	if sb.Stdout != nil {
+		_ = sb.Stdout.Close()
+	}
+	if sb.Stderr != nil {
+		_ = sb.Stderr.Close()
+	}
 }
 
 // Terminate stops the Sandbox.
+// The Stdin, Stdout, Stderr streams are not closed.
 func (sb *Sandbox) Terminate(ctx context.Context) error {
-	sb.Close()
+	sb.mu.Lock()
+	if sb.commandRouterClient != nil {
+		_ = sb.commandRouterClient.Close()
+		sb.commandRouterClient = nil
+	}
+	sb.mu.Unlock()
+
 	_, err := sb.client.cpClient.SandboxTerminate(ctx, pb.SandboxTerminateRequest_builder{
 		SandboxId: sb.SandboxID,
 	}.Build())

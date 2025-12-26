@@ -941,20 +941,30 @@ export class Sandbox {
   }
 
   /**
-   * Close any resources associated with the Sandbox.
-   * This should be called when the Sandbox is no longer needed
-   * in the local client. The sandbox can still be running and
-   * accessed in other clients.
+   * Detach from the running Sandbox, closing the stdin/stdout/stderr streams.
+   * The remote Sandbox continues running and can be accessed from other clients.
    */
-  close(): void {
+  detach(): void {
     if (this.#commandRouterClient) {
       this.#commandRouterClient.close();
       this.#commandRouterClient = undefined;
     }
+
+    this.stdin.abort().catch(() => {});
+    this.stdout.cancel().catch(() => {});
+    this.stderr.cancel().catch(() => {});
   }
 
+  /**
+   * Terminate the Sandbox.
+   * The stdin, stdout, stderr streams are not closed.
+   */
   async terminate(): Promise<void> {
-    this.close();
+    if (this.#commandRouterClient) {
+      this.#commandRouterClient.close();
+      this.#commandRouterClient = undefined;
+    }
+
     await this.#client.cpClient.sandboxTerminate({ sandboxId: this.sandboxId });
     this.#taskId = undefined; // Reset task ID after termination
   }
