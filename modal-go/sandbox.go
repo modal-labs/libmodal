@@ -3,6 +3,7 @@ package modal
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"iter"
@@ -716,26 +717,38 @@ func (sb *Sandbox) getOrCreateCommandRouterClient(ctx context.Context, taskID st
 	return sb.commandRouterClient, nil
 }
 
-// Detach disconnects from the running Sandbox, and closies the Stdin/Stdout/Stderr streams.
+// Detach disconnects from the running Sandbox, and closes the Stdin/Stdout/Stderr streams.
 // The remote Sandbox continues running and can be accessed from other clients.
-func (sb *Sandbox) Detach() {
+func (sb *Sandbox) Detach() error {
 	sb.mu.Lock()
 	defer sb.mu.Unlock()
 
+	var errs []error
+
 	if sb.commandRouterClient != nil {
-		_ = sb.commandRouterClient.Close()
+		if err := sb.commandRouterClient.Close(); err != nil {
+			errs = append(errs, fmt.Errorf("commandRouterClient.Close: %w", err))
+		}
 		sb.commandRouterClient = nil
 	}
 
 	if sb.Stdin != nil {
-		_ = sb.Stdin.Close()
+		if err := sb.Stdin.Close(); err != nil {
+			errs = append(errs, fmt.Errorf("Stdin.Close: %w", err))
+		}
 	}
 	if sb.Stdout != nil {
-		_ = sb.Stdout.Close()
+		if err := sb.Stdout.Close(); err != nil {
+			errs = append(errs, fmt.Errorf("Stdout.Close: %w", err))
+		}
 	}
 	if sb.Stderr != nil {
-		_ = sb.Stderr.Close()
+		if err := sb.Stderr.Close(); err != nil {
+			errs = append(errs, fmt.Errorf("Stderr.Close: %w", err))
+		}
 	}
+
+	return errors.Join(errs...)
 }
 
 // Terminate stops the Sandbox.

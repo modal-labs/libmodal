@@ -1098,7 +1098,8 @@ func TestSandboxDetachThenExec(t *testing.T) {
 	g.Expect(err).ToNot(gomega.HaveOccurred())
 	g.Expect(exitCode1).To(gomega.Equal(0))
 
-	sb.Detach()
+	err = sb.Detach()
+	g.Expect(err).ToNot(gomega.HaveOccurred())
 
 	// Second exec creates new command router client
 	p2, err := sb.Exec(ctx, []string{"echo", "second"}, nil)
@@ -1125,11 +1126,12 @@ func TestSandboxDetachIsNonDestructive(t *testing.T) {
 
 	sandboxID := sb.SandboxID
 
-	sb.Detach()
+	err = sb.Detach()
+	g.Expect(err).ToNot(gomega.HaveOccurred())
 
 	sbFromID, err := tc.Sandboxes.FromID(ctx, sandboxID)
 	g.Expect(err).ToNot(gomega.HaveOccurred())
-	defer sbFromID.Detach()
+	defer func() { _ = sbFromID.Detach() }()
 	g.Expect(sbFromID.SandboxID).To(gomega.Equal(sandboxID))
 
 	p, err := sbFromID.Exec(ctx, []string{"echo", "still running"}, nil)
@@ -1154,9 +1156,12 @@ func TestSandboxDetachIsIdempotent(t *testing.T) {
 	g.Expect(err).ToNot(gomega.HaveOccurred())
 	defer terminateSandbox(g, sb)
 
-	sb.Detach()
-	sb.Detach()
-	sb.Detach()
+	err = sb.Detach()
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+	err = sb.Detach()
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+	err = sb.Detach()
+	g.Expect(err).ToNot(gomega.HaveOccurred())
 }
 
 func TestSandboxDetachThenTerminate(t *testing.T) {
@@ -1174,7 +1179,8 @@ func TestSandboxDetachThenTerminate(t *testing.T) {
 	g.Expect(err).ToNot(gomega.HaveOccurred())
 	defer terminateSandbox(g, sb)
 
-	sb.Detach()
+	err = sb.Detach()
+	g.Expect(err).ToNot(gomega.HaveOccurred())
 
 	err = sb.Terminate(ctx)
 	g.Expect(err).ToNot(gomega.HaveOccurred())
@@ -1197,5 +1203,6 @@ func TestSandboxTerminateThenDetach(t *testing.T) {
 	err = sb.Terminate(ctx)
 	g.Expect(err).ToNot(gomega.HaveOccurred())
 
-	sb.Detach()
+	err = sb.Detach()
+	g.Expect(err).ToNot(gomega.HaveOccurred())
 }
