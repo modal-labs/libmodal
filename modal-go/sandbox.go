@@ -493,8 +493,8 @@ func ValidateExecArgs(args []string) error {
 	return nil
 }
 
-// BuildTaskExecStartRequestProto builds a TaskExecStartRequest proto from command and options.
-func BuildTaskExecStartRequestProto(taskID, execID string, command []string, params SandboxExecParams) (*pb.TaskExecStartRequest, error) {
+// buildTaskExecStartRequestProto builds a TaskExecStartRequest proto from command and options.
+func buildTaskExecStartRequestProto(taskID, execID string, command []string, params SandboxExecParams) (*pb.TaskExecStartRequest, error) {
 	if params.Timeout < 0 {
 		return nil, fmt.Errorf("timeout must be non-negative, got %v", params.Timeout)
 	}
@@ -596,7 +596,7 @@ func (sb *Sandbox) Exec(ctx context.Context, command []string, params *SandboxEx
 	}
 
 	execID := uuid.New().String()
-	req, err := BuildTaskExecStartRequestProto(sb.taskID, execID, command, mergedParams)
+	req, err := buildTaskExecStartRequestProto(sb.taskID, execID, command, mergedParams)
 	if err != nil {
 		return nil, err
 	}
