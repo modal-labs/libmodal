@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"log/slog"
-	"os"
 	"testing"
 	"time"
 
@@ -13,10 +11,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
-
-func mockLogger() *slog.Logger {
-	return slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-}
 
 func mockJWT(exp any) string {
 	header := base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"HS256","typ":"JWT"}`))
@@ -36,7 +30,8 @@ func TestParseJwtExpirationWithValidJWT(t *testing.T) {
 	g := gomega.NewWithT(t)
 	exp := time.Now().Unix() + 3600
 	jwt := mockJWT(exp)
-	result := parseJwtExpiration(context.Background(), jwt, mockLogger())
+	result, err := parseJwtExpiration(jwt)
+	g.Expect(err).ToNot(gomega.HaveOccurred())
 	g.Expect(result).ToNot(gomega.BeNil())
 	g.Expect(*result).To(gomega.Equal(exp))
 }
@@ -45,7 +40,8 @@ func TestParseJwtExpirationWithoutExpClaim(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	jwt := mockJWT(nil)
-	result := parseJwtExpiration(context.Background(), jwt, mockLogger())
+	result, err := parseJwtExpiration(jwt)
+	g.Expect(err).ToNot(gomega.HaveOccurred())
 	g.Expect(result).To(gomega.BeNil())
 }
 
@@ -53,7 +49,8 @@ func TestParseJwtExpirationWithMalformedJWT(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	jwt := "only.two"
-	result := parseJwtExpiration(context.Background(), jwt, mockLogger())
+	result, err := parseJwtExpiration(jwt)
+	g.Expect(err).To(gomega.HaveOccurred())
 	g.Expect(result).To(gomega.BeNil())
 }
 
@@ -61,7 +58,8 @@ func TestParseJwtExpirationWithInvalidBase64(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	jwt := "invalid.!!!invalid!!!.signature"
-	result := parseJwtExpiration(context.Background(), jwt, mockLogger())
+	result, err := parseJwtExpiration(jwt)
+	g.Expect(err).To(gomega.HaveOccurred())
 	g.Expect(result).To(gomega.BeNil())
 }
 
@@ -69,7 +67,8 @@ func TestParseJwtExpirationWithNonNumericExp(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	jwt := mockJWT("not-a-number")
-	result := parseJwtExpiration(context.Background(), jwt, mockLogger())
+	result, err := parseJwtExpiration(jwt)
+	g.Expect(err).To(gomega.HaveOccurred())
 	g.Expect(result).To(gomega.BeNil())
 }
 

@@ -106,11 +106,12 @@ var commandRouterRetryableCodes = map[codes.Code]struct{}{
 }
 
 // parseJwtExpiration extracts the expiration time from a JWT token.
-// Returns nil if the token is malformed or doesn't have an exp claim.
-func parseJwtExpiration(ctx context.Context, jwt string, logger *slog.Logger) *int64 {
+// Returns (nil, nil) if the token has no exp claim.
+// Returns an error if the token is malformed.
+func parseJwtExpiration(jwt string) (*int64, error) {
 	parts := strings.Split(jwt, ".")
 	if len(parts) != 3 {
-		return nil
+		return nil, fmt.Errorf("malformed JWT: expected 3 parts, got %d", len(parts))
 	}
 
 	payloadB64 := parts[1]
@@ -123,28 +124,26 @@ func parseJwtExpiration(ctx context.Context, jwt string, logger *slog.Logger) *i
 
 	payloadJSON, err := base64.URLEncoding.DecodeString(payloadB64)
 	if err != nil {
-		logger.WarnContext(ctx, "Failed to decode JWT payload", "error", err)
-		return nil
+		return nil, fmt.Errorf("malformed JWT: base64 decode: %w", err)
 	}
 
 	var payload struct {
 		Exp json.Number `json:"exp"`
 	}
 	if err := json.Unmarshal(payloadJSON, &payload); err != nil {
-		logger.WarnContext(ctx, "Failed to parse JWT payload", "error", err)
-		return nil
+		return nil, fmt.Errorf("malformed JWT: json unmarshal: %w", err)
 	}
 
 	if payload.Exp == "" {
-		return nil
+		return nil, nil
 	}
 
 	exp, err := payload.Exp.Int64()
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("malformed JWT: exp not an integer: %w", err)
 	}
 
-	return &exp
+	return &exp, nil
 }
 
 var errDeadlineExceeded = errors.New("deadline exceeded")
@@ -237,6 +236,12 @@ func TryInitTaskCommandRouterClient(
 
 	logger.DebugContext(ctx, "Using command router access for task", "task_id", taskID, "url", resp.GetUrl())
 
+	jwt := resp.GetJwt()
+	jwtExp, err := parseJwtExpiration(jwt)
+	if err != nil {
+		return nil, fmt.Errorf("parseJwtExpiration: %w", err)
+	}
+
 	url, err := url.Parse(resp.GetUrl())
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse task router URL: %w", err)
@@ -284,9 +289,7 @@ func TryInitTaskCommandRouterClient(
 		logger:       logger,
 		done:         make(chan struct{}),
 	}
-	jwt := resp.GetJwt()
 	client.jwt.Store(&jwt)
-	jwtExp := parseJwtExpiration(ctx, jwt, logger)
 	client.jwtExp.Store(jwtExp)
 
 	logger.DebugContext(ctx, "Successfully initialized command router client", "task_id", taskID)
@@ -342,7 +345,11 @@ func (c *TaskCommandRouterClient) refreshJwt(ctx context.Context) error {
 
 		jwt := resp.GetJwt()
 		c.jwt.Store(&jwt)
-		jwtExp := parseJwtExpiration(ctx, jwt, c.logger)
+		jwtExp, err := parseJwtExpiration(jwt)
+		if err != nil {
+			// Log warning but continue - we'll refresh on every auth failure instead of proactively.
+			c.logger.WarnContext(ctx, "parseJwtExpiration during refresh", "error", err)
+		}
 		c.jwtExp.Store(jwtExp)
 		return nil, nil
 	})
