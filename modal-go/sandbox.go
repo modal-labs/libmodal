@@ -1074,7 +1074,7 @@ type cpStdin struct {
 	execID              string
 	commandRouterClient *TaskCommandRouterClient
 
-	mu     sync.Mutex // protects offset
+	mu     sync.Mutex // serializes writes to maintain offset consistency
 	offset uint64
 }
 
