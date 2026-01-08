@@ -510,33 +510,24 @@ func buildTaskExecStartRequestProto(taskID, execID string, command []string, par
 		}
 	}
 
-	stdout := params.Stdout
-	if stdout == "" {
-		stdout = Pipe
-	}
-	stderr := params.Stderr
-	if stderr == "" {
-		stderr = Pipe
-	}
-
 	var stdoutConfig pb.TaskExecStdoutConfig
-	switch stdout {
-	case Pipe:
+	switch params.Stdout {
+	case Pipe, "":
 		stdoutConfig = pb.TaskExecStdoutConfig_TASK_EXEC_STDOUT_CONFIG_PIPE
 	case Ignore:
 		stdoutConfig = pb.TaskExecStdoutConfig_TASK_EXEC_STDOUT_CONFIG_DEVNULL
 	default:
-		return nil, fmt.Errorf("unsupported stdout behavior: %s", stdout)
+		return nil, fmt.Errorf("unsupported stdout behavior: %s", params.Stdout)
 	}
 
 	var stderrConfig pb.TaskExecStderrConfig
-	switch stderr {
-	case Pipe:
+	switch params.Stderr {
+	case Pipe, "":
 		stderrConfig = pb.TaskExecStderrConfig_TASK_EXEC_STDERR_CONFIG_PIPE
 	case Ignore:
 		stderrConfig = pb.TaskExecStderrConfig_TASK_EXEC_STDERR_CONFIG_DEVNULL
 	default:
-		return nil, fmt.Errorf("unsupported stderr behavior: %s", stderr)
+		return nil, fmt.Errorf("unsupported stderr behavior: %s", params.Stderr)
 	}
 
 	var ptyInfo *pb.PTYInfo
