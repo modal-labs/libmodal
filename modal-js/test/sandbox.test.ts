@@ -1033,10 +1033,7 @@ test("SandboxDetachThenExec", async () => {
 
   sb.detach();
 
-  // Second exec creates new command router client
-  const p2 = await sb.exec(["echo", "second"]);
-  const exitCode2 = await p2.wait();
-  expect(exitCode2).toBe(0);
+  await expect(sb.exec(["echo", "second"])).rejects.toThrow("detached");
 });
 
 test("SandboxDetachIsNonDestructive", async () => {

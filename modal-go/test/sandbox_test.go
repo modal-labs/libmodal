@@ -1101,12 +1101,9 @@ func TestSandboxDetachThenExec(t *testing.T) {
 	err = sb.Detach()
 	g.Expect(err).ToNot(gomega.HaveOccurred())
 
-	// Second exec creates new command router client
-	p2, err := sb.Exec(ctx, []string{"echo", "second"}, nil)
-	g.Expect(err).ToNot(gomega.HaveOccurred())
-	exitCode2, err := p2.Wait(ctx)
-	g.Expect(err).ToNot(gomega.HaveOccurred())
-	g.Expect(exitCode2).To(gomega.Equal(0))
+	_, err = sb.Exec(ctx, []string{"echo", "second"}, nil)
+	g.Expect(err).To(gomega.HaveOccurred())
+	g.Expect(err.Error()).To(gomega.ContainSubstring("detached"))
 }
 
 func TestSandboxDetachIsNonDestructive(t *testing.T) {

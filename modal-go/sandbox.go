@@ -371,10 +371,11 @@ type Sandbox struct {
 	taskID              string
 	tunnels             map[int]*Tunnel
 	commandRouterClient *TaskCommandRouterClient
+	detached            bool
 
 	client *Client
 
-	mu sync.Mutex // protects commandRouterClient
+	mu sync.Mutex // protects commandRouterClient and detached
 }
 
 func defaultSandboxPTYInfo() *pb.PTYInfo {
@@ -561,6 +562,13 @@ func buildTaskExecStartRequestProto(taskID, execID string, command []string, par
 
 // Exec runs a command in the Sandbox and returns text streams.
 func (sb *Sandbox) Exec(ctx context.Context, command []string, params *SandboxExecParams) (*ContainerProcess, error) {
+	sb.mu.Lock()
+	if sb.detached {
+		sb.mu.Unlock()
+		return nil, InvalidError{Exception: "cannot call Exec on a detached Sandbox"}
+	}
+	sb.mu.Unlock()
+
 	if params == nil {
 		params = &SandboxExecParams{}
 	}
@@ -713,6 +721,8 @@ func (sb *Sandbox) getOrCreateCommandRouterClient(ctx context.Context, taskID st
 func (sb *Sandbox) Detach() error {
 	sb.mu.Lock()
 	defer sb.mu.Unlock()
+
+	sb.detached = true
 
 	var errs []error
 
