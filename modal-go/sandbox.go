@@ -1086,14 +1086,10 @@ type cpStdin struct {
 	taskID              string
 	execID              string
 	commandRouterClient *TaskCommandRouterClient
-
-	mu     sync.Mutex // serializes writes to maintain offset consistency
-	offset uint64
+	offset              uint64
 }
 
 func (cps *cpStdin) Write(p []byte) (int, error) {
-	cps.mu.Lock()
-	defer cps.mu.Unlock()
 	err := cps.commandRouterClient.ExecStdinWrite(context.Background(), cps.taskID, cps.execID, cps.offset, p, false)
 	if err != nil {
 		return 0, err
@@ -1103,8 +1099,6 @@ func (cps *cpStdin) Write(p []byte) (int, error) {
 }
 
 func (cps *cpStdin) Close() error {
-	cps.mu.Lock()
-	defer cps.mu.Unlock()
 	return cps.commandRouterClient.ExecStdinWrite(context.Background(), cps.taskID, cps.execID, cps.offset, nil, true)
 }
 
