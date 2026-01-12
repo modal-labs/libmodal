@@ -1062,6 +1062,9 @@ func (sbs *sbStdin) Close() error {
 		Index:     sbs.index,
 		Eof:       true,
 	}.Build())
+	if st, ok := status.FromError(err); ok && st.Code() == codes.FailedPrecondition {
+		return nil
+	}
 	return err
 }
 

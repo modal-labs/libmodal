@@ -1206,3 +1206,67 @@ func TestSandboxTerminateThenDetach(t *testing.T) {
 	err = sb.Detach()
 	g.Expect(err).ToNot(gomega.HaveOccurred())
 }
+
+func TestSandboxReadStdoutAfterTerminate(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+	tc := newTestClient(t)
+
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+
+	image := tc.Images.FromRegistry("alpine:3.21", nil)
+
+	sb, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
+		Command: []string{"sh", "-c", "echo hello-stdout; echo hello-stderr >&2"},
+	})
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+
+	_, err = sb.Wait(ctx)
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+
+	err = sb.Terminate(ctx)
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+
+	stdout, err := io.ReadAll(sb.Stdout)
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+	g.Expect(string(stdout)).To(gomega.Equal("hello-stdout\n"))
+
+	stderr, err := io.ReadAll(sb.Stderr)
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+	g.Expect(string(stderr)).To(gomega.Equal("hello-stderr\n"))
+}
+
+func TestContainerProcessReadStdoutAfterSandboxTerminate(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+	tc := newTestClient(t)
+
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+
+	image := tc.Images.FromRegistry("alpine:3.21", nil)
+
+	sb, err := tc.Sandboxes.Create(ctx, app, image, nil)
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+
+	p, err := sb.Exec(ctx, []string{"sh", "-c", "echo exec-stdout; echo exec-stderr >&2"}, nil)
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+
+	exitCode, err := p.Wait(ctx)
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+	g.Expect(exitCode).To(gomega.Equal(0))
+
+	err = sb.Terminate(ctx)
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+
+	_, err = io.ReadAll(p.Stdout)
+	g.Expect(err).To(gomega.HaveOccurred())
+	g.Expect(err.Error()).To(gomega.ContainSubstring("context canceled"))
+
+	_, err = io.ReadAll(p.Stderr)
+	g.Expect(err).To(gomega.HaveOccurred())
+	g.Expect(err.Error()).To(gomega.ContainSubstring("context canceled"))
+}
