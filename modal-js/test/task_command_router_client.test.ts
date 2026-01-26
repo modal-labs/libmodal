@@ -134,9 +134,7 @@ test("callWithAuthRetry does not retry on non-UNAUTHENTICATED errors", async () 
   const error = new ClientError("/test", Status.INVALID_ARGUMENT, "invalid");
   const func = vi.fn().mockRejectedValue(error);
   const onAuthError = vi.fn();
-  await expect(callWithAuthRetry(func, onAuthError)).rejects.toThrow(
-    error,
-  );
+  await expect(callWithAuthRetry(func, onAuthError)).rejects.toThrow(error);
   expect(func).toHaveBeenCalledTimes(1);
   expect(onAuthError).not.toHaveBeenCalled();
 });
@@ -149,9 +147,7 @@ test("callWithAuthRetry throws if still UNAUTHENTICATED after retry", async () =
   );
   const func = vi.fn().mockRejectedValue(error);
   const onAuthError = vi.fn().mockResolvedValue(undefined);
-  await expect(callWithAuthRetry(func, onAuthError)).rejects.toThrow(
-    error,
-  );
+  await expect(callWithAuthRetry(func, onAuthError)).rejects.toThrow(error);
   expect(func).toHaveBeenCalledTimes(2);
   expect(onAuthError).toHaveBeenCalledTimes(1);
 });

@@ -1019,11 +1019,17 @@ test("SandboxExecAfterTerminate", async () => {
 });
 
 test("ContainerProcessReadStdoutAfterSandboxTerminate", async () => {
-  const app = await tc.apps.fromName("libmodal-test", {createIfMissing: true});
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
   const image = tc.images.fromRegistry("alpine:3.21");
   const sb = await tc.sandboxes.create(app, image);
 
-  const p = await sb.exec(["sh", "-c", "echo exec-stdout; echo exec-stderr >&2"])
+  const p = await sb.exec([
+    "sh",
+    "-c",
+    "echo exec-stdout; echo exec-stderr >&2",
+  ]);
   await p.wait();
   await sb.terminate();
 
@@ -1032,15 +1038,15 @@ test("ContainerProcessReadStdoutAfterSandboxTerminate", async () => {
   // - modal-js: Reading stdout/stderr continues to work after the sandbox is terminated. It'll
   //   return an empty string.
   // - modal-go: Reading stdout/stderr stops working because the go-routines are all canceled.
-  const stdout1 = await p.stdout.readText()
+  const stdout1 = await p.stdout.readText();
   await expect(stdout1).equal("exec-stdout\n");
 
-  const stdout2 = await p.stdout.readText()
+  const stdout2 = await p.stdout.readText();
   await expect(stdout2).equal("");
 
-  const stderr1 = await p.stderr.readText()
+  const stderr1 = await p.stderr.readText();
   await expect(stderr1).equal("exec-stderr\n");
 
-  const stderr2 = await p.stderr.readText()
+  const stderr2 = await p.stderr.readText();
   await expect(stderr2).equal("");
 });

@@ -197,7 +197,6 @@ describe("AuthTokenManager", () => {
 
     await new Promise((resolve) => setTimeout(resolve, 100));
   });
-
 });
 
 describe("ModalClient with AuthTokenManager", () => {
