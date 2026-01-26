@@ -1039,14 +1039,14 @@ test("ContainerProcessReadStdoutAfterSandboxTerminate", async () => {
   //   return an empty string.
   // - modal-go: Reading stdout/stderr stops working because the go-routines are all canceled.
   const stdout1 = await p.stdout.readText();
-  await expect(stdout1).equal("exec-stdout\n");
+  expect(stdout1).equal("exec-stdout\n");
 
   const stdout2 = await p.stdout.readText();
-  await expect(stdout2).equal("");
+  expect(stdout2).equal("");
 
   const stderr1 = await p.stderr.readText();
-  await expect(stderr1).equal("exec-stderr\n");
+  expect(stderr1).equal("exec-stderr\n");
 
   const stderr2 = await p.stderr.readText();
-  await expect(stderr2).equal("");
+  expect(stderr2).equal("");
 });
