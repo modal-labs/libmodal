@@ -71,6 +71,8 @@ func (m *AuthTokenManager) Start(ctx context.Context) error {
 		m.Stop()
 		return fmt.Errorf("failed to fetch initial auth token: %w", err)
 	}
+
+	go m.backgroundRefresh(refreshCtx)
 	return nil
 }
 
@@ -115,6 +117,44 @@ func (m *AuthTokenManager) GetToken(ctx context.Context) (string, error) {
 	}
 
 	return "", fmt.Errorf("no valid auth token available")
+}
+
+// backgroundRefresh runs in a goroutine and refreshes tokens REFRESH_WINDOW seconds before they expire.
+func (m *AuthTokenManager) backgroundRefresh(ctx context.Context) {
+	for {
+		data := m.tokenAndExpiry.Load().(TokenAndExpiry)
+		now := time.Now().Unix()
+		refreshTime := data.expiry - RefreshWindow
+
+		var delay time.Duration
+		if refreshTime > now {
+			// Token does not need refreshing yet. Set a delay to wait until the refresh time.
+			delay = time.Duration(refreshTime-now) * time.Second
+		} else {
+			// Token needs refresh now or is expired, refresh immediately
+			// This should almost never happen.
+			delay = 0
+		}
+
+		if delay > 0 {
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(delay):
+			}
+		}
+
+		// Refresh the token
+		if err := m.runFetch(ctx); err != nil {
+			m.logger.ErrorContext(ctx, "Failed to refresh auth token", "error", err)
+			// Sleep for 5 seconds before trying again on failure
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(5 * time.Second):
+			}
+		}
+	}
 }
 
 // FetchToken fetches a new token using AuthTokenGet() and stores it.
