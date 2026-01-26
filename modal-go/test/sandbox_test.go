@@ -1132,6 +1132,11 @@ func TestContainerProcessReadStdoutAfterSandboxTerminate(t *testing.T) {
 	err = sb.Terminate(ctx)
 	g.Expect(err).ToNot(gomega.HaveOccurred())
 
+	// Behavior for reading from stdout & stderr on ContainerProcess is inconsistent between modal-go
+	// and modal-js when the sandbox is terminated:
+	// - modal-js: Reading stdout/stderr continues to work after the sandbox is terminated. It'll
+	//   return an empty string.
+	// - modal-go: Reading stdout/stderr stops working because the go-routines are all canceled.
 	_, err = io.ReadAll(p.Stdout)
 	g.Expect(err).To(gomega.HaveOccurred())
 	g.Expect(err.Error()).To(gomega.ContainSubstring("context canceled"))

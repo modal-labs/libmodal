@@ -1018,79 +1018,29 @@ test("SandboxExecAfterTerminate", async () => {
   await expect(sb.exec(["echo", "hello"])).rejects.toThrow();
 });
 
-test("SandboxDetachThenExec", async () => {
-  const app = await tc.apps.fromName("libmodal-test", {
-    createIfMissing: true,
-  });
+test("ContainerProcessReadStdoutAfterSandboxTerminate", async () => {
+  const app = await tc.apps.fromName("libmodal-test", {createIfMissing: true});
   const image = tc.images.fromRegistry("alpine:3.21");
-
   const sb = await tc.sandboxes.create(app, image);
-  onTestFinished(async () => await sb.terminate());
 
-  const p1 = await sb.exec(["echo", "first"]);
-  const exitCode1 = await p1.wait();
-  expect(exitCode1).toBe(0);
-
-  sb.detach();
-
-  await expect(sb.exec(["echo", "second"])).rejects.toThrow("detached");
-});
-
-test("SandboxDetachIsNonDestructive", async () => {
-  const app = await tc.apps.fromName("libmodal-test", {
-    createIfMissing: true,
-  });
-  const image = tc.images.fromRegistry("alpine:3.21");
-
-  const sb = await tc.sandboxes.create(app, image);
-  onTestFinished(async () => await sb.terminate());
-
-  const sandboxId = sb.sandboxId;
-
-  sb.detach();
-
-  const sbFromId = await tc.sandboxes.fromId(sandboxId);
-  expect(sbFromId.sandboxId).toBe(sandboxId);
-
-  const p = await sbFromId.exec(["echo", "still running"]);
-  const exitCode = await p.wait();
-  expect(exitCode).toBe(0);
-});
-
-test("SandboxDetachIsIdempotent", async () => {
-  const app = await tc.apps.fromName("libmodal-test", {
-    createIfMissing: true,
-  });
-  const image = tc.images.fromRegistry("alpine:3.21");
-
-  const sb = await tc.sandboxes.create(app, image);
-  onTestFinished(async () => await sb.terminate());
-
-  sb.detach();
-  sb.detach();
-});
-
-test("SandboxDetachThenTerminate", async () => {
-  const app = await tc.apps.fromName("libmodal-test", {
-    createIfMissing: true,
-  });
-  const image = tc.images.fromRegistry("alpine:3.21");
-
-  const sb = await tc.sandboxes.create(app, image);
-  onTestFinished(async () => await sb.terminate());
-
-  sb.detach();
+  const p = await sb.exec(["sh", "-c", "echo exec-stdout; echo exec-stderr >&2"])
+  await p.wait();
   await sb.terminate();
-});
 
-test("SandboxTerminateThenDetach", async () => {
-  const app = await tc.apps.fromName("libmodal-test", {
-    createIfMissing: true,
-  });
-  const image = tc.images.fromRegistry("alpine:3.21");
+  // Behavior for reading from stdout & stderr on ContainerProcess is inconsistent between modal-go
+  // and modal-js when the sandbox is terminated:
+  // - modal-js: Reading stdout/stderr continues to work after the sandbox is terminated. It'll
+  //   return an empty string.
+  // - modal-go: Reading stdout/stderr stops working because the go-routines are all canceled.
+  const stdout1 = await p.stdout.readText()
+  await expect(stdout1).equal("exec-stdout\n");
 
-  const sb = await tc.sandboxes.create(app, image);
+  const stdout2 = await p.stdout.readText()
+  await expect(stdout2).equal("");
 
-  await sb.terminate();
-  sb.detach();
+  const stderr1 = await p.stderr.readText()
+  await expect(stderr1).equal("exec-stderr\n");
+
+  const stderr2 = await p.stderr.readText()
+  await expect(stderr2).equal("");
 });

@@ -715,7 +715,6 @@ export class Sandbox {
   #taskId: string | undefined;
   #tunnels: Record<number, Tunnel> | undefined;
   #commandRouterClient: TaskCommandRouterClientImpl | undefined;
-  #detached: boolean = false;
 
   /** @ignore */
   constructor(client: ModalClient, sandboxId: string) {
@@ -838,10 +837,6 @@ export class Sandbox {
     command: string[],
     params?: SandboxExecParams,
   ): Promise<ContainerProcess> {
-    if (this.#detached) {
-      throw new InvalidError("cannot call exec on a detached Sandbox");
-    }
-
     validateExecArgs(command);
     const taskId = await this.#getTaskId();
 
@@ -943,23 +938,6 @@ export class Sandbox {
       userMetadata: params?.userMetadata,
     });
     return { url: resp.url, token: resp.token };
-  }
-
-  /**
-   * Detach from the running Sandbox, closing the stdin/stdout/stderr streams.
-   * The remote Sandbox continues running and can be accessed from other clients.
-   */
-  detach(): void {
-    this.#detached = true;
-
-    if (this.#commandRouterClient) {
-      this.#commandRouterClient.close();
-      this.#commandRouterClient = undefined;
-    }
-
-    this.stdin.abort().catch(() => {});
-    this.stdout.cancel().catch(() => {});
-    this.stderr.cancel().catch(() => {});
   }
 
   /**
