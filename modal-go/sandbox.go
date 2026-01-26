@@ -3,7 +3,6 @@ package modal
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"iter"
@@ -371,11 +370,10 @@ type Sandbox struct {
 	taskID              string
 	tunnels             map[int]*Tunnel
 	commandRouterClient *TaskCommandRouterClient
-	detached            bool
 
 	client *Client
 
-	mu sync.Mutex // protects commandRouterClient and detached
+	mu sync.Mutex // protects commandRouterClient
 }
 
 func defaultSandboxPTYInfo() *pb.PTYInfo {
@@ -562,13 +560,6 @@ func buildTaskExecStartRequestProto(taskID, execID string, command []string, par
 
 // Exec runs a command in the Sandbox and returns text streams.
 func (sb *Sandbox) Exec(ctx context.Context, command []string, params *SandboxExecParams) (*ContainerProcess, error) {
-	sb.mu.Lock()
-	if sb.detached {
-		sb.mu.Unlock()
-		return nil, InvalidError{Exception: "cannot call Exec on a detached Sandbox"}
-	}
-	sb.mu.Unlock()
-
 	if params == nil {
 		params = &SandboxExecParams{}
 	}
@@ -716,51 +707,26 @@ func (sb *Sandbox) getOrCreateCommandRouterClient(ctx context.Context, taskID st
 	return sb.commandRouterClient, nil
 }
 
-// Detach disconnects from the running Sandbox, and closes the Stdin/Stdout/Stderr streams.
-// The remote Sandbox continues running and can be accessed from other clients.
-func (sb *Sandbox) Detach() error {
+// Close task command router client
+func (sb *Sandbox) closeTaskCommandRouterClient() error {
 	sb.mu.Lock()
 	defer sb.mu.Unlock()
-
-	sb.detached = true
-
-	var errs []error
-
 	if sb.commandRouterClient != nil {
-		if err := sb.commandRouterClient.Close(); err != nil {
-			errs = append(errs, fmt.Errorf("commandRouterClient.Close: %w", err))
+		err := sb.commandRouterClient.Close()
+		if err != nil {
+			return err
 		}
 		sb.commandRouterClient = nil
 	}
-
-	if sb.Stdin != nil {
-		if err := sb.Stdin.Close(); err != nil {
-			errs = append(errs, fmt.Errorf("Stdin.Close: %w", err))
-		}
-	}
-	if sb.Stdout != nil {
-		if err := sb.Stdout.Close(); err != nil {
-			errs = append(errs, fmt.Errorf("Stdout.Close: %w", err))
-		}
-	}
-	if sb.Stderr != nil {
-		if err := sb.Stderr.Close(); err != nil {
-			errs = append(errs, fmt.Errorf("Stderr.Close: %w", err))
-		}
-	}
-
-	return errors.Join(errs...)
+	return nil
 }
 
 // Terminate stops the Sandbox.
 // The Stdin, Stdout, Stderr streams are not closed.
 func (sb *Sandbox) Terminate(ctx context.Context) error {
-	sb.mu.Lock()
-	if sb.commandRouterClient != nil {
-		_ = sb.commandRouterClient.Close()
-		sb.commandRouterClient = nil
+	if err := sb.closeTaskCommandRouterClient(); err != nil {
+		return err
 	}
-	sb.mu.Unlock()
 
 	_, err := sb.client.cpClient.SandboxTerminate(ctx, pb.SandboxTerminateRequest_builder{
 		SandboxId: sb.SandboxID,
