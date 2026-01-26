@@ -356,7 +356,12 @@ func (c *TaskCommandRouterClient) refreshJwt(ctx context.Context) error {
 	return err
 }
 
-func callWithAuthRetry[T any](ctx context.Context, c *TaskCommandRouterClient, fn func(context.Context) (*T, error)) (*T, error) {
+type RetryableClient interface {
+	authContext(ctx context.Context) context.Context
+	refreshJwt(ctx context.Context) error
+}
+
+func callWithAuthRetry[T any](ctx context.Context, c RetryableClient, fn func(context.Context) (*T, error)) (*T, error) {
 	resp, err := fn(c.authContext(ctx))
 	if err != nil {
 		if st, ok := status.FromError(err); ok && st.Code() == codes.Unauthenticated {

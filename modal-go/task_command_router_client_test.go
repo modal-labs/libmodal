@@ -174,3 +174,47 @@ func TestCallWithRetriesOnTransientErrorsDeadlineExceeded(t *testing.T) {
 func intPtr(i int) *int {
 	return &i
 }
+
+type mockRetryableClient struct {
+	refreshJwtCallCount  int
+	authContextCallCount int
+}
+
+func (m *mockRetryableClient) authContext(ctx context.Context) context.Context {
+	m.authContextCallCount += 1
+	return ctx
+}
+
+func (m *mockRetryableClient) refreshJwt(ctx context.Context) error {
+	m.refreshJwtCallCount += 1
+	return nil
+}
+
+func newMockRetryableClient() *mockRetryableClient {
+	return &mockRetryableClient{refreshJwtCallCount: 0, authContextCallCount: 0}
+}
+
+func TestCallWithAuthRetry(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+
+	callCount := 0
+
+	c := newMockRetryableClient()
+	result, err := callWithAuthRetry(ctx, c, func(authCtx context.Context) (*int, error) {
+		if callCount == 0 {
+			callCount += 1
+			return nil, status.Error(codes.Unauthenticated, "Not authenticated")
+		}
+		return intPtr(3), nil
+	})
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+
+	g.Expect(c.refreshJwtCallCount).To(gomega.Equal(1))
+	g.Expect(c.authContextCallCount).To(gomega.Equal(2))
+
+	g.Expect(result).ToNot(gomega.BeNil())
+	g.Expect(*result).To(gomega.Equal(3))
+
+}
