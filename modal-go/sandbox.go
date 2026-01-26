@@ -366,10 +366,12 @@ type Sandbox struct {
 	Stdout    io.ReadCloser
 	Stderr    io.ReadCloser
 
-	taskID  string
-	tunnels map[int]*Tunnel
+	taskID              string
+	tunnels             map[int]*Tunnel
+	commandRouterClient *TaskCommandRouterClient
 
 	client *Client
+	mu     sync.Mutex // protects commandRouterClient
 }
 
 func defaultSandboxPTYInfo() *pb.PTYInfo {
@@ -606,8 +608,48 @@ func (sb *Sandbox) ensureTaskID(ctx context.Context) error {
 	return nil
 }
 
+func (sb *Sandbox) getOrCreateCommandRouterClient(ctx context.Context, taskID string) (*TaskCommandRouterClient, error) {
+	sb.mu.Lock()
+	defer sb.mu.Unlock()
+
+	if sb.commandRouterClient == nil {
+		client, err := TryInitTaskCommandRouterClient(
+			ctx,
+			sb.client.cpClient,
+			taskID,
+			sb.client.logger,
+			sb.client.profile,
+		)
+		if err != nil {
+			return nil, err
+		}
+		if client == nil {
+			return nil, fmt.Errorf("command router access is not available for this sandbox")
+		}
+		sb.commandRouterClient = client
+	}
+	return sb.commandRouterClient, nil
+}
+
+// Close task command router client
+func (sb *Sandbox) closeTaskCommandRouterClient() error {
+	sb.mu.Lock()
+	defer sb.mu.Unlock()
+	if sb.commandRouterClient != nil {
+		err := sb.commandRouterClient.Close()
+		if err != nil {
+			return err
+		}
+		sb.commandRouterClient = nil
+	}
+	return nil
+}
+
 // Terminate stops the Sandbox.
 func (sb *Sandbox) Terminate(ctx context.Context) error {
+	if err := sb.closeTaskCommandRouterClient(); err != nil {
+		return err
+	}
 	_, err := sb.client.cpClient.SandboxTerminate(ctx, pb.SandboxTerminateRequest_builder{
 		SandboxId: sb.SandboxID,
 	}.Build())
@@ -699,6 +741,68 @@ func (sb *Sandbox) SnapshotFilesystem(ctx context.Context, timeout time.Duration
 	}
 
 	return &Image{ImageID: resp.GetImageId(), client: sb.client}, nil
+}
+
+// ExperimentalMountImage mounts an Image at a path in the Sandbox filesystem.
+//
+// It's experimental in the sense that the API is subject to change.
+//
+// If image is nil, mounts an empty directory.
+func (sb *Sandbox) ExperimentalMountImage(ctx context.Context, path string, image *Image) error {
+	if err := sb.ensureTaskID(ctx); err != nil {
+		return err
+	}
+
+	crClient, err := sb.getOrCreateCommandRouterClient(ctx, sb.taskID)
+	if err != nil {
+		return err
+	}
+
+	imageID := ""
+	if image != nil {
+		if image.ImageID == "" {
+			return InvalidError{Exception: "Image must be built before mounting. Call `image.Build(app)` first."}
+		}
+		imageID = image.ImageID
+	}
+
+	request := pb.TaskMountDirectoryRequest_builder{
+		TaskId:  sb.taskID,
+		Path:    []byte(path),
+		ImageId: imageID,
+	}.Build()
+
+	return crClient.MountDirectory(ctx, request)
+}
+
+// ExperimentalSnapshotDirectory snapshots local changes to a previously mounted Image into a new Image.
+//
+// It's experimental in the sense that the API is subject to change.
+func (sb *Sandbox) ExperimentalSnapshotDirectory(ctx context.Context, path string) (*Image, error) {
+	if err := sb.ensureTaskID(ctx); err != nil {
+		return nil, err
+	}
+
+	crClient, err := sb.getOrCreateCommandRouterClient(ctx, sb.taskID)
+	if err != nil {
+		return nil, err
+	}
+
+	request := pb.TaskSnapshotDirectoryRequest_builder{
+		TaskId: sb.taskID,
+		Path:   []byte(path),
+	}.Build()
+
+	response, err := crClient.SnapshotDirectory(ctx, request)
+	if err != nil {
+		return nil, err
+	}
+
+	if response.GetImageId() == "" {
+		return nil, ExecutionError{Exception: "Sandbox snapshot directory response missing `imageId`"}
+	}
+
+	return &Image{ImageID: response.GetImageId(), client: sb.client}, nil
 }
 
 // Poll checks if the Sandbox has finished running.
