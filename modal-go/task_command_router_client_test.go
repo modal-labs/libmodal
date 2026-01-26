@@ -194,7 +194,25 @@ func newMockRetryableClient() *mockRetryableClient {
 	return &mockRetryableClient{refreshJwtCallCount: 0, authContextCallCount: 0}
 }
 
-func TestCallWithAuthRetry(t *testing.T) {
+func TestCallWithAuthRetrySuccessFirstAttempt(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+
+	c := newMockRetryableClient()
+	result, err := callWithAuthRetry(ctx, c, func(authCtx context.Context) (*int, error) {
+		return intPtr(3), nil
+	})
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+
+	g.Expect(c.authContextCallCount).To(gomega.Equal(1))
+	g.Expect(c.refreshJwtCallCount).To(gomega.Equal(0))
+
+	g.Expect(result).ToNot(gomega.BeNil())
+	g.Expect(*result).To(gomega.Equal(3))
+}
+
+func TestCallWithAuthRetryOnUNAUTHENTICATED(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
@@ -211,10 +229,40 @@ func TestCallWithAuthRetry(t *testing.T) {
 	})
 	g.Expect(err).ToNot(gomega.HaveOccurred())
 
-	g.Expect(c.refreshJwtCallCount).To(gomega.Equal(1))
 	g.Expect(c.authContextCallCount).To(gomega.Equal(2))
+	g.Expect(c.refreshJwtCallCount).To(gomega.Equal(1))
 
 	g.Expect(result).ToNot(gomega.BeNil())
 	g.Expect(*result).To(gomega.Equal(3))
 
+}
+
+func TestCallWithAuthRetryDoesNotRetryOnNonUNAUTHENTICATED(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+
+	c := newMockRetryableClient()
+	_, err := callWithAuthRetry(ctx, c, func(authCtx context.Context) (*int, error) {
+		return nil, status.Error(codes.InvalidArgument, "Invalid argument")
+	})
+	g.Expect(err).To(gomega.HaveOccurred())
+
+	g.Expect(c.authContextCallCount).To(gomega.Equal(1))
+	g.Expect(c.refreshJwtCallCount).To(gomega.Equal(0))
+}
+
+func TestCallWithAuthRetryDoesNotRetryErrorIfUNAUTHENTICATEDAfterRetry(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+
+	c := newMockRetryableClient()
+	_, err := callWithAuthRetry(ctx, c, func(authCtx context.Context) (*int, error) {
+		return nil, status.Error(codes.Unauthenticated, "Not authenticated")
+	})
+	g.Expect(err).To(gomega.HaveOccurred())
+
+	g.Expect(c.authContextCallCount).To(gomega.Equal(2))
+	g.Expect(c.refreshJwtCallCount).To(gomega.Equal(1))
 }

@@ -110,6 +110,28 @@ export async function callWithRetriesOnTransientErrors<T>(
   }
 }
 
+/**
+ * Calls a function and retries once on UNAUTHENTICATED errors after invoking an auth refresh handler.
+ * This is exported for testing purposes.
+ * @param func The function to call
+ * @param onAuthError Handler to call when an UNAUTHENTICATED error occurs (e.g., to refresh JWT)
+ * @returns The result of the function call
+ */
+export async function callWithAuthRetry<T>(
+  func: () => Promise<T>,
+  onAuthError: () => Promise<void>,
+): Promise<T> {
+  try {
+    return await func();
+  } catch (err) {
+    if (err instanceof ClientError && err.code === Status.UNAUTHENTICATED) {
+      await onAuthError();
+      return await func();
+    }
+    throw err;
+  }
+}
+
 /** @ignore */
 export class TaskCommandRouterClientImpl {
   private stub: TaskCommandRouterClient;
@@ -417,15 +439,7 @@ export class TaskCommandRouterClientImpl {
   }
 
   private async callWithAuthRetry<T>(func: () => Promise<T>): Promise<T> {
-    try {
-      return await func();
-    } catch (err) {
-      if (err instanceof ClientError && err.code === Status.UNAUTHENTICATED) {
-        await this.refreshJwt();
-        return await func();
-      }
-      throw err;
-    }
+    return await callWithAuthRetry(func, this.refreshJwt);
   }
 
   private async *streamStdio(
