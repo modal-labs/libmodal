@@ -992,3 +992,61 @@ test("SandboxExecOutputTimeout", async () => {
     expect(elapsed).toBeLessThan(4000);
   }
 });
+
+test("SandboxDoubleTerminate", async () => {
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
+  const image = tc.images.fromRegistry("alpine:3.21");
+
+  const sb = await tc.sandboxes.create(app, image);
+
+  await sb.terminate();
+  await sb.terminate();
+});
+
+test("SandboxExecAfterTerminate", async () => {
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
+  const image = tc.images.fromRegistry("alpine:3.21");
+
+  const sb = await tc.sandboxes.create(app, image);
+
+  await sb.terminate();
+
+  await expect(sb.exec(["echo", "hello"])).rejects.toThrow();
+});
+
+test("ContainerProcessReadStdoutAfterSandboxTerminate", async () => {
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
+  const image = tc.images.fromRegistry("alpine:3.21");
+  const sb = await tc.sandboxes.create(app, image);
+
+  const p = await sb.exec([
+    "sh",
+    "-c",
+    "echo exec-stdout; echo exec-stderr >&2",
+  ]);
+  await p.wait();
+  await sb.terminate();
+
+  // Behavior for reading from stdout & stderr on ContainerProcess is inconsistent between modal-go
+  // and modal-js when the sandbox is terminated:
+  // - modal-js: Reading stdout/stderr continues to work after the sandbox is terminated. It'll
+  //   return an empty string.
+  // - modal-go: Reading stdout/stderr stops working because the go-routines are all canceled.
+  const stdout1 = await p.stdout.readText();
+  expect(stdout1).equal("exec-stdout\n");
+
+  const stdout2 = await p.stdout.readText();
+  expect(stdout2).equal("");
+
+  const stderr1 = await p.stderr.readText();
+  expect(stderr1).equal("exec-stderr\n");
+
+  const stderr2 = await p.stderr.readText();
+  expect(stderr2).equal("");
+});

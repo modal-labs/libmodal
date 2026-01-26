@@ -275,6 +275,7 @@ type retryCallOption struct {
 const (
 	apiEndpoint            = "api.modal.com:443"
 	maxMessageSize         = 100 * 1024 * 1024 // 100 MB
+	windowSize             = 64 * 1024 * 1024  // 64 MiB
 	defaultRetryAttempts   = 3
 	defaultRetryBaseDelay  = 100 * time.Millisecond
 	defaultRetryMaxDelay   = 1 * time.Second
@@ -334,6 +335,8 @@ func newClient(ctx context.Context, profile Profile, c *Client, customUnaryInter
 	conn, err := grpc.NewClient(
 		target,
 		grpc.WithTransportCredentials(creds),
+		grpc.WithInitialWindowSize(windowSize),
+		grpc.WithInitialConnWindowSize(windowSize),
 		grpc.WithDefaultCallOptions(
 			grpc.MaxCallRecvMsgSize(maxMessageSize),
 			grpc.MaxCallSendMsgSize(maxMessageSize),

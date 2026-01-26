@@ -35,8 +35,17 @@ import type { ModalGrpcClient } from "./client";
 import { timeoutMiddleware, type TimeoutOptions } from "./client";
 import type { Logger } from "./logger";
 import type { Profile } from "./config";
+import { ExecTimeoutError } from "./errors";
 
 type TaskCommandRouterClient = Client<typeof TaskCommandRouterDefinition>;
+
+const RETRYABLE_STATUS_CODES = new Set([
+  Status.DEADLINE_EXCEEDED,
+  Status.UNAVAILABLE,
+  Status.CANCELLED,
+  Status.INTERNAL,
+  Status.UNKNOWN,
+]);
 
 export function parseJwtExpiration(
   jwtToken: string,
@@ -74,14 +83,6 @@ export async function callWithRetriesOnTransientErrors<T>(
   let delayMs = baseDelayMs;
   let numRetries = 0;
 
-  const retryableStatusCodes = new Set([
-    Status.DEADLINE_EXCEEDED,
-    Status.UNAVAILABLE,
-    Status.CANCELLED,
-    Status.INTERNAL,
-    Status.UNKNOWN,
-  ]);
-
   while (true) {
     if (deadlineMs !== null && Date.now() >= deadlineMs) {
       throw new Error("Deadline exceeded");
@@ -92,7 +93,7 @@ export async function callWithRetriesOnTransientErrors<T>(
     } catch (err) {
       if (
         err instanceof ClientError &&
-        retryableStatusCodes.has(err.code) &&
+        RETRYABLE_STATUS_CODES.has(err.code) &&
         (maxRetries === null || numRetries < maxRetries)
       ) {
         if (deadlineMs !== null && Date.now() + delayMs >= deadlineMs) {
@@ -106,6 +107,28 @@ export async function callWithRetriesOnTransientErrors<T>(
         throw err;
       }
     }
+  }
+}
+
+/**
+ * Calls a function and retries once on UNAUTHENTICATED errors after invoking an auth refresh handler.
+ * This is exported for testing purposes.
+ * @param func The function to call
+ * @param onAuthError Handler to call when an UNAUTHENTICATED error occurs (e.g., to refresh JWT)
+ * @returns The result of the function call
+ */
+export async function callWithAuthRetry<T>(
+  func: () => Promise<T>,
+  onAuthError: () => Promise<void>,
+): Promise<T> {
+  try {
+    return await func();
+  } catch (err) {
+    if (err instanceof ClientError && err.code === Status.UNAUTHENTICATED) {
+      await onAuthError();
+      return await func();
+    }
+    throw err;
   }
 }
 
@@ -165,14 +188,28 @@ export class TaskCommandRouterClientImpl {
     const port = url.port ? parseInt(url.port) : 443;
     const serverUrl = `${host}:${port}`;
 
+    const channelOptions = {
+      "grpc.max_receive_message_length": 100 * 1024 * 1024,
+      "grpc.max_send_message_length": 100 * 1024 * 1024,
+      "grpc-node.flow_control_window": 64 * 1024 * 1024,
+    };
+
     let channel;
     if (profile.taskCommandRouterInsecure) {
       logger.warn(
         "Using insecure TLS for task command router due to MODAL_TASK_COMMAND_ROUTER_INSECURE",
       );
-      channel = createChannel(serverUrl, ChannelCredentials.createInsecure());
+      channel = createChannel(
+        serverUrl,
+        ChannelCredentials.createInsecure(),
+        channelOptions,
+      );
     } else {
-      channel = createChannel(serverUrl, ChannelCredentials.createSsl());
+      channel = createChannel(
+        serverUrl,
+        ChannelCredentials.createSsl(),
+        channelOptions,
+      );
     }
 
     const client = new TaskCommandRouterClientImpl(
@@ -294,7 +331,9 @@ export class TaskCommandRouterClientImpl {
     // The timeout here is really a backstop in the event of a hang contacting
     // the command router. Poll should usually be instantaneous.
     if (deadline && deadline <= Date.now()) {
-      throw new Error(`Deadline exceeded while polling for exec ${execId}`);
+      throw new ExecTimeoutError(
+        `Deadline exceeded while polling for exec ${execId}`,
+      );
     }
 
     try {
@@ -307,7 +346,9 @@ export class TaskCommandRouterClientImpl {
       );
     } catch (err) {
       if (err instanceof ClientError && err.code === Status.DEADLINE_EXCEEDED) {
-        throw new Error(`Deadline exceeded while polling for exec ${execId}`);
+        throw new ExecTimeoutError(
+          `Deadline exceeded while polling for exec ${execId}`,
+        );
       }
       throw err;
     }
@@ -321,7 +362,9 @@ export class TaskCommandRouterClientImpl {
     const request = TaskExecWaitRequest.create({ taskId, execId });
 
     if (deadline && deadline <= Date.now()) {
-      throw new Error(`Deadline exceeded while waiting for exec ${execId}`);
+      throw new ExecTimeoutError(
+        `Deadline exceeded while waiting for exec ${execId}`,
+      );
     }
 
     try {
@@ -339,7 +382,9 @@ export class TaskCommandRouterClientImpl {
       );
     } catch (err) {
       if (err instanceof ClientError && err.code === Status.DEADLINE_EXCEEDED) {
-        throw new Error(`Deadline exceeded while waiting for exec ${execId}`);
+        throw new ExecTimeoutError(
+          `Deadline exceeded while waiting for exec ${execId}`,
+        );
       }
       throw err;
     }
@@ -394,15 +439,7 @@ export class TaskCommandRouterClientImpl {
   }
 
   private async callWithAuthRetry<T>(func: () => Promise<T>): Promise<T> {
-    try {
-      return await func();
-    } catch (err) {
-      if (err instanceof ClientError && err.code === Status.UNAUTHENTICATED) {
-        await this.refreshJwt();
-        return await func();
-      }
-      throw err;
-    }
+    return await callWithAuthRetry(func, this.refreshJwt);
   }
 
   private async *streamStdio(
@@ -418,14 +455,6 @@ export class TaskCommandRouterClientImpl {
     // Flag to prevent infinite auth retries in the event that the JWT
     // refresh yields an invalid JWT somehow or that the JWT is otherwise invalid.
     let didAuthRetry = false;
-
-    const retryableStatusCodes = new Set([
-      Status.DEADLINE_EXCEEDED,
-      Status.UNAVAILABLE,
-      Status.CANCELLED,
-      Status.INTERNAL,
-      Status.UNKNOWN,
-    ]);
 
     while (true) {
       try {
@@ -471,11 +500,11 @@ export class TaskCommandRouterClientImpl {
       } catch (err) {
         if (
           err instanceof ClientError &&
-          retryableStatusCodes.has(err.code) &&
+          RETRYABLE_STATUS_CODES.has(err.code) &&
           numRetriesRemaining > 0
         ) {
           if (deadline && deadline - Date.now() <= delayMs) {
-            throw new Error(
+            throw new ExecTimeoutError(
               `Deadline exceeded while streaming stdio for exec ${execId}`,
             );
           }
