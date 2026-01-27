@@ -10,7 +10,6 @@ import (
 	"log/slog"
 	"net/url"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -153,10 +152,6 @@ type TaskCommandRouterClient struct {
 	logger       *slog.Logger
 	closed       atomic.Bool
 
-	// done is closed when Close() is called, signaling all goroutines to stop.
-	done      chan struct{}
-	closeOnce sync.Once
-
 	refreshJwtGroup singleflight.Group
 }
 
@@ -230,7 +225,6 @@ func TryInitTaskCommandRouterClient(
 		taskID:       taskID,
 		serverURL:    resp.GetUrl(),
 		logger:       logger,
-		done:         make(chan struct{}),
 	}
 	client.jwt.Store(&jwt)
 	client.jwtExp.Store(jwtExp)
@@ -244,9 +238,6 @@ func (c *TaskCommandRouterClient) Close() error {
 	if !c.closed.CompareAndSwap(false, true) {
 		return nil
 	}
-	c.closeOnce.Do(func() {
-		close(c.done)
-	})
 	if c.conn != nil {
 		return c.conn.Close()
 	}
