@@ -20,7 +20,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -206,12 +205,9 @@ func TryInitTaskCommandRouterClient(
 	}
 	target := fmt.Sprintf("%s:%s", host, port)
 
-	var creds credentials.TransportCredentials
+	creds := credentials.NewTLS(&tls.Config{InsecureSkipVerify: profile.TaskCommandRouterInsecure})
 	if profile.TaskCommandRouterInsecure {
 		logger.WarnContext(ctx, "Using insecure TLS (skip certificate verification) for task command router due to MODAL_TASK_COMMAND_ROUTER_INSECURE")
-		creds = insecure.NewCredentials()
-	} else {
-		creds = credentials.NewTLS(&tls.Config{})
 	}
 
 	conn, err := grpc.NewClient(
