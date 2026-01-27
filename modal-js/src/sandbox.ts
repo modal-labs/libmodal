@@ -704,12 +704,7 @@ export function buildTaskExecStartRequestProto(
   });
 }
 
-/** Sandboxes are secure, isolated containers in Modal that boot in seconds.
- * After creating a sandbox, make sure to either call {@link Sandbox#detach Sandbox.detach()} or
- * {@link Sandbox#terminate Sandbox.terminate()}
- * - {@link Sandbox#detach Sandbox.detach()} keeps the sandbox running and disconnects your client from communicating with the sandbox.
- * - {@link Sandbox#terminate Sandbox.terminate()} stops the sandbox from running and disconnects your client from communicating with the sandbox.
- */
+/** Sandboxes are secure, isolated containers in Modal that boot in seconds. */
 export class Sandbox {
   readonly #client: ModalClient;
   readonly sandboxId: string;
@@ -945,15 +940,7 @@ export class Sandbox {
     return { url: resp.url, token: resp.token };
   }
 
-  detach(): void {
-    if (this.#commandRouterClient) {
-      this.#commandRouterClient.close();
-      this.#commandRouterClient = undefined;
-    }
-  }
-
   async terminate(): Promise<void> {
-    this.detach();
     await this.#client.cpClient.sandboxTerminate({ sandboxId: this.sandboxId });
     this.#taskId = undefined; // Reset task ID after termination
   }
