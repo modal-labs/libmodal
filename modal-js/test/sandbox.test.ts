@@ -992,3 +992,62 @@ test("SandboxExecOutputTimeout", async () => {
     expect(elapsed).toBeLessThan(4000);
   }
 });
+
+test("SandboxDetachIsNonDestructive", async () => {
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
+  const image = tc.images.fromRegistry("alpine:3.21");
+
+  const sb = await tc.sandboxes.create(app, image);
+  onTestFinished(async () => await sb.terminate());
+
+  const sandboxId = sb.sandboxId;
+
+  sb.detach();
+
+  const sbFromId = await tc.sandboxes.fromId(sandboxId);
+  expect(sbFromId.sandboxId).toBe(sandboxId);
+
+  const p = await sbFromId.exec(["echo", "still running"]);
+  const exitCode = await p.wait();
+  expect(exitCode).toBe(0);
+});
+
+test("SandboxDetachIsIdempotent", async () => {
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
+  const image = tc.images.fromRegistry("alpine:3.21");
+
+  const sb = await tc.sandboxes.create(app, image);
+  onTestFinished(async () => await sb.terminate());
+
+  sb.detach();
+  sb.detach();
+});
+
+test("SandboxDetachThenTerminate", async () => {
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
+  const image = tc.images.fromRegistry("alpine:3.21");
+
+  const sb = await tc.sandboxes.create(app, image);
+  onTestFinished(async () => await sb.terminate());
+
+  sb.detach();
+  await sb.terminate();
+});
+
+test("SandboxTerminateThenDetach", async () => {
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
+  const image = tc.images.fromRegistry("alpine:3.21");
+
+  const sb = await tc.sandboxes.create(app, image);
+
+  await sb.terminate();
+  sb.detach();
+});

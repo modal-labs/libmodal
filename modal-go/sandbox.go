@@ -631,8 +631,8 @@ func (sb *Sandbox) getOrCreateCommandRouterClient(ctx context.Context, taskID st
 	return sb.commandRouterClient, nil
 }
 
-// Close task command router client
-func (sb *Sandbox) closeTaskCommandRouterClient() error {
+// Detach disconnects from the running Sandbox
+func (sb *Sandbox) Detach() error {
 	sb.mu.Lock()
 	defer sb.mu.Unlock()
 	if sb.commandRouterClient != nil {
@@ -647,7 +647,7 @@ func (sb *Sandbox) closeTaskCommandRouterClient() error {
 
 // Terminate stops the Sandbox.
 func (sb *Sandbox) Terminate(ctx context.Context) error {
-	if err := sb.closeTaskCommandRouterClient(); err != nil {
+	if err := sb.Detach(); err != nil {
 		return err
 	}
 	_, err := sb.client.cpClient.SandboxTerminate(ctx, pb.SandboxTerminateRequest_builder{

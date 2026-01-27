@@ -940,7 +940,15 @@ export class Sandbox {
     return { url: resp.url, token: resp.token };
   }
 
+  detach(): void {
+    if (this.#commandRouterClient) {
+      this.#commandRouterClient.close();
+      this.#commandRouterClient = undefined;
+    }
+  }
+
   async terminate(): Promise<void> {
+    this.detach()
     await this.#client.cpClient.sandboxTerminate({ sandboxId: this.sandboxId });
     this.#taskId = undefined; // Reset task ID after termination
   }

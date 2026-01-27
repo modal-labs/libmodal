@@ -832,3 +832,101 @@ func TestSandboxExperimentalDockerMock(t *testing.T) {
 
 	g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
 }
+
+func TestSandboxDetachIsNonDestructive(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+	tc := newTestClient(t)
+
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+
+	image := tc.Images.FromRegistry("alpine:3.21", nil)
+
+	sb, err := tc.Sandboxes.Create(ctx, app, image, nil)
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+	defer terminateSandbox(g, sb)
+
+	sandboxID := sb.SandboxID
+
+	err = sb.Detach()
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+
+	sbFromID, err := tc.Sandboxes.FromID(ctx, sandboxID)
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+	defer func() { _ = sbFromID.Detach() }()
+	g.Expect(sbFromID.SandboxID).To(gomega.Equal(sandboxID))
+
+	p, err := sbFromID.Exec(ctx, []string{"echo", "still running"}, nil)
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+	exitCode, err := p.Wait(ctx)
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+	g.Expect(exitCode).To(gomega.Equal(0))
+}
+
+func TestSandboxDetachIsIdempotent(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+	tc := newTestClient(t)
+
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+
+	image := tc.Images.FromRegistry("alpine:3.21", nil)
+
+	sb, err := tc.Sandboxes.Create(ctx, app, image, nil)
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+	defer terminateSandbox(g, sb)
+
+	err = sb.Detach()
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+	err = sb.Detach()
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+	err = sb.Detach()
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+}
+
+func TestSandboxDetachThenTerminate(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+	tc := newTestClient(t)
+
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+
+	image := tc.Images.FromRegistry("alpine:3.21", nil)
+
+	sb, err := tc.Sandboxes.Create(ctx, app, image, nil)
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+	defer terminateSandbox(g, sb)
+
+	err = sb.Detach()
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+
+	err = sb.Terminate(ctx)
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+}
+
+func TestSandboxTerminateThenDetach(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+	tc := newTestClient(t)
+
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+
+	image := tc.Images.FromRegistry("alpine:3.21", nil)
+
+	sb, err := tc.Sandboxes.Create(ctx, app, image, nil)
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+
+	err = sb.Terminate(ctx)
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+
+	err = sb.Detach()
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+}
