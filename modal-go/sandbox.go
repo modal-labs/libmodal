@@ -676,9 +676,6 @@ func (sb *Sandbox) Detach() error {
 
 // Terminate stops the Sandbox.
 func (sb *Sandbox) Terminate(ctx context.Context) error {
-	if err := sb.ensureAttached(); err != nil {
-		return err
-	}
 	var detachErr error
 	if err := sb.Detach(); err != nil {
 		detachErr = err

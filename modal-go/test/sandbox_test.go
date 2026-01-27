@@ -922,7 +922,7 @@ func TestSandboxDetachForbidsAllOperations(t *testing.T) {
 
 	sb, err := tc.Sandboxes.Create(ctx, app, image, nil)
 	g.Expect(err).ToNot(gomega.HaveOccurred())
-	defer sb.Terminate(ctx)
+	defer terminateSandbox(g, sb)
 
 	err = sb.Detach()
 	g.Expect(err).ToNot(gomega.HaveOccurred())
