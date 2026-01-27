@@ -372,9 +372,10 @@ type Sandbox struct {
 	taskID              string
 	tunnels             map[int]*Tunnel
 	commandRouterClient *TaskCommandRouterClient
+	attached            bool
 
 	client *Client
-	mu     sync.Mutex // protects commandRouterClient
+	mu     sync.Mutex // protects commandRouterClient and attached
 }
 
 func defaultSandboxPTYInfo() *pb.PTYInfo {
@@ -391,7 +392,7 @@ func defaultSandboxPTYInfo() *pb.PTYInfo {
 
 // newSandbox creates a new Sandbox object from ID.
 func newSandbox(client *Client, sandboxID string) *Sandbox {
-	sb := &Sandbox{SandboxID: sandboxID, client: client}
+	sb := &Sandbox{SandboxID: sandboxID, client: client, attached: true}
 	sb.Stdin = inputStreamSb(client.cpClient, sandboxID)
 	sb.Stdout = &lazyStreamReader{
 		initFunc: func() io.ReadCloser {
@@ -504,8 +505,21 @@ func buildContainerExecRequestProto(taskID string, command []string, params Sand
 	}.Build(), nil
 }
 
+func (sb *Sandbox) ensureAttached() error {
+	sb.mu.Lock()
+	defer sb.mu.Unlock()
+	if !sb.attached {
+		return SandboxDetached{Exception: "Do not call Detach or Terminate until you are done with your sandbox in this session"}
+	}
+	return nil
+}
+
 // Exec runs a command in the Sandbox and returns text streams.
 func (sb *Sandbox) Exec(ctx context.Context, command []string, params *SandboxExecParams) (*ContainerProcess, error) {
+	if err := sb.ensureAttached(); err != nil {
+		return nil, err
+	}
+
 	if params == nil {
 		params = &SandboxExecParams{}
 	}
@@ -552,6 +566,10 @@ type SandboxCreateConnectCredentials struct {
 
 // CreateConnectToken creates a token for making HTTP connections to the Sandbox.
 func (sb *Sandbox) CreateConnectToken(ctx context.Context, params *SandboxCreateConnectTokenParams) (*SandboxCreateConnectCredentials, error) {
+	if err := sb.ensureAttached(); err != nil {
+		return nil, err
+	}
+
 	if params == nil {
 		params = &SandboxCreateConnectTokenParams{}
 	}
@@ -569,6 +587,10 @@ func (sb *Sandbox) CreateConnectToken(ctx context.Context, params *SandboxCreate
 // The mode parameter follows the same conventions as os.OpenFile:
 // "r" for read-only, "w" for write-only (truncates), "a" for append, etc.
 func (sb *Sandbox) Open(ctx context.Context, path, mode string) (*SandboxFile, error) {
+	if err := sb.ensureAttached(); err != nil {
+		return nil, err
+	}
+
 	if err := sb.ensureTaskID(ctx); err != nil {
 		return nil, err
 	}
@@ -638,6 +660,10 @@ func (sb *Sandbox) getOrCreateCommandRouterClient(ctx context.Context, taskID st
 func (sb *Sandbox) Detach() error {
 	sb.mu.Lock()
 	defer sb.mu.Unlock()
+	if !sb.attached {
+		return nil
+	}
+	sb.attached = false
 	if sb.commandRouterClient != nil {
 		err := sb.commandRouterClient.Close()
 		if err != nil {
@@ -650,6 +676,9 @@ func (sb *Sandbox) Detach() error {
 
 // Terminate stops the Sandbox.
 func (sb *Sandbox) Terminate(ctx context.Context) error {
+	if err := sb.ensureAttached(); err != nil {
+		return err
+	}
 	var detachErr error
 	if err := sb.Detach(); err != nil {
 		detachErr = err
@@ -671,6 +700,9 @@ func (sb *Sandbox) Terminate(ctx context.Context) error {
 
 // Wait blocks until the Sandbox exits.
 func (sb *Sandbox) Wait(ctx context.Context) (int, error) {
+	if err := sb.ensureAttached(); err != nil {
+		return 0, err
+	}
 	for {
 		if err := ctx.Err(); err != nil {
 			return 0, err
@@ -701,6 +733,9 @@ func (sb *Sandbox) Wait(ctx context.Context) (int, error) {
 // Returns SandboxTimeoutError if the tunnels are not available after the timeout.
 // Returns a map of Tunnel objects keyed by the container port.
 func (sb *Sandbox) Tunnels(ctx context.Context, timeout time.Duration) (map[int]*Tunnel, error) {
+	if err := sb.ensureAttached(); err != nil {
+		return nil, err
+	}
 	if sb.tunnels != nil {
 		return sb.tunnels, nil
 	}
@@ -733,6 +768,9 @@ func (sb *Sandbox) Tunnels(ctx context.Context, timeout time.Duration) (map[int]
 // SnapshotFilesystem takes a snapshot of the Sandbox's filesystem.
 // Returns an Image object which can be used to spawn a new Sandbox with the same filesystem.
 func (sb *Sandbox) SnapshotFilesystem(ctx context.Context, timeout time.Duration) (*Image, error) {
+	if err := sb.ensureAttached(); err != nil {
+		return nil, err
+	}
 	resp, err := sb.client.cpClient.SandboxSnapshotFs(ctx, pb.SandboxSnapshotFsRequest_builder{
 		SandboxId: sb.SandboxID,
 		Timeout:   float32(timeout.Seconds()),
@@ -758,6 +796,9 @@ func (sb *Sandbox) SnapshotFilesystem(ctx context.Context, timeout time.Duration
 //
 // If image is nil, mounts an empty directory.
 func (sb *Sandbox) ExperimentalMountImage(ctx context.Context, path string, image *Image) error {
+	if err := sb.ensureAttached(); err != nil {
+		return err
+	}
 	if err := sb.ensureTaskID(ctx); err != nil {
 		return err
 	}
@@ -788,6 +829,9 @@ func (sb *Sandbox) ExperimentalMountImage(ctx context.Context, path string, imag
 //
 // It's experimental in the sense that the API is subject to change.
 func (sb *Sandbox) ExperimentalSnapshotDirectory(ctx context.Context, path string) (*Image, error) {
+	if err := sb.ensureAttached(); err != nil {
+		return nil, err
+	}
 	if err := sb.ensureTaskID(ctx); err != nil {
 		return nil, err
 	}
@@ -817,6 +861,9 @@ func (sb *Sandbox) ExperimentalSnapshotDirectory(ctx context.Context, path strin
 // Poll checks if the Sandbox has finished running.
 // Returns nil if the Sandbox is still running, else returns the exit code.
 func (sb *Sandbox) Poll(ctx context.Context) (*int, error) {
+	if err := sb.ensureAttached(); err != nil {
+		return nil, err
+	}
 	resp, err := sb.client.cpClient.SandboxWait(ctx, pb.SandboxWaitRequest_builder{
 		SandboxId: sb.SandboxID,
 		Timeout:   0,
@@ -830,6 +877,9 @@ func (sb *Sandbox) Poll(ctx context.Context) (*int, error) {
 
 // SetTags sets key-value tags on the Sandbox. Tags can be used to filter results in SandboxList.
 func (sb *Sandbox) SetTags(ctx context.Context, tags map[string]string) error {
+	if err := sb.ensureAttached(); err != nil {
+		return err
+	}
 	tagsList := make([]*pb.SandboxTag, 0, len(tags))
 	for k, v := range tags {
 		tagsList = append(tagsList, pb.SandboxTag_builder{TagName: k, TagValue: v}.Build())
@@ -844,6 +894,9 @@ func (sb *Sandbox) SetTags(ctx context.Context, tags map[string]string) error {
 
 // GetTags fetches any tags (key-value pairs) currently attached to this Sandbox from the server.
 func (sb *Sandbox) GetTags(ctx context.Context) (map[string]string, error) {
+	if err := sb.ensureAttached(); err != nil {
+		return nil, err
+	}
 	resp, err := sb.client.cpClient.SandboxTagsGet(ctx, pb.SandboxTagsGetRequest_builder{
 		SandboxId: sb.SandboxID,
 	}.Build())
