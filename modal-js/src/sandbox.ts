@@ -704,7 +704,12 @@ export function buildTaskExecStartRequestProto(
   });
 }
 
-/** Sandboxes are secure, isolated containers in Modal that boot in seconds. */
+/** Sandboxes are secure, isolated containers in Modal that boot in seconds.
+ * After creating a sandbox, make sure to either call {@link Sandbox#detach Sandbox.detach()} or
+ * {@link Sandbox#terminate Sandbox.terminate()}
+ * - {@link Sandbox#detach Sandbox.detach()} keeps the sandbox running and disconnects your client from communicating with the sandbox.
+ * - {@link Sandbox#terminate Sandbox.terminate()} stops the sandbox from running and disconnects your client from communicating with the sandbox.
+*/
 export class Sandbox {
   readonly #client: ModalClient;
   readonly sandboxId: string;
