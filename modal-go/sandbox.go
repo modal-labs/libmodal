@@ -369,13 +369,16 @@ type Sandbox struct {
 	Stdout    io.ReadCloser
 	Stderr    io.ReadCloser
 
-	taskID              string
-	tunnels             map[int]*Tunnel
-	commandRouterClient *TaskCommandRouterClient
-	attached            bool
+	taskID  string
+	tunnels map[int]*Tunnel
 
 	client *Client
-	mu     sync.Mutex // protects commandRouterClient and attached
+
+	commandRouterClient   *TaskCommandRouterClient
+	commandRouterClientMu sync.Mutex
+
+	attached   bool
+	attachedMu sync.Mutex
 }
 
 func defaultSandboxPTYInfo() *pb.PTYInfo {
@@ -506,8 +509,8 @@ func buildContainerExecRequestProto(taskID string, command []string, params Sand
 }
 
 func (sb *Sandbox) ensureAttached() error {
-	sb.mu.Lock()
-	defer sb.mu.Unlock()
+	sb.attachedMu.Lock()
+	defer sb.attachedMu.Unlock()
 	if !sb.attached {
 		return SandboxDetached{Exception: "Do not call Detach or Terminate until you are done with your sandbox in this session"}
 	}
@@ -634,8 +637,8 @@ func (sb *Sandbox) ensureTaskID(ctx context.Context) error {
 }
 
 func (sb *Sandbox) getOrCreateCommandRouterClient(ctx context.Context, taskID string) (*TaskCommandRouterClient, error) {
-	sb.mu.Lock()
-	defer sb.mu.Unlock()
+	sb.commandRouterClientMu.Lock()
+	defer sb.commandRouterClientMu.Unlock()
 
 	if sb.commandRouterClient == nil {
 		client, err := TryInitTaskCommandRouterClient(
@@ -658,12 +661,18 @@ func (sb *Sandbox) getOrCreateCommandRouterClient(ctx context.Context, taskID st
 
 // Detach disconnects from the running Sandbox
 func (sb *Sandbox) Detach() error {
-	sb.mu.Lock()
-	defer sb.mu.Unlock()
+	sb.attachedMu.Lock()
+	defer sb.attachedMu.Unlock()
 	if !sb.attached {
 		return nil
 	}
 	sb.attached = false
+	return sb.closeCommandRouterClient()
+}
+
+func (sb *Sandbox) closeCommandRouterClient() error {
+	sb.commandRouterClientMu.Lock()
+	defer sb.commandRouterClientMu.Unlock()
 	if sb.commandRouterClient != nil {
 		err := sb.commandRouterClient.Close()
 		if err != nil {
@@ -677,7 +686,7 @@ func (sb *Sandbox) Detach() error {
 // Terminate stops the Sandbox.
 func (sb *Sandbox) Terminate(ctx context.Context) error {
 	var detachErr error
-	if err := sb.Detach(); err != nil {
+	if err := sb.closeCommandRouterClient(); err != nil {
 		detachErr = err
 	}
 
