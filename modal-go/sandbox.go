@@ -647,17 +647,22 @@ func (sb *Sandbox) Detach() error {
 
 // Terminate stops the Sandbox.
 func (sb *Sandbox) Terminate(ctx context.Context) error {
+	var detachErr error
 	if err := sb.Detach(); err != nil {
-		return err
+		detachErr = err
 	}
-	_, err := sb.client.cpClient.SandboxTerminate(ctx, pb.SandboxTerminateRequest_builder{
+
+	_, terminateErr := sb.client.cpClient.SandboxTerminate(ctx, pb.SandboxTerminateRequest_builder{
 		SandboxId: sb.SandboxID,
 	}.Build())
-	if err != nil {
-		return err
-	}
+
 	sb.taskID = ""
-	return nil
+
+	// Return detach error if terminate succeeded, otherwise return terminate error
+	if detachErr != nil {
+		return detachErr
+	}
+	return terminateErr
 }
 
 // Wait blocks until the Sandbox exits.
