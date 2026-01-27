@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"net"
 	"net/url"
 	"strings"
 	"sync"
@@ -21,62 +20,11 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
-
-// tlsCredsNoALPN is a TLS credential that skips ALPN enforcement, implementing
-// the google.golang.org/grpc/credentials#TransportCredentials interface.
-//
-// Starting in grpc-go v1.67, ALPN is enforced by default for TLS connections.
-// However, the task command router server doesn't negotiate ALPN.
-// This performs the TLS handshake without that check.
-// See: https://github.com/grpc/grpc-go/issues/434
-type tlsCredsNoALPN struct {
-	insecureSkipVerify bool
-}
-
-func (c *tlsCredsNoALPN) ClientHandshake(ctx context.Context, authority string, rawConn net.Conn) (net.Conn, credentials.AuthInfo, error) {
-	serverName, _, err := net.SplitHostPort(authority)
-	if err != nil {
-		serverName = authority
-	}
-	cfg := &tls.Config{
-		ServerName:         serverName,
-		NextProtos:         []string{"h2"},
-		InsecureSkipVerify: c.insecureSkipVerify,
-	}
-
-	conn := tls.Client(rawConn, cfg)
-	if err := conn.HandshakeContext(ctx); err != nil {
-		_ = conn.Close()
-		return nil, nil, err
-	}
-
-	return conn, credentials.TLSInfo{
-		State: conn.ConnectionState(),
-		CommonAuthInfo: credentials.CommonAuthInfo{
-			SecurityLevel: credentials.PrivacyAndIntegrity,
-		},
-	}, nil
-}
-
-func (c *tlsCredsNoALPN) ServerHandshake(net.Conn) (net.Conn, credentials.AuthInfo, error) {
-	return nil, nil, errors.New("tlsCredsNoALPN: server-side not supported")
-}
-
-func (c *tlsCredsNoALPN) Info() credentials.ProtocolInfo {
-	return credentials.ProtocolInfo{SecurityProtocol: "tls", SecurityVersion: "1.2"}
-}
-
-func (c *tlsCredsNoALPN) Clone() credentials.TransportCredentials {
-	return &tlsCredsNoALPN{insecureSkipVerify: c.insecureSkipVerify}
-}
-
-func (c *tlsCredsNoALPN) OverrideServerName(string) error {
-	return errors.New("tlsCredsNoALPN: OverrideServerName not supported")
-}
 
 // retryOptions configures retry behavior for callWithRetriesOnTransientErrors.
 type retryOptions struct {
@@ -258,12 +206,12 @@ func TryInitTaskCommandRouterClient(
 	}
 	target := fmt.Sprintf("%s:%s", host, port)
 
-	// Use custom TLS credentials that skip ALPN enforcement.
-	// The command router server may not negotiate ALPN, which causes
-	// grpc-go v1.67+ to fail the handshake.
-	creds := &tlsCredsNoALPN{insecureSkipVerify: profile.TaskCommandRouterInsecure}
+	var creds credentials.TransportCredentials
 	if profile.TaskCommandRouterInsecure {
 		logger.WarnContext(ctx, "Using insecure TLS (skip certificate verification) for task command router due to MODAL_TASK_COMMAND_ROUTER_INSECURE")
+		creds = insecure.NewCredentials()
+	} else {
+		creds = credentials.NewTLS(&tls.Config{})
 	}
 
 	conn, err := grpc.NewClient(
