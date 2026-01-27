@@ -709,7 +709,7 @@ export function buildTaskExecStartRequestProto(
  * {@link Sandbox#terminate Sandbox.terminate()}
  * - {@link Sandbox#detach Sandbox.detach()} keeps the sandbox running and disconnects your client from communicating with the sandbox.
  * - {@link Sandbox#terminate Sandbox.terminate()} stops the sandbox from running and disconnects your client from communicating with the sandbox.
-*/
+ */
 export class Sandbox {
   readonly #client: ModalClient;
   readonly sandboxId: string;
@@ -953,7 +953,7 @@ export class Sandbox {
   }
 
   async terminate(): Promise<void> {
-    this.detach()
+    this.detach();
     await this.#client.cpClient.sandboxTerminate({ sandboxId: this.sandboxId });
     this.#taskId = undefined; // Reset task ID after termination
   }
