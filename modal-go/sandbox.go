@@ -655,17 +655,18 @@ func (sb *Sandbox) Terminate(ctx context.Context) error {
 		detachErr = err
 	}
 
+	// Terminate the sandbox even if detach fails.
 	_, terminateErr := sb.client.cpClient.SandboxTerminate(ctx, pb.SandboxTerminateRequest_builder{
 		SandboxId: sb.SandboxID,
 	}.Build())
 
 	sb.taskID = ""
 
-	// Return detach error if terminate succeeded, otherwise return terminate error
-	if detachErr != nil {
-		return detachErr
+	// Prioritize terminate error if both failed, otherwise return whichever error occurred
+	if terminateErr != nil {
+		return terminateErr
 	}
-	return terminateErr
+	return detachErr
 }
 
 // Wait blocks until the Sandbox exits.
