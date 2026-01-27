@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/djherbis/buffer"
@@ -377,8 +378,7 @@ type Sandbox struct {
 	commandRouterClient   *TaskCommandRouterClient
 	commandRouterClientMu sync.Mutex
 
-	attached   bool
-	attachedMu sync.Mutex
+	detached atomic.Bool
 }
 
 func defaultSandboxPTYInfo() *pb.PTYInfo {
@@ -395,7 +395,8 @@ func defaultSandboxPTYInfo() *pb.PTYInfo {
 
 // newSandbox creates a new Sandbox object from ID.
 func newSandbox(client *Client, sandboxID string) *Sandbox {
-	sb := &Sandbox{SandboxID: sandboxID, client: client, attached: true}
+	sb := &Sandbox{SandboxID: sandboxID, client: client}
+	sb.detached.Store(false)
 	sb.Stdin = inputStreamSb(client.cpClient, sandboxID)
 	sb.Stdout = &lazyStreamReader{
 		initFunc: func() io.ReadCloser {
@@ -506,15 +507,6 @@ func buildContainerExecRequestProto(taskID string, command []string, params Sand
 		SecretIds:   secretIds,
 		PtyInfo:     ptyInfo,
 	}.Build(), nil
-}
-
-func (sb *Sandbox) ensureAttached() error {
-	sb.attachedMu.Lock()
-	defer sb.attachedMu.Unlock()
-	if !sb.attached {
-		return SandboxDetached{Exception: "Do not call Detach or Terminate until you are done with your sandbox in this session"}
-	}
-	return nil
 }
 
 // Exec runs a command in the Sandbox and returns text streams.
@@ -658,15 +650,16 @@ func (sb *Sandbox) getOrCreateCommandRouterClient(ctx context.Context, taskID st
 	}
 	return sb.commandRouterClient, nil
 }
+func (sb *Sandbox) ensureAttached() error {
+	if sb.detached.Load() {
+		return SandboxDetached{Exception: "Do not call Detach or Terminate until you are done with your sandbox in this session"}
+	}
+	return nil
+}
 
 // Detach disconnects from the running Sandbox
 func (sb *Sandbox) Detach() error {
-	sb.attachedMu.Lock()
-	defer sb.attachedMu.Unlock()
-	if !sb.attached {
-		return nil
-	}
-	sb.attached = false
+	sb.detached.CompareAndSwap(false, true)
 	return sb.closeCommandRouterClient()
 }
 
@@ -685,9 +678,9 @@ func (sb *Sandbox) closeCommandRouterClient() error {
 
 // Terminate stops the Sandbox.
 func (sb *Sandbox) Terminate(ctx context.Context) error {
-	var detachErr error
+	var closeTaskCommandRouterError error
 	if err := sb.closeCommandRouterClient(); err != nil {
-		detachErr = err
+		closeTaskCommandRouterError = err
 	}
 
 	// Terminate the sandbox even if detach fails.
@@ -701,7 +694,7 @@ func (sb *Sandbox) Terminate(ctx context.Context) error {
 	if terminateErr != nil {
 		return terminateErr
 	}
-	return detachErr
+	return closeTaskCommandRouterError
 }
 
 // Wait blocks until the Sandbox exits.
