@@ -24,11 +24,11 @@ type Profile struct {
 }
 
 func (p Profile) isLocalhost() bool {
-	parsedUrl, err := url.Parse(p.ServerURL)
+	parsedURL, err := url.Parse(p.ServerURL)
 	if err != nil {
 		return false
 	}
-	hostname := parsedUrl.Hostname()
+	hostname := parsedURL.Hostname()
 	return hostname == "localhost" || hostname == "127.0.0.1" || hostname == "::1" || hostname == "172.21.0.1"
 }
 

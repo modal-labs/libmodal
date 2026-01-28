@@ -939,7 +939,7 @@ func TestSandboxDetachForbidsAllOperations(t *testing.T) {
 	err = sb.Detach()
 	g.Expect(err).ToNot(gomega.HaveOccurred())
 
-	errorMsg := "Do not call Detach until you are done with your sandbox in this session"
+	errorMsg := "Unable to perform operation on a detached sandbox"
 
 	_, err = sb.Exec(ctx, []string{"echo", "hello"}, nil)
 	g.Expect(err).To(gomega.HaveOccurred())

@@ -654,7 +654,7 @@ func (sb *Sandbox) getOrCreateCommandRouterClient(ctx context.Context, taskID st
 }
 func (sb *Sandbox) ensureAttached() error {
 	if sb.detached.Load() {
-		return SandboxDetached{Exception: "Do not call Detach until you are done with your sandbox in this session"}
+		return SandboxDetached{Exception: "Unable to perform operation on a detached sandbox"}
 	}
 	return nil
 }
