@@ -76,7 +76,7 @@ func main() {
 			log.Fatalf("Failed to terminate Sandbox %s: %v", sb2.SandboxID, err)
 		}
 		if err := sb2.Detach(); err != nil {
-			log.Fatalf("Failed to detach Sandbox %s: %v", sb.SandboxID, err)
+			log.Fatalf("Failed to detach Sandbox %s: %v", sb2.SandboxID, err)
 		}
 	}()
 
