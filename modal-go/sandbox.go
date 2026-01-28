@@ -55,7 +55,7 @@ type SandboxCreateParams struct {
 	Proxy               *Proxy                       // Reference to a Modal Proxy to use in front of this Sandbox.
 	Name                string                       // Optional name for the Sandbox. Unique within an App.
 	ExperimentalOptions map[string]any               // Experimental options
-	CustomDomain        string                       // If set, connections to this Sandbox will be subdomains of this domain rather than the default. This requires prior manual setup by Modal and is only available for Enterprise customers.
+	CustomDomain        string                       // If non-empty, connections to this Sandbox will be subdomains of this domain rather than the default. This requires prior manual setup by Modal and is only available for Enterprise customers.
 }
 
 // buildSandboxCreateRequestProto builds a SandboxCreateRequest proto from options.
