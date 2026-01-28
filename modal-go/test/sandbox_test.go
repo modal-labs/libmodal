@@ -846,7 +846,6 @@ func TestSandboxDetachIsNonDestructive(t *testing.T) {
 
 	sb, err := tc.Sandboxes.Create(ctx, app, image, nil)
 	g.Expect(err).ToNot(gomega.HaveOccurred())
-	defer terminateSandbox(g, sb)
 
 	sandboxID := sb.SandboxID
 
@@ -855,7 +854,10 @@ func TestSandboxDetachIsNonDestructive(t *testing.T) {
 
 	sbFromID, err := tc.Sandboxes.FromID(ctx, sandboxID)
 	g.Expect(err).ToNot(gomega.HaveOccurred())
-	defer func() { _ = sbFromID.Detach() }()
+	defer func() {
+		terminateSandbox(g, sbFromID)
+		_ = sbFromID.Detach()
+	}()
 	g.Expect(sbFromID.SandboxID).To(gomega.Equal(sandboxID))
 
 	p, err := sbFromID.Exec(ctx, []string{"echo", "still running"}, nil)
@@ -927,7 +929,7 @@ func TestSandboxDetachForbidsAllOperations(t *testing.T) {
 	err = sb.Detach()
 	g.Expect(err).ToNot(gomega.HaveOccurred())
 
-	errorMsg := "Do not call Detach or Terminate until you are done with your sandbox in this session"
+	errorMsg := "Do not call Detach until you are done with your sandbox in this session"
 
 	_, err = sb.Exec(ctx, []string{"echo", "hello"}, nil)
 	g.Expect(err).To(gomega.HaveOccurred())
@@ -938,6 +940,10 @@ func TestSandboxDetachForbidsAllOperations(t *testing.T) {
 	g.Expect(err.Error()).To(gomega.ContainSubstring(errorMsg))
 
 	_, err = sb.Open(ctx, "/abc.txt", "r")
+	g.Expect(err).To(gomega.HaveOccurred())
+	g.Expect(err.Error()).To(gomega.ContainSubstring(errorMsg))
+
+	err = sb.Terminate(ctx)
 	g.Expect(err).To(gomega.HaveOccurred())
 	g.Expect(err.Error()).To(gomega.ContainSubstring(errorMsg))
 

@@ -652,7 +652,7 @@ func (sb *Sandbox) getOrCreateCommandRouterClient(ctx context.Context, taskID st
 }
 func (sb *Sandbox) ensureAttached() error {
 	if sb.detached.Load() {
-		return SandboxDetached{Exception: "Do not call Detach or Terminate until you are done with your sandbox in this session"}
+		return SandboxDetached{Exception: "Do not call Detach until you are done with your sandbox in this session"}
 	}
 	return nil
 }
@@ -678,23 +678,17 @@ func (sb *Sandbox) closeCommandRouterClient() error {
 
 // Terminate stops the Sandbox.
 func (sb *Sandbox) Terminate(ctx context.Context) error {
-	var closeTaskCommandRouterError error
-	if err := sb.closeCommandRouterClient(); err != nil {
-		closeTaskCommandRouterError = err
+	if err := sb.ensureAttached(); err != nil {
+		return err
 	}
 
 	// Terminate the sandbox even if detach fails.
-	_, terminateErr := sb.client.cpClient.SandboxTerminate(ctx, pb.SandboxTerminateRequest_builder{
+	_, err := sb.client.cpClient.SandboxTerminate(ctx, pb.SandboxTerminateRequest_builder{
 		SandboxId: sb.SandboxID,
 	}.Build())
 
 	sb.taskID = ""
-
-	// Prioritize terminate error if both failed, otherwise return whichever error occurred
-	if terminateErr != nil {
-		return terminateErr
-	}
-	return closeTaskCommandRouterError
+	return err
 }
 
 // Wait blocks until the Sandbox exits.
