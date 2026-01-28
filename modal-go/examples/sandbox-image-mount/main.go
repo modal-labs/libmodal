@@ -52,6 +52,9 @@ func main() {
 		if err := sb.Terminate(context.Background()); err != nil {
 			log.Fatalf("Failed to terminate Sandbox %s: %v", sb.SandboxID, err)
 		}
+		if err := sb.Detach(); err != nil {
+			log.Fatalf("Failed to detach Sandbox %s: %v", sb.SandboxID, err)
+		}
 	}()
 	fmt.Printf("Started first Sandbox: %s\n", sb.SandboxID)
 
@@ -92,6 +95,9 @@ func main() {
 
 	if err := sb.Terminate(ctx); err != nil {
 		log.Fatalf("Failed to terminate Sandbox: %v", err)
+	}
+	if err := sb.Detach(); err != nil {
+		log.Fatalf("Failed to detach Sandbox %s: %v", sb.SandboxID, err)
 	}
 
 	// Start a new Sandbox, and mount the repo directory:

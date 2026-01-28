@@ -360,10 +360,8 @@ func (t *Tunnel) TCPSocket() (string, int, error) {
 }
 
 // Sandbox represents a Modal Sandbox, which can run commands and manage
-// input/output streams for a remote process. After creating a sandbox, make sure
-// to either call [Sandbox.Detach] or [Sandbox.Terminate]:
-//   - [Sandbox.Detach] keeps the sandbox running and disconnects your client from communicating with the sandbox.
-//   - [Sandbox.Terminate] stops the sandbox from running and disconnects your client from communicating with the sandbox.
+// input/output streams for a remote process. After you are done interacting with the sandbox,
+// we recommend calling [Sandbox.Detach] which disconnects your client from the sandbox.
 type Sandbox struct {
 	SandboxID string
 	Stdin     io.WriteCloser

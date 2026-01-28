@@ -33,6 +33,9 @@ func main() {
 		if err := sb.Terminate(context.Background()); err != nil {
 			log.Fatalf("Failed to terminate Sandbox %s: %v", sb.SandboxID, err)
 		}
+		if err := sb.Detach(); err != nil {
+			log.Fatalf("Failed to detach Sandbox %s: %v", sb.SandboxID, err)
+		}
 	}()
 
 	_, err = sb.Exec(ctx, []string{"mkdir", "-p", "/app/data"}, nil)
@@ -57,6 +60,9 @@ func main() {
 		log.Fatalf("Failed to terminate Sandbox %s: %v", sb.SandboxID, err)
 	}
 	fmt.Println("Terminated first Sandbox")
+	if err := sb.Detach(); err != nil {
+		log.Fatalf("Failed to detach Sandbox %s: %v", sb.SandboxID, err)
+	}
 
 	// Create new Sandbox from snapshot Image
 	sb2, err := mc.Sandboxes.Create(ctx, app, snapshotImage, nil)
@@ -68,6 +74,9 @@ func main() {
 	defer func() {
 		if err := sb2.Terminate(context.Background()); err != nil {
 			log.Fatalf("Failed to terminate Sandbox %s: %v", sb2.SandboxID, err)
+		}
+		if err := sb2.Detach(); err != nil {
+			log.Fatalf("Failed to detach Sandbox %s: %v", sb.SandboxID, err)
 		}
 	}()
 

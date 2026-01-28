@@ -880,7 +880,12 @@ func TestSandboxDetachIsIdempotent(t *testing.T) {
 
 	sb, err := tc.Sandboxes.Create(ctx, app, image, nil)
 	g.Expect(err).ToNot(gomega.HaveOccurred())
-	defer terminateSandbox(g, sb)
+	sbFromID, err := tc.Sandboxes.FromID(ctx, sb.SandboxID)
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+	defer func() {
+		terminateSandbox(g, sbFromID)
+		_ = sbFromID.Detach()
+	}()
 
 	err = sb.Detach()
 	g.Expect(err).ToNot(gomega.HaveOccurred())
@@ -924,7 +929,12 @@ func TestSandboxDetachForbidsAllOperations(t *testing.T) {
 
 	sb, err := tc.Sandboxes.Create(ctx, app, image, nil)
 	g.Expect(err).ToNot(gomega.HaveOccurred())
-	defer terminateSandbox(g, sb)
+	sbFromID, err := tc.Sandboxes.FromID(ctx, sb.SandboxID)
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+	defer func() {
+		terminateSandbox(g, sbFromID)
+		_ = sbFromID.Detach()
+	}()
 
 	err = sb.Detach()
 	g.Expect(err).ToNot(gomega.HaveOccurred())

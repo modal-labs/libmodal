@@ -41,6 +41,9 @@ func main() {
 		if err := sb.Terminate(context.Background()); err != nil {
 			log.Fatalf("Failed to terminate Sandbox %s: %v", sb.SandboxID, err)
 		}
+		if err := sb.Detach(); err != nil {
+			log.Fatalf("Failed to detach Sandbox %s: %v", sb.SandboxID, err)
+		}
 	}()
 
 	_, err = sb.Stdin.Write([]byte("this is input that should be mirrored by the Python one-liner"))
