@@ -153,6 +153,11 @@ export type SandboxCreateParams = {
 
   /** Optional experimental options. */
   experimentalOptions?: Record<string, any>;
+
+  /** If set, connections to this Sandbox will be subdomains of this domain rather than the default.
+   * This requires prior manual setup by Modal and is only available for Enterprise customers.
+   */
+  customDomain?: string;
 };
 
 export async function buildSandboxCreateRequestProto(
@@ -372,6 +377,7 @@ export async function buildSandboxCreateRequestProto(
       proxyId: params.proxy?.proxyId,
       name: params.name,
       experimentalOptions: protoExperimentalOptions,
+      customDomain: params.customDomain,
     },
   });
 }
