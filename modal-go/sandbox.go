@@ -628,11 +628,12 @@ func (sb *Sandbox) ensureTaskID(ctx context.Context) error {
 }
 
 func (sb *Sandbox) getOrCreateCommandRouterClient(ctx context.Context, taskID string) (*TaskCommandRouterClient, error) {
+	sb.commandRouterClientMu.Lock()
+	defer sb.commandRouterClientMu.Unlock()
+
 	if err := sb.ensureAttached(); err != nil {
 		return nil, err
 	}
-	sb.commandRouterClientMu.Lock()
-	defer sb.commandRouterClientMu.Unlock()
 
 	if sb.commandRouterClient == nil {
 		client, err := TryInitTaskCommandRouterClient(
