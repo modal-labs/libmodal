@@ -36,7 +36,7 @@ func TestSnapshotFilesystem(t *testing.T) {
 	g.Expect(snapshotImage).ShouldNot(gomega.BeNil())
 	g.Expect(snapshotImage.ImageID).To(gomega.HavePrefix("im-"))
 
-	err = sb.Terminate(ctx, true, nil)
+	err = sb.Terminate(ctx, false, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	sb2, err := tc.Sandboxes.Create(ctx, app, snapshotImage, nil)
