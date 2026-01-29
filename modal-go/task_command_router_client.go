@@ -43,6 +43,14 @@ func defaultRetryOptions() retryOptions {
 	}
 }
 
+var commandRouterRetryableCodes = map[codes.Code]struct{}{
+	codes.DeadlineExceeded: {},
+	codes.Unavailable:      {},
+	codes.Canceled:         {},
+	codes.Internal:         {},
+	codes.Unknown:          {},
+}
+
 // parseJwtExpiration extracts the expiration time from a JWT token.
 // Returns (nil, nil) if the token has no exp claim.
 // Returns an error if the token is malformed.
@@ -110,7 +118,7 @@ func callWithRetriesOnTransientErrors[T any](
 			return nil, err
 		}
 
-		if _, retryable := retryableGrpcStatusCodes[st.Code()]; !retryable {
+		if _, retryable := commandRouterRetryableCodes[st.Code()]; !retryable {
 			return nil, err
 		}
 

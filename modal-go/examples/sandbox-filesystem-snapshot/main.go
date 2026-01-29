@@ -52,11 +52,14 @@ func main() {
 	}
 	fmt.Printf("Filesystem snapshot created with Image ID: %s\n", snapshotImage.ImageID)
 
-	err = sb.Terminate(ctx, true, nil)
+	err = sb.Terminate(ctx, false, nil)
 	if err != nil {
 		log.Fatalf("Failed to terminate Sandbox %s: %v", sb.SandboxID, err)
 	}
 	fmt.Println("Terminated first Sandbox")
+	if err := sb.Detach(); err != nil {
+		log.Fatalf("Failed to detach Sandbox %s: %v", sb.SandboxID, err)
+	}
 
 	// Create new Sandbox from snapshot Image
 	sb2, err := mc.Sandboxes.Create(ctx, app, snapshotImage, nil)
