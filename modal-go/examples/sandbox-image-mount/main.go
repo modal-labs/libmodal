@@ -133,7 +133,7 @@ func main() {
 	}
 	fmt.Printf("Contents of /repo directory in new Sandbox sb2:\n%s", output)
 
-	if err := sb2.Terminate(ctx); err != nil {
+	if err := sb2.Terminate(ctx, true, nil); err != nil {
 		log.Fatalf("Failed to terminate sb2: %v", err)
 	}
 	if err := mc.Images.Delete(ctx, repoSnapshot.ImageID, nil); err != nil {
