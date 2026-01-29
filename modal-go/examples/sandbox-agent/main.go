@@ -33,11 +33,8 @@ func main() {
 	fmt.Println("Started Sandbox:", sb.SandboxID)
 
 	defer func() {
-		if err := sb.Terminate(context.Background()); err != nil {
+		if err := sb.Terminate(context.Background(), true, nil); err != nil {
 			log.Fatalf("Failed to terminate Sandbox %s: %v", sb.SandboxID, err)
-		}
-		if err := sb.Detach(); err != nil {
-			log.Fatalf("Failed to detach Sandbox %s: %v", sb.SandboxID, err)
 		}
 	}()
 

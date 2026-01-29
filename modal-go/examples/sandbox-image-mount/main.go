@@ -49,11 +49,8 @@ func main() {
 		log.Fatalf("Failed to create Sandbox: %v", err)
 	}
 	defer func() {
-		if err := sb.Terminate(context.Background()); err != nil {
+		if err := sb.Terminate(context.Background(), true, nil); err != nil {
 			log.Fatalf("Failed to terminate Sandbox %s: %v", sb.SandboxID, err)
-		}
-		if err := sb.Detach(); err != nil {
-			log.Fatalf("Failed to detach Sandbox %s: %v", sb.SandboxID, err)
 		}
 	}()
 	fmt.Printf("Started first Sandbox: %s\n", sb.SandboxID)
@@ -93,7 +90,7 @@ func main() {
 	}
 	fmt.Printf("Took a snapshot of the /repo directory, Image ID: %s\n", repoSnapshot.ImageID)
 
-	if err := sb.Terminate(ctx); err != nil {
+	if err := sb.Terminate(ctx, false, nil); err != nil {
 		log.Fatalf("Failed to terminate Sandbox: %v", err)
 	}
 	if err := sb.Detach(); err != nil {
@@ -106,11 +103,8 @@ func main() {
 		log.Fatalf("Failed to create second Sandbox: %v", err)
 	}
 	defer func() {
-		if err := sb2.Terminate(context.Background()); err != nil {
+		if err := sb2.Terminate(context.Background(), true, nil); err != nil {
 			log.Fatalf("Failed to terminate Sandbox %s: %v", sb2.SandboxID, err)
-		}
-		if err := sb2.Detach(); err != nil {
-			log.Fatalf("Failed to detach Sandbox %s: %v", sb.SandboxID, err)
 		}
 	}()
 	fmt.Printf("Started second Sandbox: %s\n", sb2.SandboxID)

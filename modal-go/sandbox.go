@@ -678,8 +678,12 @@ func (sb *Sandbox) closeCommandRouterClient() error {
 	return nil
 }
 
+// SandboxTerminateParams are options for Terminate
+type SandboxTerminateParams struct {
+}
+
 // Terminate stops the Sandbox.
-func (sb *Sandbox) Terminate(ctx context.Context) error {
+func (sb *Sandbox) Terminate(ctx context.Context, detach bool, params *SandboxTerminateParams) error {
 	if err := sb.ensureAttached(); err != nil {
 		return err
 	}
@@ -688,9 +692,15 @@ func (sb *Sandbox) Terminate(ctx context.Context) error {
 	_, err := sb.client.cpClient.SandboxTerminate(ctx, pb.SandboxTerminateRequest_builder{
 		SandboxId: sb.SandboxID,
 	}.Build())
-
+	if err != nil {
+		return err
+	}
 	sb.taskID = ""
-	return err
+
+	if detach {
+		return sb.Detach()
+	}
+	return nil
 }
 
 // Wait blocks until the Sandbox exits.

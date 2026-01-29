@@ -31,7 +31,7 @@ func TestCreateOneSandbox(t *testing.T) {
 	defer terminateSandbox(g, sb)
 	g.Expect(sb.SandboxID).ShouldNot(gomega.BeEmpty())
 
-	err = sb.Terminate(ctx)
+	err = sb.Terminate(ctx, false, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	exitcode, err := sb.Wait(ctx)
@@ -854,10 +854,7 @@ func TestSandboxDetachIsNonDestructive(t *testing.T) {
 
 	sbFromID, err := tc.Sandboxes.FromID(ctx, sandboxID)
 	g.Expect(err).ToNot(gomega.HaveOccurred())
-	defer func() {
-		terminateSandbox(g, sbFromID)
-		_ = sbFromID.Detach()
-	}()
+	defer terminateSandbox(g, sbFromID)
 	g.Expect(sbFromID.SandboxID).To(gomega.Equal(sandboxID))
 
 	p, err := sbFromID.Exec(ctx, []string{"echo", "still running"}, nil)
@@ -882,10 +879,7 @@ func TestSandboxDetachIsIdempotent(t *testing.T) {
 	g.Expect(err).ToNot(gomega.HaveOccurred())
 	sbFromID, err := tc.Sandboxes.FromID(ctx, sb.SandboxID)
 	g.Expect(err).ToNot(gomega.HaveOccurred())
-	defer func() {
-		terminateSandbox(g, sbFromID)
-		_ = sbFromID.Detach()
-	}()
+	defer terminateSandbox(g, sbFromID)
 
 	err = sb.Detach()
 	g.Expect(err).ToNot(gomega.HaveOccurred())
@@ -909,7 +903,7 @@ func TestSandboxTerminateThenDetach(t *testing.T) {
 	sb, err := tc.Sandboxes.Create(ctx, app, image, nil)
 	g.Expect(err).ToNot(gomega.HaveOccurred())
 
-	err = sb.Terminate(ctx)
+	err = sb.Terminate(ctx, false, nil)
 	g.Expect(err).ToNot(gomega.HaveOccurred())
 
 	err = sb.Detach()
@@ -931,10 +925,7 @@ func TestSandboxDetachForbidsAllOperations(t *testing.T) {
 	g.Expect(err).ToNot(gomega.HaveOccurred())
 	sbFromID, err := tc.Sandboxes.FromID(ctx, sb.SandboxID)
 	g.Expect(err).ToNot(gomega.HaveOccurred())
-	defer func() {
-		terminateSandbox(g, sbFromID)
-		_ = sbFromID.Detach()
-	}()
+	defer terminateSandbox(g, sbFromID)
 
 	err = sb.Detach()
 	g.Expect(err).ToNot(gomega.HaveOccurred())
@@ -953,7 +944,7 @@ func TestSandboxDetachForbidsAllOperations(t *testing.T) {
 	g.Expect(err).To(gomega.HaveOccurred())
 	g.Expect(err.Error()).To(gomega.ContainSubstring(errorMsg))
 
-	err = sb.Terminate(ctx)
+	err = sb.Terminate(ctx, false, nil)
 	g.Expect(err).To(gomega.HaveOccurred())
 	g.Expect(err.Error()).To(gomega.ContainSubstring(errorMsg))
 

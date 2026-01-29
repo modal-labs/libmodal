@@ -53,7 +53,6 @@ func TestSandboxMountDirectoryWithImage(t *testing.T) {
 
 	sb1, err := tc.Sandboxes.Create(ctx, app, baseImage, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	defer terminateSandbox(g, sb1)
 
 	echoProc, err := sb1.Exec(ctx, []string{
 		"sh",
@@ -68,7 +67,7 @@ func TestSandboxMountDirectoryWithImage(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(mountImage.ImageID).To(gomega.MatchRegexp(`^im-`))
 
-	err = sb1.Terminate(ctx)
+	err = sb1.Terminate(ctx, true, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	sb2, err := tc.Sandboxes.Create(ctx, app, baseImage, nil)
@@ -125,9 +124,6 @@ func TestSandboxSnapshotDirectory(t *testing.T) {
 	snapshotImage, err := sb1.ExperimentalSnapshotDirectory(ctx, "/mnt/data")
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(snapshotImage.ImageID).To(gomega.MatchRegexp(`^im-`))
-
-	err = sb1.Terminate(ctx)
-	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	sb2, err := tc.Sandboxes.Create(ctx, app, baseImage, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
