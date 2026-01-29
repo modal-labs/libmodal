@@ -125,6 +125,9 @@ func TestSandboxSnapshotDirectory(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(snapshotImage.ImageID).To(gomega.MatchRegexp(`^im-`))
 
+	err = sb1.Terminate(ctx, false, nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
 	sb2, err := tc.Sandboxes.Create(ctx, app, baseImage, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	defer terminateSandbox(g, sb2)
