@@ -141,8 +141,8 @@ func callWithRetriesOnTransientErrors[T any](
 	}
 }
 
-// TaskCommandRouterClient provides a client for the TaskCommandRouter gRPC service.
-type TaskCommandRouterClient struct {
+// taskCommandRouterClient provides a client for the TaskCommandRouter gRPC service.
+type taskCommandRouterClient struct {
 	stub         pb.TaskCommandRouterClient
 	conn         *grpc.ClientConn
 	serverClient pb.ModalClientClient
@@ -156,15 +156,15 @@ type TaskCommandRouterClient struct {
 	refreshJwtGroup singleflight.Group
 }
 
-// TryInitTaskCommandRouterClient attempts to initialize a TaskCommandRouterClient.
+// tryInitTaskCommandRouterClient attempts to initialize a TaskCommandRouterClient.
 // Returns nil if command router access is not available for this task.
-func TryInitTaskCommandRouterClient(
+func tryInitTaskCommandRouterClient(
 	ctx context.Context,
 	serverClient pb.ModalClientClient,
 	taskID string,
 	logger *slog.Logger,
 	profile Profile,
-) (*TaskCommandRouterClient, error) {
+) (*taskCommandRouterClient, error) {
 	resp, err := serverClient.TaskGetCommandRouterAccess(ctx, pb.TaskGetCommandRouterAccessRequest_builder{
 		TaskId: taskID,
 	}.Build())
@@ -223,7 +223,7 @@ func TryInitTaskCommandRouterClient(
 		return nil, fmt.Errorf("failed to create task command router connection: %w", err)
 	}
 
-	client := &TaskCommandRouterClient{
+	client := &taskCommandRouterClient{
 		stub:         pb.NewTaskCommandRouterClient(conn),
 		conn:         conn,
 		serverClient: serverClient,
@@ -239,7 +239,7 @@ func TryInitTaskCommandRouterClient(
 }
 
 // Close closes the gRPC connection and cancels all in-flight operations.
-func (c *TaskCommandRouterClient) Close() error {
+func (c *taskCommandRouterClient) Close() error {
 	if !c.closed.CompareAndSwap(false, true) {
 		return nil
 	}
@@ -249,11 +249,11 @@ func (c *TaskCommandRouterClient) Close() error {
 	return nil
 }
 
-func (c *TaskCommandRouterClient) authContext(ctx context.Context) context.Context {
+func (c *taskCommandRouterClient) authContext(ctx context.Context) context.Context {
 	return metadata.AppendToOutgoingContext(ctx, "authorization", "Bearer "+*c.jwt.Load())
 }
 
-func (c *TaskCommandRouterClient) refreshJwt(ctx context.Context) error {
+func (c *taskCommandRouterClient) refreshJwt(ctx context.Context) error {
 	const jwtRefreshBufferSeconds = 30
 
 	if c.closed.Load() {
@@ -295,12 +295,12 @@ func (c *TaskCommandRouterClient) refreshJwt(ctx context.Context) error {
 	return err
 }
 
-type RetryableClient interface {
+type retryableClient interface {
 	authContext(ctx context.Context) context.Context
 	refreshJwt(ctx context.Context) error
 }
 
-func callWithAuthRetry[T any](ctx context.Context, c RetryableClient, fn func(context.Context) (*T, error)) (*T, error) {
+func callWithAuthRetry[T any](ctx context.Context, c retryableClient, fn func(context.Context) (*T, error)) (*T, error) {
 	resp, err := fn(c.authContext(ctx))
 	if err != nil {
 		if st, ok := status.FromError(err); ok && st.Code() == codes.Unauthenticated {
@@ -314,7 +314,7 @@ func callWithAuthRetry[T any](ctx context.Context, c RetryableClient, fn func(co
 }
 
 // MountDirectory mounts an image at a directory in the container.
-func (c *TaskCommandRouterClient) MountDirectory(ctx context.Context, request *pb.TaskMountDirectoryRequest) error {
+func (c *taskCommandRouterClient) MountDirectory(ctx context.Context, request *pb.TaskMountDirectoryRequest) error {
 	_, err := callWithRetriesOnTransientErrors(ctx, func() (*emptypb.Empty, error) {
 		return callWithAuthRetry(ctx, c, func(authCtx context.Context) (*emptypb.Empty, error) {
 			return c.stub.TaskMountDirectory(authCtx, request)
@@ -324,7 +324,7 @@ func (c *TaskCommandRouterClient) MountDirectory(ctx context.Context, request *p
 }
 
 // SnapshotDirectory snapshots a directory into a new image.
-func (c *TaskCommandRouterClient) SnapshotDirectory(ctx context.Context, request *pb.TaskSnapshotDirectoryRequest) (*pb.TaskSnapshotDirectoryResponse, error) {
+func (c *taskCommandRouterClient) SnapshotDirectory(ctx context.Context, request *pb.TaskSnapshotDirectoryRequest) (*pb.TaskSnapshotDirectoryResponse, error) {
 	return callWithRetriesOnTransientErrors(ctx, func() (*pb.TaskSnapshotDirectoryResponse, error) {
 		return callWithAuthRetry(ctx, c, func(authCtx context.Context) (*pb.TaskSnapshotDirectoryResponse, error) {
 			return c.stub.TaskSnapshotDirectory(authCtx, request)

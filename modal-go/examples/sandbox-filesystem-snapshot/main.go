@@ -56,10 +56,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to terminate Sandbox %s: %v", sb.SandboxID, err)
 	}
-	fmt.Println("Terminated first Sandbox")
-	if err := sb.Detach(); err != nil {
-		log.Fatalf("Failed to detach Sandbox %s: %v", sb.SandboxID, err)
-	}
 
 	// Create new Sandbox from snapshot Image
 	sb2, err := mc.Sandboxes.Create(ctx, app, snapshotImage, nil)

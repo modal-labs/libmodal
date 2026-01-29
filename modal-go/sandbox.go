@@ -374,7 +374,7 @@ type Sandbox struct {
 
 	client *Client
 
-	commandRouterClient   *TaskCommandRouterClient
+	commandRouterClient   *taskCommandRouterClient
 	commandRouterClientMu sync.Mutex
 
 	detached atomic.Bool
@@ -627,7 +627,7 @@ func (sb *Sandbox) ensureTaskID(ctx context.Context) error {
 	return nil
 }
 
-func (sb *Sandbox) getOrCreateCommandRouterClient(ctx context.Context, taskID string) (*TaskCommandRouterClient, error) {
+func (sb *Sandbox) getOrCreateCommandRouterClient(ctx context.Context, taskID string) (*taskCommandRouterClient, error) {
 	sb.commandRouterClientMu.Lock()
 	defer sb.commandRouterClientMu.Unlock()
 
@@ -636,7 +636,7 @@ func (sb *Sandbox) getOrCreateCommandRouterClient(ctx context.Context, taskID st
 	}
 
 	if sb.commandRouterClient == nil {
-		client, err := TryInitTaskCommandRouterClient(
+		client, err := tryInitTaskCommandRouterClient(
 			ctx,
 			sb.client.cpClient,
 			taskID,

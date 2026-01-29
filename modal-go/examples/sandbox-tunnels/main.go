@@ -39,9 +39,6 @@ func main() {
 		if err := sb.Terminate(context.Background(), true, nil); err != nil {
 			log.Fatalf("Failed to terminate Sandbox %s: %v", sb.SandboxID, err)
 		}
-		if err := sb.Detach(); err != nil {
-			log.Fatalf("Failed to detach Sandbox %s: %v", sb.SandboxID, err)
-		}
 	}()
 
 	fmt.Printf("Sandbox created: %s\n", sb.SandboxID)
