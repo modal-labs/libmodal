@@ -944,10 +944,6 @@ func TestSandboxDetachForbidsAllOperations(t *testing.T) {
 	g.Expect(err).To(gomega.HaveOccurred())
 	g.Expect(err.Error()).To(gomega.ContainSubstring(errorMsg))
 
-	err = sb.Terminate(ctx, false, nil)
-	g.Expect(err).To(gomega.HaveOccurred())
-	g.Expect(err.Error()).To(gomega.ContainSubstring(errorMsg))
-
 	_, err = sb.Wait(ctx)
 	g.Expect(err).To(gomega.HaveOccurred())
 	g.Expect(err.Error()).To(gomega.ContainSubstring(errorMsg))
@@ -979,4 +975,43 @@ func TestSandboxDetachForbidsAllOperations(t *testing.T) {
 	_, err = sb.GetTags(ctx)
 	g.Expect(err).To(gomega.HaveOccurred())
 	g.Expect(err.Error()).To(gomega.ContainSubstring(errorMsg))
+}
+
+func TestSandboxTerminateTwice(t *testing.T) {
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+	tc := newTestClient(t)
+
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+
+	image := tc.Images.FromRegistry("alpine:3.21", nil)
+
+	sb, err := tc.Sandboxes.Create(ctx, app, image, nil)
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+
+	err = sb.Terminate(ctx, true, nil)
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+
+	err = sb.Terminate(ctx, true, nil)
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+}
+func TestSandboxDetachTerminate(t *testing.T) {
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+	tc := newTestClient(t)
+
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+
+	image := tc.Images.FromRegistry("alpine:3.21", nil)
+
+	sb, err := tc.Sandboxes.Create(ctx, app, image, nil)
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+
+	err = sb.Detach()
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+
+	err = sb.Terminate(ctx, true, nil)
+	g.Expect(err).ToNot(gomega.HaveOccurred())
 }

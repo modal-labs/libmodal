@@ -683,10 +683,11 @@ func (sb *Sandbox) closeCommandRouterClient() error {
 type SandboxTerminateParams struct {
 }
 
-// Terminate stops the Sandbox.
+// Terminate stops the Sandbox. If the sandbox is detached then `Terminate` is a noop.
 func (sb *Sandbox) Terminate(ctx context.Context, detach bool, params *SandboxTerminateParams) error {
-	if err := sb.ensureAttached(); err != nil {
-		return err
+	// noop if the sandbox is detached
+	if sb.detached.Load() {
+		return nil
 	}
 
 	// Terminate the sandbox even if detach fails.
