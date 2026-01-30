@@ -21,8 +21,6 @@ import {
   TaskExecStartRequest,
   TaskExecStdoutConfig,
   TaskExecStderrConfig,
-  TaskMountDirectoryRequest,
-  TaskSnapshotDirectoryRequest,
 } from "../proto/modal_proto/task_command_router";
 import { TaskCommandRouterClientImpl } from "./task_command_router_client";
 import { v4 as uuidv4 } from "uuid";
@@ -1035,60 +1033,6 @@ export class Sandbox {
     }
 
     return new Image(this.#client, resp.imageId, "");
-  }
-
-  /**
-   * [Alpha] Mount an {@link Image} at a path in the Sandbox filesystem.
-   *
-   * @alpha
-   * @param path - The path where the directory should be mounted
-   * @param image - Optional {@link Image} to mount. If undefined, mounts an empty directory.
-   */
-  async experimentalMountImage(path: string, image?: Image): Promise<void> {
-    const taskId = await this.#getTaskId();
-    const commandRouterClient =
-      await this.#getOrCreateCommandRouterClient(taskId);
-
-    if (image && !image.imageId) {
-      throw new Error(
-        "Image must be built before mounting. Call `image.build(app)` first.",
-      );
-    }
-
-    const pathBytes = new TextEncoder().encode(path);
-    const imageId = image?.imageId ?? "";
-    const request = TaskMountDirectoryRequest.create({
-      taskId,
-      path: pathBytes,
-      imageId,
-    });
-    await commandRouterClient.mountDirectory(request);
-  }
-
-  /**
-   * [Alpha] Snapshot local changes to a previously mounted {@link Image} into a new {@link Image}.
-   *
-   * @alpha
-   * @param path - The path of the directory to snapshot
-   * @returns Promise that resolves to an {@link Image}
-   */
-  async experimentalSnapshotDirectory(path: string): Promise<Image> {
-    const taskId = await this.#getTaskId();
-    const commandRouterClient =
-      await this.#getOrCreateCommandRouterClient(taskId);
-
-    const pathBytes = new TextEncoder().encode(path);
-    const request = TaskSnapshotDirectoryRequest.create({
-      taskId,
-      path: pathBytes,
-    });
-    const response = await commandRouterClient.snapshotDirectory(request);
-
-    if (!response.imageId) {
-      throw new Error("Sandbox snapshot directory response missing `imageId`");
-    }
-
-    return new Image(this.#client, response.imageId, "");
   }
 
   /**
