@@ -80,7 +80,6 @@ export {
   type SecretDeleteParams,
 } from "./secret";
 export { SandboxFile, type SandboxFileMode } from "./sandbox_filesystem";
-export { TaskCommandRouterClientImpl } from "./task_command_router_client";
 export {
   Volume,
   VolumeService,
