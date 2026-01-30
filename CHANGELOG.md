@@ -4,7 +4,7 @@ Both client libraries are pre-1.0, and they have separate versioning.
 
 ## modal-js/v0.6.1, modal-go/v0.6.1
 
-- Adds custom domains to `Sandbox.Create` enabled by a passing a custom domain to `SandboxCreateParams`.
+- Adds custom domains to `Sandboxes.Create` in Go and `sandboxes.create` in JS.
 
 ## modal-js/v0.6.0, modal-go/v0.6.0
 
