@@ -2,7 +2,7 @@
 
 Both client libraries are pre-1.0, and they have separate versioning.
 
-## modal-js/v0.6.1, modal-go/v0.6.1
+## Unreleased
 
 - Adds custom domains to `Sandboxes.Create` in Go and `sandboxes.create` in JS.
 
