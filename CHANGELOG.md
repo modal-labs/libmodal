@@ -5,8 +5,6 @@ Both client libraries are pre-1.0, and they have separate versioning.
 ## modal-js/v0.6.1, modal-go/v0.6.1
 
 - In Go, add custom domains to `Sandbox.Create` enabled by a `CustomDomain` field in `SandboxCreateParams` .
-- In JS, upgraded the internal handling of `Sandbox.exec` bringing greatly improved performance and reliability for exec operations.
-- In JS, `Sandbox.experimentalMountImage` to mount an Image to a path in the Sandbox's filesystem and `Sandbox.experimentalSnapshotDirectory` to snapshot local changes to a previously mounted Image into a new Image.
 
 ## modal-js/v0.6.0, modal-go/v0.6.0
 
