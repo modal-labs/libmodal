@@ -349,13 +349,13 @@ export class ModalClient {
   }
 }
 
-type TimeoutOptions = {
+export type TimeoutOptions = {
   /** Timeout for this call, interpreted as a duration in milliseconds */
   timeoutMs?: number;
 };
 
 /** gRPC client middleware to set timeout and retries on a call. */
-const timeoutMiddleware: ClientMiddleware<TimeoutOptions> =
+export const timeoutMiddleware: ClientMiddleware<TimeoutOptions> =
   async function* timeoutMiddleware(call, options) {
     if (!options.timeoutMs || options.signal?.aborted) {
       return yield* call.next(call.request, options);

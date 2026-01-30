@@ -146,7 +146,7 @@ export class CloudBucketMount {
 
   /** @ignore */
   toProto(mountPath: string): CloudBucketMountProto {
-    return {
+    return CloudBucketMountProto.create({
       bucketName: this.bucketName,
       mountPath,
       credentialsSecretId: this.secret?.secretId ?? "",
@@ -156,6 +156,6 @@ export class CloudBucketMount {
       bucketEndpointUrl: this.bucketEndpointUrl,
       keyPrefix: this.keyPrefix,
       oidcAuthRoleArn: this.oidcAuthRoleArn,
-    };
+    });
   }
 }
