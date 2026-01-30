@@ -2,9 +2,10 @@
 
 Both client libraries are pre-1.0, and they have separate versioning.
 
-## Unreleased
+## modal-js/v0.6.1, modal-go/v0.6.1
 
-- Upgraded the internal handling of Sandbox exec to use the new command router interface, which brings greatly improved performance and reliability for exec operations.
+- In Go, add custom domains to `Sandbox.Create` enabled by a `CustomDomain` field in `SandboxCreateParams` .
+- In JS, upgraded the internal handling of `Sandbox.exec` to use the new command router interface, which brings greatly improved performance and reliability for exec operations.
 
 ## modal-js/v0.6.0, modal-go/v0.6.0
 
