@@ -202,3 +202,16 @@ func TestSandboxCreateRequestProto_DefaultValues(t *testing.T) {
 	g.Expect(def.GetOpenPorts().GetPorts()).To(gomega.BeEmpty())
 	g.Expect(def.GetName()).To(gomega.Equal(""))
 }
+
+func TestSandboxCreateRequestProto_CustomDomain(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	req, err := buildSandboxCreateRequestProto("app-123", "img-456", SandboxCreateParams{
+		CustomDomain: "example.com",
+	})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	def := req.GetDefinition()
+	g.Expect(def.GetCustomDomain()).To(gomega.Equal("example.com"))
+}

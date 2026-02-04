@@ -8,6 +8,10 @@ Both client libraries are pre-1.0, and they have separate versioning.
 - Go's `Sandbox` requires calling `Sandbox.Detach` after you are done interacting with the sandbox. `Sandbox.Detach` disconnects your client from the sandbox and cleans up any resources associated with the connection. `Sandbox.Terminate` now accepts a detach bool to also detach after terminating the
 sandbox.
 
+## modal-js/v0.6.1, modal-go/v0.6.1
+
+- Added custom domains to `Sandboxes.Create` in Go and `sandboxes.create` in JS. Note that Sandbox custom domains work differently from Function custom domains and must currently be set up manually by Modal; please get in touch if this feature interests you.
+
 ## modal-js/v0.6.0, modal-go/v0.6.0
 
 - Added `enable_docker` experimental option to `Sandbox.Create` to Go and `Sandbox.create` to JS.
