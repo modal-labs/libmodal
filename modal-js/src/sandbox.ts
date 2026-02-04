@@ -729,6 +729,7 @@ export class Sandbox {
   #taskId: string | undefined;
   #tunnels: Record<number, Tunnel> | undefined;
   #commandRouterClient: TaskCommandRouterClientImpl | undefined;
+  #commandRouterClientPromise: Promise<TaskCommandRouterClientImpl> | undefined;
 
   /** @ignore */
   constructor(client: ModalClient, sandboxId: string) {
@@ -951,7 +952,15 @@ export class Sandbox {
   async #getOrCreateCommandRouterClient(
     taskId: string,
   ): Promise<TaskCommandRouterClientImpl> {
-    if (this.#commandRouterClient === undefined) {
+    if (this.#commandRouterClient !== undefined) {
+      return this.#commandRouterClient;
+    }
+
+    if (this.#commandRouterClientPromise !== undefined) {
+      return this.#commandRouterClientPromise;
+    }
+
+    this.#commandRouterClientPromise = (async () => {
       const client = await TaskCommandRouterClientImpl.tryInit(
         this.#client.cpClient,
         taskId,
@@ -964,8 +973,16 @@ export class Sandbox {
         );
       }
       this.#commandRouterClient = client;
+      return client;
+    })();
+
+    try {
+      return await this.#commandRouterClientPromise;
+    } catch (err) {
+      // clear the Promise so subsequent calls can retry
+      this.#commandRouterClientPromise = undefined;
+      throw err;
     }
-    return this.#commandRouterClient;
   }
 
   /**
