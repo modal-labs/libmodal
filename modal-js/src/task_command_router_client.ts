@@ -377,6 +377,8 @@ export class TaskCommandRouterClientImpl {
   }
 
   private async refreshJwt(): Promise<void> {
+    let error: unknown;
+
     this.jwtRefreshLock = this.jwtRefreshLock.then(async () => {
       if (this.closed) {
         return;
@@ -395,19 +397,29 @@ export class TaskCommandRouterClientImpl {
         return;
       }
 
-      const resp = await this.serverClient.taskGetCommandRouterAccess(
-        TaskGetCommandRouterAccessRequest.create({ taskId: this.taskId }),
-      );
+      try {
+        const resp = await this.serverClient.taskGetCommandRouterAccess(
+          TaskGetCommandRouterAccessRequest.create({ taskId: this.taskId }),
+        );
 
-      if (resp.url !== this.serverUrl) {
-        throw new Error("Task router URL changed during session");
+        if (resp.url !== this.serverUrl) {
+          throw new Error("Task router URL changed during session");
+        }
+
+        this.jwt = resp.jwt;
+        this.jwtExp = parseJwtExpiration(resp.jwt, this.logger);
+      } catch (err) {
+        // Capture the error but don't reject the promise chain.
+        // This ensures the chain remains usable for future refresh attempts.
+        error = err;
       }
-
-      this.jwt = resp.jwt;
-      this.jwtExp = parseJwtExpiration(resp.jwt, this.logger);
     });
 
     await this.jwtRefreshLock;
+
+    if (error) {
+      throw error;
+    }
   }
 
   private async callWithAuthRetry<T>(func: () => Promise<T>): Promise<T> {
