@@ -26,6 +26,7 @@ export {
   QueueEmptyError,
   QueueFullError,
   SandboxTimeoutError,
+  SandboxDetachedError,
 } from "./errors";
 export {
   Function_,
