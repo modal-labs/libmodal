@@ -984,6 +984,10 @@ export class Sandbox {
           "Command router access is not available for this sandbox",
         );
       }
+      if (this.#detached) {
+        client.close();
+        throw new SandboxDetachedError();
+      }
       this.#commandRouterClient = client;
       return client;
     })();
