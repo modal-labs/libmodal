@@ -77,3 +77,13 @@ export class SandboxTimeoutError extends Error {
     this.name = "SandboxTimeoutError";
   }
 }
+
+/** Thrown when attempting operations on a detached Sandbox. */
+export class SandboxDetachedError extends Error {
+  constructor(
+    message: string = "Unable to perform operation on a detached sandbox",
+  ) {
+    super(message);
+    this.name = "SandboxDetachedError";
+  }
+}
