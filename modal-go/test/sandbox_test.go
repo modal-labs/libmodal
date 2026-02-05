@@ -1028,7 +1028,8 @@ func TestSandboxDetachStopsWait(t *testing.T) {
 		g.Expect(err.Error()).To(gomega.ContainSubstring("Unable to perform operation on a detached sandbox"))
 	}()
 
-	sb.Detach()
+	err = sb.Detach()
+	g.Expect(err).ToNot(gomega.HaveOccurred())
 }
 
 func TestSandboxExecDetachStopsWait(t *testing.T) {
@@ -1060,8 +1061,8 @@ func TestSandboxExecDetachStopsWait(t *testing.T) {
 	}()
 
 	time.Sleep(1 * time.Second)
-	sb.Detach()
-
+	err = sb.Detach()
+	g.Expect(err).ToNot(gomega.HaveOccurred())
 }
 
 func TestSandboxDetachStopsAllStreams(t *testing.T) {
@@ -1091,12 +1092,16 @@ func TestSandboxDetachStopsAllStreams(t *testing.T) {
 		buf := make([]byte, 1)
 		for {
 			_, err := sb.Stdout.Read(buf)
-			defer sb.Stdout.Close()
 			if err != nil {
 				g.Expect(err).To(gomega.HaveOccurred())
 				g.Expect(err.Error()).To(gomega.ContainSubstring("Unable to perform operation on a detached sandbox"))
 				return
 			}
+			defer func() {
+				err := sb.Stdout.Close()
+				g.Expect(err).ToNot(gomega.HaveOccurred())
+			}()
+
 		}
 	}()
 
@@ -1105,16 +1110,19 @@ func TestSandboxDetachStopsAllStreams(t *testing.T) {
 
 		for {
 			_, err := proc.Stdout.Read(buf)
-			defer proc.Stdout.Close()
 			if err != nil {
 				g.Expect(err).To(gomega.HaveOccurred())
 				g.Expect(err.Error()).To(gomega.ContainSubstring("Unable to perform operation on a detached sandbox"))
 				return
 			}
+			defer func() {
+				err := proc.Stdout.Close()
+				g.Expect(err).ToNot(gomega.HaveOccurred())
+			}()
 		}
 	}()
 
 	time.Sleep(1 * time.Second)
-	sb.Detach()
-
+	err = sb.Detach()
+	g.Expect(err).ToNot(gomega.HaveOccurred())
 }

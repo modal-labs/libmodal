@@ -101,7 +101,7 @@ func (e SandboxTimeoutError) Error() string {
 	return "SandboxTimeoutError: " + e.Exception
 }
 
-// SandboxDetached is returned when running an operation on a detached sandbox object.
+// SandboxDetachedError is returned when running an operation on a detached sandbox object.
 type SandboxDetachedError struct {
 	Exception string
 }
