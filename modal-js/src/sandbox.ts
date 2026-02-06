@@ -60,6 +60,11 @@ import type { App } from "./app";
 import { parseGpuConfig } from "./app";
 import { checkForRenamedParams } from "./validation";
 
+// Backoff configuration for SandboxGetLogs retry behavior.
+const SB_LOGS_INITIAL_DELAY_MS = 10;
+const SB_LOGS_DELAY_FACTOR = 2;
+const SB_LOGS_MAX_RETRIES = 10;
+
 /**
  * Stdin is always present, but this option allow you to drop stdout or stderr
  * if you don't need them. The default is "pipe", matching Node.js behavior.
@@ -1258,9 +1263,8 @@ async function* outputStreamSb(
 ): AsyncIterable<Uint8Array> {
   let lastIndex = "0-0";
   let completed = false;
-  let retriesRemaining = 10;
-  let delayMs = 10;
-  const delayFactor = 2;
+  let retriesRemaining = SB_LOGS_MAX_RETRIES;
+  let delayMs = SB_LOGS_INITIAL_DELAY_MS;
   while (!completed) {
     try {
       const outputIterator = cpClient.sandboxGetLogs(
@@ -1274,8 +1278,8 @@ async function* outputStreamSb(
       );
       for await (const batch of outputIterator) {
         // Successful read - reset backoff counters.
-        delayMs = 10;
-        retriesRemaining = 10;
+        delayMs = SB_LOGS_INITIAL_DELAY_MS;
+        retriesRemaining = SB_LOGS_MAX_RETRIES;
         lastIndex = batch.entryId;
         yield* batch.items.map((item) => new TextEncoder().encode(item.data));
         if (batch.eof) {
@@ -1286,8 +1290,8 @@ async function* outputStreamSb(
     } catch (err) {
       if (isRetryableGrpc(err) && retriesRemaining > 0) {
         // Short exponential backoff to avoid tight retry loops.
-        await sleep(delayMs);
-        delayMs *= delayFactor;
+        await sleep(delayMs, undefined, { signal });
+        delayMs *= SB_LOGS_DELAY_FACTOR;
         retriesRemaining--;
         continue;
       } else {
