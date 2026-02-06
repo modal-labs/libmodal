@@ -664,7 +664,7 @@ func (sb *Sandbox) ensureAttached() error {
 
 // Detach disconnects from the running Sandbox
 func (sb *Sandbox) Detach() error {
-	if sb.attached.Load() {
+	if !sb.attached.Load() {
 		return nil
 	}
 	sb.commandRouterClientMu.Lock()
@@ -677,7 +677,7 @@ func (sb *Sandbox) Detach() error {
 		}
 		sb.commandRouterClient = nil
 	}
-	sb.attached.CompareAndSwap(false, true)
+	sb.attached.CompareAndSwap(true, false)
 	return nil
 }
 
