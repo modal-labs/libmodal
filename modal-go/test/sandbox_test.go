@@ -31,7 +31,7 @@ func TestCreateOneSandbox(t *testing.T) {
 	defer terminateSandbox(g, sb)
 	g.Expect(sb.SandboxID).ShouldNot(gomega.BeEmpty())
 
-	err = sb.Terminate(ctx)
+	err = sb.Terminate(ctx, false, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	exitcode, err := sb.Wait(ctx)
@@ -831,4 +831,152 @@ func TestSandboxExperimentalDockerMock(t *testing.T) {
 	g.Expect(sb.SandboxID).Should(gomega.Equal("sb-123"))
 
 	g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
+}
+
+func TestSandboxDetachIsNonDestructive(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+	tc := newTestClient(t)
+
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+
+	image := tc.Images.FromRegistry("alpine:3.21", nil)
+
+	sb, err := tc.Sandboxes.Create(ctx, app, image, nil)
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+
+	sandboxID := sb.SandboxID
+
+	err = sb.Detach()
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+
+	sbFromID, err := tc.Sandboxes.FromID(ctx, sandboxID)
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+	defer terminateSandbox(g, sbFromID)
+	g.Expect(sbFromID.SandboxID).To(gomega.Equal(sandboxID))
+
+	p, err := sbFromID.Exec(ctx, []string{"echo", "still running"}, nil)
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+	exitCode, err := p.Wait(ctx)
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+	g.Expect(exitCode).To(gomega.Equal(0))
+}
+
+func TestSandboxDetachIsIdempotent(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+	tc := newTestClient(t)
+
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+
+	image := tc.Images.FromRegistry("alpine:3.21", nil)
+
+	sb, err := tc.Sandboxes.Create(ctx, app, image, nil)
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+	sbFromID, err := tc.Sandboxes.FromID(ctx, sb.SandboxID)
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+	defer terminateSandbox(g, sbFromID)
+
+	err = sb.Detach()
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+	err = sb.Detach()
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+	err = sb.Detach()
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+}
+
+func TestSandboxTerminateThenDetach(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+	tc := newTestClient(t)
+
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+
+	image := tc.Images.FromRegistry("alpine:3.21", nil)
+
+	sb, err := tc.Sandboxes.Create(ctx, app, image, nil)
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+
+	err = sb.Terminate(ctx, false, nil)
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+
+	err = sb.Detach()
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+}
+
+func TestSandboxDetachForbidsAllOperations(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+	tc := newTestClient(t)
+
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+
+	image := tc.Images.FromRegistry("alpine:3.21", nil)
+
+	sb, err := tc.Sandboxes.Create(ctx, app, image, nil)
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+	sbFromID, err := tc.Sandboxes.FromID(ctx, sb.SandboxID)
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+	defer terminateSandbox(g, sbFromID)
+
+	err = sb.Detach()
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+
+	errorMsg := "Unable to perform operation on a detached sandbox"
+
+	_, err = sb.Exec(ctx, []string{"echo", "hello"}, nil)
+	g.Expect(err).To(gomega.HaveOccurred())
+	g.Expect(err.Error()).To(gomega.ContainSubstring(errorMsg))
+
+	_, err = sb.CreateConnectToken(ctx, nil)
+	g.Expect(err).To(gomega.HaveOccurred())
+	g.Expect(err.Error()).To(gomega.ContainSubstring(errorMsg))
+
+	_, err = sb.Open(ctx, "/abc.txt", "r")
+	g.Expect(err).To(gomega.HaveOccurred())
+	g.Expect(err.Error()).To(gomega.ContainSubstring(errorMsg))
+
+	err = sb.Terminate(ctx, false, nil)
+	g.Expect(err).To(gomega.HaveOccurred())
+	g.Expect(err.Error()).To(gomega.ContainSubstring(errorMsg))
+
+	_, err = sb.Wait(ctx)
+	g.Expect(err).To(gomega.HaveOccurred())
+	g.Expect(err.Error()).To(gomega.ContainSubstring(errorMsg))
+
+	_, err = sb.Tunnels(ctx, 30*time.Second)
+	g.Expect(err).To(gomega.HaveOccurred())
+	g.Expect(err.Error()).To(gomega.ContainSubstring(errorMsg))
+
+	_, err = sb.SnapshotFilesystem(ctx, 30*time.Second)
+	g.Expect(err).To(gomega.HaveOccurred())
+	g.Expect(err.Error()).To(gomega.ContainSubstring(errorMsg))
+
+	err = sb.ExperimentalMountImage(ctx, "/abc", nil)
+	g.Expect(err).To(gomega.HaveOccurred())
+	g.Expect(err.Error()).To(gomega.ContainSubstring(errorMsg))
+
+	_, err = sb.ExperimentalSnapshotDirectory(ctx, "/abc")
+	g.Expect(err).To(gomega.HaveOccurred())
+	g.Expect(err.Error()).To(gomega.ContainSubstring(errorMsg))
+
+	_, err = sb.Poll(ctx)
+	g.Expect(err).To(gomega.HaveOccurred())
+	g.Expect(err.Error()).To(gomega.ContainSubstring(errorMsg))
+
+	err = sb.SetTags(ctx, map[string]string{})
+	g.Expect(err).To(gomega.HaveOccurred())
+	g.Expect(err.Error()).To(gomega.ContainSubstring(errorMsg))
+
+	_, err = sb.GetTags(ctx)
+	g.Expect(err).To(gomega.HaveOccurred())
+	g.Expect(err.Error()).To(gomega.ContainSubstring(errorMsg))
 }

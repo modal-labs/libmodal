@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/djherbis/buffer"
@@ -361,7 +362,9 @@ func (t *Tunnel) TCPSocket() (string, int, error) {
 }
 
 // Sandbox represents a Modal Sandbox, which can run commands and manage
-// input/output streams for a remote process.
+// input/output streams for a remote process. After you are done interacting with the sandbox,
+// we recommend calling [Sandbox.Detach] which disonnects your client from the sandbox and
+// cleans up any resources associated with the connection.
 type Sandbox struct {
 	SandboxID string
 	Stdin     io.WriteCloser
@@ -372,6 +375,11 @@ type Sandbox struct {
 	tunnels map[int]*Tunnel
 
 	client *Client
+
+	commandRouterClient   *taskCommandRouterClient
+	commandRouterClientMu sync.Mutex
+
+	attached atomic.Bool
 }
 
 func defaultSandboxPTYInfo() *pb.PTYInfo {
@@ -389,6 +397,7 @@ func defaultSandboxPTYInfo() *pb.PTYInfo {
 // newSandbox creates a new Sandbox object from ID.
 func newSandbox(client *Client, sandboxID string) *Sandbox {
 	sb := &Sandbox{SandboxID: sandboxID, client: client}
+	sb.attached.Store(true)
 	sb.Stdin = inputStreamSb(client.cpClient, sandboxID)
 	sb.Stdout = &lazyStreamReader{
 		initFunc: func() io.ReadCloser {
@@ -503,6 +512,10 @@ func buildContainerExecRequestProto(taskID string, command []string, params Sand
 
 // Exec runs a command in the Sandbox and returns text streams.
 func (sb *Sandbox) Exec(ctx context.Context, command []string, params *SandboxExecParams) (*ContainerProcess, error) {
+	if err := sb.ensureAttached(); err != nil {
+		return nil, err
+	}
+
 	if params == nil {
 		params = &SandboxExecParams{}
 	}
@@ -549,6 +562,10 @@ type SandboxCreateConnectCredentials struct {
 
 // CreateConnectToken creates a token for making HTTP connections to the Sandbox.
 func (sb *Sandbox) CreateConnectToken(ctx context.Context, params *SandboxCreateConnectTokenParams) (*SandboxCreateConnectCredentials, error) {
+	if err := sb.ensureAttached(); err != nil {
+		return nil, err
+	}
+
 	if params == nil {
 		params = &SandboxCreateConnectTokenParams{}
 	}
@@ -566,6 +583,10 @@ func (sb *Sandbox) CreateConnectToken(ctx context.Context, params *SandboxCreate
 // The mode parameter follows the same conventions as os.OpenFile:
 // "r" for read-only, "w" for write-only (truncates), "a" for append, etc.
 func (sb *Sandbox) Open(ctx context.Context, path, mode string) (*SandboxFile, error) {
+	if err := sb.ensureAttached(); err != nil {
+		return nil, err
+	}
+
 	if err := sb.ensureTaskID(ctx); err != nil {
 		return nil, err
 	}
@@ -608,8 +629,69 @@ func (sb *Sandbox) ensureTaskID(ctx context.Context) error {
 	return nil
 }
 
+func (sb *Sandbox) getOrCreateCommandRouterClient(ctx context.Context, taskID string) (*taskCommandRouterClient, error) {
+	sb.commandRouterClientMu.Lock()
+	defer sb.commandRouterClientMu.Unlock()
+
+	if err := sb.ensureAttached(); err != nil {
+		return nil, err
+	}
+
+	if sb.commandRouterClient == nil {
+		client, err := tryInitTaskCommandRouterClient(
+			ctx,
+			sb.client.cpClient,
+			taskID,
+			sb.client.logger,
+			sb.client.profile,
+		)
+		if err != nil {
+			return nil, err
+		}
+		if client == nil {
+			return nil, fmt.Errorf("command router access is not available for this sandbox")
+		}
+		sb.commandRouterClient = client
+	}
+	return sb.commandRouterClient, nil
+}
+func (sb *Sandbox) ensureAttached() error {
+	if !sb.attached.Load() {
+		return SandboxDetachedError{Exception: "Unable to perform operation on a detached sandbox"}
+	}
+	return nil
+}
+
+// Detach disconnects from the running Sandbox
+func (sb *Sandbox) Detach() error {
+	if !sb.attached.Load() {
+		return nil
+	}
+	sb.commandRouterClientMu.Lock()
+	defer sb.commandRouterClientMu.Unlock()
+
+	if sb.commandRouterClient != nil {
+		err := sb.commandRouterClient.Close()
+		if err != nil {
+			return err
+		}
+		sb.commandRouterClient = nil
+	}
+	sb.attached.CompareAndSwap(true, false)
+	return nil
+}
+
+// SandboxTerminateParams are options for Terminate
+type SandboxTerminateParams struct {
+}
+
 // Terminate stops the Sandbox.
-func (sb *Sandbox) Terminate(ctx context.Context) error {
+func (sb *Sandbox) Terminate(ctx context.Context, detach bool, params *SandboxTerminateParams) error {
+	if err := sb.ensureAttached(); err != nil {
+		return err
+	}
+
+	// Terminate the sandbox even if detach fails.
 	_, err := sb.client.cpClient.SandboxTerminate(ctx, pb.SandboxTerminateRequest_builder{
 		SandboxId: sb.SandboxID,
 	}.Build())
@@ -617,11 +699,18 @@ func (sb *Sandbox) Terminate(ctx context.Context) error {
 		return err
 	}
 	sb.taskID = ""
+
+	if detach {
+		return sb.Detach()
+	}
 	return nil
 }
 
 // Wait blocks until the Sandbox exits.
 func (sb *Sandbox) Wait(ctx context.Context) (int, error) {
+	if err := sb.ensureAttached(); err != nil {
+		return 0, err
+	}
 	for {
 		if err := ctx.Err(); err != nil {
 			return 0, err
@@ -652,6 +741,9 @@ func (sb *Sandbox) Wait(ctx context.Context) (int, error) {
 // Returns SandboxTimeoutError if the tunnels are not available after the timeout.
 // Returns a map of Tunnel objects keyed by the container port.
 func (sb *Sandbox) Tunnels(ctx context.Context, timeout time.Duration) (map[int]*Tunnel, error) {
+	if err := sb.ensureAttached(); err != nil {
+		return nil, err
+	}
 	if sb.tunnels != nil {
 		return sb.tunnels, nil
 	}
@@ -684,6 +776,9 @@ func (sb *Sandbox) Tunnels(ctx context.Context, timeout time.Duration) (map[int]
 // SnapshotFilesystem takes a snapshot of the Sandbox's filesystem.
 // Returns an Image object which can be used to spawn a new Sandbox with the same filesystem.
 func (sb *Sandbox) SnapshotFilesystem(ctx context.Context, timeout time.Duration) (*Image, error) {
+	if err := sb.ensureAttached(); err != nil {
+		return nil, err
+	}
 	resp, err := sb.client.cpClient.SandboxSnapshotFs(ctx, pb.SandboxSnapshotFsRequest_builder{
 		SandboxId: sb.SandboxID,
 		Timeout:   float32(timeout.Seconds()),
@@ -703,9 +798,80 @@ func (sb *Sandbox) SnapshotFilesystem(ctx context.Context, timeout time.Duration
 	return &Image{ImageID: resp.GetImageId(), client: sb.client}, nil
 }
 
+// ExperimentalMountImage mounts an Image at a path in the Sandbox filesystem.
+//
+// It's experimental in the sense that the API is subject to change.
+//
+// If image is nil, mounts an empty directory.
+func (sb *Sandbox) ExperimentalMountImage(ctx context.Context, path string, image *Image) error {
+	if err := sb.ensureAttached(); err != nil {
+		return err
+	}
+	if err := sb.ensureTaskID(ctx); err != nil {
+		return err
+	}
+
+	crClient, err := sb.getOrCreateCommandRouterClient(ctx, sb.taskID)
+	if err != nil {
+		return err
+	}
+
+	imageID := ""
+	if image != nil {
+		if image.ImageID == "" {
+			return InvalidError{Exception: "Image must be built before mounting. Call `image.Build(app)` first."}
+		}
+		imageID = image.ImageID
+	}
+
+	request := pb.TaskMountDirectoryRequest_builder{
+		TaskId:  sb.taskID,
+		Path:    []byte(path),
+		ImageId: imageID,
+	}.Build()
+
+	return crClient.MountDirectory(ctx, request)
+}
+
+// ExperimentalSnapshotDirectory snapshots local changes to a previously mounted Image into a new Image.
+//
+// It's experimental in the sense that the API is subject to change.
+func (sb *Sandbox) ExperimentalSnapshotDirectory(ctx context.Context, path string) (*Image, error) {
+	if err := sb.ensureAttached(); err != nil {
+		return nil, err
+	}
+	if err := sb.ensureTaskID(ctx); err != nil {
+		return nil, err
+	}
+
+	crClient, err := sb.getOrCreateCommandRouterClient(ctx, sb.taskID)
+	if err != nil {
+		return nil, err
+	}
+
+	request := pb.TaskSnapshotDirectoryRequest_builder{
+		TaskId: sb.taskID,
+		Path:   []byte(path),
+	}.Build()
+
+	response, err := crClient.SnapshotDirectory(ctx, request)
+	if err != nil {
+		return nil, err
+	}
+
+	if response.GetImageId() == "" {
+		return nil, ExecutionError{Exception: "Sandbox snapshot directory response missing `imageId`"}
+	}
+
+	return &Image{ImageID: response.GetImageId(), client: sb.client}, nil
+}
+
 // Poll checks if the Sandbox has finished running.
 // Returns nil if the Sandbox is still running, else returns the exit code.
 func (sb *Sandbox) Poll(ctx context.Context) (*int, error) {
+	if err := sb.ensureAttached(); err != nil {
+		return nil, err
+	}
 	resp, err := sb.client.cpClient.SandboxWait(ctx, pb.SandboxWaitRequest_builder{
 		SandboxId: sb.SandboxID,
 		Timeout:   0,
@@ -719,6 +885,9 @@ func (sb *Sandbox) Poll(ctx context.Context) (*int, error) {
 
 // SetTags sets key-value tags on the Sandbox. Tags can be used to filter results in SandboxList.
 func (sb *Sandbox) SetTags(ctx context.Context, tags map[string]string) error {
+	if err := sb.ensureAttached(); err != nil {
+		return err
+	}
 	tagsList := make([]*pb.SandboxTag, 0, len(tags))
 	for k, v := range tags {
 		tagsList = append(tagsList, pb.SandboxTag_builder{TagName: k, TagValue: v}.Build())
@@ -733,6 +902,9 @@ func (sb *Sandbox) SetTags(ctx context.Context, tags map[string]string) error {
 
 // GetTags fetches any tags (key-value pairs) currently attached to this Sandbox from the server.
 func (sb *Sandbox) GetTags(ctx context.Context) (map[string]string, error) {
+	if err := sb.ensureAttached(); err != nil {
+		return nil, err
+	}
 	resp, err := sb.client.cpClient.SandboxTagsGet(ctx, pb.SandboxTagsGetRequest_builder{
 		SandboxId: sb.SandboxID,
 	}.Build())
