@@ -164,6 +164,8 @@ export function streamConsumingIter(
         try {
           onCancel?.();
         } finally {
+          // Propagate cancellation upstream and run source cleanup.
+          // return() is optional on AsyncIterator, so guard before calling.
           if (typeof iter.return === "function") {
             await iter.return();
           }
