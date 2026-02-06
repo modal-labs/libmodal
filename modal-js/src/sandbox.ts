@@ -50,6 +50,7 @@ import {
   NotFoundError,
   SandboxTimeoutError,
   AlreadyExistsError,
+  SandboxDetachedError,
 } from "./errors";
 import { Image } from "./image";
 import type { Volume } from "./volume";
@@ -721,6 +722,8 @@ export class Sandbox {
   #taskId: string | undefined;
   #tunnels: Record<number, Tunnel> | undefined;
   #commandRouterClient: TaskCommandRouterClientImpl | undefined;
+  #commandRouterClientPromise: Promise<TaskCommandRouterClientImpl> | undefined;
+  #detached: boolean = false;
 
   /** @ignore */
   constructor(client: ModalClient, sandboxId: string) {
@@ -750,6 +753,7 @@ export class Sandbox {
 
   /** Set tags (key-value pairs) on the Sandbox. Tags can be used to filter results in {@link SandboxService#list Sandbox.list}. */
   async setTags(tags: Record<string, string>): Promise<void> {
+    this.#ensureAttached();
     const tagsList = Object.entries(tags).map(([tagName, tagValue]) => ({
       tagName,
       tagValue,
@@ -770,6 +774,7 @@ export class Sandbox {
 
   /** Get tags (key-value pairs) currently attached to this Sandbox from the server. */
   async getTags(): Promise<Record<string, string>> {
+    this.#ensureAttached();
     let resp: SandboxTagsGetResponse;
     try {
       resp = await this.#client.cpClient.sandboxTagsGet({
@@ -816,6 +821,7 @@ export class Sandbox {
    * @returns Promise that resolves to a {@link SandboxFile}
    */
   async open(path: string, mode: SandboxFileMode = "r"): Promise<SandboxFile> {
+    this.#ensureAttached();
     const taskId = await this.#getTaskId();
     const resp = await runFilesystemExec(this.#client.cpClient, {
       fileOpenRequest: {
@@ -843,6 +849,7 @@ export class Sandbox {
     command: string[],
     params?: SandboxExecParams,
   ): Promise<ContainerProcess> {
+    this.#ensureAttached();
     validateExecArgs(command);
     const taskId = await this.#getTaskId();
 
@@ -893,6 +900,12 @@ export class Sandbox {
     );
   }
 
+  #ensureAttached(): void {
+    if (this.#detached) {
+      throw new SandboxDetachedError();
+    }
+  }
+
   async #getTaskId(): Promise<string> {
     if (this.#taskId === undefined) {
       const resp = await this.#client.cpClient.sandboxGetTaskId({
@@ -916,7 +929,15 @@ export class Sandbox {
   async #getOrCreateCommandRouterClient(
     taskId: string,
   ): Promise<TaskCommandRouterClientImpl> {
-    if (this.#commandRouterClient === undefined) {
+    if (this.#commandRouterClient !== undefined) {
+      return this.#commandRouterClient;
+    }
+
+    if (this.#commandRouterClientPromise !== undefined) {
+      return this.#commandRouterClientPromise;
+    }
+
+    this.#commandRouterClientPromise = (async () => {
       const client = await TaskCommandRouterClientImpl.tryInit(
         this.#client.cpClient,
         taskId,
@@ -928,9 +949,21 @@ export class Sandbox {
           "Command router access is not available for this sandbox",
         );
       }
+      if (this.#detached) {
+        client.close();
+        throw new SandboxDetachedError();
+      }
       this.#commandRouterClient = client;
+      return client;
+    })();
+
+    try {
+      return await this.#commandRouterClientPromise;
+    } catch (err) {
+      // clear the Promise so subsequent calls can retry
+      this.#commandRouterClientPromise = undefined;
+      throw err;
     }
-    return this.#commandRouterClient;
   }
 
   /**
@@ -939,6 +972,7 @@ export class Sandbox {
   async createConnectToken(
     params?: SandboxCreateConnectTokenParams,
   ): Promise<SandboxCreateConnectCredentials> {
+    this.#ensureAttached();
     const resp = await this.#client.cpClient.sandboxCreateConnectToken({
       sandboxId: this.sandboxId,
       userMetadata: params?.userMetadata,
@@ -947,11 +981,25 @@ export class Sandbox {
   }
 
   async terminate(): Promise<void> {
+    this.#ensureAttached();
     await this.#client.cpClient.sandboxTerminate({ sandboxId: this.sandboxId });
     this.#taskId = undefined; // Reset task ID after termination
   }
 
+  /**
+   * Disconnect from the Sandbox, cleaning up local resources.
+   * The Sandbox continues running on Modal's infrastructure.
+   * After calling detach(), most operations on this Sandbox object will throw.
+   */
+  detach(): void {
+    this.#detached = true;
+    this.#commandRouterClient?.close();
+    this.#commandRouterClient = undefined;
+    this.#commandRouterClientPromise = undefined;
+  }
+
   async wait(): Promise<number> {
+    this.#ensureAttached();
     while (true) {
       const resp = await this.#client.cpClient.sandboxWait({
         sandboxId: this.sandboxId,
@@ -980,6 +1028,7 @@ export class Sandbox {
    * @returns A dictionary of {@link Tunnel} objects which are keyed by the container port.
    */
   async tunnels(timeoutMs = 50000): Promise<Record<number, Tunnel>> {
+    this.#ensureAttached();
     if (this.#tunnels) {
       return this.#tunnels;
     }
@@ -1017,6 +1066,7 @@ export class Sandbox {
    * @returns Promise that resolves to an {@link Image}
    */
   async snapshotFilesystem(timeoutMs = 55000): Promise<Image> {
+    this.#ensureAttached();
     const resp = await this.#client.cpClient.sandboxSnapshotFs({
       sandboxId: this.sandboxId,
       timeout: timeoutMs / 1000,
@@ -1045,6 +1095,7 @@ export class Sandbox {
    * @param image - Optional {@link Image} to mount. If undefined, mounts an empty directory.
    */
   async experimentalMountImage(path: string, image?: Image): Promise<void> {
+    this.#ensureAttached();
     const taskId = await this.#getTaskId();
     const commandRouterClient =
       await this.#getOrCreateCommandRouterClient(taskId);
@@ -1073,6 +1124,7 @@ export class Sandbox {
    * @returns Promise that resolves to an {@link Image}
    */
   async experimentalSnapshotDirectory(path: string): Promise<Image> {
+    this.#ensureAttached();
     const taskId = await this.#getTaskId();
     const commandRouterClient =
       await this.#getOrCreateCommandRouterClient(taskId);
@@ -1097,6 +1149,7 @@ export class Sandbox {
    * Returns `null` if the Sandbox is still running, else returns the exit code.
    */
   async poll(): Promise<number | null> {
+    this.#ensureAttached();
     const resp = await this.#client.cpClient.sandboxWait({
       sandboxId: this.sandboxId,
       timeout: 0,
