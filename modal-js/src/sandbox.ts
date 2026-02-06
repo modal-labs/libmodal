@@ -43,7 +43,6 @@ import {
   streamConsumingIter,
   toModalReadStream,
   toModalWriteStream,
-  wireAbortToController,
 } from "./streams";
 import { type Secret, mergeEnvIntoSecrets } from "./secret";
 import {
@@ -724,26 +723,21 @@ export class Sandbox {
   #tunnels: Record<number, Tunnel> | undefined;
   #commandRouterClient: TaskCommandRouterClientImpl | undefined;
   #commandRouterClientPromise: Promise<TaskCommandRouterClientImpl> | undefined;
-  #abortController = new AbortController();
+  #detached: boolean = false;
 
   /** @ignore */
   constructor(client: ModalClient, sandboxId: string) {
     this.#client = client;
     this.sandboxId = sandboxId;
 
-    const signal = this.#abortController.signal;
-    this.stdin = toModalWriteStream(
-      inputStreamSb(client.cpClient, sandboxId, signal),
-    );
+    this.stdin = toModalWriteStream(inputStreamSb(client.cpClient, sandboxId));
     this.stdout = toModalReadStream(
       streamConsumingIter(
         outputStreamSb(
           client.cpClient,
           sandboxId,
           FileDescriptor.FILE_DESCRIPTOR_STDOUT,
-          signal,
         ),
-        signal,
       ).pipeThrough(new TextDecoderStream()),
     );
     this.stderr = toModalReadStream(
@@ -752,9 +746,7 @@ export class Sandbox {
           client.cpClient,
           sandboxId,
           FileDescriptor.FILE_DESCRIPTOR_STDERR,
-          signal,
         ),
-        signal,
       ).pipeThrough(new TextDecoderStream()),
     );
   }
@@ -905,13 +897,12 @@ export class Sandbox {
       commandRouterClient,
       mergedParams,
       deadline,
-      this.#abortController.signal,
     );
   }
 
   #ensureAttached(): void {
-    if (this.#abortController.signal.aborted) {
-      throw this.#abortController.signal.reason;
+    if (this.#detached) {
+      throw new SandboxDetachedError();
     }
   }
 
@@ -958,9 +949,9 @@ export class Sandbox {
           "Command router access is not available for this sandbox",
         );
       }
-      if (this.#abortController.signal.aborted) {
+      if (this.#detached) {
         client.close();
-        throw this.#abortController.signal.reason;
+        throw new SandboxDetachedError();
       }
       this.#commandRouterClient = client;
       return client;
@@ -1001,26 +992,19 @@ export class Sandbox {
    * After calling detach(), most operations on this Sandbox object will throw.
    */
   detach(): void {
-    if (!this.#abortController.signal.aborted) {
-      this.#abortController.abort(new SandboxDetachedError());
-    }
+    this.#detached = true;
     this.#commandRouterClient?.close();
     this.#commandRouterClient = undefined;
     this.#commandRouterClientPromise = undefined;
   }
 
   async wait(): Promise<number> {
-    const signal = this.#abortController.signal;
     this.#ensureAttached();
     while (true) {
-      if (signal.aborted) throw signal.reason;
-      const resp = await rejectOnAbort(
-        this.#client.cpClient.sandboxWait({
-          sandboxId: this.sandboxId,
-          timeout: 10,
-        }),
-        signal,
-      );
+      const resp = await this.#client.cpClient.sandboxWait({
+        sandboxId: this.sandboxId,
+        timeout: 10,
+      });
       if (resp.result) {
         const returnCode = Sandbox.#getReturnCode(resp.result)!;
         this.#client.logger.debug(
@@ -1213,7 +1197,6 @@ export class ContainerProcess<R extends string | Uint8Array = any> {
   readonly #execId: string;
   readonly #commandRouterClient: TaskCommandRouterClientImpl;
   readonly #deadline: number | null;
-  readonly #signal: AbortSignal;
 
   constructor(
     taskId: string,
@@ -1221,20 +1204,18 @@ export class ContainerProcess<R extends string | Uint8Array = any> {
     commandRouterClient: TaskCommandRouterClientImpl,
     params?: SandboxExecParams,
     deadline?: number | null,
-    signal?: AbortSignal,
   ) {
     this.#taskId = taskId;
     this.#execId = execId;
     this.#commandRouterClient = commandRouterClient;
     this.#deadline = deadline ?? null;
-    this.#signal = signal ?? new AbortController().signal;
 
     const mode = params?.mode ?? "text";
     const stdout = params?.stdout ?? "pipe";
     const stderr = params?.stderr ?? "pipe";
 
     this.stdin = toModalWriteStream(
-      inputStreamCp<R>(commandRouterClient, taskId, execId, this.#signal),
+      inputStreamCp<R>(commandRouterClient, taskId, execId),
     );
 
     const stdoutStream =
@@ -1247,9 +1228,7 @@ export class ContainerProcess<R extends string | Uint8Array = any> {
               execId,
               FileDescriptor.FILE_DESCRIPTOR_STDOUT,
               this.#deadline,
-              this.#signal,
             ),
-            this.#signal,
           );
 
     const stderrStream =
@@ -1262,9 +1241,7 @@ export class ContainerProcess<R extends string | Uint8Array = any> {
               execId,
               FileDescriptor.FILE_DESCRIPTOR_STDERR,
               this.#deadline,
-              this.#signal,
             ),
-            this.#signal,
           );
 
     if (mode === "text") {
@@ -1282,13 +1259,10 @@ export class ContainerProcess<R extends string | Uint8Array = any> {
 
   /** Wait for process completion and return the exit code. */
   async wait(): Promise<number> {
-    const resp = await rejectOnAbort(
-      this.#commandRouterClient.execWait(
-        this.#taskId,
-        this.#execId,
-        this.#deadline,
-      ),
-      this.#signal,
+    const resp = await this.#commandRouterClient.execWait(
+      this.#taskId,
+      this.#execId,
+      this.#deadline,
     );
     return resp.code ?? 0;
   }
@@ -1299,13 +1273,11 @@ async function* outputStreamSb(
   cpClient: ModalGrpcClient,
   sandboxId: string,
   fileDescriptor: FileDescriptor,
-  signal?: AbortSignal,
 ): AsyncIterable<Uint8Array> {
   let lastIndex = "0-0";
   let completed = false;
   let retries = 10;
   while (!completed) {
-    if (signal?.aborted) throw signal.reason;
     try {
       const outputIterator = cpClient.sandboxGetLogs({
         sandboxId,
@@ -1314,7 +1286,6 @@ async function* outputStreamSb(
         lastEntryId: lastIndex,
       });
       for await (const batch of outputIterator) {
-        if (signal?.aborted) throw signal.reason;
         lastIndex = batch.entryId;
         yield* batch.items.map((item) => new TextEncoder().encode(item.data));
         if (batch.eof) {
@@ -1323,7 +1294,6 @@ async function* outputStreamSb(
         }
       }
     } catch (err) {
-      if (signal?.aborted) throw signal.reason;
       if (isRetryableGrpc(err) && retries > 0) retries--;
       else throw err;
     }
@@ -1333,15 +1303,10 @@ async function* outputStreamSb(
 function inputStreamSb(
   cpClient: ModalGrpcClient,
   sandboxId: string,
-  signal?: AbortSignal,
 ): WritableStream<string> {
   let index = 1;
   return new WritableStream<string>({
-    start(controller) {
-      wireAbortToController(signal, controller);
-    },
     async write(chunk) {
-      if (signal?.aborted) throw signal.reason;
       await cpClient.sandboxStdinWrite({
         sandboxId,
         input: encodeIfString(chunk),
@@ -1350,7 +1315,6 @@ function inputStreamSb(
       index++;
     },
     async close() {
-      if (signal?.aborted) throw signal.reason;
       await cpClient.sandboxStdinWrite({
         sandboxId,
         index,
@@ -1366,7 +1330,6 @@ async function* outputStreamCp(
   execId: string,
   fileDescriptor: FileDescriptor,
   deadline: number | null,
-  signal?: AbortSignal,
 ): AsyncIterable<Uint8Array> {
   for await (const batch of commandRouterClient.execStdioRead(
     taskId,
@@ -1374,7 +1337,6 @@ async function* outputStreamCp(
     fileDescriptor,
     deadline,
   )) {
-    if (signal?.aborted) throw signal.reason;
     yield batch.data;
   }
 }
@@ -1383,15 +1345,10 @@ function inputStreamCp<R extends string | Uint8Array>(
   commandRouterClient: TaskCommandRouterClientImpl,
   taskId: string,
   execId: string,
-  signal?: AbortSignal,
 ): WritableStream<R> {
   let offset = 0;
   return new WritableStream<R>({
-    start(controller) {
-      wireAbortToController(signal, controller);
-    },
     async write(chunk) {
-      if (signal?.aborted) throw signal.reason;
       const data = encodeIfString(chunk);
       await commandRouterClient.execStdinWrite(
         taskId,
@@ -1403,7 +1360,6 @@ function inputStreamCp<R extends string | Uint8Array>(
       offset += data.length;
     },
     async close() {
-      if (signal?.aborted) throw signal.reason;
       await commandRouterClient.execStdinWrite(
         taskId,
         execId,
@@ -1412,27 +1368,6 @@ function inputStreamCp<R extends string | Uint8Array>(
         true, // eof
       );
     },
-  });
-}
-
-function rejectOnAbort<T>(
-  promise: Promise<T>,
-  signal: AbortSignal,
-): Promise<T> {
-  if (signal.aborted) return Promise.reject(signal.reason);
-  return new Promise<T>((resolve, reject) => {
-    const onAbort = () => reject(signal.reason);
-    signal.addEventListener("abort", onAbort, { once: true });
-    promise.then(
-      (v) => {
-        signal.removeEventListener("abort", onAbort);
-        resolve(v);
-      },
-      (e) => {
-        signal.removeEventListener("abort", onAbort);
-        reject(e);
-      },
-    );
   });
 }
 
