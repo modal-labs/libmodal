@@ -1,5 +1,5 @@
 import { ClientError, Status } from "nice-grpc";
-import { setTimeout as sleep } from "timers/promises";
+import { setTimeout } from "timers/promises";
 import {
   FileDescriptor,
   GenericResult,
@@ -1286,7 +1286,7 @@ async function* outputStreamSb(
     } catch (err) {
       if (isRetryableGrpc(err) && retriesRemaining > 0) {
         // Short exponential backoff to avoid tight retry loops.
-        await sleep(delayMs, undefined, { signal });
+        await setTimeout(delayMs, undefined, { signal });
         delayMs *= SB_LOGS_DELAY_FACTOR;
         retriesRemaining--;
         continue;
