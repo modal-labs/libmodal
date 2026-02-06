@@ -140,26 +140,61 @@ const writeMixin = {
   },
 };
 
+export function wireAbortToController(
+  signal: AbortSignal | undefined,
+  controller: { error(reason?: unknown): void },
+): (() => void) | undefined {
+  if (!signal) return undefined;
+  if (signal.aborted) {
+    controller.error(signal.reason);
+    return undefined;
+  }
+  const handler = () => {
+    try {
+      controller.error(signal.reason);
+    } catch {
+      // controller may already be closed
+    }
+  };
+  signal.addEventListener("abort", handler, { once: true });
+  return handler;
+}
+
 /**
  * Construct a ReadableStream from an iterator.
  * If the stream is closed, the iterator is still consumed to completion.
  */
 export function streamConsumingIter(
   iterable: AsyncIterable<Uint8Array>,
+  signal?: AbortSignal,
 ): ReadableStream<Uint8Array> {
   const iter = iterable[Symbol.asyncIterator]();
+  let abortHandler: (() => void) | undefined;
   return new ReadableStream<Uint8Array>(
     {
+      start(controller) {
+        abortHandler = wireAbortToController(signal, controller);
+      },
       async pull(controller) {
+        if (signal?.aborted) {
+          controller.error(signal.reason);
+          return;
+        }
         const { done, value } = await iter.next();
         if (value) {
           controller.enqueue(value);
         }
         if (done) {
           controller.close();
+          if (abortHandler) {
+            signal!.removeEventListener("abort", abortHandler);
+          }
         }
       },
       async cancel() {
+        if (abortHandler) {
+          signal!.removeEventListener("abort", abortHandler);
+        }
         consumeIterator(iter);
       },
     },

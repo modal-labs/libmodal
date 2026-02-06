@@ -5,6 +5,7 @@ import {
   buildTaskExecStartRequestProto,
   validateExecArgs,
 } from "../src/sandbox";
+import { SandboxDetachedError } from "modal";
 import { expect, test, onTestFinished } from "vitest";
 import {
   GPUConfig,
@@ -1068,4 +1069,73 @@ test("SandboxDetachForbidsAllOperations", async () => {
   await expect(sb.poll()).rejects.toThrow(errorMsg);
   await expect(sb.setTags({})).rejects.toThrow(errorMsg);
   await expect(sb.getTags()).rejects.toThrow(errorMsg);
+
+  await expect(sb.stdout.getReader().read()).rejects.toThrow(
+    SandboxDetachedError,
+  );
+  await expect(sb.stderr.getReader().read()).rejects.toThrow(
+    SandboxDetachedError,
+  );
+  await expect(sb.stdin.getWriter().write("x")).rejects.toThrow(
+    SandboxDetachedError,
+  );
+});
+
+test("SandboxDetachStopsWait", async () => {
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
+  const image = tc.images.fromRegistry("alpine:3.21");
+
+  const sb = await tc.sandboxes.create(app, image);
+  const sbFromId = await tc.sandboxes.fromId(sb.sandboxId);
+  onTestFinished(async () => await sbFromId.terminate());
+
+  const waitPromise = sb.wait();
+  sb.detach();
+
+  await expect(waitPromise).rejects.toThrow(SandboxDetachedError);
+});
+
+test("SandboxDetachStopsProcessWait", async () => {
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
+  const image = tc.images.fromRegistry("alpine:3.21");
+
+  const sb = await tc.sandboxes.create(app, image);
+  const sbFromId = await tc.sandboxes.fromId(sb.sandboxId);
+  onTestFinished(async () => await sbFromId.terminate());
+
+  const p = await sb.exec(["sleep", "300"]);
+  const sbWaitPromise = sb.wait();
+  const processWaitPromise = p.wait();
+
+  sb.detach();
+
+  await expect(sbWaitPromise).rejects.toThrow(SandboxDetachedError);
+  await expect(processWaitPromise).rejects.toThrow(SandboxDetachedError);
+});
+
+test("SandboxDetachStopsAllStreams", async () => {
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
+  const image = tc.images.fromRegistry("alpine:3.21");
+
+  const sb = await tc.sandboxes.create(app, image, {
+    command: ["sh", "-c", "sleep 300"],
+  });
+  const sbFromId = await tc.sandboxes.fromId(sb.sandboxId);
+  onTestFinished(async () => await sbFromId.terminate());
+
+  const p = await sb.exec(["sh", "-c", "sleep 300"]);
+
+  const sbStdoutPromise = sb.stdout.readText();
+  const processStdoutPromise = p.stdout.readText();
+
+  sb.detach();
+
+  await expect(sbStdoutPromise).rejects.toThrow(SandboxDetachedError);
+  await expect(processStdoutPromise).rejects.toThrow(SandboxDetachedError);
 });
