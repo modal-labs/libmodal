@@ -1300,10 +1300,7 @@ func outputStreamSb(cpClient pb.ModalClientClient, logger *slog.Logger, sandboxI
 			if err != nil {
 				if ctx.Err() != nil {
 					if detachedSignal != nil && detachedSignal.IsDetached() {
-						detachError := SandboxDetachedError{Exception: "Unable to perform operation on a detached sandbox"}
-						if closeErr := pw.CloseWithError(detachError); closeErr != nil {
-							logger.DebugContext(ctx, "failed to close pipe writer with error", "error", closeErr.Error(), "stream_error", detachError.Error())
-						}
+						pw.CloseWithError(SandboxDetachedError{Exception: "Unable to perform operation on a detached sandbox"})
 					}
 					return
 				}
@@ -1322,12 +1319,8 @@ func outputStreamSb(cpClient pb.ModalClientClient, logger *slog.Logger, sandboxI
 				if err != nil {
 					if ctx.Err() != nil {
 						if detachedSignal != nil && detachedSignal.IsDetached() {
-							detachError := SandboxDetachedError{Exception: "Unable to perform operation on a detached sandbox"}
-							if closeErr := pw.CloseWithError(detachError); closeErr != nil {
-								logger.DebugContext(ctx, "failed to close pipe writer with error", "error", closeErr.Error(), "stream_error", detachError.Error())
-							}
+							pw.CloseWithError(SandboxDetachedError{Exception: "Unable to perform operation on a detached sandbox"})
 						}
-
 						return
 					}
 					if err != io.EOF {
@@ -1396,10 +1389,7 @@ func outputStreamCp(cpClient pb.ModalClientClient, logger *slog.Logger, execID s
 			if err != nil {
 				if ctx.Err() != nil {
 					if detachedSignal != nil && detachedSignal.IsDetached() {
-						detachError := SandboxDetachedError{Exception: "Unable to perform operation on a detached sandbox"}
-						if closeErr := pw.CloseWithError(detachError); closeErr != nil {
-							logger.DebugContext(ctx, "failed to close pipe writer with error", "error", closeErr.Error(), "stream_error", detachError.Error())
-						}
+						pw.CloseWithError(SandboxDetachedError{Exception: "Unable to perform operation on a detached sandbox"})
 					}
 					return
 				}
@@ -1418,10 +1408,7 @@ func outputStreamCp(cpClient pb.ModalClientClient, logger *slog.Logger, execID s
 				if err != nil {
 					if ctx.Err() != nil {
 						if detachedSignal != nil && detachedSignal.IsDetached() {
-							detachError := SandboxDetachedError{Exception: "Unable to perform operation on a detached sandbox"}
-							if closeErr := pw.CloseWithError(detachError); closeErr != nil {
-								logger.DebugContext(ctx, "failed to close pipe writer with error", "error", closeErr.Error(), "stream_error", detachError.Error())
-							}
+							pw.CloseWithError(SandboxDetachedError{Exception: "Unable to perform operation on a detached sandbox"})
 						}
 						return
 					}
