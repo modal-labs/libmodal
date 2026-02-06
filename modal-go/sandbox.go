@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/djherbis/buffer"
@@ -360,35 +361,6 @@ func (t *Tunnel) TCPSocket() (string, int, error) {
 	return t.UnencryptedHost, t.UnencryptedPort, nil
 }
 
-// detachedSignal enables `Detach` to close all running streams at onace
-type detachedSignal struct {
-	detachChan chan struct{}
-	once       sync.Once
-}
-
-func newDetachedSignal() detachedSignal {
-	return detachedSignal{detachChan: make(chan struct{})}
-}
-
-func (s *detachedSignal) Detach() {
-	s.once.Do(func() {
-		close(s.detachChan)
-	})
-}
-
-func (s *detachedSignal) IsDetached() bool {
-	select {
-	case <-s.detachChan:
-		return true
-	default:
-		return false
-	}
-}
-
-func (s *detachedSignal) WaitForDetach() <-chan struct{} {
-	return s.detachChan
-}
-
 // Sandbox represents a Modal Sandbox, which can run commands and manage
 // input/output streams for a remote process. After you are done interacting with the sandbox,
 // we recommend calling [Sandbox.Detach] which disonnects your client from the sandbox and
@@ -407,7 +379,7 @@ type Sandbox struct {
 	commandRouterClient   *taskCommandRouterClient
 	commandRouterClientMu sync.Mutex
 
-	detachedSignal detachedSignal
+	detached atomic.Bool
 }
 
 func defaultSandboxPTYInfo() *pb.PTYInfo {
@@ -424,19 +396,18 @@ func defaultSandboxPTYInfo() *pb.PTYInfo {
 
 // newSandbox creates a new Sandbox object from ID.
 func newSandbox(client *Client, sandboxID string) *Sandbox {
-	sb := &Sandbox{SandboxID: sandboxID, client: client, detachedSignal: newDetachedSignal()}
-	sb.Stdin = inputStreamSb(client.cpClient, sandboxID, &sb.detachedSignal)
+	sb := &Sandbox{SandboxID: sandboxID, client: client}
+	sb.detached.Store(false)
+	sb.Stdin = inputStreamSb(client.cpClient, sandboxID)
 	sb.Stdout = &lazyStreamReader{
 		initFunc: func() io.ReadCloser {
-			return outputStreamSb(client.cpClient, client.logger, sandboxID, pb.FileDescriptor_FILE_DESCRIPTOR_STDOUT, &sb.detachedSignal)
+			return outputStreamSb(client.cpClient, client.logger, sandboxID, pb.FileDescriptor_FILE_DESCRIPTOR_STDOUT)
 		},
-		detachedSignal: &sb.detachedSignal,
 	}
 	sb.Stderr = &lazyStreamReader{
 		initFunc: func() io.ReadCloser {
-			return outputStreamSb(client.cpClient, client.logger, sandboxID, pb.FileDescriptor_FILE_DESCRIPTOR_STDERR, &sb.detachedSignal)
+			return outputStreamSb(client.cpClient, client.logger, sandboxID, pb.FileDescriptor_FILE_DESCRIPTOR_STDERR)
 		},
-		detachedSignal: &sb.detachedSignal,
 	}
 	return sb
 }
@@ -574,7 +545,7 @@ func (sb *Sandbox) Exec(ctx context.Context, command []string, params *SandboxEx
 		"exec_id", resp.GetExecId(),
 		"sandbox_id", sb.SandboxID,
 		"command", command)
-	return newContainerProcess(sb.client.cpClient, sb.client.logger, resp.GetExecId(), &sb.detachedSignal, *params), nil
+	return newContainerProcess(sb.client.cpClient, sb.client.logger, resp.GetExecId(), *params), nil
 }
 
 // SandboxCreateConnectTokenParams are optional parameters for CreateConnectToken.
@@ -685,18 +656,15 @@ func (sb *Sandbox) getOrCreateCommandRouterClient(ctx context.Context, taskID st
 	return sb.commandRouterClient, nil
 }
 func (sb *Sandbox) ensureAttached() error {
-	if sb.detachedSignal.IsDetached() {
-		return SandboxDetachedError{Exception: "Unable to perform operation on a detached sandbox"}
+	if sb.detached.Load() {
+		return SandboxDetached{Exception: "Unable to perform operation on a detached sandbox"}
 	}
 	return nil
 }
 
 // Detach disconnects from the running Sandbox
 func (sb *Sandbox) Detach() error {
-	if sb.detachedSignal.IsDetached() {
-		return nil
-	}
-	sb.detachedSignal.Detach()
+	sb.detached.CompareAndSwap(false, true)
 	return sb.closeCommandRouterClient()
 }
 
@@ -743,24 +711,9 @@ func (sb *Sandbox) Wait(ctx context.Context) (int, error) {
 	if err := sb.ensureAttached(); err != nil {
 		return 0, err
 	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	go func() {
-		select {
-		case <-sb.detachedSignal.WaitForDetach():
-			cancel()
-			return
-		case <-ctx.Done():
-		}
-	}()
-
 	for {
 		if err := ctx.Err(); err != nil {
-			if sb.detachedSignal.IsDetached() {
-				return 0, SandboxDetachedError{Exception: "Unable to perform operation on a detached sandbox"}
-			}
+			return 0, err
 		}
 
 		resp, err := sb.client.cpClient.SandboxWait(ctx, pb.SandboxWaitRequest_builder{
@@ -768,9 +721,7 @@ func (sb *Sandbox) Wait(ctx context.Context) (int, error) {
 			Timeout:   10,
 		}.Build())
 		if err != nil {
-			if sb.detachedSignal.IsDetached() {
-				return 0, SandboxDetachedError{Exception: "Unable to perform operation on a detached sandbox"}
-			}
+			return 0, err
 		}
 		if resp.GetResult() != nil {
 			returnCode := getReturnCode(resp.GetResult())
@@ -1050,12 +1001,11 @@ type ContainerProcess struct {
 	Stdout io.ReadCloser
 	Stderr io.ReadCloser
 
-	execID         string
-	cpClient       pb.ModalClientClient
-	detachedSignal *detachedSignal
+	execID   string
+	cpClient pb.ModalClientClient
 }
 
-func newContainerProcess(cpClient pb.ModalClientClient, logger *slog.Logger, execID string, detachedSignal *detachedSignal, params SandboxExecParams) *ContainerProcess {
+func newContainerProcess(cpClient pb.ModalClientClient, logger *slog.Logger, execID string, params SandboxExecParams) *ContainerProcess {
 	stdoutBehavior := Pipe
 	stderrBehavior := Pipe
 	if params.Stdout != "" {
@@ -1065,17 +1015,16 @@ func newContainerProcess(cpClient pb.ModalClientClient, logger *slog.Logger, exe
 		stderrBehavior = params.Stderr
 	}
 
-	cp := &ContainerProcess{execID: execID, cpClient: cpClient, detachedSignal: detachedSignal}
-	cp.Stdin = inputStreamCp(cpClient, execID, detachedSignal)
+	cp := &ContainerProcess{execID: execID, cpClient: cpClient}
+	cp.Stdin = inputStreamCp(cpClient, execID)
 
 	if stdoutBehavior == Ignore {
 		cp.Stdout = io.NopCloser(bytes.NewReader(nil))
 	} else {
 		cp.Stdout = &lazyStreamReader{
 			initFunc: func() io.ReadCloser {
-				return outputStreamCp(cpClient, logger, execID, pb.FileDescriptor_FILE_DESCRIPTOR_STDOUT, detachedSignal)
+				return outputStreamCp(cpClient, logger, execID, pb.FileDescriptor_FILE_DESCRIPTOR_STDOUT)
 			},
-			detachedSignal: detachedSignal,
 		}
 	}
 	if stderrBehavior == Ignore {
@@ -1083,9 +1032,8 @@ func newContainerProcess(cpClient pb.ModalClientClient, logger *slog.Logger, exe
 	} else {
 		cp.Stderr = &lazyStreamReader{
 			initFunc: func() io.ReadCloser {
-				return outputStreamCp(cpClient, logger, execID, pb.FileDescriptor_FILE_DESCRIPTOR_STDERR, detachedSignal)
+				return outputStreamCp(cpClient, logger, execID, pb.FileDescriptor_FILE_DESCRIPTOR_STDERR)
 			},
-			detachedSignal: detachedSignal,
 		}
 	}
 
@@ -1094,23 +1042,8 @@ func newContainerProcess(cpClient pb.ModalClientClient, logger *slog.Logger, exe
 
 // Wait blocks until the container process exits and returns its exit code.
 func (cp *ContainerProcess) Wait(ctx context.Context) (int, error) {
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	go func() {
-		select {
-		case <-cp.detachedSignal.WaitForDetach():
-			cancel()
-			return
-		case <-ctx.Done():
-		}
-	}()
-
 	for {
 		if err := ctx.Err(); err != nil {
-			if cp.detachedSignal.IsDetached() {
-				return 0, SandboxDetachedError{Exception: "Unable to perform operation on a detached sandbox"}
-			}
 			return 0, err
 		}
 
@@ -1119,11 +1052,6 @@ func (cp *ContainerProcess) Wait(ctx context.Context) (int, error) {
 			Timeout: 55,
 		}.Build())
 		if err != nil {
-			if ctx.Err() != nil {
-				if cp.detachedSignal.IsDetached() {
-					return 0, SandboxDetachedError{Exception: "Unable to perform operation on a detached sandbox"}
-				}
-			}
 			return 0, err
 		}
 		if resp.GetCompleted() {
@@ -1132,24 +1060,19 @@ func (cp *ContainerProcess) Wait(ctx context.Context) (int, error) {
 	}
 }
 
-func inputStreamSb(cpClient pb.ModalClientClient, sandboxID string, detachedSignal *detachedSignal) io.WriteCloser {
-	return &sbStdin{sandboxID: sandboxID, index: 1, cpClient: cpClient, detachedSignal: detachedSignal}
+func inputStreamSb(cpClient pb.ModalClientClient, sandboxID string) io.WriteCloser {
+	return &sbStdin{sandboxID: sandboxID, index: 1, cpClient: cpClient}
 }
 
 type sbStdin struct {
 	sandboxID string
 	cpClient  pb.ModalClientClient
 
-	mu             sync.Mutex // protects index
-	index          uint32
-	detachedSignal *detachedSignal
+	mu    sync.Mutex // protects index
+	index uint32
 }
 
 func (sbs *sbStdin) Write(p []byte) (int, error) {
-	if sbs.detachedSignal.IsDetached() {
-		return 0, SandboxDetachedError{Exception: "Unable to perform operation on a detached sandbox"}
-	}
-
 	sbs.mu.Lock()
 	defer sbs.mu.Unlock()
 	index := sbs.index
@@ -1166,9 +1089,6 @@ func (sbs *sbStdin) Write(p []byte) (int, error) {
 }
 
 func (sbs *sbStdin) Close() error {
-	if sbs.detachedSignal.IsDetached() {
-		return SandboxDetachedError{Exception: "Unable to perform operation on a detached sandbox"}
-	}
 	sbs.mu.Lock()
 	defer sbs.mu.Unlock()
 	_, err := sbs.cpClient.SandboxStdinWrite(context.Background(), pb.SandboxStdinWriteRequest_builder{
@@ -1179,21 +1099,17 @@ func (sbs *sbStdin) Close() error {
 	return err
 }
 
-func inputStreamCp(cpClient pb.ModalClientClient, execID string, detachedSignal *detachedSignal) io.WriteCloser {
-	return &cpStdin{execID: execID, messageIndex: 1, cpClient: cpClient, detachedSignal: detachedSignal}
+func inputStreamCp(cpClient pb.ModalClientClient, execID string) io.WriteCloser {
+	return &cpStdin{execID: execID, messageIndex: 1, cpClient: cpClient}
 }
 
 type cpStdin struct {
-	execID         string
-	messageIndex   uint64
-	cpClient       pb.ModalClientClient
-	detachedSignal *detachedSignal
+	execID       string
+	messageIndex uint64
+	cpClient     pb.ModalClientClient
 }
 
 func (cps *cpStdin) Write(p []byte) (int, error) {
-	if cps.detachedSignal.IsDetached() {
-		return 0, SandboxDetachedError{Exception: "Unable to perform operation on a detached sandbox"}
-	}
 	_, err := cps.cpClient.ContainerExecPutInput(context.Background(), pb.ContainerExecPutInputRequest_builder{
 		ExecId: cps.execID,
 		Input: pb.RuntimeInputMessage_builder{
@@ -1209,9 +1125,6 @@ func (cps *cpStdin) Write(p []byte) (int, error) {
 }
 
 func (cps *cpStdin) Close() error {
-	if cps.detachedSignal.IsDetached() {
-		return SandboxDetachedError{Exception: "Unable to perform operation on a detached sandbox"}
-	}
 	_, err := cps.cpClient.ContainerExecPutInput(context.Background(), pb.ContainerExecPutInputRequest_builder{
 		ExecId: cps.execID,
 		Input: pb.RuntimeInputMessage_builder{
@@ -1237,16 +1150,12 @@ func (r *cancelOnCloseReader) Close() error {
 // leaks for unused streams. Without lazy initialization, output stream goroutines are created
 // eagerly and block on stream.Recv() calls.
 type lazyStreamReader struct {
-	once           sync.Once
-	reader         io.ReadCloser
-	initFunc       func() io.ReadCloser
-	detachedSignal *detachedSignal
+	once     sync.Once
+	reader   io.ReadCloser
+	initFunc func() io.ReadCloser
 }
 
 func (l *lazyStreamReader) Read(p []byte) (int, error) {
-	if l.detachedSignal.IsDetached() {
-		return 0, SandboxDetachedError{Exception: "Unable to perform operation on a detached sandbox"}
-	}
 	l.once.Do(func() {
 		l.reader = l.initFunc()
 	})
@@ -1254,9 +1163,6 @@ func (l *lazyStreamReader) Read(p []byte) (int, error) {
 }
 
 func (l *lazyStreamReader) Close() error {
-	if l.detachedSignal.IsDetached() {
-		return SandboxDetachedError{Exception: "Unable to perform operation on a detached sandbox"}
-	}
 	l.once.Do(func() {
 		l.reader = io.NopCloser(bytes.NewReader(nil))
 	})
@@ -1266,20 +1172,9 @@ func (l *lazyStreamReader) Close() error {
 	return nil
 }
 
-func outputStreamSb(cpClient pb.ModalClientClient, logger *slog.Logger, sandboxID string, fd pb.FileDescriptor, detachedSignal *detachedSignal) io.ReadCloser {
+func outputStreamSb(cpClient pb.ModalClientClient, logger *slog.Logger, sandboxID string, fd pb.FileDescriptor) io.ReadCloser {
 	pr, pw := nio.Pipe(buffer.New(64 * 1024))
 	ctx, cancel := context.WithCancel(context.Background())
-
-	if detachedSignal != nil {
-		go func() {
-			select {
-			case <-detachedSignal.WaitForDetach():
-				cancel()
-				return
-			case <-ctx.Done():
-			}
-		}()
-	}
 	go func() {
 		defer func() {
 			if err := pw.Close(); err != nil {
@@ -1299,9 +1194,6 @@ func outputStreamSb(cpClient pb.ModalClientClient, logger *slog.Logger, sandboxI
 			}.Build())
 			if err != nil {
 				if ctx.Err() != nil {
-					if detachedSignal != nil && detachedSignal.IsDetached() {
-						pw.CloseWithError(SandboxDetachedError{Exception: "Unable to perform operation on a detached sandbox"})
-					}
 					return
 				}
 				if isRetryableGrpc(err) && retries > 0 {
@@ -1318,9 +1210,6 @@ func outputStreamSb(cpClient pb.ModalClientClient, logger *slog.Logger, sandboxI
 				batch, err := stream.Recv()
 				if err != nil {
 					if ctx.Err() != nil {
-						if detachedSignal != nil && detachedSignal.IsDetached() {
-							pw.CloseWithError(SandboxDetachedError{Exception: "Unable to perform operation on a detached sandbox"})
-						}
 						return
 					}
 					if err != io.EOF {
@@ -1353,21 +1242,9 @@ func outputStreamSb(cpClient pb.ModalClientClient, logger *slog.Logger, sandboxI
 	return &cancelOnCloseReader{ReadCloser: pr, cancel: cancel}
 }
 
-func outputStreamCp(cpClient pb.ModalClientClient, logger *slog.Logger, execID string, fd pb.FileDescriptor, detachedSignal *detachedSignal) io.ReadCloser {
+func outputStreamCp(cpClient pb.ModalClientClient, logger *slog.Logger, execID string, fd pb.FileDescriptor) io.ReadCloser {
 	pr, pw := nio.Pipe(buffer.New(64 * 1024))
 	ctx, cancel := context.WithCancel(context.Background())
-
-	if detachedSignal != nil {
-		go func() {
-			select {
-			case <-detachedSignal.WaitForDetach():
-				cancel()
-				return
-			case <-ctx.Done():
-			}
-		}()
-	}
-
 	go func() {
 		defer func() {
 			if err := pw.Close(); err != nil {
@@ -1388,9 +1265,6 @@ func outputStreamCp(cpClient pb.ModalClientClient, logger *slog.Logger, execID s
 			}.Build())
 			if err != nil {
 				if ctx.Err() != nil {
-					if detachedSignal != nil && detachedSignal.IsDetached() {
-						pw.CloseWithError(SandboxDetachedError{Exception: "Unable to perform operation on a detached sandbox"})
-					}
 					return
 				}
 				if isRetryableGrpc(err) && retries > 0 {
@@ -1407,9 +1281,6 @@ func outputStreamCp(cpClient pb.ModalClientClient, logger *slog.Logger, execID s
 				batch, err := stream.Recv()
 				if err != nil {
 					if ctx.Err() != nil {
-						if detachedSignal != nil && detachedSignal.IsDetached() {
-							pw.CloseWithError(SandboxDetachedError{Exception: "Unable to perform operation on a detached sandbox"})
-						}
 						return
 					}
 					if err != io.EOF {
