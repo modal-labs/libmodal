@@ -667,17 +667,9 @@ func (sb *Sandbox) Detach() error {
 	if sb.attached.Load() {
 		return nil
 	}
-	err := sb.closeCommandRouterClient()
-	if err != nil {
-		return err
-	}
-	sb.attached.CompareAndSwap(false, true)
-	return nil
-}
-
-func (sb *Sandbox) closeCommandRouterClient() error {
 	sb.commandRouterClientMu.Lock()
 	defer sb.commandRouterClientMu.Unlock()
+
 	if sb.commandRouterClient != nil {
 		err := sb.commandRouterClient.Close()
 		if err != nil {
@@ -685,6 +677,7 @@ func (sb *Sandbox) closeCommandRouterClient() error {
 		}
 		sb.commandRouterClient = nil
 	}
+	sb.attached.CompareAndSwap(false, true)
 	return nil
 }
 
