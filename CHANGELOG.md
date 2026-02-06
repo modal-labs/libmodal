@@ -5,8 +5,7 @@ Both client libraries are pre-1.0, and they have separate versioning.
 ## Unreleased
 
 - Upgraded the internal handling of Sandbox exec to use the new command router interface, which brings greatly improved performance and reliability for exec operations.
-- Go's `Sandbox` requires calling `Sandbox.Detach` after you are done interacting with the sandbox. `Sandbox.Detach` disconnects your client from the sandbox and cleans up any resources associated with the connection. `Sandbox.Terminate` now accepts a detach bool to also detach after terminating the
-sandbox.
+- Go's `Sandbox` requires calling `Sandbox.Detach` after you are done interacting with the sandbox. `Sandbox.Detach` disconnects your client from the sandbox and cleans up any resources associated with the connection. `Sandbox.Terminate` now accepts a detach bool to also detach after terminating the sandbox. `Sandbox.Detach` does not close streams from `Sandbox.Exec`, `Sandbox.Stdout`, or `Sandbox.Stderr`. These streams should be closed using their `Close` methods.
 
 ## modal-js/v0.6.1, modal-go/v0.6.1
 
