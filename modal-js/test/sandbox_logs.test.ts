@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 import { ModalClient } from "../src/client";
 import { Sandbox } from "../src/sandbox";
 import { ClientError, Status } from "nice-grpc";
+import { setTimeout as sleep } from "timers/promises";
 
 function makeClient(cpClient: any): ModalClient {
   return new ModalClient({
@@ -162,7 +163,7 @@ describe("SandboxGetLogs lazy and retry behavior", () => {
                 seenSignalAbort = true;
                 break;
               }
-              await setTimeout(10);
+              await sleep(10);
             }
           } finally {
             cancelled = true;
@@ -180,9 +181,8 @@ describe("SandboxGetLogs lazy and retry behavior", () => {
     await reader.cancel();
 
     // Give the generator a moment to run its finally block
-    await new Promise((r) => setTimeout(r, 20));
+    await sleep(20);
     expect(seenSignalAbort).toBe(true);
     expect(cancelled).toBe(true);
   });
 });
-
