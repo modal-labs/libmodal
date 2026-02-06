@@ -379,7 +379,7 @@ type Sandbox struct {
 	commandRouterClient   *taskCommandRouterClient
 	commandRouterClientMu sync.Mutex
 
-	detached atomic.Bool
+	attached atomic.Bool
 }
 
 func defaultSandboxPTYInfo() *pb.PTYInfo {
@@ -397,7 +397,7 @@ func defaultSandboxPTYInfo() *pb.PTYInfo {
 // newSandbox creates a new Sandbox object from ID.
 func newSandbox(client *Client, sandboxID string) *Sandbox {
 	sb := &Sandbox{SandboxID: sandboxID, client: client}
-	sb.detached.Store(false)
+	sb.attached.Store(true)
 	sb.Stdin = inputStreamSb(client.cpClient, sandboxID)
 	sb.Stdout = &lazyStreamReader{
 		initFunc: func() io.ReadCloser {
@@ -656,7 +656,7 @@ func (sb *Sandbox) getOrCreateCommandRouterClient(ctx context.Context, taskID st
 	return sb.commandRouterClient, nil
 }
 func (sb *Sandbox) ensureAttached() error {
-	if sb.detached.Load() {
+	if sb.attached.Load() {
 		return SandboxDetachedError{Exception: "Unable to perform operation on a detached sandbox"}
 	}
 	return nil
@@ -664,11 +664,15 @@ func (sb *Sandbox) ensureAttached() error {
 
 // Detach disconnects from the running Sandbox
 func (sb *Sandbox) Detach() error {
-	if sb.detached.Load() {
+	if sb.attached.Load() {
 		return nil
 	}
-	sb.detached.CompareAndSwap(false, true)
-	return sb.closeCommandRouterClient()
+	err := sb.closeCommandRouterClient()
+	if err != nil {
+		return err
+	}
+	sb.attached.CompareAndSwap(false, true)
+	return nil
 }
 
 func (sb *Sandbox) closeCommandRouterClient() error {
