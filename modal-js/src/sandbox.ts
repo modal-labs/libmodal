@@ -1,4 +1,5 @@
 import { ClientError, Status } from "nice-grpc";
+import { setTimeout as sleep } from "timers/promises";
 import {
   FileDescriptor,
   GenericResult,
@@ -714,9 +715,11 @@ export function buildTaskExecStartRequestProto(
 export class Sandbox {
   readonly #client: ModalClient;
   readonly sandboxId: string;
-  stdin: ModalWriteStream<string>;
-  stdout: ModalReadStream<string>;
-  stderr: ModalReadStream<string>;
+  #stdin?: ModalWriteStream<string>;
+  #stdout?: ModalReadStream<string>;
+  #stderr?: ModalReadStream<string>;
+  #stdoutAbort?: AbortController;
+  #stderrAbort?: AbortController;
 
   #taskId: string | undefined;
   #tunnels: Record<number, Tunnel> | undefined;
@@ -726,26 +729,57 @@ export class Sandbox {
   constructor(client: ModalClient, sandboxId: string) {
     this.#client = client;
     this.sandboxId = sandboxId;
+  }
 
-    this.stdin = toModalWriteStream(inputStreamSb(client.cpClient, sandboxId));
-    this.stdout = toModalReadStream(
-      streamConsumingIter(
+  get stdin(): ModalWriteStream<string> {
+    if (!this.#stdin) {
+      this.#stdin = toModalWriteStream(
+        inputStreamSb(this.#client.cpClient, this.sandboxId),
+      );
+    }
+    return this.#stdin;
+  }
+
+  get stdout(): ModalReadStream<string> {
+    if (!this.#stdout) {
+      this.#stdoutAbort = new AbortController();
+      const bytesStream = streamConsumingIter(
         outputStreamSb(
-          client.cpClient,
-          sandboxId,
+          this.#client.cpClient,
+          this.sandboxId,
           FileDescriptor.FILE_DESCRIPTOR_STDOUT,
+          this.#stdoutAbort.signal,
         ),
-      ).pipeThrough(new TextDecoderStream()),
-    );
-    this.stderr = toModalReadStream(
-      streamConsumingIter(
+        {
+          onCancel: () => this.#stdoutAbort?.abort(),
+        },
+      );
+      this.#stdout = toModalReadStream(
+        bytesStream.pipeThrough(new TextDecoderStream()),
+      );
+    }
+    return this.#stdout;
+  }
+
+  get stderr(): ModalReadStream<string> {
+    if (!this.#stderr) {
+      this.#stderrAbort = new AbortController();
+      const bytesStream = streamConsumingIter(
         outputStreamSb(
-          client.cpClient,
-          sandboxId,
+          this.#client.cpClient,
+          this.sandboxId,
           FileDescriptor.FILE_DESCRIPTOR_STDERR,
+          this.#stderrAbort.signal,
         ),
-      ).pipeThrough(new TextDecoderStream()),
-    );
+        {
+          onCancel: () => this.#stderrAbort?.abort(),
+        },
+      );
+      this.#stderr = toModalReadStream(
+        bytesStream.pipeThrough(new TextDecoderStream()),
+      );
+    }
+    return this.#stderr;
   }
 
   /** Set tags (key-value pairs) on the Sandbox. Tags can be used to filter results in {@link SandboxService#list Sandbox.list}. */
@@ -1220,19 +1254,28 @@ async function* outputStreamSb(
   cpClient: ModalGrpcClient,
   sandboxId: string,
   fileDescriptor: FileDescriptor,
+  signal?: AbortSignal,
 ): AsyncIterable<Uint8Array> {
   let lastIndex = "0-0";
   let completed = false;
-  let retries = 10;
+  let retriesRemaining = 10;
+  let delayMs = 10;
+  const delayFactor = 2;
   while (!completed) {
     try {
-      const outputIterator = cpClient.sandboxGetLogs({
-        sandboxId,
-        fileDescriptor,
-        timeout: 55,
-        lastEntryId: lastIndex,
-      });
+      const outputIterator = cpClient.sandboxGetLogs(
+        {
+          sandboxId,
+          fileDescriptor,
+          timeout: 55,
+          lastEntryId: lastIndex,
+        },
+        { signal },
+      );
       for await (const batch of outputIterator) {
+        // Successful read - reset backoff counters.
+        delayMs = 10;
+        retriesRemaining = 10;
         lastIndex = batch.entryId;
         yield* batch.items.map((item) => new TextEncoder().encode(item.data));
         if (batch.eof) {
@@ -1241,8 +1284,15 @@ async function* outputStreamSb(
         }
       }
     } catch (err) {
-      if (isRetryableGrpc(err) && retries > 0) retries--;
-      else throw err;
+      if (isRetryableGrpc(err) && retriesRemaining > 0) {
+        // Short exponential backoff to avoid tight retry loops.
+        await sleep(delayMs);
+        delayMs *= delayFactor;
+        retriesRemaining--;
+        continue;
+      } else {
+        throw err;
+      }
     }
   }
 }

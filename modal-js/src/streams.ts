@@ -146,6 +146,12 @@ const writeMixin = {
  */
 export function streamConsumingIter(
   iterable: AsyncIterable<Uint8Array>,
+  options?: {
+    /** Optional queue highWaterMark; defaults to 64 KiB */
+    highWaterMark?: number;
+    /** Optional cancel hook invoked when stream is canceled */
+    onCancel?: () => void;
+  },
 ): ReadableStream<Uint8Array> {
   const iter = iterable[Symbol.asyncIterator]();
   return new ReadableStream<Uint8Array>(
@@ -160,18 +166,22 @@ export function streamConsumingIter(
         }
       },
       async cancel() {
-        consumeIterator(iter);
+        // Stop consumption rather than draining the iterator.
+        try {
+          options?.onCancel?.();
+        } finally {
+          // Best-effort signal to the iterator/underlying stream to close.
+          if (typeof iter.return === "function") {
+            await iter.return();
+          }
+        }
       },
     },
     new ByteLengthQueuingStrategy({
-      highWaterMark: 64 * 1024, // 64 KiB
+      highWaterMark: options?.highWaterMark ?? 64 * 1024, // 64 KiB by default
     }),
   );
 }
 
-async function consumeIterator<T>(iter: AsyncIterator<T>) {
-  while (true) {
-    const { done } = await iter.next();
-    if (done) break;
-  }
-}
+// Note: We intentionally removed the eager "consume-on-cancel" behavior above
+// to ensure that canceling a stream stops further reads promptly.
