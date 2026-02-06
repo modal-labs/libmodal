@@ -657,13 +657,16 @@ func (sb *Sandbox) getOrCreateCommandRouterClient(ctx context.Context, taskID st
 }
 func (sb *Sandbox) ensureAttached() error {
 	if sb.detached.Load() {
-		return SandboxDetached{Exception: "Unable to perform operation on a detached sandbox"}
+		return SandboxDetachedError{Exception: "Unable to perform operation on a detached sandbox"}
 	}
 	return nil
 }
 
 // Detach disconnects from the running Sandbox
 func (sb *Sandbox) Detach() error {
+	if sb.detached.Load() {
+		return nil
+	}
 	sb.detached.CompareAndSwap(false, true)
 	return sb.closeCommandRouterClient()
 }
