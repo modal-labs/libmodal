@@ -146,10 +146,7 @@ const writeMixin = {
  */
 export function streamConsumingIter(
   iterable: AsyncIterable<Uint8Array>,
-  options?: {
-    /** Optional cancel hook invoked when stream is canceled */
-    onCancel?: () => void;
-  },
+  onCancel?: () => void,
 ): ReadableStream<Uint8Array> {
   const iter = iterable[Symbol.asyncIterator]();
   return new ReadableStream<Uint8Array>(
@@ -165,7 +162,7 @@ export function streamConsumingIter(
       },
       async cancel() {
         try {
-          options?.onCancel?.();
+          onCancel?.();
         } finally {
           if (typeof iter.return === "function") {
             await iter.return();

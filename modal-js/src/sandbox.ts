@@ -755,9 +755,7 @@ export class Sandbox {
           FileDescriptor.FILE_DESCRIPTOR_STDOUT,
           this.#stdoutAbort.signal,
         ),
-        {
-          onCancel: () => this.#stdoutAbort?.abort(),
-        },
+        () => this.#stdoutAbort?.abort(),
       );
       this.#stdout = toModalReadStream(
         bytesStream.pipeThrough(new TextDecoderStream()),
@@ -776,9 +774,7 @@ export class Sandbox {
           FileDescriptor.FILE_DESCRIPTOR_STDERR,
           this.#stderrAbort.signal,
         ),
-        {
-          onCancel: () => this.#stderrAbort?.abort(),
-        },
+        () => this.#stderrAbort?.abort(),
       );
       this.#stderr = toModalReadStream(
         bytesStream.pipeThrough(new TextDecoderStream()),
