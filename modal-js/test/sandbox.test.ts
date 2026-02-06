@@ -742,10 +742,7 @@ test("testSandboxExperimentalDockerNotBool", async () => {
   ).rejects.toThrow("must be a bool");
 });
 
-// Skipping because creating a sandbox starts a log stream through `SandoxGetLogs`.
-// Enable this test when we adjust sandbox.create to start the stream on
-// `read`, which would match the implementation in `modal-go`.
-test.skip("testSandboxExperimentalDockerMock", async () => {
+test("testSandboxExperimentalDockerMock", async () => {
   const { mockClient: mc, mockCpClient: mock } = createMockModalClients();
 
   const options = { enable_docker: true };

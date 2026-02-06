@@ -146,6 +146,7 @@ const writeMixin = {
  */
 export function streamConsumingIter(
   iterable: AsyncIterable<Uint8Array>,
+  onCancel?: () => void,
 ): ReadableStream<Uint8Array> {
   const iter = iterable[Symbol.asyncIterator]();
   return new ReadableStream<Uint8Array>(
@@ -160,18 +161,19 @@ export function streamConsumingIter(
         }
       },
       async cancel() {
-        consumeIterator(iter);
+        try {
+          onCancel?.();
+        } finally {
+          // Propagate cancellation upstream and run source cleanup.
+          // return() is optional on AsyncIterator, so guard before calling.
+          if (typeof iter.return === "function") {
+            await iter.return();
+          }
+        }
       },
     },
     new ByteLengthQueuingStrategy({
       highWaterMark: 64 * 1024, // 64 KiB
     }),
   );
-}
-
-async function consumeIterator<T>(iter: AsyncIterator<T>) {
-  while (true) {
-    const { done } = await iter.next();
-    if (done) break;
-  }
 }
