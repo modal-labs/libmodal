@@ -137,6 +137,9 @@ describe("SandboxGetLogs lazy and retry behavior", () => {
     const sb = new Sandbox(client, "sb-000");
 
     const reader = sb.stdout.getReader();
+    // First read triggers attempt 1 (error) and attempt 2 (success with one chunk)
+    await reader.read();
+    // Second read drives the generator to re-enter, causing attempt 3 (error) and attempt 4 (EOF)
     await reader.read();
     reader.releaseLock();
 
