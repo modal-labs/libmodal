@@ -731,7 +731,7 @@ export class Sandbox {
   #tunnels: Record<number, Tunnel> | undefined;
   #commandRouterClient: TaskCommandRouterClientImpl | undefined;
   #commandRouterClientPromise: Promise<TaskCommandRouterClientImpl> | undefined;
-  #detached: boolean = false;
+  #attached: boolean = true;
 
   /** @ignore */
   constructor(client: ModalClient, sandboxId: string) {
@@ -936,7 +936,7 @@ export class Sandbox {
   }
 
   #ensureAttached(): void {
-    if (this.#detached) {
+    if (!this.#attached) {
       throw new SandboxDetachedError();
     }
   }
@@ -984,7 +984,7 @@ export class Sandbox {
           "Command router access is not available for this sandbox",
         );
       }
-      if (this.#detached) {
+      if (!this.#attached) {
         client.close();
         throw new SandboxDetachedError();
       }
@@ -1028,7 +1028,7 @@ export class Sandbox {
    */
   detach(): void {
     this.#commandRouterClient?.close();
-    this.#detached = true;
+    this.#attached = false;
     this.#commandRouterClient = undefined;
     this.#commandRouterClientPromise = undefined;
   }
