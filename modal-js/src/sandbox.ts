@@ -972,7 +972,7 @@ export class Sandbox {
       return this.#commandRouterClientPromise;
     }
 
-    this.#commandRouterClientPromise = (async () => {
+    const promise = (async () => {
       const client = await TaskCommandRouterClientImpl.tryInit(
         this.#client.cpClient,
         taskId,
@@ -991,12 +991,15 @@ export class Sandbox {
       this.#commandRouterClient = client;
       return client;
     })();
+    this.#commandRouterClientPromise = promise;
 
     try {
-      return await this.#commandRouterClientPromise;
+      return await promise;
     } catch (err) {
       // clear the Promise so subsequent calls can retry
-      this.#commandRouterClientPromise = undefined;
+      if (this.#commandRouterClientPromise === promise) {
+        this.#commandRouterClientPromise = undefined;
+      }
       throw err;
     }
   }
