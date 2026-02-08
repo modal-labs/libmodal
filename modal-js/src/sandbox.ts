@@ -1027,8 +1027,8 @@ export class Sandbox {
    * After calling detach(), most operations on this Sandbox object will throw.
    */
   detach(): void {
-    this.#detached = true;
     this.#commandRouterClient?.close();
+    this.#detached = true;
     this.#commandRouterClient = undefined;
     this.#commandRouterClientPromise = undefined;
   }
