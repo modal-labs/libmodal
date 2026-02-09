@@ -4,7 +4,7 @@ Both client libraries are pre-1.0, and they have separate versioning.
 
 ## Unreleased
 
-No unreleased changes.
+- In JS, improves reliability for reading streams from `sandbox.stdout` and `sandbox.stderr`.
 
 ## modal-js/v0.6.1, modal-go/v0.6.1
 
