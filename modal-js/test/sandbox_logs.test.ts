@@ -1,6 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { ModalClient } from "../src/client";
-import { Sandbox } from "../src/sandbox";
+import { ModalClient, Sandbox } from "modal";
 import { ClientError, Status } from "nice-grpc";
 import { setTimeout as sleep } from "timers/promises";
 
@@ -44,6 +43,92 @@ describe("SandboxGetLogs lazy and retry behavior", () => {
     expect(calls).toBe(1);
   });
 
+  test("testSandboxGetLogsNonRetryablePropagates", async () => {
+    let calls = 0;
+    const cpClient = {
+      sandboxGetLogs(_req: any) {
+        calls++;
+        throw new ClientError(
+          "/modal.client.ModalClient/SandboxGetLogs",
+          Status.PERMISSION_DENIED,
+          "denied",
+        );
+      },
+    };
+    const client = makeClient(cpClient);
+    const sb = new Sandbox(client, "sb-denied");
+
+    let caught: unknown = null;
+    try {
+      await sb.stdout.readText();
+    } catch (e) {
+      caught = e;
+    }
+    expect(calls).toBe(1);
+    expect(caught).toBeInstanceOf(ClientError);
+    expect((caught as ClientError).code).toBe(Status.PERMISSION_DENIED);
+  });
+
+  test("testSandboxGetLogsRetryExhaustion", async () => {
+    let calls = 0;
+    const cpClient = {
+      sandboxGetLogs(_req: any) {
+        calls++;
+        throw new ClientError(
+          "/modal.client.ModalClient/SandboxGetLogs",
+          Status.UNAVAILABLE,
+          "always-unavailable",
+        );
+      },
+    };
+    const client = makeClient(cpClient);
+    const sb = new Sandbox(client, "sb-retry-exhaust");
+
+    let caught: unknown = null;
+    try {
+      await sb.stdout.readText();
+    } catch (e) {
+      caught = e;
+    }
+    // 1 initial attempt + 10 retries = 11 (if defaults unchanged)
+    expect(calls).toBeGreaterThanOrEqual(11);
+    expect(caught).toBeInstanceOf(ClientError);
+    expect((caught as ClientError).code).toBe(Status.UNAVAILABLE);
+  });
+
+  test("testSandboxGetLogsResumesWithLastEntryIdAfterRetry", async () => {
+    const seenLastEntryIds: string[] = [];
+    let attempt = 0;
+    const cpClient = {
+      sandboxGetLogs(req: any) {
+        seenLastEntryIds.push(req.lastEntryId);
+        attempt++;
+        if (attempt === 1) {
+          return (async function* () {
+            // Yield a batch that sets lastEntryId, then throw to trigger retry
+            yield batch("1-9", [textItem("part")], false);
+            throw new ClientError(
+              "/modal.client.ModalClient/SandboxGetLogs",
+              Status.UNAVAILABLE,
+              "transient",
+            );
+          })();
+        }
+        // Second attempt should see lastEntryId "1-9" and then complete
+        return (async function* () {
+          yield batch("1-10", [], true);
+        })();
+      },
+    };
+    const client = makeClient(cpClient);
+    const sb = new Sandbox(client, "sb-last-entry");
+
+    const out = await sb.stdout.readText();
+    expect(out).toContain("part");
+    expect(seenLastEntryIds.length).toBeGreaterThanOrEqual(2);
+    expect(seenLastEntryIds[0]).toBe("0-0");
+    expect(seenLastEntryIds[1]).toBe("1-9");
+  });
   test("testSandboxGetLogsNotCalledUntilStderrIsAccessed", async () => {
     let calls = 0;
     const cpClient = {

@@ -1284,9 +1284,18 @@ async function* outputStreamSb(
         }
       }
     } catch (err) {
+      // If cancelled, exit cleanly regardless of error type.
+      if (signal?.aborted) {
+        return;
+      }
       if (isRetryableGrpc(err) && retriesRemaining > 0) {
         // Short exponential backoff to avoid tight retry loops.
-        await setTimeout(delayMs, undefined, { signal });
+        try {
+          await setTimeout(delayMs, undefined, { signal });
+        } catch {
+          // Abort during sleep - exit cleanly.
+          return;
+        }
         delayMs *= SB_LOGS_DELAY_FACTOR;
         retriesRemaining--;
         continue;

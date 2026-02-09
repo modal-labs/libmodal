@@ -142,7 +142,8 @@ const writeMixin = {
 
 /**
  * Construct a ReadableStream from an iterator.
- * If the stream is closed, the iterator is still consumed to completion.
+ * If the stream is canceled, we signal the iterator via return() to stop
+ * consumption and allow the source to clean up promptly.
  */
 export function streamConsumingIter(
   iterable: AsyncIterable<Uint8Array>,
