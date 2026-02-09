@@ -1,0 +1,1 @@
+- When running python tests, cd into the modal-client directory first
