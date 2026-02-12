@@ -3,6 +3,7 @@ import { expect, onTestFinished, test } from "vitest";
 import { mergeEnvIntoSecrets } from "../src/secret";
 import { createMockModalClients } from "../test-support/grpc_mock";
 import { NotFoundError } from "../src/errors";
+import { ClientError, Status } from "nice-grpc";
 
 test("SecretFromName", async () => {
   const secret = await tc.secrets.fromName("libmodal-test-secret");
@@ -136,6 +137,25 @@ test("SecretDelete with allowMissing=true", async () => {
   });
 
   await mc.secrets.delete("missing", { allowMissing: true });
+  mock.assertExhausted();
+});
+
+test("SecretDelete with allowMissing=true when delete RPC returns NOT_FOUND", async () => {
+  const { mockClient: mc, mockCpClient: mock } = createMockModalClients();
+
+  mock.handleUnary("/SecretGetOrCreate", () => ({
+    secretId: "st-test-123",
+  }));
+
+  mock.handleUnary("/SecretDelete", () => {
+    throw new ClientError(
+      "/modal.client.ModalClient/SecretDelete",
+      Status.NOT_FOUND,
+      "No Secret with ID 'st-test-123' found",
+    );
+  });
+
+  await mc.secrets.delete("test-secret", { allowMissing: true });
   mock.assertExhausted();
 });
 
