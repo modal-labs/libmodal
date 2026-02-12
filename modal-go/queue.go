@@ -255,7 +255,7 @@ type QueueGetParams struct {
 //
 // By default, this will wait until at least one item is present in the Queue.
 // If `timeout` is set, returns `QueueEmptyError` if no items are available
-// within that timeout in milliseconds.
+// within that timeout.
 func (q *Queue) Get(ctx context.Context, params *QueueGetParams) (any, error) {
 	vals, err := q.get(ctx, 1, params)
 	if err != nil {
@@ -273,7 +273,7 @@ type QueueGetManyParams struct {
 //
 // By default, this will wait until at least one item is present in the Queue.
 // If `timeout` is set, returns `QueueEmptyError` if no items are available
-// within that timeout in milliseconds.
+// within that timeout.
 func (q *Queue) GetMany(ctx context.Context, n int, params *QueueGetManyParams) ([]any, error) {
 	if params == nil {
 		return q.get(ctx, n, nil)
