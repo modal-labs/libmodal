@@ -69,4 +69,3 @@ jobs:
         gh pr create --title "$PR_TITLE" --body "$PR_TITLE" --base main --head ci-release
       env:
         GH_TOKEN: ${{ steps.generate-token.outputs.token }}
-

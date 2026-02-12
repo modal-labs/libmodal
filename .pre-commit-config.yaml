@@ -1,0 +1,99 @@
+exclude: '^modal-client/|\.pb\.go$'
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-json
+      - id: check-symlinks
+      - id: check-toml
+      - id: check-yaml
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+  - repo: local
+    hooks:
+      - id: js-format
+        name: Format (JS)
+        entry: bash -c 'cd modal-js && npx prettier --write $(for f; do echo "${f#modal-js/}"; done)' --
+        language: system
+        types_or: [ts, tsx, javascript, json, markdown]
+        files: ^modal-js/
+
+      - id: js-lint
+        name: Lint (JS)
+        entry: bash -c 'cd modal-js && npx eslint $(for f; do echo "${f#modal-js/}"; done)' --
+        language: system
+        types_or: [ts, tsx, javascript]
+        files: ^modal-js/
+
+      - id: js-typecheck
+        name: Typecheck (JS)
+        entry: bash -c 'cd modal-js && npm run check'
+        language: system
+        types_or: [ts, tsx]
+        files: ^modal-js/
+        pass_filenames: false
+
+      - id: js-build
+        name: Build (JS)
+        entry: bash -c 'cd modal-js && npm run build'
+        language: system
+        types_or: [ts, tsx]
+        files: ^modal-js/
+        pass_filenames: false
+        stages: [manual]
+
+      - id: js-test
+        name: Test (JS)
+        entry: bash -c 'cd modal-js && npm test'
+        language: system
+        types_or: [ts, tsx]
+        files: ^modal-js/
+        pass_filenames: false
+        stages: [manual]
+
+      - id: js-docs
+        name: Docs (JS)
+        entry: bash -c 'cd modal-js && npm run docs'
+        language: system
+        types_or: [ts, tsx]
+        files: ^modal-js/
+        pass_filenames: false
+        stages: [manual]
+
+      - id: go-format
+        name: Format (Go)
+        entry: bash -c 'cd modal-go && golangci-lint fmt $(for f; do echo "${f#modal-go/}"; done)' --
+        language: system
+        types: [go]
+        files: ^modal-go/
+
+      - id: go-lint
+        name: Lint (Go)
+        entry: bash -c 'cd modal-go && golangci-lint run'
+        language: system
+        types: [go]
+        files: ^modal-go/
+        pass_filenames: false
+
+      - id: go-test
+        name: Test (Go)
+        entry: bash -c 'cd modal-go && go test -v -count=1 -parallel=10 ./...'
+        language: system
+        types: [go]
+        files: ^modal-go/
+        pass_filenames: false
+        stages: [manual]
+
+      - id: python-lint
+        name: Lint (Python)
+        entry: ruff check
+        language: system
+        types: [python]
+        files: ^(test-support|tools)/
+
+      - id: python-format
+        name: Format (Python)
+        entry: ruff format
+        language: system
+        types: [python]
+        files: ^(test-support|tools)/

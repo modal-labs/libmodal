@@ -31,8 +31,10 @@ jobs:
       - run: npm ci
         working-directory: ./modal-js
 
-      - run: npm run docs
-        working-directory: ./modal-js
+      - uses: astral-sh/setup-uv@22695119d769bdb6f7032ad67b9bca0ef8c4a174 # v5
+      - run: uv tool install pre-commit==4.5.1
+
+      - run: pre-commit run js-docs --all-files --hook-stage manual
 
       - name: Upload docs artifact
         if: ${{ github.ref == 'refs/heads/main' }}
