@@ -6,6 +6,10 @@ Both client libraries are pre-1.0, and they have separate versioning.
 
 No unreleased changes.
 
+## modal-js/v0.6.2, modal-go/v0.6.2
+
+- In JS, improves reliability for reading streams from `sandbox.stdout` and `sandbox.stderr`.
+
 ## modal-js/v0.6.1, modal-go/v0.6.1
 
 - Added custom domains to `Sandboxes.Create` in Go and `sandboxes.create` in JS. Note that Sandbox custom domains work differently from Function custom domains and must currently be set up manually by Modal; please get in touch if this feature interests you.
