@@ -155,6 +155,25 @@ test("QueueDelete with allowMissing=true", async () => {
   mock.assertExhausted();
 });
 
+test("QueueDelete with allowMissing=true when delete RPC returns NOT_FOUND", async () => {
+  const { mockClient: mc, mockCpClient: mock } = createMockModalClients();
+
+  mock.handleUnary("/QueueGetOrCreate", () => ({
+    queueId: "qu-test-123",
+  }));
+
+  mock.handleUnary("/QueueDelete", () => {
+    throw new ClientError(
+      "/modal.client.ModalClient/QueueDelete",
+      Status.NOT_FOUND,
+      "No Queue with ID 'qu-test-123' found",
+    );
+  });
+
+  await mc.queues.delete("test-queue", { allowMissing: true });
+  mock.assertExhausted();
+});
+
 test("QueueDelete with allowMissing=false throws", async () => {
   const { mockClient: mc, mockCpClient: mock } = createMockModalClients();
 

@@ -9,6 +9,8 @@ import (
 	"github.com/modal-labs/libmodal/modal-go/internal/grpcmock"
 	pb "github.com/modal-labs/libmodal/modal-go/proto/modal_proto"
 	"github.com/onsi/gomega"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
@@ -118,6 +120,30 @@ func TestSecretDeleteWithAllowMissing(t *testing.T) {
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
+	g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
+}
+
+func TestSecretDeleteWithAllowMissingDeleteRPCNotFound(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+
+	mock := newGRPCMockClient(t)
+
+	grpcmock.HandleUnary(mock, "/SecretGetOrCreate",
+		func(req *pb.SecretGetOrCreateRequest) (*pb.SecretGetOrCreateResponse, error) {
+			return pb.SecretGetOrCreateResponse_builder{SecretId: "st-test-123"}.Build(), nil
+		},
+	)
+
+	grpcmock.HandleUnary(mock, "/SecretDelete",
+		func(req *pb.SecretDeleteRequest) (*emptypb.Empty, error) {
+			return nil, status.Errorf(codes.NotFound, "Secret not found")
+		},
+	)
+
+	err := mock.Secrets.Delete(ctx, "test-secret", &modal.SecretDeleteParams{AllowMissing: true})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
 }
 

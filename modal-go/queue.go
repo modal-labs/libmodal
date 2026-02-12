@@ -161,6 +161,9 @@ func (s *queueServiceImpl) Delete(ctx context.Context, name string, params *Queu
 
 	_, err = s.client.cpClient.QueueDelete(ctx, pb.QueueDeleteRequest_builder{QueueId: q.QueueID}.Build())
 	if err != nil {
+		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound && params.AllowMissing {
+			return nil
+		}
 		return err
 	}
 
