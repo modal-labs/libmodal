@@ -101,11 +101,11 @@ func (e SandboxTimeoutError) Error() string {
 	return "SandboxTimeoutError: " + e.Exception
 }
 
-// SandboxDetachedError is returned when running an operation on a detached sandbox object.
-type SandboxDetachedError struct {
+// ClientClosedError is returned when Sandbox operations exceed the allowed time limit.
+type ClientClosedError struct {
 	Exception string
 }
 
-func (e SandboxDetachedError) Error() string {
-	return "SandboxDetachedError: " + e.Exception
+func (e ClientClosedError) Error() string {
+	return "ClientClosedError: " + e.Exception
 }
