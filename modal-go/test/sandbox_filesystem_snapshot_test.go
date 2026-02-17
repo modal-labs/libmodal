@@ -29,11 +29,17 @@ func TestSnapshotFilesystem(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	_, err = writeFile.Wait(ctx)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	rc, err := writeFile.Wait(ctx)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(rc).To(gomega.Equal(0))
 
 	mkDir, err := sb.Exec(ctx, []string{"mkdir", "-p", "/tmp/testdir"}, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	_, err = mkDir.Wait(ctx)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	rc2, err := mkDir.Wait(ctx)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(rc2).To(gomega.Equal(0))
 
 	snapshotImage, err := sb.SnapshotFilesystem(ctx, 55*time.Second)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())

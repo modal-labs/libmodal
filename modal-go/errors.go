@@ -109,3 +109,12 @@ type ClientClosedError struct {
 func (e ClientClosedError) Error() string {
 	return "ClientClosedError: " + e.Exception
 }
+
+// ExecTimeoutError is returned when a container exec exceeds its execution duration limit.
+type ExecTimeoutError struct {
+	Exception string
+}
+
+func (e ExecTimeoutError) Error() string {
+	return "ExecTimeoutError: " + e.Exception
+}
