@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -81,7 +82,7 @@ func TestCallWithRetriesOnTransientErrorsSuccessOnFirstAttempt(t *testing.T) {
 		callCount++
 		output := "success"
 		return &output, nil
-	}, defaultRetryOptions())
+	}, defaultRetryOptions(), nil)
 
 	g.Expect(err).ToNot(gomega.HaveOccurred())
 	g.Expect(*result).To(gomega.Equal("success"))
@@ -118,7 +119,7 @@ func TestCallWithRetriesOnTransientErrorsRetriesOnTransientCodes(t *testing.T) {
 				}
 				output = "success"
 				return &output, nil
-			}, retryOptions{BaseDelay: time.Millisecond, DelayFactor: 1, MaxRetries: intPtr(10)})
+			}, retryOptions{BaseDelay: time.Millisecond, DelayFactor: 1, MaxRetries: intPtr(10)}, nil)
 
 			g.Expect(err).ToNot(gomega.HaveOccurred())
 			g.Expect(*result).To(gomega.Equal("success"))
@@ -135,7 +136,7 @@ func TestCallWithRetriesOnTransientErrorsNonRetryableError(t *testing.T) {
 	_, err := callWithRetriesOnTransientErrors(ctx, func() (*string, error) {
 		callCount++
 		return nil, status.Error(codes.InvalidArgument, "invalid")
-	}, retryOptions{BaseDelay: time.Millisecond, DelayFactor: 1, MaxRetries: intPtr(10)})
+	}, retryOptions{BaseDelay: time.Millisecond, DelayFactor: 1, MaxRetries: intPtr(10)}, nil)
 
 	g.Expect(err).To(gomega.HaveOccurred())
 	g.Expect(callCount).To(gomega.Equal(1))
@@ -150,7 +151,7 @@ func TestCallWithRetriesOnTransientErrorsMaxRetriesExceeded(t *testing.T) {
 	_, err := callWithRetriesOnTransientErrors(ctx, func() (*string, error) {
 		callCount++
 		return nil, status.Error(codes.Unavailable, "unavailable")
-	}, retryOptions{BaseDelay: time.Millisecond, DelayFactor: 1, MaxRetries: &maxRetries})
+	}, retryOptions{BaseDelay: time.Millisecond, DelayFactor: 1, MaxRetries: &maxRetries}, nil)
 
 	g.Expect(err).To(gomega.HaveOccurred())
 	g.Expect(callCount).To(gomega.Equal(maxRetries + 1))
@@ -165,10 +166,28 @@ func TestCallWithRetriesOnTransientErrorsDeadlineExceeded(t *testing.T) {
 	_, err := callWithRetriesOnTransientErrors(ctx, func() (*string, error) {
 		callCount++
 		return nil, status.Error(codes.Unavailable, "unavailable")
-	}, retryOptions{BaseDelay: 100 * time.Millisecond, DelayFactor: 1, MaxRetries: nil, Deadline: &deadline})
+	}, retryOptions{BaseDelay: 100 * time.Millisecond, DelayFactor: 1, MaxRetries: nil, Deadline: &deadline}, nil)
 
 	g.Expect(err).To(gomega.HaveOccurred())
 	g.Expect(err.Error()).To(gomega.Equal("deadline exceeded"))
+}
+
+func TestCallWithRetriesOnTransientErrorClosed(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+	callCount := 0
+	var closed atomic.Bool
+	closed.Store(true)
+
+	_, err := callWithRetriesOnTransientErrors(ctx, func() (*string, error) {
+		callCount++
+		return nil, status.Error(codes.Canceled, "invalid")
+	}, defaultRetryOptions(), &closed)
+
+	g.Expect(err).To(gomega.HaveOccurred())
+	g.Expect(err.Error()).To(gomega.ContainSubstring("ClientClosedError: Unable to perform operation on a detached sandbox"))
+
 }
 
 func intPtr(i int) *int {

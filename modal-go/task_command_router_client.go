@@ -115,13 +115,13 @@ func callWithRetriesOnTransientErrors[T any](
 		if err == nil {
 			return result, nil
 		}
-		if closed.Load() {
-			return nil, ClientClosedError{Exception: "Unable to perform operation on a detached sandbox"}
-		}
 
 		st, ok := status.FromError(err)
 		if !ok {
 			return nil, err
+		}
+		if closed != nil && closed.Load() && st.Code() == codes.Canceled {
+			return nil, ClientClosedError{Exception: "Unable to perform operation on a detached sandbox"}
 		}
 
 		if _, retryable := commandRouterRetryableCodes[st.Code()]; !retryable {
@@ -514,18 +514,19 @@ func (c *taskCommandRouterClient) streamStdio(
 
 		stream, err := c.stub.TaskExecStdioRead(callCtx, request)
 		if err != nil {
-			if c.closed.Load() {
-				closedErr := ClientClosedError{Exception: "Unable to perform operation on a detached sandbox"}
-				resultCh <- stdioReadResult{Err: closedErr}
-				return
-			}
-			if st, ok := status.FromError(err); ok && st.Code() == codes.Unauthenticated && !didAuthRetry {
+			errStatus := status.Code(err)
+			if errStatus == codes.Unauthenticated && !didAuthRetry {
 				if refreshErr := c.refreshJwt(ctx); refreshErr != nil {
 					resultCh <- stdioReadResult{Err: refreshErr}
 					return
 				}
 				didAuthRetry = true
-				continue
+				break
+			}
+			if c.closed.Load() && errStatus == codes.Canceled {
+				closedErr := ClientClosedError{Exception: "Unable to perform operation on a detached sandbox"}
+				resultCh <- stdioReadResult{Err: closedErr}
+				return
 			}
 			if _, retryable := commandRouterRetryableCodes[status.Code(err)]; retryable && numRetriesRemaining > 0 {
 				if hasDeadline && time.Until(deadline) <= delay {
@@ -553,12 +554,8 @@ func (c *taskCommandRouterClient) streamStdio(
 				return
 			}
 			if err != nil {
-				if c.closed.Load() {
-					closedErr := ClientClosedError{Exception: "Unable to perform operation on a detached sandbox"}
-					resultCh <- stdioReadResult{Err: closedErr}
-					return
-				}
-				if st, ok := status.FromError(err); ok && st.Code() == codes.Unauthenticated && !didAuthRetry {
+				errStatus := status.Code(err)
+				if errStatus == codes.Unauthenticated && !didAuthRetry {
 					if refreshErr := c.refreshJwt(ctx); refreshErr != nil {
 						resultCh <- stdioReadResult{Err: refreshErr}
 						return
@@ -566,7 +563,12 @@ func (c *taskCommandRouterClient) streamStdio(
 					didAuthRetry = true
 					break
 				}
-				if _, retryable := commandRouterRetryableCodes[status.Code(err)]; retryable && numRetriesRemaining > 0 {
+				if c.closed.Load() && errStatus == codes.Canceled {
+					closedErr := ClientClosedError{Exception: "Unable to perform operation on a detached sandbox"}
+					resultCh <- stdioReadResult{Err: closedErr}
+					return
+				}
+				if _, retryable := commandRouterRetryableCodes[errStatus]; retryable && numRetriesRemaining > 0 {
 					if hasDeadline && time.Until(deadline) <= delay {
 						resultCh <- stdioReadResult{Err: ExecTimeoutError{Exception: fmt.Sprintf("deadline exceeded while streaming stdio for exec %s", execID)}}
 						return
