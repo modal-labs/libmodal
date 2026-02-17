@@ -304,8 +304,16 @@ func cloudpickleToOgRek(raw []byte) []byte {
 
 	body := raw[pos:]
 
-	// Strip trailing MEMOIZE before STOP: ...body... [0x94] [0x2e]
-	if len(body) >= 2 && body[len(body)-2] == pickleMemoize && body[len(body)-1] == pickleStop {
+	// Strip trailing MEMOIZE before STOP, but only for string/bytes opcodes
+	// (mirroring ogrekToCloudpickle which only injects MEMOIZE for these types).
+	// Without this check, a data byte 0x94 (e.g. in BININT LE payload) would
+	// be falsely stripped.
+	hasMemoize := len(body) >= 2 &&
+		body[len(body)-2] == pickleMemoize && body[len(body)-1] == pickleStop
+	isStringOrBytes := len(body) > 0 &&
+		(body[0] == pickleShortBinUnicode || body[0] == pickleBinUnicode ||
+			body[0] == pickleShortBinBytes || body[0] == pickleBinBytes)
+	if hasMemoize && isStringOrBytes {
 		body = append(body[:len(body)-2], pickleStop)
 	}
 
