@@ -7,9 +7,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/url"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -153,12 +155,16 @@ type taskCommandRouterClient struct {
 	logger       *slog.Logger
 	closed       atomic.Bool
 
+	// done is closed when Close() is called, signaling all goroutines to stop.
+	done      chan struct{}
+	closeOnce sync.Once
+
 	refreshJwtGroup singleflight.Group
 }
 
-// tryInitTaskCommandRouterClient attempts to initialize a TaskCommandRouterClient.
+// TryInitTaskCommandRouterClient attempts to initialize a TaskCommandRouterClient.
 // Returns nil if command router access is not available for this task.
-func tryInitTaskCommandRouterClient(
+func TryInitTaskCommandRouterClient(
 	ctx context.Context,
 	serverClient pb.ModalClientClient,
 	taskID string,
@@ -230,6 +236,7 @@ func tryInitTaskCommandRouterClient(
 		taskID:       taskID,
 		serverURL:    resp.GetUrl(),
 		logger:       logger,
+		done:         make(chan struct{}),
 	}
 	client.jwt.Store(&jwt)
 	client.jwtExp.Store(jwtExp)
@@ -239,10 +246,13 @@ func tryInitTaskCommandRouterClient(
 }
 
 // Close closes the gRPC connection and cancels all in-flight operations.
-func (c *taskCommandRouterClient) Close() error {
+func (c *TaskCommandRouterClient) Close() error {
 	if !c.closed.CompareAndSwap(false, true) {
 		return nil
 	}
+	c.closeOnce.Do(func() {
+		close(c.done)
+	})
 	if c.conn != nil {
 		return c.conn.Close()
 	}
@@ -313,6 +323,154 @@ func callWithAuthRetry[T any](ctx context.Context, c retryableClient, fn func(co
 	return resp, err
 }
 
+// ExecStart starts a command execution.
+func (c *taskCommandRouterClient) ExecStart(ctx context.Context, request *pb.TaskExecStartRequest) (*pb.TaskExecStartResponse, error) {
+	return callWithRetriesOnTransientErrors(ctx, func() (*pb.TaskExecStartResponse, error) {
+		return callWithAuthRetry(ctx, c, func(authCtx context.Context) (*pb.TaskExecStartResponse, error) {
+			return c.stub.TaskExecStart(authCtx, request)
+		})
+	}, defaultRetryOptions())
+}
+
+// ExecStdinWrite writes data to stdin of an exec.
+func (c *taskCommandRouterClient) ExecStdinWrite(ctx context.Context, taskID, execID string, offset uint64, data []byte, eof bool) error {
+	request := pb.TaskExecStdinWriteRequest_builder{
+		TaskId: taskID,
+		ExecId: execID,
+		Offset: offset,
+		Data:   data,
+		Eof:    eof,
+	}.Build()
+
+	_, err := callWithRetriesOnTransientErrors(ctx, func() (*pb.TaskExecStdinWriteResponse, error) {
+		return callWithAuthRetry(ctx, c, func(authCtx context.Context) (*pb.TaskExecStdinWriteResponse, error) {
+			return c.stub.TaskExecStdinWrite(authCtx, request)
+		})
+	}, defaultRetryOptions())
+	return err
+}
+
+// ExecPoll polls for the exit status of an exec.
+func (c *taskCommandRouterClient) ExecPoll(ctx context.Context, taskID, execID string, deadline *time.Time) (*pb.TaskExecPollResponse, error) {
+	request := pb.TaskExecPollRequest_builder{
+		TaskId: taskID,
+		ExecId: execID,
+	}.Build()
+
+	if deadline != nil && time.Now().After(*deadline) {
+		return nil, ExecTimeoutError{Exception: fmt.Sprintf("deadline exceeded while polling for exec %s", execID)}
+	}
+
+	opts := defaultRetryOptions()
+	opts.Deadline = deadline
+
+	resp, err := callWithRetriesOnTransientErrors(ctx, func() (*pb.TaskExecPollResponse, error) {
+		return callWithAuthRetry(ctx, c, func(authCtx context.Context) (*pb.TaskExecPollResponse, error) {
+			return c.stub.TaskExecPoll(authCtx, request)
+		})
+	}, opts)
+
+	if err != nil {
+		st, ok := status.FromError(err)
+		if (ok && st.Code() == codes.DeadlineExceeded) || errors.Is(err, errDeadlineExceeded) {
+			return nil, ExecTimeoutError{Exception: fmt.Sprintf("deadline exceeded while polling for exec %s", execID)}
+		}
+	}
+	return resp, err
+}
+
+// ExecWait waits for an exec to complete and returns the exit code.
+func (c *taskCommandRouterClient) ExecWait(ctx context.Context, taskID, execID string, deadline *time.Time) (*pb.TaskExecWaitResponse, error) {
+	request := pb.TaskExecWaitRequest_builder{
+		TaskId: taskID,
+		ExecId: execID,
+	}.Build()
+
+	if deadline != nil && time.Now().After(*deadline) {
+		return nil, ExecTimeoutError{Exception: fmt.Sprintf("deadline exceeded while waiting for exec %s", execID)}
+	}
+
+	opts := retryOptions{
+		BaseDelay:   1 * time.Second, // Retry after 1s since total time is expected to be long.
+		DelayFactor: 1,               // Fixed delay.
+		MaxRetries:  nil,             // Retry forever.
+		Deadline:    deadline,
+	}
+
+	resp, err := callWithRetriesOnTransientErrors(ctx, func() (*pb.TaskExecWaitResponse, error) {
+		return callWithAuthRetry(ctx, c, func(authCtx context.Context) (*pb.TaskExecWaitResponse, error) {
+			// Set a per-call timeout of 60 seconds
+			callCtx, cancel := context.WithTimeout(authCtx, 60*time.Second)
+			defer cancel()
+			return c.stub.TaskExecWait(callCtx, request)
+		})
+	}, opts)
+
+	if err != nil {
+		st, ok := status.FromError(err)
+		if (ok && st.Code() == codes.DeadlineExceeded) || errors.Is(err, errDeadlineExceeded) {
+			return nil, ExecTimeoutError{Exception: fmt.Sprintf("deadline exceeded while waiting for exec %s", execID)}
+		}
+	}
+	return resp, err
+}
+
+// stdioReadResult represents a result from the stdio read stream.
+type stdioReadResult struct {
+	Response *pb.TaskExecStdioReadResponse
+	Err      error
+}
+
+// ExecStdioRead reads stdout or stderr from an exec.
+// The returned channel will be closed when the stream ends or an error occurs.
+func (c *taskCommandRouterClient) ExecStdioRead(
+	ctx context.Context,
+	taskID, execID string,
+	fd pb.FileDescriptor,
+	deadline *time.Time,
+) <-chan stdioReadResult {
+	resultCh := make(chan stdioReadResult)
+
+	go func() {
+		defer close(resultCh)
+
+		var srFd pb.TaskExecStdioFileDescriptor
+		switch fd {
+		case pb.FileDescriptor_FILE_DESCRIPTOR_STDOUT:
+			srFd = pb.TaskExecStdioFileDescriptor_TASK_EXEC_STDIO_FILE_DESCRIPTOR_STDOUT
+		case pb.FileDescriptor_FILE_DESCRIPTOR_STDERR:
+			srFd = pb.TaskExecStdioFileDescriptor_TASK_EXEC_STDIO_FILE_DESCRIPTOR_STDERR
+		case pb.FileDescriptor_FILE_DESCRIPTOR_INFO, pb.FileDescriptor_FILE_DESCRIPTOR_UNSPECIFIED:
+			resultCh <- stdioReadResult{Err: fmt.Errorf("unsupported file descriptor: %v", fd)}
+			return
+		default:
+			resultCh <- stdioReadResult{Err: fmt.Errorf("invalid file descriptor: %v", fd)}
+			return
+		}
+
+		// Create a context that cancels when either the caller's ctx is done or Close() is called.
+		// This ensures goroutines exit promptly when Close() is called.
+		ctx, cancel := context.WithCancel(ctx)
+		defer cancel()
+		go func() {
+			select {
+			case <-c.done:
+				cancel()
+			case <-ctx.Done():
+			}
+		}()
+
+		if deadline != nil {
+			var deadlineCancel context.CancelFunc
+			ctx, deadlineCancel = context.WithDeadline(ctx, *deadline)
+			defer deadlineCancel()
+		}
+		c.streamStdio(ctx, resultCh, taskID, execID, srFd)
+	}()
+
+	return resultCh
+}
+
 // MountDirectory mounts an image at a directory in the container.
 func (c *taskCommandRouterClient) MountDirectory(ctx context.Context, request *pb.TaskMountDirectoryRequest) error {
 	_, err := callWithRetriesOnTransientErrors(ctx, func() (*emptypb.Empty, error) {
@@ -330,4 +488,112 @@ func (c *taskCommandRouterClient) SnapshotDirectory(ctx context.Context, request
 			return c.stub.TaskSnapshotDirectory(authCtx, request)
 		})
 	}, defaultRetryOptions())
+}
+
+func (c *taskCommandRouterClient) streamStdio(
+	ctx context.Context,
+	resultCh chan<- stdioReadResult,
+	taskID, execID string,
+	fd pb.TaskExecStdioFileDescriptor,
+) {
+	deadline, hasDeadline := ctx.Deadline()
+
+	var offset int64
+	delay := 10 * time.Millisecond
+	delayFactor := 2.0
+	numRetriesRemaining := 10
+	didAuthRetry := false
+
+	for {
+		if ctx.Err() != nil {
+			if hasDeadline && ctx.Err() == context.DeadlineExceeded {
+				resultCh <- stdioReadResult{Err: ExecTimeoutError{Exception: fmt.Sprintf("deadline exceeded while streaming stdio for exec %s", execID)}}
+			} else {
+				resultCh <- stdioReadResult{Err: ctx.Err()}
+			}
+			return
+		}
+
+		callCtx := c.authContext(ctx)
+
+		request := pb.TaskExecStdioReadRequest_builder{
+			TaskId:         taskID,
+			ExecId:         execID,
+			Offset:         uint64(offset),
+			FileDescriptor: fd,
+		}.Build()
+
+		stream, err := c.stub.TaskExecStdioRead(callCtx, request)
+		if err != nil {
+			if st, ok := status.FromError(err); ok && st.Code() == codes.Unauthenticated && !didAuthRetry {
+				if refreshErr := c.refreshJwt(ctx); refreshErr != nil {
+					resultCh <- stdioReadResult{Err: refreshErr}
+					return
+				}
+				didAuthRetry = true
+				continue
+			}
+			if _, retryable := commandRouterRetryableCodes[status.Code(err)]; retryable && numRetriesRemaining > 0 {
+				if hasDeadline && time.Until(deadline) <= delay {
+					resultCh <- stdioReadResult{Err: ExecTimeoutError{Exception: fmt.Sprintf("deadline exceeded while streaming stdio for exec %s", execID)}}
+					return
+				}
+				c.logger.DebugContext(ctx, "Retrying stdio read with delay", "delay", delay, "error", err)
+				select {
+				case <-ctx.Done():
+					resultCh <- stdioReadResult{Err: ctx.Err()}
+					return
+				case <-time.After(delay):
+				}
+				delay = time.Duration(float64(delay) * delayFactor)
+				numRetriesRemaining--
+				continue
+			}
+			resultCh <- stdioReadResult{Err: err}
+			return
+		}
+
+		for {
+			item, err := stream.Recv()
+			if err == io.EOF {
+				return
+			}
+			if err != nil {
+				if st, ok := status.FromError(err); ok && st.Code() == codes.Unauthenticated && !didAuthRetry {
+					if refreshErr := c.refreshJwt(ctx); refreshErr != nil {
+						resultCh <- stdioReadResult{Err: refreshErr}
+						return
+					}
+					didAuthRetry = true
+					break
+				}
+				if _, retryable := commandRouterRetryableCodes[status.Code(err)]; retryable && numRetriesRemaining > 0 {
+					if hasDeadline && time.Until(deadline) <= delay {
+						resultCh <- stdioReadResult{Err: ExecTimeoutError{Exception: fmt.Sprintf("deadline exceeded while streaming stdio for exec %s", execID)}}
+						return
+					}
+					c.logger.DebugContext(ctx, "Retrying stdio read with delay", "delay", delay, "error", err)
+					select {
+					case <-ctx.Done():
+						resultCh <- stdioReadResult{Err: ctx.Err()}
+						return
+					case <-time.After(delay):
+					}
+					delay = time.Duration(float64(delay) * delayFactor)
+					numRetriesRemaining--
+					break
+				}
+				resultCh <- stdioReadResult{Err: err}
+				return
+			}
+
+			if didAuthRetry {
+				didAuthRetry = false
+			}
+			delay = 10 * time.Millisecond
+			offset += int64(len(item.GetData()))
+
+			resultCh <- stdioReadResult{Response: item}
+		}
+	}
 }
