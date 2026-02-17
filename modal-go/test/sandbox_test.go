@@ -1295,14 +1295,16 @@ func TestContainerProcessWriteStinAfterDetach(t *testing.T) {
 
 	sb, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{Command: []string{"cat"}})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	sbFromId, err := tc.Sandboxes.FromID(ctx, sb.SandboxID)
+	sbFromID, err := tc.Sandboxes.FromID(ctx, sb.SandboxID)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	defer terminateSandbox(g, sbFromId)
+	defer terminateSandbox(g, sbFromID)
 
 	p, err := sb.Exec(ctx, []string{"cat"}, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	sb.Detach()
+	err = sb.Detach()
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
 	_, err = p.Stdin.Write([]byte("this is input that should be mirrored by cat"))
 	g.Expect(err).To(gomega.HaveOccurred())
 	g.Expect(err.Error()).To(gomega.ContainSubstring("ClientClosedError: Unable to perform operation on a detached sandbox"))

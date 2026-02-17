@@ -521,7 +521,7 @@ func (c *taskCommandRouterClient) streamStdio(
 					return
 				}
 				didAuthRetry = true
-				break
+				continue
 			}
 			if c.closed.Load() && errStatus == codes.Canceled {
 				closedErr := ClientClosedError{Exception: "Unable to perform operation on a detached sandbox"}
