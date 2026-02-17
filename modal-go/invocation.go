@@ -84,7 +84,7 @@ func (c *controlPlaneInvocation) retry(ctx context.Context, retryCount uint32) e
 	return nil
 }
 
-// getOutput fetches the output for the current function call with a timeout in milliseconds.
+// getOutput fetches the output for the current function call.
 func (c *controlPlaneInvocation) getOutput(ctx context.Context, timeout time.Duration) (*pb.FunctionGetOutputsItem, error) {
 	response, err := c.cpClient.FunctionGetOutputs(ctx, pb.FunctionGetOutputsRequest_builder{
 		FunctionCallId: c.FunctionCallID,

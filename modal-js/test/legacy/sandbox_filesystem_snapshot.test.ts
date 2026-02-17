@@ -10,8 +10,10 @@ test("snapshotFilesystem", async () => {
     await sb.terminate();
   });
 
-  await sb.exec(["sh", "-c", "echo -n 'test content' > /tmp/test.txt"]);
-  await sb.exec(["mkdir", "-p", "/tmp/testdir"]);
+  await (
+    await sb.exec(["sh", "-c", "echo -n 'test content' > /tmp/test.txt"])
+  ).wait();
+  await (await sb.exec(["mkdir", "-p", "/tmp/testdir"])).wait();
 
   const snapshotImage = await sb.snapshotFilesystem();
   expect(snapshotImage).toBeDefined();

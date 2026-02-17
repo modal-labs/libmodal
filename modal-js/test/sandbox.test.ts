@@ -1,11 +1,8 @@
 import { tc } from "../test-support/test-client";
 import { parseGpuConfig } from "../src/app";
-import {
-  buildSandboxCreateRequestProto,
-  buildTaskExecStartRequestProto,
-  validateExecArgs,
-} from "../src/sandbox";
+import { buildSandboxCreateRequestProto } from "../src/sandbox";
 import { expect, test, onTestFinished } from "vitest";
+import { buildContainerExecRequestProto } from "../src/sandbox";
 import {
   GPUConfig,
   PTYInfo_PTYType,
@@ -24,11 +21,10 @@ test("CreateOneSandbox", async () => {
   const image = tc.images.fromRegistry("alpine:3.21");
 
   const sb = await tc.sandboxes.create(app, image);
-  onTestFinished(async () => {
-    await sb.terminate();
-    expect(await sb.wait()).toBe(137);
-  });
+  onTestFinished(async () => await sb.terminate());
   expect(sb.sandboxId).toBeTruthy();
+  await sb.terminate();
+  expect(await sb.wait()).toBe(137);
 });
 
 test("PassCatToStdin", async () => {
@@ -517,6 +513,36 @@ test("NamedSandboxNotFound", async () => {
   ).rejects.toThrow("not found");
 });
 
+test("buildContainerExecRequestProto without PTY", async () => {
+  const req = await buildContainerExecRequestProto("task-123", ["bash"]);
+
+  expect(req.ptyInfo).toBeUndefined();
+});
+
+test("buildContainerExecRequestProto with PTY", async () => {
+  const req = await buildContainerExecRequestProto("task-123", ["bash"], {
+    pty: true,
+  });
+
+  const ptyInfo = req.ptyInfo!;
+  expect(ptyInfo.enabled).toBe(true);
+  expect(ptyInfo.winszRows).toBe(24);
+  expect(ptyInfo.winszCols).toBe(80);
+  expect(ptyInfo.envTerm).toBe("xterm-256color");
+  expect(ptyInfo.envColorterm).toBe("truecolor");
+  expect(ptyInfo.ptyType).toBe(PTYInfo_PTYType.PTY_TYPE_SHELL);
+  expect(ptyInfo.noTerminateOnIdleStdin).toBe(true);
+});
+
+test("buildContainerExecRequestProto_defaults", async () => {
+  const req = await buildContainerExecRequestProto("task-123", ["bash"]);
+
+  expect(req.workdir).toBeUndefined();
+  expect(req.timeoutSecs).toBe(0);
+  expect(req.secretIds).toEqual([]);
+  expect(req.ptyInfo).toBeUndefined();
+});
+
 test("buildSandboxCreateRequestProto without PTY", async () => {
   const req = await buildSandboxCreateRequestProto("app-123", "img-456");
 
@@ -742,10 +768,7 @@ test("testSandboxExperimentalDockerNotBool", async () => {
   ).rejects.toThrow("must be a bool");
 });
 
-// Skipping because creating a sandbox starts a log stream through `SandoxGetLogs`.
-// Enable this test when we adjust sandbox.create to start the stream on
-// `read`, which would match the implementation in `modal-go`.
-test.skip("testSandboxExperimentalDockerMock", async () => {
+test("testSandboxExperimentalDockerMock", async () => {
   const { mockClient: mc, mockCpClient: mock } = createMockModalClients();
 
   const options = { enable_docker: true };
@@ -786,267 +809,4 @@ test.skip("testSandboxExperimentalDockerMock", async () => {
   expect(sb.sandboxId).toEqual("sb-1234");
 
   mock.assertExhausted();
-});
-
-test("validateExecArgs with args within limit", () => {
-  expect(() => validateExecArgs(["echo", "hello"])).not.toThrow();
-
-  expect(() => validateExecArgs(["a".repeat(2 ** 16 - 10)])).not.toThrow();
-});
-
-test("validateExecArgs with args exceeding ARG_MAX", () => {
-  const longArg = "a".repeat(2 ** 16 + 1);
-  const args = [longArg];
-  expect(() => validateExecArgs(args)).toThrow(
-    "Total length of CMD arguments must be less than",
-  );
-});
-
-test("buildTaskExecStartRequestProto defaults", () => {
-  const req = buildTaskExecStartRequestProto("task-123", "exec-456", ["bash"]);
-
-  expect(req.taskId).toBe("task-123");
-  expect(req.execId).toBe("exec-456");
-  expect(req.commandArgs).toEqual(["bash"]);
-  expect(req.stdoutConfig).toBe(1); // TASK_EXEC_STDOUT_CONFIG_PIPE
-  expect(req.stderrConfig).toBe(1); // TASK_EXEC_STDERR_CONFIG_PIPE
-  expect(req.timeoutSecs).toBeUndefined();
-  expect(req.workdir).toBeUndefined();
-  expect(req.secretIds).toEqual([]);
-  expect(req.ptyInfo).toBeUndefined();
-  expect(req.runtimeDebug).toBe(false);
-});
-
-test("buildTaskExecStartRequestProto with stdout ignore", () => {
-  const req = buildTaskExecStartRequestProto("task-123", "exec-456", ["bash"], {
-    stdout: "ignore",
-    stderr: "ignore",
-  });
-
-  expect(req.stdoutConfig).toBe(0); // TASK_EXEC_STDOUT_CONFIG_DEVNULL
-  expect(req.stderrConfig).toBe(0); // TASK_EXEC_STDERR_CONFIG_DEVNULL
-});
-
-test("buildTaskExecStartRequestProto with PTY", () => {
-  const req = buildTaskExecStartRequestProto("task-123", "exec-456", ["bash"], {
-    pty: true,
-  });
-
-  const ptyInfo = req.ptyInfo!;
-  expect(ptyInfo.enabled).toBe(true);
-  expect(ptyInfo.winszRows).toBe(24);
-  expect(ptyInfo.winszCols).toBe(80);
-  expect(ptyInfo.envTerm).toBe("xterm-256color");
-  expect(ptyInfo.envColorterm).toBe("truecolor");
-  expect(ptyInfo.ptyType).toBe(PTYInfo_PTYType.PTY_TYPE_SHELL);
-});
-
-test("buildTaskExecStartRequestProto with workdir", () => {
-  const req = buildTaskExecStartRequestProto("task-123", "exec-456", ["pwd"], {
-    workdir: "/tmp",
-  });
-
-  expect(req.workdir).toBe("/tmp");
-});
-
-test("buildTaskExecStartRequestProto with timeoutMs", () => {
-  const req = buildTaskExecStartRequestProto(
-    "task-123",
-    "exec-456",
-    ["sleep", "10"],
-    { timeoutMs: 5000 },
-  );
-
-  expect(req.timeoutSecs).toBe(5);
-});
-
-test.each([
-  [0, "timeoutMs must be positive"],
-  [-1000, "timeoutMs must be positive"],
-  [1500, "timeoutMs must be a multiple of 1000ms"],
-])(
-  "buildTaskExecStartRequestProto invalid timeoutMs %d",
-  (timeoutMs, expectedError) => {
-    expect(() =>
-      buildTaskExecStartRequestProto("task-123", "exec-456", ["bash"], {
-        timeoutMs,
-      }),
-    ).toThrow(expectedError);
-  },
-);
-
-test("SandboxExecStdinStdout", async () => {
-  const app = await tc.apps.fromName("libmodal-test", {
-    createIfMissing: true,
-  });
-  const image = tc.images.fromRegistry("alpine:3.21");
-  const sb = await tc.sandboxes.create(app, image);
-  onTestFinished(async () => await sb.terminate());
-
-  const p = await sb.exec(["sh", "-c", "while read line; do echo $line; done"]);
-  await p.stdin.writeText("foo\n");
-  await p.stdin.writeText("bar\n");
-  await p.stdin.close();
-  expect(await p.stdout.readText()).toBe("foo\nbar\n");
-});
-
-test("SandboxExecWaitExitCode", async () => {
-  const app = await tc.apps.fromName("libmodal-test", {
-    createIfMissing: true,
-  });
-  const image = tc.images.fromRegistry("alpine:3.21");
-  const sb = await tc.sandboxes.create(app, image);
-  onTestFinished(async () => await sb.terminate());
-
-  const p = await sb.exec(["sh", "-c", "exit 42"]);
-  expect(await p.wait()).toBe(42);
-});
-
-test("SandboxExecDoubleRead", async () => {
-  const app = await tc.apps.fromName("libmodal-test", {
-    createIfMissing: true,
-  });
-  const image = tc.images.fromRegistry("alpine:3.21");
-  const sb = await tc.sandboxes.create(app, image);
-  onTestFinished(async () => await sb.terminate());
-
-  const p = await sb.exec(["echo", "hello"]);
-  expect(await p.stdout.readText()).toBe("hello\n");
-  expect(await p.stdout.readText()).toBe("");
-  expect(await p.wait()).toBe(0);
-});
-
-test("SandboxExecBinaryMode", async () => {
-  const app = await tc.apps.fromName("libmodal-test", {
-    createIfMissing: true,
-  });
-  const image = tc.images.fromRegistry("alpine:3.21");
-  const sb = await tc.sandboxes.create(app, image);
-  onTestFinished(async () => await sb.terminate());
-
-  const p = await sb.exec(["printf", "\\x01\\x02\\x03"], { mode: "binary" });
-  const bytes = await p.stdout.readBytes();
-  expect(bytes).toEqual(new Uint8Array([0x01, 0x02, 0x03]));
-  expect(await p.wait()).toBe(0);
-});
-
-test("SandboxExecWithPty", async () => {
-  const app = await tc.apps.fromName("libmodal-test", {
-    createIfMissing: true,
-  });
-  const image = tc.images.fromRegistry("alpine:3.21");
-  const sb = await tc.sandboxes.create(app, image);
-  onTestFinished(async () => await sb.terminate());
-
-  const p = await sb.exec(["echo", "hello"], { pty: true });
-  expect(await p.wait()).toBe(0);
-});
-
-test("SandboxExecWaitTimeout", async () => {
-  const app = await tc.apps.fromName("libmodal-test", {
-    createIfMissing: true,
-  });
-  const image = tc.images.fromRegistry("alpine:3.21");
-  const sb = await tc.sandboxes.create(app, image);
-  onTestFinished(async () => await sb.terminate());
-
-  const p = await sb.exec(["sleep", "999"], { timeoutMs: 1000 });
-  const t0 = Date.now();
-  const exitCode = await p.wait();
-  const elapsed = Date.now() - t0;
-
-  expect(elapsed).toBeGreaterThan(800);
-  expect(elapsed).toBeLessThan(1500);
-  expect(exitCode).toBe(0);
-});
-
-test("SandboxExecOutputTimeout", async () => {
-  const app = await tc.apps.fromName("libmodal-test", {
-    createIfMissing: true,
-  });
-  const image = tc.images.fromRegistry("alpine:3.21");
-  const sb = await tc.sandboxes.create(app, image);
-  onTestFinished(async () => await sb.terminate());
-
-  const t0 = Date.now();
-  const p = await sb.exec(["sh", "-c", "echo hi; sleep 999"], {
-    timeoutMs: 1000,
-  });
-
-  // Read stdout and wait - deadline may be exceeded during either operation
-  try {
-    const output = await p.stdout.readText();
-    expect(output).toBe("hi\n");
-
-    const elapsed = Date.now() - t0;
-    expect(elapsed).toBeGreaterThan(1000);
-    expect(elapsed).toBeLessThan(4000);
-
-    const exitCode = await p.wait();
-    expect(exitCode).toBe(0);
-  } catch (error) {
-    expect(String(error)).toMatch(/Deadline exceeded/);
-
-    const elapsed = Date.now() - t0;
-    expect(elapsed).toBeGreaterThan(1000);
-    expect(elapsed).toBeLessThan(4000);
-  }
-});
-
-test("SandboxDoubleTerminate", async () => {
-  const app = await tc.apps.fromName("libmodal-test", {
-    createIfMissing: true,
-  });
-  const image = tc.images.fromRegistry("alpine:3.21");
-
-  const sb = await tc.sandboxes.create(app, image);
-
-  await sb.terminate();
-  await sb.terminate();
-});
-
-test("SandboxExecAfterTerminate", async () => {
-  const app = await tc.apps.fromName("libmodal-test", {
-    createIfMissing: true,
-  });
-  const image = tc.images.fromRegistry("alpine:3.21");
-
-  const sb = await tc.sandboxes.create(app, image);
-
-  await sb.terminate();
-
-  await expect(sb.exec(["echo", "hello"])).rejects.toThrow();
-});
-
-test("ContainerProcessReadStdoutAfterSandboxTerminate", async () => {
-  const app = await tc.apps.fromName("libmodal-test", {
-    createIfMissing: true,
-  });
-  const image = tc.images.fromRegistry("alpine:3.21");
-  const sb = await tc.sandboxes.create(app, image);
-
-  const p = await sb.exec([
-    "sh",
-    "-c",
-    "echo exec-stdout; echo exec-stderr >&2",
-  ]);
-  await p.wait();
-  await sb.terminate();
-
-  // Behavior for reading from stdout & stderr on ContainerProcess is inconsistent between modal-go
-  // and modal-js when the sandbox is terminated:
-  // - modal-js: Reading stdout/stderr continues to work after the sandbox is terminated. It'll
-  //   return an empty string.
-  // - modal-go: Reading stdout/stderr stops working because the go-routines are all canceled.
-  const stdout1 = await p.stdout.readText();
-  expect(stdout1).equal("exec-stdout\n");
-
-  const stdout2 = await p.stdout.readText();
-  expect(stdout2).equal("");
-
-  const stderr1 = await p.stderr.readText();
-  expect(stderr1).equal("exec-stderr\n");
-
-  const stderr2 = await p.stderr.readText();
-  expect(stderr2).equal("");
 });

@@ -161,6 +161,9 @@ func (s *queueServiceImpl) Delete(ctx context.Context, name string, params *Queu
 
 	_, err = s.client.cpClient.QueueDelete(ctx, pb.QueueDeleteRequest_builder{QueueId: q.QueueID}.Build())
 	if err != nil {
+		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound && params.AllowMissing {
+			return nil
+		}
 		return err
 	}
 
@@ -255,7 +258,7 @@ type QueueGetParams struct {
 //
 // By default, this will wait until at least one item is present in the Queue.
 // If `timeout` is set, returns `QueueEmptyError` if no items are available
-// within that timeout in milliseconds.
+// within that timeout.
 func (q *Queue) Get(ctx context.Context, params *QueueGetParams) (any, error) {
 	vals, err := q.get(ctx, 1, params)
 	if err != nil {
@@ -273,7 +276,7 @@ type QueueGetManyParams struct {
 //
 // By default, this will wait until at least one item is present in the Queue.
 // If `timeout` is set, returns `QueueEmptyError` if no items are available
-// within that timeout in milliseconds.
+// within that timeout.
 func (q *Queue) GetMany(ctx context.Context, n int, params *QueueGetManyParams) ([]any, error) {
 	if params == nil {
 		return q.get(ctx, n, nil)
