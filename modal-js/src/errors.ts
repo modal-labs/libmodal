@@ -77,11 +77,3 @@ export class SandboxTimeoutError extends Error {
     this.name = "SandboxTimeoutError";
   }
 }
-
-/** Exec operations that exceed the allowed time limit. */
-export class ExecTimeoutError extends Error {
-  constructor(message: string = "Exec operation timed out") {
-    super(message);
-    this.name = "ExecTimeoutError";
-  }
-}

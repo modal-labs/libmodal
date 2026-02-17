@@ -888,16 +888,7 @@ export class Sandbox {
     return { url: resp.url, token: resp.token };
   }
 
-  /**
-   * Terminate the Sandbox.
-   * The stdin, stdout, stderr streams are not closed.
-   */
   async terminate(): Promise<void> {
-    if (this.#commandRouterClient) {
-      this.#commandRouterClient.close();
-      this.#commandRouterClient = undefined;
-    }
-
     await this.#client.cpClient.sandboxTerminate({ sandboxId: this.sandboxId });
     this.#taskId = undefined; // Reset task ID after termination
   }

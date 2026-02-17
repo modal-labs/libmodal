@@ -10,6 +10,7 @@ export class AuthTokenManager {
   private logger: Logger;
   private currentToken: string = "";
   private tokenExpiry: number = 0;
+  private timeoutId: NodeJS.Timeout | null = null;
   private running: boolean = false;
   private fetchPromise: Promise<void> | null = null;
 
@@ -75,6 +76,36 @@ export class AuthTokenManager {
   }
 
   /**
+   * Background loop that refreshes tokens REFRESH_WINDOW seconds before they expire.
+   */
+  private async backgroundRefresh(): Promise<void> {
+    while (this.running) {
+      const now = Math.floor(Date.now() / 1000);
+      const refreshTime = this.tokenExpiry - REFRESH_WINDOW;
+      const delay = Math.max(0, refreshTime - now) * 1000;
+
+      // Sleep until it's time to refresh
+      await new Promise<void>((resolve) => {
+        this.timeoutId = setTimeout(resolve, delay);
+        this.timeoutId.unref();
+      });
+
+      if (!this.running) {
+        return;
+      }
+
+      // Fetch new token
+      try {
+        await this.runFetch();
+      } catch (error) {
+        this.logger.error("Failed to refresh auth token", "error", error);
+        // Sleep for 5 seconds before trying again on failure
+        await new Promise((resolve) => setTimeout(resolve, 5000));
+      }
+    }
+  }
+
+  /**
    * Fetches the initial token and starts the refresh loop.
    * Throws an error if the initial token fetch fails.
    */
@@ -90,6 +121,9 @@ export class AuthTokenManager {
       this.running = false;
       throw error;
     }
+
+    // Start background refresh loop, do not await
+    this.backgroundRefresh();
   }
 
   /**
@@ -97,6 +131,10 @@ export class AuthTokenManager {
    */
   stop(): void {
     this.running = false;
+    if (this.timeoutId) {
+      clearTimeout(this.timeoutId);
+      this.timeoutId = null;
+    }
   }
 
   /**

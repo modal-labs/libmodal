@@ -9,20 +9,18 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/pelletier/go-toml/v2"
 )
 
 // Profile holds a fully-resolved configuration ready for use by the client.
 type Profile struct {
-	ServerURL                 string
-	TokenID                   string
-	TokenSecret               string
-	Environment               string
-	ImageBuilderVersion       string
-	LogLevel                  string
-	TaskCommandRouterInsecure bool
+	ServerURL           string
+	TokenID             string
+	TokenSecret         string
+	Environment         string
+	ImageBuilderVersion string
+	LogLevel            string
 }
 
 func (p Profile) isLocalhost() bool {
@@ -36,14 +34,13 @@ func (p Profile) isLocalhost() bool {
 
 // rawProfile mirrors the TOML structure on disk.
 type rawProfile struct {
-	ServerURL                 string `toml:"server_url"`
-	TokenID                   string `toml:"token_id"`
-	TokenSecret               string `toml:"token_secret"`
-	Environment               string `toml:"environment"`
-	ImageBuilderVersion       string `toml:"image_builder_version"`
-	LogLevel                  string `toml:"loglevel"`
-	Active                    bool   `toml:"active"`
-	TaskCommandRouterInsecure bool   `toml:"task_command_router_insecure"`
+	ServerURL           string `toml:"server_url"`
+	TokenID             string `toml:"token_id"`
+	TokenSecret         string `toml:"token_secret"`
+	Environment         string `toml:"environment"`
+	ImageBuilderVersion string `toml:"image_builder_version"`
+	LogLevel            string `toml:"loglevel"`
+	Active              bool   `toml:"active"`
 }
 
 type config map[string]rawProfile
@@ -109,19 +106,13 @@ func getProfile(name string, cfg config) Profile {
 	imageBuilderVersion := firstNonEmpty(os.Getenv("MODAL_IMAGE_BUILDER_VERSION"), raw.ImageBuilderVersion)
 	logLevel := firstNonEmpty(os.Getenv("MODAL_LOGLEVEL"), raw.LogLevel)
 
-	taskCommandRouterInsecure := raw.TaskCommandRouterInsecure
-	if envVal := os.Getenv("MODAL_TASK_COMMAND_ROUTER_INSECURE"); envVal != "" {
-		taskCommandRouterInsecure = strings.ToLower(envVal) == "true" || envVal == "1"
-	}
-
 	return Profile{
-		ServerURL:                 serverURL,
-		TokenID:                   tokenID,
-		TokenSecret:               tokenSecret,
-		Environment:               environment,
-		ImageBuilderVersion:       imageBuilderVersion,
-		LogLevel:                  logLevel,
-		TaskCommandRouterInsecure: taskCommandRouterInsecure,
+		ServerURL:           serverURL,
+		TokenID:             tokenID,
+		TokenSecret:         tokenSecret,
+		Environment:         environment,
+		ImageBuilderVersion: imageBuilderVersion,
+		LogLevel:            logLevel,
 	}
 }
 
