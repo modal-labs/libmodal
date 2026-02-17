@@ -1197,10 +1197,10 @@ func TestSandboxDoubleTerminate(t *testing.T) {
 	sb, err := tc.Sandboxes.Create(ctx, app, image, nil)
 	g.Expect(err).ToNot(gomega.HaveOccurred())
 
-	err = sb.Terminate(ctx)
+	err = sb.Terminate(ctx, false, nil)
 	g.Expect(err).ToNot(gomega.HaveOccurred())
 
-	err = sb.Terminate(ctx)
+	err = sb.Terminate(ctx, true, nil)
 	g.Expect(err).ToNot(gomega.HaveOccurred())
 }
 
@@ -1218,11 +1218,12 @@ func TestSandboxExecAfterTerminate(t *testing.T) {
 	sb, err := tc.Sandboxes.Create(ctx, app, image, nil)
 	g.Expect(err).ToNot(gomega.HaveOccurred())
 
-	err = sb.Terminate(ctx)
+	err = sb.Terminate(ctx, true, nil)
 	g.Expect(err).ToNot(gomega.HaveOccurred())
 
 	_, err = sb.Exec(ctx, []string{"echo", "hello"}, nil)
 	g.Expect(err).To(gomega.HaveOccurred())
+	g.Expect(err.Error()).To(gomega.ContainSubstring("ClientClosedError: Unable to perform operation on a detached sandbox"))
 }
 
 func TestSandboxReadStdoutAfterTerminate(t *testing.T) {
@@ -1244,16 +1245,16 @@ func TestSandboxReadStdoutAfterTerminate(t *testing.T) {
 	_, err = sb.Wait(ctx)
 	g.Expect(err).ToNot(gomega.HaveOccurred())
 
-	err = sb.Terminate(ctx)
+	err = sb.Terminate(ctx, true, nil)
 	g.Expect(err).ToNot(gomega.HaveOccurred())
 
-	stdout, err := io.ReadAll(sb.Stdout)
-	g.Expect(err).ToNot(gomega.HaveOccurred())
-	g.Expect(string(stdout)).To(gomega.Equal("hello-stdout\n"))
+	_, err = io.ReadAll(sb.Stdout)
+	g.Expect(err).To(gomega.HaveOccurred())
+	g.Expect(err.Error()).To(gomega.ContainSubstring("ClientClosedError: Unable to perform operation on a detached sandbox"))
 
-	stderr, err := io.ReadAll(sb.Stderr)
-	g.Expect(err).ToNot(gomega.HaveOccurred())
-	g.Expect(string(stderr)).To(gomega.Equal("hello-stderr\n"))
+	_, err = io.ReadAll(sb.Stderr)
+	g.Expect(err).To(gomega.HaveOccurred())
+	g.Expect(err.Error()).To(gomega.ContainSubstring("ClientClosedError: Unable to perform operation on a detached sandbox"))
 }
 
 func TestContainerProcessReadStdoutAfterSandboxTerminate(t *testing.T) {
@@ -1277,19 +1278,73 @@ func TestContainerProcessReadStdoutAfterSandboxTerminate(t *testing.T) {
 	g.Expect(err).ToNot(gomega.HaveOccurred())
 	g.Expect(exitCode).To(gomega.Equal(0))
 
-	err = sb.Terminate(ctx)
+	err = sb.Terminate(ctx, true, nil)
 	g.Expect(err).ToNot(gomega.HaveOccurred())
 
-	// Behavior for reading from stdout & stderr on ContainerProcess is inconsistent between modal-go
-	// and modal-js when the sandbox is terminated:
-	// - modal-js: Reading stdout/stderr continues to work after the sandbox is terminated. It'll
-	//   return an empty string.
-	// - modal-go: Reading stdout/stderr stops working because the go-routines are all canceled.
 	_, err = io.ReadAll(p.Stdout)
 	g.Expect(err).To(gomega.HaveOccurred())
-	g.Expect(err.Error()).To(gomega.ContainSubstring("context canceled"))
+	g.Expect(err.Error()).To(gomega.ContainSubstring("ClientClosedError: Unable to perform operation on a detached sandbox"))
 
 	_, err = io.ReadAll(p.Stderr)
 	g.Expect(err).To(gomega.HaveOccurred())
-	g.Expect(err.Error()).To(gomega.ContainSubstring("context canceled"))
+	g.Expect(err.Error()).To(gomega.ContainSubstring("ClientClosedError: Unable to perform operation on a detached sandbox"))
+}
+
+func TestContainerProcessWriteStinAfterDetach(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+	tc := newTestClient(t)
+
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	image := tc.Images.FromRegistry("alpine:3.21", nil)
+
+	sb, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{Command: []string{"cat"}})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	sbFromId, err := tc.Sandboxes.FromID(ctx, sb.SandboxID)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	defer terminateSandbox(g, sbFromId)
+
+	p, err := sb.Exec(ctx, []string{"cat"}, nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	sb.Detach()
+	_, err = p.Stdin.Write([]byte("this is input that should be mirrored by cat"))
+	g.Expect(err).To(gomega.HaveOccurred())
+	g.Expect(err.Error()).To(gomega.ContainSubstring("ClientClosedError: Unable to perform operation on a detached sandbox"))
+}
+
+func TestContainerProcessReadStdoutAfterSandboxDetach(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+	tc := newTestClient(t)
+
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+
+	image := tc.Images.FromRegistry("alpine:3.21", nil)
+
+	sb, err := tc.Sandboxes.Create(ctx, app, image, nil)
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+
+	p, err := sb.Exec(ctx, []string{"sh", "-c", "echo exec-stdout; echo exec-stderr >&2"}, nil)
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+
+	exitCode, err := p.Wait(ctx)
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+	g.Expect(exitCode).To(gomega.Equal(0))
+
+	err = sb.Detach()
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+
+	_, err = io.ReadAll(p.Stdout)
+	g.Expect(err).To(gomega.HaveOccurred())
+	g.Expect(err.Error()).To(gomega.ContainSubstring("ClientClosedError: Unable to perform operation on a detached sandbox"))
+
+	_, err = io.ReadAll(p.Stderr)
+	g.Expect(err).To(gomega.HaveOccurred())
+	g.Expect(err.Error()).To(gomega.ContainSubstring("ClientClosedError: Unable to perform operation on a detached sandbox"))
 }

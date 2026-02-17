@@ -100,6 +100,7 @@ func callWithRetriesOnTransientErrors[T any](
 	ctx context.Context,
 	fn func() (*T, error),
 	opts retryOptions,
+	closed *atomic.Bool,
 ) (*T, error) {
 	delay := opts.BaseDelay
 	numRetries := 0
@@ -112,6 +113,9 @@ func callWithRetriesOnTransientErrors[T any](
 		result, err := fn()
 		if err == nil {
 			return result, nil
+		}
+		if closed.Load() {
+			return nil, ClientClosedError{Exception: "Unable to perform operation on a detached sandbox"}
 		}
 
 		st, ok := status.FromError(err)
@@ -320,7 +324,7 @@ func (c *taskCommandRouterClient) ExecStart(ctx context.Context, request *pb.Tas
 		return callWithAuthRetry(ctx, c, func(authCtx context.Context) (*pb.TaskExecStartResponse, error) {
 			return c.stub.TaskExecStart(authCtx, request)
 		})
-	}, defaultRetryOptions())
+	}, defaultRetryOptions(), &c.closed)
 }
 
 // ExecStdinWrite writes data to stdin of an exec.
@@ -337,7 +341,7 @@ func (c *taskCommandRouterClient) ExecStdinWrite(ctx context.Context, taskID, ex
 		return callWithAuthRetry(ctx, c, func(authCtx context.Context) (*pb.TaskExecStdinWriteResponse, error) {
 			return c.stub.TaskExecStdinWrite(authCtx, request)
 		})
-	}, defaultRetryOptions())
+	}, defaultRetryOptions(), &c.closed)
 	return err
 }
 
@@ -359,7 +363,7 @@ func (c *taskCommandRouterClient) ExecPoll(ctx context.Context, taskID, execID s
 		return callWithAuthRetry(ctx, c, func(authCtx context.Context) (*pb.TaskExecPollResponse, error) {
 			return c.stub.TaskExecPoll(authCtx, request)
 		})
-	}, opts)
+	}, opts, &c.closed)
 
 	if err != nil {
 		st, ok := status.FromError(err)
@@ -395,7 +399,7 @@ func (c *taskCommandRouterClient) ExecWait(ctx context.Context, taskID, execID s
 			defer cancel()
 			return c.stub.TaskExecWait(callCtx, request)
 		})
-	}, opts)
+	}, opts, &c.closed)
 
 	if err != nil {
 		st, ok := status.FromError(err)
@@ -456,7 +460,7 @@ func (c *taskCommandRouterClient) MountDirectory(ctx context.Context, request *p
 		return callWithAuthRetry(ctx, c, func(authCtx context.Context) (*emptypb.Empty, error) {
 			return c.stub.TaskMountDirectory(authCtx, request)
 		})
-	}, defaultRetryOptions())
+	}, defaultRetryOptions(), &c.closed)
 	return err
 }
 
@@ -466,7 +470,7 @@ func (c *taskCommandRouterClient) SnapshotDirectory(ctx context.Context, request
 		return callWithAuthRetry(ctx, c, func(authCtx context.Context) (*pb.TaskSnapshotDirectoryResponse, error) {
 			return c.stub.TaskSnapshotDirectory(authCtx, request)
 		})
-	}, defaultRetryOptions())
+	}, defaultRetryOptions(), &c.closed)
 }
 
 func (c *taskCommandRouterClient) streamStdio(
@@ -504,6 +508,11 @@ func (c *taskCommandRouterClient) streamStdio(
 
 		stream, err := c.stub.TaskExecStdioRead(callCtx, request)
 		if err != nil {
+			if c.closed.Load() {
+				closedErr := ClientClosedError{Exception: "Unable to perform operation on a detached sandbox"}
+				resultCh <- stdioReadResult{Err: closedErr}
+				return
+			}
 			if st, ok := status.FromError(err); ok && st.Code() == codes.Unauthenticated && !didAuthRetry {
 				if refreshErr := c.refreshJwt(ctx); refreshErr != nil {
 					resultCh <- stdioReadResult{Err: refreshErr}
@@ -538,6 +547,11 @@ func (c *taskCommandRouterClient) streamStdio(
 				return
 			}
 			if err != nil {
+				if c.closed.Load() {
+					closedErr := ClientClosedError{Exception: "Unable to perform operation on a detached sandbox"}
+					resultCh <- stdioReadResult{Err: closedErr}
+					return
+				}
 				if st, ok := status.FromError(err); ok && st.Code() == codes.Unauthenticated && !didAuthRetry {
 					if refreshErr := c.refreshJwt(ctx); refreshErr != nil {
 						resultCh <- stdioReadResult{Err: refreshErr}
