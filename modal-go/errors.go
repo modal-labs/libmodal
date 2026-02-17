@@ -100,3 +100,21 @@ type SandboxTimeoutError struct {
 func (e SandboxTimeoutError) Error() string {
 	return "SandboxTimeoutError: " + e.Exception
 }
+
+// ClientClosedError is returned when Sandbox operations exceed the allowed time limit.
+type ClientClosedError struct {
+	Exception string
+}
+
+func (e ClientClosedError) Error() string {
+	return "ClientClosedError: " + e.Exception
+}
+
+// ExecTimeoutError is returned when a container exec exceeds its execution duration limit.
+type ExecTimeoutError struct {
+	Exception string
+}
+
+func (e ExecTimeoutError) Error() string {
+	return "ExecTimeoutError: " + e.Exception
+}
