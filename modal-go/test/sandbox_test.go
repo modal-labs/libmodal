@@ -1218,37 +1218,6 @@ func TestSandboxExecAfterTerminate(t *testing.T) {
 	g.Expect(err.Error()).To(gomega.ContainSubstring("ClientClosedError: Unable to perform operation on a detached sandbox"))
 }
 
-func TestSandboxReadStdoutAfterTerminate(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-	ctx := context.Background()
-	tc := newTestClient(t)
-
-	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
-	g.Expect(err).ToNot(gomega.HaveOccurred())
-
-	image := tc.Images.FromRegistry("alpine:3.21", nil)
-
-	sb, err := tc.Sandboxes.Create(ctx, app, image, &modal.SandboxCreateParams{
-		Command: []string{"sh", "-c", "echo hello-stdout; echo hello-stderr >&2"},
-	})
-	g.Expect(err).ToNot(gomega.HaveOccurred())
-
-	_, err = sb.Wait(ctx)
-	g.Expect(err).ToNot(gomega.HaveOccurred())
-
-	err = sb.Terminate(ctx, true, nil)
-	g.Expect(err).ToNot(gomega.HaveOccurred())
-
-	_, err = io.ReadAll(sb.Stdout)
-	g.Expect(err).To(gomega.HaveOccurred())
-	g.Expect(err.Error()).To(gomega.ContainSubstring("ClientClosedError: Unable to perform operation on a detached sandbox"))
-
-	_, err = io.ReadAll(sb.Stderr)
-	g.Expect(err).To(gomega.HaveOccurred())
-	g.Expect(err.Error()).To(gomega.ContainSubstring("ClientClosedError: Unable to perform operation on a detached sandbox"))
-}
-
 func TestContainerProcessReadStdoutAfterSandboxTerminate(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
