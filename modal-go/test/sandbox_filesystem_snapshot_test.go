@@ -25,10 +25,14 @@ func TestSnapshotFilesystem(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	defer terminateSandbox(g, sb)
 
-	_, err = sb.Exec(ctx, []string{"sh", "-c", "echo -n 'test content' > /tmp/test.txt"}, nil)
+	writeFile, err := sb.Exec(ctx, []string{"sh", "-c", "echo -n 'test content' > /tmp/test.txt"}, nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	_, err = writeFile.Wait(ctx)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	_, err = sb.Exec(ctx, []string{"mkdir", "-p", "/tmp/testdir"}, nil)
+	mkDir, err := sb.Exec(ctx, []string{"mkdir", "-p", "/tmp/testdir"}, nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	_, err = mkDir.Wait(ctx)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	snapshotImage, err := sb.SnapshotFilesystem(ctx, 55*time.Second)

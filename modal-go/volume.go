@@ -153,6 +153,9 @@ func (s *volumeServiceImpl) Delete(ctx context.Context, name string, params *Vol
 	}.Build())
 
 	if err != nil {
+		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound && params.AllowMissing {
+			return nil
+		}
 		return err
 	}
 

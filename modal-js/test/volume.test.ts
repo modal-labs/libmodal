@@ -2,6 +2,7 @@ import { tc } from "../test-support/test-client";
 import { expect, onTestFinished, test } from "vitest";
 import { createMockModalClients } from "../test-support/grpc_mock";
 import { NotFoundError } from "../src/errors";
+import { ClientError, Status } from "nice-grpc";
 
 test("Volume.fromName", async () => {
   const volume = await tc.volumes.fromName("libmodal-test-volume", {
@@ -66,6 +67,29 @@ test("VolumeDelete with allowMissing=true", async () => {
   });
 
   await mc.volumes.delete("missing", { allowMissing: true });
+  mock.assertExhausted();
+});
+
+test("VolumeDelete with allowMissing=true when delete RPC returns NOT_FOUND", async () => {
+  const { mockClient: mc, mockCpClient: mock } = createMockModalClients();
+
+  // fromName succeeds — volume exists at lookup time
+  mock.handleUnary("/VolumeGetOrCreate", () => ({
+    volumeId: "vo-test-123",
+    metadata: { name: "test-volume" },
+  }));
+
+  // volumeDelete fails — volume was deleted between lookup and delete
+  mock.handleUnary("/VolumeDelete", () => {
+    throw new ClientError(
+      "/modal.client.ModalClient/VolumeDelete",
+      Status.NOT_FOUND,
+      "No Volume with ID 'vo-test-123' found",
+    );
+  });
+
+  // With allowMissing=true, this should succeed silently
+  await mc.volumes.delete("test-volume", { allowMissing: true });
   mock.assertExhausted();
 });
 
