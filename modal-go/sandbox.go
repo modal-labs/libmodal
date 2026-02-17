@@ -1078,11 +1078,11 @@ type ContainerProcess struct {
 
 	taskID              string
 	execID              string
-	commandRouterClient *TaskCommandRouterClient
+	commandRouterClient *taskCommandRouterClient
 	deadline            *time.Time
 }
 
-func newContainerProcess(commandRouterClient *TaskCommandRouterClient, logger *slog.Logger, taskID, execID string, params SandboxExecParams, deadline *time.Time) *ContainerProcess {
+func newContainerProcess(commandRouterClient *taskCommandRouterClient, logger *slog.Logger, taskID, execID string, params SandboxExecParams, deadline *time.Time) *ContainerProcess {
 	stdoutBehavior := Pipe
 	stderrBehavior := Pipe
 	if params.Stdout != "" {
@@ -1173,14 +1173,14 @@ func (sbs *sbStdin) Close() error {
 	return err
 }
 
-func inputStreamCp(commandRouterClient *TaskCommandRouterClient, taskID, execID string) io.WriteCloser {
+func inputStreamCp(commandRouterClient *taskCommandRouterClient, taskID, execID string) io.WriteCloser {
 	return &cpStdin{taskID: taskID, execID: execID, offset: 0, commandRouterClient: commandRouterClient}
 }
 
 type cpStdin struct {
 	taskID              string
 	execID              string
-	commandRouterClient *TaskCommandRouterClient
+	commandRouterClient *taskCommandRouterClient
 	offset              uint64
 }
 
@@ -1304,7 +1304,7 @@ func outputStreamSb(cpClient pb.ModalClientClient, logger *slog.Logger, sandboxI
 	return &cancelOnCloseReader{ReadCloser: pr, cancel: cancel}
 }
 
-func outputStreamCp(commandRouterClient *TaskCommandRouterClient, logger *slog.Logger, taskID, execID string, fd pb.FileDescriptor, deadline *time.Time) io.ReadCloser {
+func outputStreamCp(commandRouterClient *taskCommandRouterClient, logger *slog.Logger, taskID, execID string, fd pb.FileDescriptor, deadline *time.Time) io.ReadCloser {
 	pr, pw := nio.Pipe(buffer.New(64 * 1024))
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {

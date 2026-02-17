@@ -11,7 +11,6 @@ import (
 	"log/slog"
 	"net/url"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -155,10 +154,6 @@ type taskCommandRouterClient struct {
 	logger       *slog.Logger
 	closed       atomic.Bool
 
-	// done is closed when Close() is called, signaling all goroutines to stop.
-	done      chan struct{}
-	closeOnce sync.Once
-
 	refreshJwtGroup singleflight.Group
 }
 
@@ -236,7 +231,6 @@ func tryInitTaskCommandRouterClient(
 		taskID:       taskID,
 		serverURL:    resp.GetUrl(),
 		logger:       logger,
-		done:         make(chan struct{}),
 	}
 	client.jwt.Store(&jwt)
 	client.jwtExp.Store(jwtExp)
@@ -250,9 +244,6 @@ func (c *taskCommandRouterClient) Close() error {
 	if !c.closed.CompareAndSwap(false, true) {
 		return nil
 	}
-	c.closeOnce.Do(func() {
-		close(c.done)
-	})
 	if c.conn != nil {
 		return c.conn.Close()
 	}
@@ -447,18 +438,6 @@ func (c *taskCommandRouterClient) ExecStdioRead(
 			resultCh <- stdioReadResult{Err: fmt.Errorf("invalid file descriptor: %v", fd)}
 			return
 		}
-
-		// Create a context that cancels when either the caller's ctx is done or Close() is called.
-		// This ensures goroutines exit promptly when Close() is called.
-		ctx, cancel := context.WithCancel(ctx)
-		defer cancel()
-		go func() {
-			select {
-			case <-c.done:
-				cancel()
-			case <-ctx.Done():
-			}
-		}()
 
 		if deadline != nil {
 			var deadlineCancel context.CancelFunc
