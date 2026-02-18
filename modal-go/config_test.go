@@ -31,3 +31,9 @@ func TestGetConfigPath_WithoutEnvVar(t *testing.T) {
 	expectedPath := filepath.Join(home, ".modal.toml")
 	g.Expect(path).Should(gomega.Equal(expectedPath))
 }
+
+func TestProfileIsLocalhost(t *testing.T) {
+	g := gomega.NewWithT(t)
+	p := Profile{ServerURL: "http://localhost:8889"}
+	g.Expect(p.isLocalhost()).Should(gomega.BeTrue())
+}
