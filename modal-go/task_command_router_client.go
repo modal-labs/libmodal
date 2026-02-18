@@ -23,7 +23,6 @@ import (
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 // retryOptions configures retry behavior for callWithRetriesOnTransientErrors.
@@ -347,35 +346,6 @@ func (c *taskCommandRouterClient) ExecStdinWrite(ctx context.Context, taskID, ex
 	return err
 }
 
-// ExecPoll polls for the exit status of an exec.
-func (c *taskCommandRouterClient) ExecPoll(ctx context.Context, taskID, execID string, deadline *time.Time) (*pb.TaskExecPollResponse, error) {
-	request := pb.TaskExecPollRequest_builder{
-		TaskId: taskID,
-		ExecId: execID,
-	}.Build()
-
-	if deadline != nil && time.Now().After(*deadline) {
-		return nil, ExecTimeoutError{Exception: fmt.Sprintf("deadline exceeded while polling for exec %s", execID)}
-	}
-
-	opts := defaultRetryOptions()
-	opts.Deadline = deadline
-
-	resp, err := callWithRetriesOnTransientErrors(ctx, func() (*pb.TaskExecPollResponse, error) {
-		return callWithAuthRetry(ctx, c, func(authCtx context.Context) (*pb.TaskExecPollResponse, error) {
-			return c.stub.TaskExecPoll(authCtx, request)
-		})
-	}, opts, &c.closed)
-
-	if err != nil {
-		st, ok := status.FromError(err)
-		if (ok && st.Code() == codes.DeadlineExceeded) || errors.Is(err, errDeadlineExceeded) {
-			return nil, ExecTimeoutError{Exception: fmt.Sprintf("deadline exceeded while polling for exec %s", execID)}
-		}
-	}
-	return resp, err
-}
-
 // ExecWait waits for an exec to complete and returns the exit code.
 func (c *taskCommandRouterClient) ExecWait(ctx context.Context, taskID, execID string, deadline *time.Time) (*pb.TaskExecWaitResponse, error) {
 	request := pb.TaskExecWaitRequest_builder{
@@ -454,25 +424,6 @@ func (c *taskCommandRouterClient) ExecStdioRead(
 	}()
 
 	return resultCh
-}
-
-// MountDirectory mounts an image at a directory in the container.
-func (c *taskCommandRouterClient) MountDirectory(ctx context.Context, request *pb.TaskMountDirectoryRequest) error {
-	_, err := callWithRetriesOnTransientErrors(ctx, func() (*emptypb.Empty, error) {
-		return callWithAuthRetry(ctx, c, func(authCtx context.Context) (*emptypb.Empty, error) {
-			return c.stub.TaskMountDirectory(authCtx, request)
-		})
-	}, defaultRetryOptions(), &c.closed)
-	return err
-}
-
-// SnapshotDirectory snapshots a directory into a new image.
-func (c *taskCommandRouterClient) SnapshotDirectory(ctx context.Context, request *pb.TaskSnapshotDirectoryRequest) (*pb.TaskSnapshotDirectoryResponse, error) {
-	return callWithRetriesOnTransientErrors(ctx, func() (*pb.TaskSnapshotDirectoryResponse, error) {
-		return callWithAuthRetry(ctx, c, func(authCtx context.Context) (*pb.TaskSnapshotDirectoryResponse, error) {
-			return c.stub.TaskSnapshotDirectory(authCtx, request)
-		})
-	}, defaultRetryOptions(), &c.closed)
 }
 
 func (c *taskCommandRouterClient) streamStdio(
