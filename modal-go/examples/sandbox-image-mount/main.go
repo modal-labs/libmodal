@@ -12,7 +12,7 @@
 // `Sandbox.ExperimentalMountImage`. If you want to mount an empty directory,
 // you can pass nil as the image parameter.
 //
-// For exmaple, you can use this to mount user specific dependencies into a running
+// For example, you can use this to mount user specific dependencies into a running
 // Sandbox, that is started with a base Image with shared system dependencies. This
 // way, you can update system dependencies and user projects independently.
 
