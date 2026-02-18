@@ -35,6 +35,7 @@ import type { ModalGrpcClient } from "./client";
 import { timeoutMiddleware, type TimeoutOptions } from "./client";
 import type { Logger } from "./logger";
 import type { Profile } from "./config";
+import { isLocalhost } from "./config";
 
 type TaskCommandRouterClient = Client<typeof TaskCommandRouterDefinition>;
 
@@ -166,10 +167,7 @@ export class TaskCommandRouterClientImpl {
     const serverUrl = `${host}:${port}`;
 
     let channel;
-    if (profile.taskCommandRouterInsecure) {
-      logger.warn(
-        "Using insecure TLS for task command router due to MODAL_TASK_COMMAND_ROUTER_INSECURE",
-      );
+    if (isLocalhost(profile)) {
       channel = createChannel(serverUrl, ChannelCredentials.createInsecure());
     } else {
       channel = createChannel(serverUrl, ChannelCredentials.createSsl());

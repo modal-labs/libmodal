@@ -26,7 +26,17 @@ export interface Profile {
   environment?: string;
   imageBuilderVersion?: string;
   logLevel?: string;
-  taskCommandRouterInsecure?: boolean;
+}
+
+export function isLocalhost(profile: Profile): boolean {
+  const url = new URL(profile.serverUrl);
+  const hostname = url.hostname;
+  return (
+    hostname == "localhost" ||
+    hostname == "127.0.0.1" ||
+    hostname == "::1" ||
+    hostname == "172.21.0.1"
+  );
 }
 
 export function configFilePath(): string {
@@ -87,11 +97,6 @@ export function getProfile(profileName?: string): Profile {
       process.env["MODAL_IMAGE_BUILDER_VERSION"] ||
       profileData.imageBuilderVersion,
     logLevel: process.env["MODAL_LOGLEVEL"] || profileData.loglevel,
-    taskCommandRouterInsecure:
-      process.env["MODAL_TASK_COMMAND_ROUTER_INSECURE"]?.toLowerCase() ===
-        "true" ||
-      process.env["MODAL_TASK_COMMAND_ROUTER_INSECURE"] === "1" ||
-      profileData.task_command_router_insecure === true,
   };
   return profile as Profile; // safe to null-cast because of check above
 }
