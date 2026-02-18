@@ -5,6 +5,7 @@ Both client libraries are pre-1.0, and they have separate versioning.
 ## Unreleased
 
 - Fixed a bug where deleting a Volume, Queue, or Secret with `allowMissing=true` could still raise a `NOT_FOUND` error if the object was deleted between the lookup and the delete RPC.
+- Improved handling of degraded HTTP/2 connections, which addresses intermittent RST_STREAM errors
 
 ## modal-js/v0.6.2, modal-go/v0.6.2
 
