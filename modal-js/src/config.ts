@@ -14,7 +14,6 @@ interface Config {
     imageBuilderVersion?: string;
     loglevel?: string;
     active?: boolean;
-    task_command_router_insecure?: boolean;
   };
 }
 
@@ -32,10 +31,10 @@ export function isLocalhost(profile: Profile): boolean {
   const url = new URL(profile.serverUrl);
   const hostname = url.hostname;
   return (
-    hostname == "localhost" ||
-    hostname == "127.0.0.1" ||
-    hostname == "::1" ||
-    hostname == "172.21.0.1"
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname === "::1" ||
+    hostname === "172.21.0.1"
   );
 }
 
