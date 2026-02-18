@@ -1058,7 +1058,14 @@ func (cp *ContainerProcess) Wait(ctx context.Context) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	return int(resp.GetCode()), nil
+	switch resp.WhichExitStatus() {
+	case pb.TaskExecWaitResponse_Code_case:
+		return int(resp.GetCode()), nil
+	case pb.TaskExecWaitResponse_Signal_case:
+		return 128 + int(resp.GetSignal()), nil
+	default:
+		return 0, InvalidError{Exception: "Unexpected exit status"}
+	}
 }
 
 func inputStreamSb(cpClient pb.ModalClientClient, sandboxID string) io.WriteCloser {
