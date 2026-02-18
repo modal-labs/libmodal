@@ -1132,7 +1132,7 @@ func TestSandboxExecWaitTimeout(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(elapsed).To(gomega.BeNumerically(">", 800*time.Millisecond))
 	g.Expect(elapsed).To(gomega.BeNumerically("<", 10*time.Second))
-	g.Expect(exitCode).To(gomega.Equal(0))
+	g.Expect(exitCode).To(gomega.Equal(128 + 9))
 }
 
 func TestSandboxExecOutputTimeout(t *testing.T) {
