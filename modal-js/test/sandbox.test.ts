@@ -966,7 +966,7 @@ test("SandboxExecWaitTimeout", async () => {
 
   expect(elapsed).toBeGreaterThan(800);
   expect(elapsed).toBeLessThan(1500);
-  expect(exitCode).toBe(0);
+  expect(exitCode).toBe(128 + 9);
 });
 
 test("SandboxExecOutputTimeout", async () => {
