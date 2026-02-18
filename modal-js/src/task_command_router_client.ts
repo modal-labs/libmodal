@@ -165,12 +165,23 @@ export class TaskCommandRouterClientImpl {
     const host = url.hostname;
     const port = url.port ? parseInt(url.port) : 443;
     const serverUrl = `${host}:${port}`;
+    const channelConfig = {
+      "grpc.max_receive_message_length": 100 * 1024 * 1024,
+      "grpc.max_send_message_length": 100 * 1024 * 1024,
+      "grpc-node.flow_control_window": 64 * 1024 * 1024,
+      "grpc.keepalive_time_ms": 30000,
+      "grpc.keepalive_timeout_ms": 10000,
+      "grpc.keepalive_permit_without_calls": 1,
+    }
 
     let channel;
     if (isLocalhost(profile)) {
-      channel = createChannel(serverUrl, ChannelCredentials.createInsecure());
+      logger.warn(
+        "Using insecure TLS (skip certificate verification) for task command router",
+      );
+      channel = createChannel(serverUrl, ChannelCredentials.createInsecure(), channelConfig);
     } else {
-      channel = createChannel(serverUrl, ChannelCredentials.createSsl());
+      channel = createChannel(serverUrl, ChannelCredentials.createSsl(), channelConfig);
     }
 
     const client = new TaskCommandRouterClientImpl(
