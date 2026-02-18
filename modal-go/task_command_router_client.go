@@ -203,7 +203,7 @@ func initTaskCommandRouterClient(
 
 	var creds credentials.TransportCredentials
 	if profile.isLocalhost() {
-		logger.WarnContext(ctx, "Using insecure TLS (skip certificate verification) for task command router due to MODAL_TASK_COMMAND_ROUTER_INSECURE")
+		logger.WarnContext(ctx, "Using insecure TLS (skip certificate verification) for task command router")
 		creds = insecure.NewCredentials()
 	} else {
 		creds = credentials.NewTLS(&tls.Config{})
