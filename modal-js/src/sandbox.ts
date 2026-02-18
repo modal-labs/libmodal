@@ -1251,7 +1251,7 @@ export class ContainerProcess<R extends string | Uint8Array = any> {
       return resp.code;
     } else if (resp.signal !== undefined) {
       return 128 + resp.signal;
-    } else{
+    } else {
       throw new InvalidError("Unexpected exit status");
     }
   }
