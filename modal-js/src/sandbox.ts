@@ -1180,6 +1180,7 @@ export class ContainerProcess<R extends string | Uint8Array = any> {
   readonly #commandRouterClient: TaskCommandRouterClientImpl;
   readonly #deadline: number | null;
 
+  /** @ignore */
   constructor(
     taskId: string,
     execId: string,
