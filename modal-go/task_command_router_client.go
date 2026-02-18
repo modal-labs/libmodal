@@ -435,9 +435,12 @@ func (c *taskCommandRouterClient) streamStdio(
 	deadline, hasDeadline := ctx.Deadline()
 
 	var offset int64
-	delay := 10 * time.Millisecond
+	delayOriginal := 10 * time.Millisecond
+	numRetriesRemainingOriginal := 10
+
 	delayFactor := 2.0
-	numRetriesRemaining := 10
+	delay := delayOriginal
+	numRetriesRemaining := numRetriesRemainingOriginal
 	didAuthRetry := false
 
 	for {
@@ -538,7 +541,8 @@ func (c *taskCommandRouterClient) streamStdio(
 			if didAuthRetry {
 				didAuthRetry = false
 			}
-			delay = 10 * time.Millisecond
+			delay = delayOriginal
+			numRetriesRemaining = numRetriesRemainingOriginal
 			offset += int64(len(item.GetData()))
 
 			resultCh <- stdioReadResult{Response: item}
