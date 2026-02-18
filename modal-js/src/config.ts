@@ -27,6 +27,17 @@ export interface Profile {
   logLevel?: string;
 }
 
+export function isLocalhost(profile: Profile): boolean {
+  const url = new URL(profile.serverUrl);
+  const hostname = url.hostname;
+  return (
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname === "::1" ||
+    hostname === "172.21.0.1"
+  );
+}
+
 export function configFilePath(): string {
   const configPath = process.env["MODAL_CONFIG_PATH"];
   if (configPath && configPath !== "") {

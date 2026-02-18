@@ -179,6 +179,9 @@ export class ModalClient {
       "grpc.max_receive_message_length": 100 * 1024 * 1024,
       "grpc.max_send_message_length": 100 * 1024 * 1024,
       "grpc-node.flow_control_window": 64 * 1024 * 1024,
+      "grpc.keepalive_time_ms": 30000,
+      "grpc.keepalive_timeout_ms": 10000,
+      "grpc.keepalive_permit_without_calls": 1,
     });
     let factory = createClientFactory()
       .use(this.authMiddleware(profile))
