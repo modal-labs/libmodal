@@ -889,7 +889,7 @@ func TestSandboxDetachIsIdempotent(t *testing.T) {
 	g.Expect(err).ToNot(gomega.HaveOccurred())
 }
 
-func TestSandboxTerminateThenDetach(t *testing.T) {
+func TestSandboxTerminateThenDetachDoesNotError(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
@@ -1175,7 +1175,7 @@ func TestSandboxExecOutputTimeout(t *testing.T) {
 	g.Expect(elapsed).To(gomega.BeNumerically("<", 15*time.Second))
 }
 
-func TestSandboxDoubleTerminate(t *testing.T) {
+func TestSandboxDoubleTerminateIsAllowed(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
@@ -1196,7 +1196,7 @@ func TestSandboxDoubleTerminate(t *testing.T) {
 	g.Expect(err).ToNot(gomega.HaveOccurred())
 }
 
-func TestSandboxExecAfterTerminate(t *testing.T) {
+func TestSandboxExecAfterTerminateReturnsClientClosedError(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
@@ -1218,7 +1218,7 @@ func TestSandboxExecAfterTerminate(t *testing.T) {
 	g.Expect(err.Error()).To(gomega.ContainSubstring("ClientClosedError: Unable to perform operation on a detached sandbox"))
 }
 
-func TestContainerProcessReadStdoutAfterSandboxTerminate(t *testing.T) {
+func TestContainerProcessReadStdoutAfterSandboxTerminateReturnsClientClosedError(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	ctx := context.Background()

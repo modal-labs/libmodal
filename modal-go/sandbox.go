@@ -364,7 +364,7 @@ func (t *Tunnel) TCPSocket() (string, int, error) {
 
 // Sandbox represents a Modal Sandbox, which can run commands and manage
 // input/output streams for a remote process. After you are done interacting with the sandbox,
-// we recommend calling [Sandbox.Detach] which disonnects your client from the sandbox and
+// we recommend calling [Sandbox.Detach] which disconnects your client from the sandbox and
 // cleans up any resources associated with the connection.
 type Sandbox struct {
 	SandboxID string
@@ -713,7 +713,7 @@ func (sb *Sandbox) getOrCreateCommandRouterClient(ctx context.Context, taskID st
 	}
 
 	if sb.commandRouterClient == nil {
-		client, err := tryInitTaskCommandRouterClient(
+		client, err := initTaskCommandRouterClient(
 			ctx,
 			sb.client.cpClient,
 			taskID,
@@ -723,13 +723,11 @@ func (sb *Sandbox) getOrCreateCommandRouterClient(ctx context.Context, taskID st
 		if err != nil {
 			return nil, err
 		}
-		if client == nil {
-			return nil, fmt.Errorf("command router access is not available for this sandbox")
-		}
 		sb.commandRouterClient = client
 	}
 	return sb.commandRouterClient, nil
 }
+
 func (sb *Sandbox) ensureAttached() error {
 	if !sb.attached.Load() {
 		return ClientClosedError{Exception: "Unable to perform operation on a detached sandbox"}

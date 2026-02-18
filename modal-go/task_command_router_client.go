@@ -162,9 +162,9 @@ type taskCommandRouterClient struct {
 	refreshJwtGroup singleflight.Group
 }
 
-// TryInitTaskCommandRouterClient attempts to initialize a TaskCommandRouterClient.
+// initTaskCommandRouterClient attempts to initialize a TaskCommandRouterClient.
 // Returns nil if command router access is not available for this task.
-func tryInitTaskCommandRouterClient(
+func initTaskCommandRouterClient(
 	ctx context.Context,
 	serverClient pb.ModalClientClient,
 	taskID string,
@@ -175,10 +175,6 @@ func tryInitTaskCommandRouterClient(
 		TaskId: taskID,
 	}.Build())
 	if err != nil {
-		if st, ok := status.FromError(err); ok && st.Code() == codes.FailedPrecondition {
-			logger.DebugContext(ctx, "Command router access is not enabled for task", "task_id", taskID)
-			return nil, nil
-		}
 		return nil, err
 	}
 
