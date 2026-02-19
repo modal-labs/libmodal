@@ -103,8 +103,12 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create second Sandbox: %v", err)
 	}
+	sb2FromID, err := mc.Sandboxes.FromID(ctx, sb2.SandboxID)
+	if err != nil {
+		log.Fatalf("Failed to create Sandbox: %v", err)
+	}
 	defer func() {
-		if _, err := sb2.Terminate(context.Background(), nil); err != nil {
+		if _, err := sb2FromID.Terminate(context.Background(), nil); err != nil {
 			log.Fatalf("Failed to terminate Sandbox %s: %v", sb2.SandboxID, err)
 		}
 	}()
@@ -133,6 +137,10 @@ func main() {
 		log.Fatalf("Failed to read stdout: %v", err)
 	}
 	fmt.Printf("Contents of /repo directory in new Sandbox sb2:\n%s", output)
+
+	if _, err := sb2.Terminate(ctx, nil); err != nil {
+		log.Fatalf("Failed to terminate sb2: %v", err)
+	}
 
 	if err := mc.Images.Delete(ctx, repoSnapshot.ImageID, nil); err != nil {
 		log.Fatalf("Failed to delete snapshot image: %v", err)
