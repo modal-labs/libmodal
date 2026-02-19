@@ -1127,13 +1127,12 @@ export class Sandbox {
   }
 
   /**
-   * [Alpha] Mount an {@link Image} at a path in the Sandbox filesystem.
+   * Mount an {@link Image} at a path in the Sandbox filesystem.
    *
-   * @alpha
    * @param path - The path where the directory should be mounted
    * @param image - Optional {@link Image} to mount. If undefined, mounts an empty directory.
    */
-  async experimentalMountImage(path: string, image?: Image): Promise<void> {
+  async mountImage(path: string, image?: Image): Promise<void> {
     this.#ensureAttached();
     const taskId = await this.#getTaskId();
     const commandRouterClient =
@@ -1156,13 +1155,12 @@ export class Sandbox {
   }
 
   /**
-   * [Alpha] Snapshot local changes to a previously mounted {@link Image} into a new {@link Image}.
+   * Snapshot local changes to a previously mounted {@link Image} into a new {@link Image}.
    *
-   * @alpha
    * @param path - The path of the directory to snapshot
    * @returns Promise that resolves to an {@link Image}
    */
-  async experimentalSnapshotDirectory(path: string): Promise<Image> {
+  async snapshotDirectory(path: string): Promise<Image> {
     this.#ensureAttached();
     const taskId = await this.#getTaskId();
     const commandRouterClient =

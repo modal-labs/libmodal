@@ -30,7 +30,7 @@ func TestSandboxMountDirectoryEmpty(t *testing.T) {
 	_, err = mkdirProc.Wait(ctx)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	err = sb.ExperimentalMountImage(ctx, "/mnt/empty", nil)
+	err = sb.MountImage(ctx, "/mnt/empty", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	dirCheck, err := sb.Exec(ctx, []string{"test", "-d", "/mnt/empty"}, nil)
@@ -79,7 +79,7 @@ func TestSandboxMountDirectoryWithImage(t *testing.T) {
 	_, err = mkdirProc.Wait(ctx)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	err = sb2.ExperimentalMountImage(ctx, "/mnt/data", mountImage)
+	err = sb2.MountImage(ctx, "/mnt/data", mountImage)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	catProc, err := sb2.Exec(ctx, []string{"cat", "/mnt/data/tmp/test.txt"}, nil)
@@ -109,7 +109,7 @@ func TestSandboxSnapshotDirectory(t *testing.T) {
 	_, err = mkdirProc.Wait(ctx)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	err = sb1.ExperimentalMountImage(ctx, "/mnt/data", nil)
+	err = sb1.MountImage(ctx, "/mnt/data", nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	echoProc, err := sb1.Exec(ctx, []string{
@@ -121,7 +121,7 @@ func TestSandboxSnapshotDirectory(t *testing.T) {
 	_, err = echoProc.Wait(ctx)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	snapshotImage, err := sb1.ExperimentalSnapshotDirectory(ctx, "/mnt/data")
+	snapshotImage, err := sb1.SnapshotDirectory(ctx, "/mnt/data")
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(snapshotImage.ImageID).To(gomega.MatchRegexp(`^im-`))
 
@@ -137,7 +137,7 @@ func TestSandboxSnapshotDirectory(t *testing.T) {
 	_, err = mkdirProc2.Wait(ctx)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	err = sb2.ExperimentalMountImage(ctx, "/mnt/data", snapshotImage)
+	err = sb2.MountImage(ctx, "/mnt/data", snapshotImage)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	catProc, err := sb2.Exec(ctx, []string{"cat", "/mnt/data/snapshot.txt"}, nil)
@@ -170,7 +170,7 @@ func TestSandboxMountDirectoryWithUnbuiltImageThrows(t *testing.T) {
 	unbuiltImage := tc.Images.FromRegistry("alpine:3.21", nil)
 	g.Expect(unbuiltImage.ImageID).To(gomega.Equal(""))
 
-	err = sb.ExperimentalMountImage(ctx, "/mnt/data", unbuiltImage)
+	err = sb.MountImage(ctx, "/mnt/data", unbuiltImage)
 	g.Expect(err).Should(gomega.HaveOccurred())
 	g.Expect(err.Error()).To(gomega.ContainSubstring("Image must be built before mounting"))
 }

@@ -1,7 +1,6 @@
 // This example shows how to mount Images in the Sandbox filesystem and take snapshots
 // of them.
 //
-// The feature is still experimental in the sense that the API is subject to change.
 //
 // High level, it allows you to:
 // - Mount any Modal Image at a specific directory within the Sandbox filesystem.
@@ -9,7 +8,7 @@
 //   the updated contents of the directory.
 //
 // You can only snapshot directories that have previously been mounted using
-// `Sandbox.experimentalMountImage`. If you want to mount an empty directory,
+// `Sandbox.mountImage`. If you want to mount an empty directory,
 // you can pass undefined as the image parameter.
 //
 // For exmaple, you can use this to mount user specific dependencies into a running
@@ -34,7 +33,7 @@ const sb = await modal.sandboxes.create(app, baseImage);
 //
 // The target directory must exist before you can mount it:
 await (await sb.exec(["mkdir", "-p", "/repo"])).wait();
-await sb.experimentalMountImage("/repo");
+await sb.mountImage("/repo");
 
 const gitClone = await sb.exec([
   "git",
@@ -44,7 +43,7 @@ const gitClone = await sb.exec([
 ]);
 await gitClone.wait();
 
-const repoSnapshot = await sb.experimentalSnapshotDirectory("/repo");
+const repoSnapshot = await sb.snapshotDirectory("/repo");
 console.log(
   "Took a snapshot of the /repo directory, Image ID:",
   repoSnapshot.imageId,
@@ -56,7 +55,7 @@ await sb.terminate();
 const sb2 = await modal.sandboxes.create(app, baseImage);
 
 await (await sb2.exec(["mkdir", "-p", "/repo"])).wait();
-await sb2.experimentalMountImage("/repo", repoSnapshot);
+await sb2.mountImage("/repo", repoSnapshot);
 
 const repoLs = await sb2.exec(["ls", "/repo"]);
 console.log(

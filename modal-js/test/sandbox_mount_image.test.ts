@@ -11,7 +11,7 @@ test("SandboxMountDirectoryEmpty", async () => {
   onTestFinished(async () => await sb.terminate());
 
   await (await sb.exec(["mkdir", "-p", "/mnt/empty"])).wait();
-  await sb.experimentalMountImage("/mnt/empty");
+  await sb.mountImage("/mnt/empty");
 
   const dirCheck = await sb.exec(["test", "-d", "/mnt/empty"]);
   expect(await dirCheck.wait()).toBe(0);
@@ -41,7 +41,7 @@ test("SandboxMountDirectoryWithImage", async () => {
   onTestFinished(async () => await sb2.terminate());
 
   await (await sb2.exec(["mkdir", "-p", "/mnt/data"])).wait();
-  await sb2.experimentalMountImage("/mnt/data", mountImage);
+  await sb2.mountImage("/mnt/data", mountImage);
 
   const catProc = await sb2.exec(["cat", "/mnt/data/tmp/test.txt"]);
   const output = await catProc.stdout.readText();
@@ -57,7 +57,7 @@ test("SandboxSnapshotDirectory", async () => {
   const sb1 = await tc.sandboxes.create(app, baseImage);
 
   await (await sb1.exec(["mkdir", "-p", "/mnt/data"])).wait();
-  await sb1.experimentalMountImage("/mnt/data");
+  await sb1.mountImage("/mnt/data");
 
   const echoProc = await sb1.exec([
     "sh",
@@ -66,7 +66,7 @@ test("SandboxSnapshotDirectory", async () => {
   ]);
   await echoProc.wait();
 
-  const snapshotImage = await sb1.experimentalSnapshotDirectory("/mnt/data");
+  const snapshotImage = await sb1.snapshotDirectory("/mnt/data");
   expect(snapshotImage.imageId).toMatch(/^im-/);
 
   await sb1.terminate();
@@ -75,7 +75,7 @@ test("SandboxSnapshotDirectory", async () => {
   onTestFinished(async () => await sb2.terminate());
 
   await (await sb2.exec(["mkdir", "-p", "/mnt/data"])).wait();
-  await sb2.experimentalMountImage("/mnt/data", snapshotImage);
+  await sb2.mountImage("/mnt/data", snapshotImage);
 
   const catProc = await sb2.exec(["cat", "/mnt/data/snapshot.txt"]);
   const output = await catProc.stdout.readText();
@@ -97,6 +97,6 @@ test("SandboxMountDirectoryWithUnbuiltImageThrows", async () => {
   expect(unbuiltImage.imageId).toBe("");
 
   await expect(
-    sb.experimentalMountImage("/mnt/data", unbuiltImage),
+    sb.mountImage("/mnt/data", unbuiltImage),
   ).rejects.toThrow("Image must be built before mounting");
 });

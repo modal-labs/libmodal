@@ -1,7 +1,6 @@
 // This example shows how to mount Images in the Sandbox filesystem and take snapshots
 // of them.
 //
-// The feature is still experimental in the sense that the API is subject to change.
 //
 // High level, it allows you to:
 // - Mount any Modal Image at a specific directory within the Sandbox filesystem.
@@ -9,7 +8,7 @@
 //   the updated contents of the directory.
 //
 // You can only snapshot directories that have previously been mounted using
-// `Sandbox.ExperimentalMountImage`. If you want to mount an empty directory,
+// `Sandbox.MountImage`. If you want to mount an empty directory,
 // you can pass nil as the image parameter.
 //
 // For example, you can use this to mount user specific dependencies into a running
@@ -67,7 +66,7 @@ func main() {
 	if exitCode, err := mkdirProc.Wait(ctx); err != nil || exitCode != 0 {
 		log.Fatalf("Failed to wait for mkdir: exit code: %d, err: %v", exitCode, err)
 	}
-	if err := sb.ExperimentalMountImage(ctx, "/repo", nil); err != nil {
+	if err := sb.MountImage(ctx, "/repo", nil); err != nil {
 		log.Fatalf("Failed to mount image: %v", err)
 	}
 
@@ -84,7 +83,7 @@ func main() {
 		log.Fatalf("Failed to wait for git clone: exit code: %d, err: %v", exitCode, err)
 	}
 
-	repoSnapshot, err := sb.ExperimentalSnapshotDirectory(ctx, "/repo")
+	repoSnapshot, err := sb.SnapshotDirectory(ctx, "/repo")
 	if err != nil {
 		log.Fatalf("Failed to snapshot directory: %v", err)
 	}
@@ -116,7 +115,7 @@ func main() {
 	if exitCode, err := mkdirProc2.Wait(ctx); err != nil || exitCode != 0 {
 		log.Fatalf("Failed to wait for mkdir in sb2: exit code: %d, err: %v", exitCode, err)
 	}
-	if err := sb2.ExperimentalMountImage(ctx, "/repo", repoSnapshot); err != nil {
+	if err := sb2.MountImage(ctx, "/repo", repoSnapshot); err != nil {
 		log.Fatalf("Failed to mount snapshot in sb2: %v", err)
 	}
 
