@@ -23,6 +23,7 @@ import (
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 // retryOptions configures retry behavior for callWithRetriesOnTransientErrors.
@@ -317,6 +318,25 @@ func callWithAuthRetry[T any](ctx context.Context, c retryableClient, fn func(co
 		}
 	}
 	return resp, err
+}
+
+// MountDirectory mounts an image at a directory in the container.
+func (c *taskCommandRouterClient) MountDirectory(ctx context.Context, request *pb.TaskMountDirectoryRequest) error {
+	_, err := callWithRetriesOnTransientErrors(ctx, func() (*emptypb.Empty, error) {
+		return callWithAuthRetry(ctx, c, func(authCtx context.Context) (*emptypb.Empty, error) {
+			return c.stub.TaskMountDirectory(authCtx, request)
+		})
+	}, defaultRetryOptions(), &c.closed)
+	return err
+}
+
+// SnapshotDirectory snapshots a directory into a new image.
+func (c *taskCommandRouterClient) SnapshotDirectory(ctx context.Context, request *pb.TaskSnapshotDirectoryRequest) (*pb.TaskSnapshotDirectoryResponse, error) {
+	return callWithRetriesOnTransientErrors(ctx, func() (*pb.TaskSnapshotDirectoryResponse, error) {
+		return callWithAuthRetry(ctx, c, func(authCtx context.Context) (*pb.TaskSnapshotDirectoryResponse, error) {
+			return c.stub.TaskSnapshotDirectory(authCtx, request)
+		})
+	}, defaultRetryOptions(), &c.closed)
 }
 
 // ExecStart starts a command execution.

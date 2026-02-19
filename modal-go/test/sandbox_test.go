@@ -92,6 +92,29 @@ func TestIgnoreLargeStdout(t *testing.T) {
 	g.Expect(exitCode).To(gomega.Equal(0))
 }
 
+func TestSandboxExecWaitSignal(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+	tc := newTestClient(t)
+
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+
+	image := tc.Images.FromRegistry("alpine:3.21", nil)
+
+	sb, err := tc.Sandboxes.Create(ctx, app, image, nil)
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+	defer terminateSandbox(g, sb)
+
+	// The shell kills itself with SIGKILL (9); wait() should return 128 + 9 = 137.
+	p, err := sb.Exec(ctx, []string{"sh", "-c", "kill -9 $$"}, nil)
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+	exitCode, err := p.Wait(ctx)
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+	g.Expect(exitCode).To(gomega.Equal(128 + 9))
+}
+
 func TestSandboxCreateOptions(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
@@ -957,6 +980,14 @@ func TestSandboxDetachForbidsAllOperations(t *testing.T) {
 	g.Expect(err.Error()).To(gomega.ContainSubstring(errorMsg))
 
 	_, err = sb.SnapshotFilesystem(ctx, 30*time.Second)
+	g.Expect(err).To(gomega.HaveOccurred())
+	g.Expect(err.Error()).To(gomega.ContainSubstring(errorMsg))
+
+	err = sb.ExperimentalMountImage(ctx, "/abc", nil)
+	g.Expect(err).To(gomega.HaveOccurred())
+	g.Expect(err.Error()).To(gomega.ContainSubstring(errorMsg))
+
+	_, err = sb.ExperimentalSnapshotDirectory(ctx, "/abc")
 	g.Expect(err).To(gomega.HaveOccurred())
 	g.Expect(err.Error()).To(gomega.ContainSubstring(errorMsg))
 
