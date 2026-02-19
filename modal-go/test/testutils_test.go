@@ -41,6 +41,6 @@ func newGRPCMockClient(t *testing.T) *grpcmock.MockClient {
 }
 
 func terminateSandbox(g *gomega.WithT, sb *modal.Sandbox) {
-	err := sb.Terminate(context.Background(), true, nil)
+	err := sb.Terminate(context.Background())
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 }

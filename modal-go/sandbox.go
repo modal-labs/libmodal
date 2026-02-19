@@ -758,7 +758,7 @@ type SandboxTerminateParams struct {
 }
 
 // Terminate stops the Sandbox.
-func (sb *Sandbox) Terminate(ctx context.Context, detach bool, params *SandboxTerminateParams) error {
+func (sb *Sandbox) Terminate(ctx context.Context) error {
 	if err := sb.ensureAttached(); err != nil {
 		return err
 	}
@@ -772,10 +772,7 @@ func (sb *Sandbox) Terminate(ctx context.Context, detach bool, params *SandboxTe
 	}
 	sb.taskID = ""
 
-	if detach {
-		return sb.Detach()
-	}
-	return nil
+	return sb.Detach()
 }
 
 // Wait blocks until the Sandbox exits.
