@@ -2,6 +2,7 @@ import { expect, test, vi } from "vitest";
 import {
   parseJwtExpiration,
   callWithRetriesOnTransientErrors,
+  TaskCommandRouterClientImpl,
 } from "../src/task_command_router_client";
 import { ClientError, Status } from "nice-grpc";
 
@@ -104,4 +105,39 @@ test("callWithRetriesOnTransientErrors deadline exceeded", async () => {
   await expect(
     callWithRetriesOnTransientErrors(func, 100, 2, null, deadline),
   ).rejects.toThrow("Deadline exceeded");
+});
+
+test("refreshJwt recovers after transient failure", async () => {
+  let callCount = 0;
+  const mockServerClient = {
+    taskGetCommandRouterAccess: vi.fn().mockImplementation(async () => {
+      callCount++;
+      if (callCount === 1) {
+        throw new Error("Transient network error");
+      }
+      return {
+        url: "https://example.com",
+        jwt: mockJwt(Math.floor(Date.now() / 1000) + 3600),
+      };
+    }),
+  };
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const client = Object.create(TaskCommandRouterClientImpl.prototype) as any;
+  client.serverClient = mockServerClient;
+  client.taskId = "test-task";
+  client.serverUrl = "https://example.com";
+  client.jwt = mockJwt(0); // Expired JWT
+  client.jwtExp = 0; // Expired, so refresh will attempt
+  client.jwtRefreshLock = Promise.resolve();
+  client.logger = mockLogger;
+  client.closed = false;
+
+  const refreshJwt = client.refreshJwt.bind(client);
+
+  await expect(refreshJwt()).rejects.toThrow("Transient network error");
+  expect(callCount).toBe(1);
+
+  await expect(refreshJwt()).resolves.not.toThrow();
+  expect(callCount).toBe(2);
 });

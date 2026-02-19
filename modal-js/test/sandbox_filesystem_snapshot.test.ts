@@ -8,7 +8,6 @@ test("snapshotFilesystem", async () => {
   const image = tc.images.fromRegistry("alpine:3.21");
 
   const sb = await tc.sandboxes.create(app, image);
-  onTestFinished(async () => await sb.terminate());
 
   await sb.exec(["sh", "-c", "echo -n 'test content' > /tmp/test.txt"]);
   await sb.exec(["mkdir", "-p", "/tmp/testdir"]);

@@ -24,10 +24,11 @@ test("CreateOneSandbox", async () => {
   const image = tc.images.fromRegistry("alpine:3.21");
 
   const sb = await tc.sandboxes.create(app, image);
-  onTestFinished(async () => await sb.terminate());
   expect(sb.sandboxId).toBeTruthy();
   await sb.terminate();
-  expect(await sb.wait()).toBe(137);
+
+  const sbFromId = await tc.sandboxes.fromId(sb.sandboxId);
+  expect(await sbFromId.wait()).toBe(137);
 });
 
 test("PassCatToStdin", async () => {
@@ -1000,4 +1001,81 @@ test("SandboxExecOutputTimeout", async () => {
     expect(elapsed).toBeGreaterThan(1000);
     expect(elapsed).toBeLessThan(4000);
   }
+});
+
+test("SandboxDetachIsNonDestructive", async () => {
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
+  const image = tc.images.fromRegistry("alpine:3.21");
+
+  const sb = await tc.sandboxes.create(app, image);
+  const sandboxId = sb.sandboxId;
+
+  sb.detach();
+
+  const sbFromId = await tc.sandboxes.fromId(sandboxId);
+  onTestFinished(async () => await sbFromId.terminate());
+  expect(sbFromId.sandboxId).toBe(sandboxId);
+
+  const p = await sbFromId.exec(["echo", "still running"]);
+  expect(await p.wait()).toBe(0);
+});
+
+test("SandboxDetachIsIdempotent", async () => {
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
+  const image = tc.images.fromRegistry("alpine:3.21");
+
+  const sb = await tc.sandboxes.create(app, image);
+  const sbFromId = await tc.sandboxes.fromId(sb.sandboxId);
+  onTestFinished(async () => await sbFromId.terminate());
+
+  // Multiple calls should not throw
+  sb.detach();
+  sb.detach();
+  sb.detach();
+});
+
+test("SandboxTerminateThenDetach", async () => {
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
+  const image = tc.images.fromRegistry("alpine:3.21");
+
+  const sb = await tc.sandboxes.create(app, image);
+
+  await sb.terminate();
+  sb.detach(); // Should not throw
+});
+
+test("SandboxDetachForbidsAllOperations", async () => {
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
+  const image = tc.images.fromRegistry("alpine:3.21");
+
+  const sb = await tc.sandboxes.create(app, image);
+  const sbFromId = await tc.sandboxes.fromId(sb.sandboxId);
+  onTestFinished(async () => await sbFromId.terminate());
+
+  sb.detach();
+
+  const errorMsg = "Unable to perform operation on a detached sandbox";
+
+  await expect(sb.exec(["echo", "hello"])).rejects.toThrow(errorMsg);
+  await expect(sb.createConnectToken()).rejects.toThrow(errorMsg);
+  await expect(sb.open("/abc.txt", "r")).rejects.toThrow(errorMsg);
+  await expect(sb.terminate()).rejects.toThrow(errorMsg);
+  await expect(sb.wait()).rejects.toThrow(errorMsg);
+  await expect(sb.tunnels()).rejects.toThrow(errorMsg);
+  await expect(sb.snapshotFilesystem()).rejects.toThrow(errorMsg);
+  await expect(sb.experimentalMountImage("/abc")).rejects.toThrow(errorMsg);
+  await expect(sb.experimentalSnapshotDirectory("/abc")).rejects.toThrow(
+    errorMsg,
+  );
+  await expect(sb.poll()).rejects.toThrow(errorMsg);
+  await expect(sb.setTags({})).rejects.toThrow(errorMsg);
+  await expect(sb.getTags()).rejects.toThrow(errorMsg);
 });
