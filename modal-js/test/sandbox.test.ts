@@ -1072,9 +1072,7 @@ test("SandboxDetachForbidsAllOperations", async () => {
   await expect(sb.tunnels()).rejects.toThrow(errorMsg);
   await expect(sb.snapshotFilesystem()).rejects.toThrow(errorMsg);
   await expect(sb.mountImage("/abc")).rejects.toThrow(errorMsg);
-  await expect(sb.snapshotDirectory("/abc")).rejects.toThrow(
-    errorMsg,
-  );
+  await expect(sb.snapshotDirectory("/abc")).rejects.toThrow(errorMsg);
   await expect(sb.poll()).rejects.toThrow(errorMsg);
   await expect(sb.setTags({})).rejects.toThrow(errorMsg);
   await expect(sb.getTags()).rejects.toThrow(errorMsg);

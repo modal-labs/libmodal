@@ -96,7 +96,7 @@ test("SandboxMountDirectoryWithUnbuiltImageThrows", async () => {
   const unbuiltImage = tc.images.fromRegistry("alpine:3.21");
   expect(unbuiltImage.imageId).toBe("");
 
-  await expect(
-    sb.mountImage("/mnt/data", unbuiltImage),
-  ).rejects.toThrow("Image must be built before mounting");
+  await expect(sb.mountImage("/mnt/data", unbuiltImage)).rejects.toThrow(
+    "Image must be built before mounting",
+  );
 });
