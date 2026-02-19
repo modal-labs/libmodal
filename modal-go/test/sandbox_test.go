@@ -30,8 +30,8 @@ func TestCreateOneSandbox(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	sbFromID, err := tc.Sandboxes.FromID(ctx, sb.SandboxID)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-
 	defer terminateSandbox(g, sbFromID)
+
 	g.Expect(sb.SandboxID).ShouldNot(gomega.BeEmpty())
 
 	err = sb.Terminate(ctx)
@@ -484,6 +484,8 @@ func TestSandboxFromId(t *testing.T) {
 
 	sbFromID, err := tc.Sandboxes.FromID(ctx, sb.SandboxID)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	defer terminateSandbox(g, sbFromID)
+
 	g.Expect(sbFromID.SandboxID).Should(gomega.Equal(sb.SandboxID))
 }
 
