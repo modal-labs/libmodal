@@ -579,6 +579,11 @@ export type SandboxExecParams = {
 };
 
 /** Optional parameters for {@link Sandbox#createConnectToken Sandbox.createConnectToken()}. */
+export type SandboxTerminateParams = {
+  /** If true, wait for the Sandbox to finish and return the exit code. */
+  wait?: boolean;
+};
+
 export type SandboxCreateConnectTokenParams = {
   /** Optional user-provided metadata string that will be added to the headers by the proxy when forwarding requests to the Sandbox. */
   userMetadata?: string;
@@ -1018,11 +1023,20 @@ export class Sandbox {
     return { url: resp.url, token: resp.token };
   }
 
-  async terminate(): Promise<void> {
+  async terminate(): Promise<void>;
+  async terminate(params: { wait: true }): Promise<number>;
+  async terminate(params?: SandboxTerminateParams): Promise<number | void> {
     this.#ensureAttached();
     await this.#client.cpClient.sandboxTerminate({ sandboxId: this.sandboxId });
-    this.#taskId = undefined; // Reset task ID after termination
+
+    let exitCode: number | undefined;
+    if (params?.wait) {
+      exitCode = await this.wait();
+    }
+
+    this.#taskId = undefined;
     this.detach();
+    return exitCode;
   }
 
   /**

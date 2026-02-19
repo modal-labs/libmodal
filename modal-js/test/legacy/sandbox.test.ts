@@ -14,10 +14,7 @@ test("CreateOneSandbox", async () => {
 
   const sb = await app.createSandbox(image);
   expect(sb.sandboxId).toBeTruthy();
-  await sb.terminate();
-
-  const sbFromId = await Sandbox.fromId(sb.sandboxId);
-  expect(await sbFromId.wait()).toBe(137);
+  expect(await sb.terminate({ wait: true })).toBe(137);
 });
 
 test("PassCatToStdin", async () => {
