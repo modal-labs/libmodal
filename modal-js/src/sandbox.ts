@@ -1022,6 +1022,7 @@ export class Sandbox {
     this.#ensureAttached();
     await this.#client.cpClient.sandboxTerminate({ sandboxId: this.sandboxId });
     this.#taskId = undefined; // Reset task ID after termination
+    this.detach();
   }
 
   /**

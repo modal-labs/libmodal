@@ -24,10 +24,11 @@ test("CreateOneSandbox", async () => {
   const image = tc.images.fromRegistry("alpine:3.21");
 
   const sb = await tc.sandboxes.create(app, image);
-  onTestFinished(async () => await sb.terminate());
   expect(sb.sandboxId).toBeTruthy();
   await sb.terminate();
-  expect(await sb.wait()).toBe(137);
+
+  const sbFromId = await tc.sandboxes.fromId(sb.sandboxId);
+  expect(await sbFromId.wait()).toBe(137);
 });
 
 test("PassCatToStdin", async () => {
