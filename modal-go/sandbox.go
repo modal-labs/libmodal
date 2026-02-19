@@ -788,7 +788,7 @@ func (sb *Sandbox) Terminate(ctx context.Context, params *SandboxTerminateParams
 
 	err = sb.Detach()
 	if err != nil {
-		return 0, err
+		return returnCode, err
 	}
 
 	return returnCode, nil
