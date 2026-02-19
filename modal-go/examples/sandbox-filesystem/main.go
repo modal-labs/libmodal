@@ -30,7 +30,7 @@ func main() {
 	fmt.Printf("Started Sandbox: %s\n", sb.SandboxID)
 
 	defer func() {
-		if err := sb.Terminate(context.Background()); err != nil {
+		if err := sb.Terminate(context.Background(), true, nil); err != nil {
 			log.Fatalf("Failed to terminate Sandbox %s: %v", sb.SandboxID, err)
 		}
 	}()

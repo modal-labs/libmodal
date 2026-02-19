@@ -6,6 +6,7 @@ package modal
 import (
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 
@@ -20,6 +21,15 @@ type Profile struct {
 	Environment         string
 	ImageBuilderVersion string
 	LogLevel            string
+}
+
+func (p Profile) isLocalhost() bool {
+	parsedURL, err := url.Parse(p.ServerURL)
+	if err != nil {
+		return false
+	}
+	hostname := parsedURL.Hostname()
+	return hostname == "localhost" || hostname == "127.0.0.1" || hostname == "::1" || hostname == "172.21.0.1"
 }
 
 // rawProfile mirrors the TOML structure on disk.
