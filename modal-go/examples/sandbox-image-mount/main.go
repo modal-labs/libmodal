@@ -97,9 +97,6 @@ func main() {
 	if err := sb.Terminate(ctx); err != nil {
 		log.Fatalf("Failed to terminate Sandbox: %v", err)
 	}
-	if err := sb.Detach(); err != nil {
-		log.Fatalf("Failed to detach Sandbox %s: %v", sb.SandboxID, err)
-	}
 
 	// Start a new Sandbox, and mount the repo directory:
 	sb2, err := mc.Sandboxes.Create(ctx, app, baseImage, nil)

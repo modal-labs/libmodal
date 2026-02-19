@@ -753,10 +753,6 @@ func (sb *Sandbox) Detach() error {
 	return nil
 }
 
-// SandboxTerminateParams are options for Terminate
-type SandboxTerminateParams struct {
-}
-
 // Terminate stops the Sandbox.
 func (sb *Sandbox) Terminate(ctx context.Context) error {
 	if err := sb.ensureAttached(); err != nil {

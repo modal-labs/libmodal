@@ -29,6 +29,8 @@ func TestCreateOneSandbox(t *testing.T) {
 	sb, err := tc.Sandboxes.Create(ctx, app, image, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	sbFromID, err := tc.Sandboxes.FromID(ctx, sb.SandboxID)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
 	defer terminateSandbox(g, sbFromID)
 	g.Expect(sb.SandboxID).ShouldNot(gomega.BeEmpty())
 
