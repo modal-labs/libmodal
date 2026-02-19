@@ -102,7 +102,9 @@ func TestSandboxSnapshotDirectory(t *testing.T) {
 
 	sb1, err := tc.Sandboxes.Create(ctx, app, baseImage, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	defer terminateSandbox(g, sb1)
+	sb1FromID, err := tc.Sandboxes.FromID(ctx, sb1.SandboxID)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	defer terminateSandbox(g, sb1FromID)
 
 	mkdirProc, err := sb1.Exec(ctx, []string{"mkdir", "-p", "/mnt/data"}, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
