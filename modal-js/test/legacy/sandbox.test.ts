@@ -1,4 +1,4 @@
-import { App, Volume, Sandbox, Secret, Image } from "modal";
+import { App, Image, Sandbox, Secret, Volume } from "modal";
 import { parseGpuConfig } from "../../src/app";
 import { buildSandboxCreateRequestProto } from "../../src/sandbox";
 import { expect, test, onTestFinished } from "vitest";
@@ -15,7 +15,9 @@ test("CreateOneSandbox", async () => {
   const sb = await app.createSandbox(image);
   expect(sb.sandboxId).toBeTruthy();
   await sb.terminate();
-  expect(await sb.wait()).toBe(137);
+
+  const sbFromId = await Sandbox.fromId(sb.sandboxId);
+  expect(await sbFromId.wait()).toBe(137);
 });
 
 test("PassCatToStdin", async () => {

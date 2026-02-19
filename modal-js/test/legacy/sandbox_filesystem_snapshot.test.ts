@@ -6,9 +6,6 @@ test("snapshotFilesystem", async () => {
   const image = await app.imageFromRegistry("alpine:3.21");
 
   const sb = await app.createSandbox(image);
-  onTestFinished(async () => {
-    await sb.terminate();
-  });
 
   await (
     await sb.exec(["sh", "-c", "echo -n 'test content' > /tmp/test.txt"])
