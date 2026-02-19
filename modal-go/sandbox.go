@@ -753,10 +753,20 @@ func (sb *Sandbox) Detach() error {
 	return nil
 }
 
+// SandboxTerminateParams are options for Terminate. If Wait is true, then `Terminate`
+// will wait for the sandbox to terminate and return the exit code.
+type SandboxTerminateParams struct {
+	Wait bool
+}
+
 // Terminate stops the Sandbox.
-func (sb *Sandbox) Terminate(ctx context.Context) error {
+func (sb *Sandbox) Terminate(ctx context.Context, params *SandboxTerminateParams) (int, error) {
 	if err := sb.ensureAttached(); err != nil {
-		return err
+		return 0, err
+	}
+
+	if params == nil {
+		params = &SandboxTerminateParams{}
 	}
 
 	// Terminate the sandbox even if detach fails.
@@ -764,11 +774,24 @@ func (sb *Sandbox) Terminate(ctx context.Context) error {
 		SandboxId: sb.SandboxID,
 	}.Build())
 	if err != nil {
-		return err
+		return 0, err
 	}
 	sb.taskID = ""
+	returnCode := 0
 
-	return sb.Detach()
+	if params.Wait {
+		returnCode, err = sb.Wait(ctx)
+		if err != nil {
+			return returnCode, err
+		}
+	}
+
+	err = sb.Detach()
+	if err != nil {
+		return 0, err
+	}
+
+	return returnCode, nil
 }
 
 // Wait blocks until the Sandbox exits.

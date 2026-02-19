@@ -67,7 +67,7 @@ func TestSandboxMountDirectoryWithImage(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(mountImage.ImageID).To(gomega.MatchRegexp(`^im-`))
 
-	err = sb1.Terminate(ctx)
+	_, err = sb1.Terminate(ctx, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	sb2, err := tc.Sandboxes.Create(ctx, app, baseImage, nil)
@@ -125,7 +125,7 @@ func TestSandboxSnapshotDirectory(t *testing.T) {
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(snapshotImage.ImageID).To(gomega.MatchRegexp(`^im-`))
 
-	err = sb1.Terminate(ctx)
+	_, err = sb1.Terminate(ctx, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	sb2, err := tc.Sandboxes.Create(ctx, app, baseImage, nil)

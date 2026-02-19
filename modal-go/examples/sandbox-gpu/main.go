@@ -31,7 +31,7 @@ func main() {
 	}
 	fmt.Printf("Started Sandbox with A10G GPU: %s\n", sb.SandboxID)
 	defer func() {
-		if err := sb.Terminate(context.Background()); err != nil {
+		if _, err := sb.Terminate(context.Background(), nil); err != nil {
 			log.Fatalf("Failed to terminate Sandbox %s: %v", sb.SandboxID, err)
 		}
 	}()

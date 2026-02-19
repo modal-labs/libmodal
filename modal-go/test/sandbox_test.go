@@ -34,10 +34,7 @@ func TestCreateOneSandbox(t *testing.T) {
 
 	g.Expect(sb.SandboxID).ShouldNot(gomega.BeEmpty())
 
-	err = sb.Terminate(ctx)
-	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-
-	exitcode, err := sbFromID.Wait(ctx)
+	exitcode, err := sb.Terminate(ctx, &modal.SandboxTerminateParams{Wait: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(exitcode).To(gomega.Equal(137))
 }
@@ -931,7 +928,7 @@ func TestSandboxTerminateThenDetachDoesNotError(t *testing.T) {
 	sb, err := tc.Sandboxes.Create(ctx, app, image, nil)
 	g.Expect(err).ToNot(gomega.HaveOccurred())
 
-	err = sb.Terminate(ctx)
+	_, err = sb.Terminate(ctx, nil)
 	g.Expect(err).ToNot(gomega.HaveOccurred())
 
 	err = sb.Detach()
@@ -1221,10 +1218,10 @@ func TestSandboxDoubleTerminateIsNotAllowed(t *testing.T) {
 	sb, err := tc.Sandboxes.Create(ctx, app, image, nil)
 	g.Expect(err).ToNot(gomega.HaveOccurred())
 
-	err = sb.Terminate(ctx)
+	_, err = sb.Terminate(ctx, nil)
 	g.Expect(err).ToNot(gomega.HaveOccurred())
 
-	err = sb.Terminate(ctx)
+	_, err = sb.Terminate(ctx, nil)
 	g.Expect(err.Error()).To(gomega.ContainSubstring("ClientClosedError: Unable to perform operation on a detached sandbox"))
 }
 
@@ -1242,7 +1239,7 @@ func TestSandboxExecAfterTerminateReturnsClientClosedError(t *testing.T) {
 	sb, err := tc.Sandboxes.Create(ctx, app, image, nil)
 	g.Expect(err).ToNot(gomega.HaveOccurred())
 
-	err = sb.Terminate(ctx)
+	_, err = sb.Terminate(ctx, nil)
 	g.Expect(err).ToNot(gomega.HaveOccurred())
 
 	_, err = sb.Exec(ctx, []string{"echo", "hello"}, nil)
@@ -1271,7 +1268,7 @@ func TestContainerProcessReadStdoutAfterSandboxTerminateReturnsClientClosedError
 	g.Expect(err).ToNot(gomega.HaveOccurred())
 	g.Expect(exitCode).To(gomega.Equal(0))
 
-	err = sb.Terminate(ctx)
+	_, err = sb.Terminate(ctx, nil)
 	g.Expect(err).ToNot(gomega.HaveOccurred())
 
 	_, err = io.ReadAll(p.Stdout)
