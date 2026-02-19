@@ -781,6 +781,7 @@ func (sb *Sandbox) Terminate(ctx context.Context, params *SandboxTerminateParams
 
 	if params.Wait {
 		returnCode, err = sb.Wait(ctx)
+		// If Wait fails, we do not detach yet
 		if err != nil {
 			return returnCode, err
 		}
