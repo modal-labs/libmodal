@@ -122,7 +122,7 @@ test("refreshJwt recovers after transient failure", async () => {
     }),
   };
 
-  // @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const client = Object.create(TaskCommandRouterClientImpl.prototype) as any;
   client.serverClient = mockServerClient;
   client.taskId = "test-task";
