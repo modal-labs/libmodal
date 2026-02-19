@@ -898,6 +898,19 @@ test("SandboxExecWaitExitCode", async () => {
   expect(await p.wait()).toBe(42);
 });
 
+test("SandboxExecWaitSignal", async () => {
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
+  const image = tc.images.fromRegistry("alpine:3.21");
+  const sb = await tc.sandboxes.create(app, image);
+  onTestFinished(async () => await sb.terminate());
+
+  // The shell kills itself with SIGKILL (9); wait() should return 128 + 9 = 137.
+  const p = await sb.exec(["sh", "-c", "kill -9 $$"]);
+  expect(await p.wait()).toBe(128 + 9);
+});
+
 test("SandboxExecDoubleRead", async () => {
   const app = await tc.apps.fromName("libmodal-test", {
     createIfMissing: true,
@@ -953,7 +966,7 @@ test("SandboxExecWaitTimeout", async () => {
 
   expect(elapsed).toBeGreaterThan(800);
   expect(elapsed).toBeLessThan(1500);
-  expect(exitCode).toBe(0);
+  expect(exitCode).toBe(128 + 9);
 });
 
 test("SandboxExecOutputTimeout", async () => {

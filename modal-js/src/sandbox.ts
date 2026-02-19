@@ -1247,7 +1247,13 @@ export class ContainerProcess<R extends string | Uint8Array = any> {
       this.#execId,
       this.#deadline,
     );
-    return resp.code ?? 0;
+    if (resp.code !== undefined) {
+      return resp.code;
+    } else if (resp.signal !== undefined) {
+      return 128 + resp.signal;
+    } else {
+      throw new InvalidError("Unexpected exit status");
+    }
   }
 }
 
