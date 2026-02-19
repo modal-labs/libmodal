@@ -63,6 +63,7 @@ export { Retries } from "./retries";
 export type {
   SandboxExecParams,
   SandboxFromNameParams,
+  SandboxTerminateParams,
   SandboxCreateConnectCredentials,
   SandboxCreateConnectTokenParams,
   StdioBehavior,

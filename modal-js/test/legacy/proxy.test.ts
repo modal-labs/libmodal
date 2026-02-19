@@ -1,4 +1,4 @@
-import { App, Proxy, Sandbox } from "modal";
+import { App, Proxy } from "modal";
 import { expect, test } from "vitest";
 
 test("CreateSandboxWithProxy", async () => {
@@ -17,10 +17,7 @@ test("CreateSandboxWithProxy", async () => {
   });
   expect(sb.sandboxId).toBeTruthy();
 
-  await sb.terminate();
-
-  const sbFromId = await Sandbox.fromId(sb.sandboxId);
-  expect(await sbFromId.wait()).toBe(137);
+  expect(await sb.terminate({ wait: true })).toBe(137);
 });
 
 test("ProxyNotFound", async () => {
