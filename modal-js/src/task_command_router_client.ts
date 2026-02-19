@@ -36,6 +36,7 @@ import { timeoutMiddleware, type TimeoutOptions } from "./client";
 import type { Logger } from "./logger";
 import type { Profile } from "./config";
 import { isLocalhost } from "./config";
+import { ClientClosedError } from "./errors";
 
 type TaskCommandRouterClient = Client<typeof TaskCommandRouterDefinition>;
 
@@ -71,6 +72,7 @@ export async function callWithRetriesOnTransientErrors<T>(
   delayFactor: number = 2,
   maxRetries: number | null = 10,
   deadlineMs: number | null = null,
+  isClosed?: () => boolean,
 ): Promise<T> {
   let delayMs = baseDelayMs;
   let numRetries = 0;
@@ -91,6 +93,13 @@ export async function callWithRetriesOnTransientErrors<T>(
     try {
       return await func();
     } catch (err) {
+      if (
+        err instanceof ClientError &&
+        err.code === Status.CANCELLED &&
+        isClosed?.()
+      ) {
+        throw new ClientClosedError();
+      }
       if (
         err instanceof ClientError &&
         retryableStatusCodes.has(err.code) &&
@@ -254,8 +263,13 @@ export class TaskCommandRouterClientImpl {
   async execStart(
     request: TaskExecStartRequest,
   ): Promise<TaskExecStartResponse> {
-    return await callWithRetriesOnTransientErrors(() =>
-      this.callWithAuthRetry(() => this.stub.taskExecStart(request)),
+    return await callWithRetriesOnTransientErrors(
+      () => this.callWithAuthRetry(() => this.stub.taskExecStart(request)),
+      10,
+      2,
+      10,
+      null,
+      () => this.closed,
     );
   }
 
@@ -296,8 +310,13 @@ export class TaskCommandRouterClientImpl {
       data,
       eof,
     });
-    return await callWithRetriesOnTransientErrors(() =>
-      this.callWithAuthRetry(() => this.stub.taskExecStdinWrite(request)),
+    return await callWithRetriesOnTransientErrors(
+      () => this.callWithAuthRetry(() => this.stub.taskExecStdinWrite(request)),
+      10,
+      2,
+      10,
+      null,
+      () => this.closed,
     );
   }
 
@@ -321,6 +340,7 @@ export class TaskCommandRouterClientImpl {
         2, // delayFactor
         10, // maxRetries
         deadline, // Enforce overall deadline.
+        () => this.closed,
       );
     } catch (err) {
       if (err instanceof ClientError && err.code === Status.DEADLINE_EXCEEDED) {
@@ -353,6 +373,7 @@ export class TaskCommandRouterClientImpl {
         1, // Fixed delay.
         null, // Retry forever.
         deadline, // Enforce overall deadline.
+        () => this.closed,
       );
     } catch (err) {
       if (err instanceof ClientError && err.code === Status.DEADLINE_EXCEEDED) {
@@ -363,16 +384,29 @@ export class TaskCommandRouterClientImpl {
   }
 
   async mountDirectory(request: TaskMountDirectoryRequest): Promise<void> {
-    await callWithRetriesOnTransientErrors(() =>
-      this.callWithAuthRetry(() => this.stub.taskMountDirectory(request)),
+    await callWithRetriesOnTransientErrors(
+      () => this.callWithAuthRetry(() => this.stub.taskMountDirectory(request)),
+      10,
+      2,
+      10,
+      null,
+      () => this.closed,
     );
   }
 
   async snapshotDirectory(
     request: TaskSnapshotDirectoryRequest,
   ): Promise<TaskSnapshotDirectoryResponse> {
-    return await callWithRetriesOnTransientErrors(() =>
-      this.callWithAuthRetry(() => this.stub.taskSnapshotDirectory(request)),
+    return await callWithRetriesOnTransientErrors(
+      () =>
+        this.callWithAuthRetry(() =>
+          this.stub.taskSnapshotDirectory(request),
+        ),
+      10,
+      2,
+      10,
+      null,
+      () => this.closed,
     );
   }
 
@@ -498,6 +532,13 @@ export class TaskCommandRouterClientImpl {
           throw err;
         }
       } catch (err) {
+        if (
+          err instanceof ClientError &&
+          err.code === Status.CANCELLED &&
+          this.closed
+        ) {
+          throw new ClientClosedError();
+        }
         if (
           err instanceof ClientError &&
           retryableStatusCodes.has(err.code) &&

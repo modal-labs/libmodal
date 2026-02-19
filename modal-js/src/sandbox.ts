@@ -51,7 +51,7 @@ import {
   NotFoundError,
   SandboxTimeoutError,
   AlreadyExistsError,
-  SandboxDetachedError,
+  ClientClosedError,
 } from "./errors";
 import { Image } from "./image";
 import type { Volume } from "./volume";
@@ -937,7 +937,7 @@ export class Sandbox {
 
   #ensureAttached(): void {
     if (!this.#attached) {
-      throw new SandboxDetachedError();
+      throw new ClientClosedError();
     }
   }
 
@@ -986,7 +986,7 @@ export class Sandbox {
       }
       if (!this.#attached) {
         client.close();
-        throw new SandboxDetachedError();
+        throw new ClientClosedError();
       }
       this.#commandRouterClient = client;
       return client;

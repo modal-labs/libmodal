@@ -79,11 +79,11 @@ export class SandboxTimeoutError extends Error {
 }
 
 /** Thrown when attempting operations on a detached Sandbox. */
-export class SandboxDetachedError extends Error {
+export class ClientClosedError extends Error {
   constructor(
     message: string = "Unable to perform operation on a detached sandbox",
   ) {
     super(message);
-    this.name = "SandboxDetachedError";
+    this.name = "ClientClosedError";
   }
 }
