@@ -50,7 +50,7 @@ func main() {
 	}
 	sbFromID, err := mc.Sandboxes.FromID(ctx, sb.SandboxID)
 	if err != nil {
-		log.Fatalf("Failed to create Sandbox: %v", err)
+		log.Fatalf("Failed to get Sandbox: %v", err)
 	}
 	defer func() {
 		if _, err := sbFromID.Terminate(context.Background(), nil); err != nil {
