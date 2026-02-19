@@ -399,9 +399,7 @@ export class TaskCommandRouterClientImpl {
   ): Promise<TaskSnapshotDirectoryResponse> {
     return await callWithRetriesOnTransientErrors(
       () =>
-        this.callWithAuthRetry(() =>
-          this.stub.taskSnapshotDirectory(request),
-        ),
+        this.callWithAuthRetry(() => this.stub.taskSnapshotDirectory(request)),
       10,
       2,
       10,
