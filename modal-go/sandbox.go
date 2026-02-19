@@ -686,22 +686,29 @@ func (sb *Sandbox) Open(ctx context.Context, path, mode string) (*SandboxFile, e
 }
 
 func (sb *Sandbox) ensureTaskID(ctx context.Context) error {
-	if sb.taskID == "" {
+	if sb.taskID != "" {
+		return nil
+	}
+	for {
 		resp, err := sb.client.cpClient.SandboxGetTaskId(ctx, pb.SandboxGetTaskIdRequest_builder{
 			SandboxId: sb.SandboxID,
 		}.Build())
 		if err != nil {
 			return err
 		}
-		if resp.GetTaskId() == "" {
-			return fmt.Errorf("Sandbox %s does not have a task ID, it may not be running", sb.SandboxID)
-		}
 		if resp.GetTaskResult() != nil {
 			return fmt.Errorf("Sandbox %s has already completed with result: %v", sb.SandboxID, resp.GetTaskResult())
 		}
-		sb.taskID = resp.GetTaskId()
+		if resp.GetTaskId() != "" {
+			sb.taskID = resp.GetTaskId()
+			return nil
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(500 * time.Millisecond):
+		}
 	}
-	return nil
 }
 
 func (sb *Sandbox) getOrCreateCommandRouterClient(ctx context.Context, taskID string) (*taskCommandRouterClient, error) {

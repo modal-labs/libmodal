@@ -947,23 +947,24 @@ export class Sandbox {
   }
 
   async #getTaskId(): Promise<string> {
-    if (this.#taskId === undefined) {
+    if (this.#taskId !== undefined) {
+      return this.#taskId;
+    }
+    while (true) {
       const resp = await this.#client.cpClient.sandboxGetTaskId({
         sandboxId: this.sandboxId,
       });
-      if (!resp.taskId) {
-        throw new Error(
-          `Sandbox ${this.sandboxId} does not have a task ID. It may not be running.`,
-        );
-      }
       if (resp.taskResult) {
         throw new Error(
           `Sandbox ${this.sandboxId} has already completed with result: ${resp.taskResult}`,
         );
       }
-      this.#taskId = resp.taskId;
+      if (resp.taskId) {
+        this.#taskId = resp.taskId;
+        return this.#taskId;
+      }
+      await new Promise((resolve) => global.setTimeout(resolve, 500));
     }
-    return this.#taskId;
   }
 
   async #getOrCreateCommandRouterClient(
