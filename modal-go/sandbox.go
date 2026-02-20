@@ -797,9 +797,6 @@ func (sb *Sandbox) Terminate(ctx context.Context, params *SandboxTerminateParams
 
 // Wait blocks until the Sandbox exits.
 func (sb *Sandbox) Wait(ctx context.Context) (int, error) {
-	if err := sb.ensureAttached(); err != nil {
-		return 0, err
-	}
 	for {
 		if err := ctx.Err(); err != nil {
 			return 0, err
