@@ -1,4 +1,4 @@
-import { App, Proxy, Sandbox } from "modal";
+import { App, Proxy } from "modal";
 import { expect, test } from "vitest";
 
 test("CreateSandboxWithProxy", async () => {
