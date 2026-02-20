@@ -29,8 +29,13 @@ func main() {
 		log.Fatalf("Failed to create Sandbox: %v", err)
 	}
 	fmt.Printf("Started Sandbox: %s\n", sb.SandboxID)
+
+	sbFromID, err := mc.Sandboxes.FromID(ctx, sb.SandboxID)
+	if err != nil {
+		log.Fatalf("Failed to get Sandbox: %v", err)
+	}
 	defer func() {
-		if err := sb.Terminate(context.Background(), true, nil); err != nil {
+		if _, err := sbFromID.Terminate(context.Background(), nil); err != nil {
 			log.Fatalf("Failed to terminate Sandbox %s: %v", sb.SandboxID, err)
 		}
 	}()
@@ -52,7 +57,7 @@ func main() {
 	}
 	fmt.Printf("Filesystem snapshot created with Image ID: %s\n", snapshotImage.ImageID)
 
-	err = sb.Terminate(ctx, false, nil)
+	_, err = sb.Terminate(ctx, nil)
 	if err != nil {
 		log.Fatalf("Failed to terminate Sandbox %s: %v", sb.SandboxID, err)
 	}
@@ -65,7 +70,7 @@ func main() {
 	fmt.Printf("Started new Sandbox from snapshot: %s\n", sb2.SandboxID)
 
 	defer func() {
-		if err := sb2.Terminate(context.Background(), true, nil); err != nil {
+		if _, err := sb2.Terminate(context.Background(), nil); err != nil {
 			log.Fatalf("Failed to terminate Sandbox %s: %v", sb2.SandboxID, err)
 		}
 	}()

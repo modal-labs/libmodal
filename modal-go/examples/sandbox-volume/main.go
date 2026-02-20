@@ -45,7 +45,7 @@ func main() {
 	}
 	fmt.Printf("Writer Sandbox: %s\n", writerSandbox.SandboxID)
 	defer func() {
-		if err := writerSandbox.Terminate(context.Background(), true, nil); err != nil {
+		if _, err := writerSandbox.Terminate(context.Background(), nil); err != nil {
 			log.Fatalf("Failed to terminate Sandbox %s: %v", writerSandbox.SandboxID, err)
 		}
 	}()
@@ -66,7 +66,7 @@ func main() {
 	}
 	fmt.Printf("Reader Sandbox: %s\n", readerSandbox.SandboxID)
 	defer func() {
-		if err := readerSandbox.Terminate(context.Background(), true, nil); err != nil {
+		if _, err := readerSandbox.Terminate(context.Background(), nil); err != nil {
 			log.Fatalf("Failed to terminate Sandbox %s: %v", readerSandbox.SandboxID, err)
 		}
 	}()

@@ -23,7 +23,9 @@ func TestSnapshotFilesystem(t *testing.T) {
 
 	sb, err := tc.Sandboxes.Create(ctx, app, image, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	defer terminateSandbox(g, sb)
+	sbFromID, err := tc.Sandboxes.FromID(ctx, sb.SandboxID)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	defer terminateSandbox(g, sbFromID)
 
 	writeFile, err := sb.Exec(ctx, []string{"sh", "-c", "echo -n 'test content' > /tmp/test.txt"}, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -40,7 +42,7 @@ func TestSnapshotFilesystem(t *testing.T) {
 	g.Expect(snapshotImage).ShouldNot(gomega.BeNil())
 	g.Expect(snapshotImage.ImageID).To(gomega.HavePrefix("im-"))
 
-	err = sb.Terminate(ctx, false, nil)
+	_, err = sb.Terminate(ctx, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	sb2, err := tc.Sandboxes.Create(ctx, app, snapshotImage, nil)
