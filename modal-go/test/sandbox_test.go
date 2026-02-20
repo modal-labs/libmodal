@@ -981,11 +981,11 @@ func TestSandboxDetachForbidsAllOperations(t *testing.T) {
 	g.Expect(err).To(gomega.HaveOccurred())
 	g.Expect(err.Error()).To(gomega.ContainSubstring(errorMsg))
 
-	err = sb.ExperimentalMountImage(ctx, "/abc", nil)
+	err = sb.MountImage(ctx, "/abc", nil)
 	g.Expect(err).To(gomega.HaveOccurred())
 	g.Expect(err.Error()).To(gomega.ContainSubstring(errorMsg))
 
-	_, err = sb.ExperimentalSnapshotDirectory(ctx, "/abc")
+	_, err = sb.SnapshotDirectory(ctx, "/abc")
 	g.Expect(err).To(gomega.HaveOccurred())
 	g.Expect(err.Error()).To(gomega.ContainSubstring(errorMsg))
 

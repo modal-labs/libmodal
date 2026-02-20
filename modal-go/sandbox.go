@@ -887,12 +887,10 @@ func (sb *Sandbox) SnapshotFilesystem(ctx context.Context, timeout time.Duration
 	return &Image{ImageID: resp.GetImageId(), client: sb.client}, nil
 }
 
-// ExperimentalMountImage mounts an Image at a path in the Sandbox filesystem.
-//
-// It's experimental in the sense that the API is subject to change.
+// MountImage mounts an Image at a path in the Sandbox filesystem.
 //
 // If image is nil, mounts an empty directory.
-func (sb *Sandbox) ExperimentalMountImage(ctx context.Context, path string, image *Image) error {
+func (sb *Sandbox) MountImage(ctx context.Context, path string, image *Image) error {
 	if err := sb.ensureAttached(); err != nil {
 		return err
 	}
@@ -922,10 +920,8 @@ func (sb *Sandbox) ExperimentalMountImage(ctx context.Context, path string, imag
 	return crClient.MountDirectory(ctx, request)
 }
 
-// ExperimentalSnapshotDirectory snapshots local changes to a previously mounted Image into a new Image.
-//
-// It's experimental in the sense that the API is subject to change.
-func (sb *Sandbox) ExperimentalSnapshotDirectory(ctx context.Context, path string) (*Image, error) {
+// SnapshotDirectory snapshots local changes to a previously mounted Image into a new Image.
+func (sb *Sandbox) SnapshotDirectory(ctx context.Context, path string) (*Image, error) {
 	if err := sb.ensureAttached(); err != nil {
 		return nil, err
 	}
