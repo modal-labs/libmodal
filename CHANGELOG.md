@@ -13,6 +13,10 @@ No unreleased changes.
 - `Sandbox.Terminate` (Go) and `Sandbox.terminate` (JS) detaches by default. To interact with a running sandbox, use `Sandboxes.FromID` (Go) or `sandboxes.fromId` (JS) to create a new Sandbox object.
 - `Sandbox.Terminate` (Go) and `Sandbox.terminate` (JS) now accepts a `wait` parameter to wait for the sandbox to terminate and return the exit code.
 
+**Breaking changes:**
+
+- Changed `Sandbox.Terminate` in Go which now returns `(int, error)`. The `int` is the return code when `&SandboxTerminateParams{Wait: true}` is passed in.
+
 ## modal-js/v0.6.3, modal-go/v0.6.3
 
 - Fixed a bug where deleting a Volume, Queue, or Secret with `allowMissing=true` could still raise a `NOT_FOUND` error.
