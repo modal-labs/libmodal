@@ -28,6 +28,18 @@ test("CreateOneSandbox", async () => {
   expect(await sb.terminate({ wait: true })).toBe(137);
 });
 
+test("CreateOneSandboxTerminateWaitWorks", async () => {
+  const app = await tc.apps.fromName("libmodal-test", {
+    createIfMissing: true,
+  });
+  const image = tc.images.fromRegistry("alpine:3.21");
+
+  const sb = await tc.sandboxes.create(app, image);
+  expect(sb.sandboxId).toBeTruthy();
+  await sb.terminate();
+  expect(await sb.wait()).toBe(137);
+});
+
 test("PassCatToStdin", async () => {
   const app = await tc.apps.fromName("libmodal-test", {
     createIfMissing: true,
@@ -1065,7 +1077,6 @@ test("SandboxDetachForbidsAllOperations", async () => {
   await expect(sb.createConnectToken()).rejects.toThrow(errorMsg);
   await expect(sb.open("/abc.txt", "r")).rejects.toThrow(errorMsg);
   await expect(sb.terminate()).rejects.toThrow(errorMsg);
-  await expect(sb.wait()).rejects.toThrow(errorMsg);
   await expect(sb.tunnels()).rejects.toThrow(errorMsg);
   await expect(sb.snapshotFilesystem()).rejects.toThrow(errorMsg);
   await expect(sb.mountImage("/abc")).rejects.toThrow(errorMsg);

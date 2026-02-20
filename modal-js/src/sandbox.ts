@@ -1052,7 +1052,6 @@ export class Sandbox {
   }
 
   async wait(): Promise<number> {
-    this.#ensureAttached();
     while (true) {
       const resp = await this.#client.cpClient.sandboxWait({
         sandboxId: this.sandboxId,

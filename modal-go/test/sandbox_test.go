@@ -28,13 +28,32 @@ func TestCreateOneSandbox(t *testing.T) {
 
 	sb, err := tc.Sandboxes.Create(ctx, app, image, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	sbFromID, err := tc.Sandboxes.FromID(ctx, sb.SandboxID)
-	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	defer terminateSandbox(g, sbFromID)
-
 	g.Expect(sb.SandboxID).ShouldNot(gomega.BeEmpty())
 
 	exitcode, err := sb.Terminate(ctx, &modal.SandboxTerminateParams{Wait: true})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(exitcode).To(gomega.Equal(137))
+}
+
+func TestCreateOneSandboxTerminateWaitWorks(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+	tc := newTestClient(t)
+
+	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	image := tc.Images.FromRegistry("alpine:3.21", nil)
+
+	sb, err := tc.Sandboxes.Create(ctx, app, image, nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(sb.SandboxID).ShouldNot(gomega.BeEmpty())
+
+	_, err = sb.Terminate(ctx, nil)
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	exitcode, err := sb.Wait(ctx)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(exitcode).To(gomega.Equal(137))
 }
@@ -966,10 +985,6 @@ func TestSandboxDetachForbidsAllOperations(t *testing.T) {
 	g.Expect(err.Error()).To(gomega.ContainSubstring(errorMsg))
 
 	_, err = sb.Open(ctx, "/abc.txt", "r")
-	g.Expect(err).To(gomega.HaveOccurred())
-	g.Expect(err.Error()).To(gomega.ContainSubstring(errorMsg))
-
-	_, err = sb.Wait(ctx)
 	g.Expect(err).To(gomega.HaveOccurred())
 	g.Expect(err.Error()).To(gomega.ContainSubstring(errorMsg))
 
