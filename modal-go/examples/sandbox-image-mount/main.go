@@ -47,8 +47,12 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create Sandbox: %v", err)
 	}
+	sbFromID, err := mc.Sandboxes.FromID(ctx, sb.SandboxID)
+	if err != nil {
+		log.Fatalf("Failed to get Sandbox: %v", err)
+	}
 	defer func() {
-		if err := sb.Terminate(context.Background(), true, nil); err != nil {
+		if _, err := sbFromID.Terminate(context.Background(), nil); err != nil {
 			log.Fatalf("Failed to terminate Sandbox %s: %v", sb.SandboxID, err)
 		}
 	}()
@@ -89,11 +93,8 @@ func main() {
 	}
 	fmt.Printf("Took a snapshot of the /repo directory, Image ID: %s\n", repoSnapshot.ImageID)
 
-	if err := sb.Terminate(ctx, false, nil); err != nil {
+	if _, err := sb.Terminate(ctx, nil); err != nil {
 		log.Fatalf("Failed to terminate Sandbox: %v", err)
-	}
-	if err := sb.Detach(); err != nil {
-		log.Fatalf("Failed to detach Sandbox %s: %v", sb.SandboxID, err)
 	}
 
 	// Start a new Sandbox, and mount the repo directory:
@@ -101,8 +102,12 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create second Sandbox: %v", err)
 	}
+	sb2FromID, err := mc.Sandboxes.FromID(ctx, sb2.SandboxID)
+	if err != nil {
+		log.Fatalf("Failed to create Sandbox: %v", err)
+	}
 	defer func() {
-		if err := sb2.Terminate(context.Background(), true, nil); err != nil {
+		if _, err := sb2FromID.Terminate(context.Background(), nil); err != nil {
 			log.Fatalf("Failed to terminate Sandbox %s: %v", sb2.SandboxID, err)
 		}
 	}()
@@ -132,9 +137,10 @@ func main() {
 	}
 	fmt.Printf("Contents of /repo directory in new Sandbox sb2:\n%s", output)
 
-	if err := sb2.Terminate(ctx, true, nil); err != nil {
+	if _, err := sb2.Terminate(ctx, nil); err != nil {
 		log.Fatalf("Failed to terminate sb2: %v", err)
 	}
+
 	if err := mc.Images.Delete(ctx, repoSnapshot.ImageID, nil); err != nil {
 		log.Fatalf("Failed to delete snapshot image: %v", err)
 	}
