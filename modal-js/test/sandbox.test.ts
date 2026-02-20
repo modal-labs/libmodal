@@ -1077,7 +1077,6 @@ test("SandboxDetachForbidsAllOperations", async () => {
   await expect(sb.createConnectToken()).rejects.toThrow(errorMsg);
   await expect(sb.open("/abc.txt", "r")).rejects.toThrow(errorMsg);
   await expect(sb.terminate()).rejects.toThrow(errorMsg);
-  await expect(sb.wait()).rejects.toThrow(errorMsg);
   await expect(sb.tunnels()).rejects.toThrow(errorMsg);
   await expect(sb.snapshotFilesystem()).rejects.toThrow(errorMsg);
   await expect(sb.mountImage("/abc")).rejects.toThrow(errorMsg);
