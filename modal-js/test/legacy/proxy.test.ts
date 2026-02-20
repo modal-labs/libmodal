@@ -1,4 +1,4 @@
-import { App, Proxy } from "modal";
+import { App, Proxy, Sandbox } from "modal";
 import { expect, test } from "vitest";
 
 test("CreateSandboxWithProxy", async () => {
@@ -16,7 +16,6 @@ test("CreateSandboxWithProxy", async () => {
     command: ["echo", "hello, sandbox with proxy"],
   });
   expect(sb.sandboxId).toBeTruthy();
-
   expect(await sb.terminate({ wait: true })).toBe(137);
 });
 

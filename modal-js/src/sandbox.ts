@@ -1023,6 +1023,7 @@ export class Sandbox {
     return { url: resp.url, token: resp.token };
   }
 
+<<<<<<< HEAD
   async terminate(): Promise<void>;
   async terminate(params: { wait: true }): Promise<number>;
   async terminate(params?: SandboxTerminateParams): Promise<number | void> {
@@ -1037,6 +1038,13 @@ export class Sandbox {
     this.#taskId = undefined;
     this.detach();
     return exitCode;
+=======
+  async terminate(): Promise<void> {
+    this.#ensureAttached();
+    await this.#client.cpClient.sandboxTerminate({ sandboxId: this.sandboxId });
+    this.#taskId = undefined; // Reset task ID after termination
+    this.detach();
+>>>>>>> origin/main
   }
 
   /**
@@ -1146,7 +1154,11 @@ export class Sandbox {
    * @param path - The path where the directory should be mounted
    * @param image - Optional {@link Image} to mount. If undefined, mounts an empty directory.
    */
+<<<<<<< HEAD
   async mountImage(path: string, image?: Image): Promise<void> {
+=======
+  async experimentalMountImage(path: string, image?: Image): Promise<void> {
+>>>>>>> origin/main
     this.#ensureAttached();
     const taskId = await this.#getTaskId();
     const commandRouterClient =
@@ -1174,7 +1186,11 @@ export class Sandbox {
    * @param path - The path of the directory to snapshot
    * @returns Promise that resolves to an {@link Image}
    */
+<<<<<<< HEAD
   async snapshotDirectory(path: string): Promise<Image> {
+=======
+  async experimentalSnapshotDirectory(path: string): Promise<Image> {
+>>>>>>> origin/main
     this.#ensureAttached();
     const taskId = await this.#getTaskId();
     const commandRouterClient =
