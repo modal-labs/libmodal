@@ -24,7 +24,6 @@ test("SandboxMountDirectoryWithImage", async () => {
   const baseImage = tc.images.fromRegistry("debian:12-slim");
 
   const sb1 = await tc.sandboxes.create(app, baseImage);
-  onTestFinished(async () => await sb1.terminate());
 
   const echoProc = await sb1.exec([
     "sh",
@@ -56,7 +55,6 @@ test("SandboxSnapshotDirectory", async () => {
   const baseImage = tc.images.fromRegistry("debian:12-slim");
 
   const sb1 = await tc.sandboxes.create(app, baseImage);
-  onTestFinished(async () => await sb1.terminate());
 
   await (await sb1.exec(["mkdir", "-p", "/mnt/data"])).wait();
   await sb1.experimentalMountImage("/mnt/data");
