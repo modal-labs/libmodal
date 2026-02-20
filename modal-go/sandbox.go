@@ -754,7 +754,7 @@ func (sb *Sandbox) Detach() error {
 }
 
 // SandboxTerminateParams are options for Terminate. If Wait is true, then `Terminate`
-// will wait for the sandbox to terminate and return the exit code.
+// will wait for the Sandbox to terminate and return the exit code.
 type SandboxTerminateParams struct {
 	Wait bool
 }
