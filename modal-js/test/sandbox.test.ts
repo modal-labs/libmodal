@@ -36,8 +36,8 @@ test("CreateOneSandboxTerminateWaitWorks", async () => {
 
   const sb = await tc.sandboxes.create(app, image);
   expect(sb.sandboxId).toBeTruthy();
-  await sb.terminate()
-  expect(await sb.wait()).toBe(137)
+  await sb.terminate();
+  expect(await sb.wait()).toBe(137);
 });
 
 test("PassCatToStdin", async () => {
