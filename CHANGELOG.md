@@ -9,7 +9,7 @@ No unreleased changes.
 ## modal-js/v0.7.0, modal-go/v0.7.0
 
 - Added `Sandbox.MountImage` (Go) and `Sandbox.mountImage` (JS) that mounts an Image to a path in the Sandbox's filesystem.
-- Added `Sandbox.SnapshotDirectory` (Go) and `Sandbox.snapshotDirectory` (JS) snapshots and creates a new `Image` from a previously mounted `Image`.
+- Added `Sandbox.SnapshotDirectory` (Go) and `Sandbox.snapshotDirectory` (JS) snapshots and creates a new image from a directory in the running sandbox.
 - Upgraded the internal handling of Sandbox exec to use the new command router interface, which brings greatly improved performance and reliability for exec operations.
 - Added a `Sandbox.Detach` (Go) or `sandbox.detach` (JS) to disconnect your client from the sandbox and cleans up any resources associated with the connection. We **strongly recommend** calling `Detach` after you are done interacting with the sandbox. `Detach` does not close streams from `Sandbox.Stdout` (Go), or `Sandbox.stdout` (JS). These streams should be closed using their `Close` (Go) or `close` (JS) methods.
 - `Sandbox.Terminate` (Go) and `Sandbox.terminate` (JS) detaches by default. To interact with a running sandbox, use `Sandboxes.FromID` (Go) or `sandboxes.fromId` (JS) to create a new Sandbox object.

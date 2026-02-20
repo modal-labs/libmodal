@@ -1168,7 +1168,7 @@ export class Sandbox {
   }
 
   /**
-   * Snapshot and creates a new {@link Image} from a previously mounted {@link Image}.
+   * Snapshots and creates a new {@link Image} from a directory in the running sandbox.
    *
    * @param path - The path of the directory to snapshot
    * @returns Promise that resolves to an {@link Image}
