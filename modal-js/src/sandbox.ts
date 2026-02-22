@@ -1357,6 +1357,9 @@ async function* outputStreamSb(
           completed = true;
           break;
         }
+        if (signal?.aborted) {
+          return;
+        }
       }
     } catch (err) {
       // If cancelled, exit cleanly regardless of error type.

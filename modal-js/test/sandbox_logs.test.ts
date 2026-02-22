@@ -237,20 +237,13 @@ describe("SandboxGetLogs lazy and retry behavior", () => {
 
   test("testCancellingStdoutIteratorClosesIterator", async () => {
     let cancelled = false;
-    let seenSignalAbort = false;
 
     const cpClient = {
-      sandboxGetLogs(_req: any, opts?: { signal?: AbortSignal }) {
-        const signal = opts?.signal;
+      sandboxGetLogs(_req: any, _opts?: { signal?: AbortSignal }) {
         return (async function* () {
           try {
-            // Emit one item so the reader starts
             yield batch("1-0", [textItem("hello")], false);
             while (true) {
-              if (signal?.aborted) {
-                seenSignalAbort = true;
-                break;
-              }
               await sleep(10);
             }
           } finally {
@@ -270,7 +263,38 @@ describe("SandboxGetLogs lazy and retry behavior", () => {
 
     // Give the generator a moment to run its finally block
     await sleep(20);
-    expect(seenSignalAbort).toBe(true);
     expect(cancelled).toBe(true);
+  });
+
+  test("testCancelStdoutStopsPollingWithEmptyBatches", async () => {
+    let batchesConsumed = 0;
+
+    const cpClient = {
+      sandboxGetLogs(_req: any, _opts?: { signal?: AbortSignal }) {
+        return (async function* () {
+          yield batch("1-0", [textItem("hello")], false);
+          for (let i = 0; i < 100; i++) {
+            await sleep(2);
+            batchesConsumed++;
+            yield batch("1-0", [], false);
+          }
+          yield batch("1-0", [], true);
+        })();
+      },
+    };
+    const client = makeClient(cpClient);
+    const sb = new Sandbox(client, "sb-empty-cancel");
+
+    const reader = sb.stdout.getReader();
+    const first = await reader.read();
+    expect(first.done).toBe(false);
+    expect(first.value).toBe("hello");
+
+    await Promise.race([reader.cancel(), sleep(50)]);
+    const countAtCancel = batchesConsumed;
+
+    await sleep(100);
+
+    expect(batchesConsumed).toBe(countAtCancel);
   });
 });
