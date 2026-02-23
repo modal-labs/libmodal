@@ -10,7 +10,7 @@ No unreleased changes.
 
 - Added `Sandbox.MountImage` (Go) and `Sandbox.mountImage` (JS) that mounts an Image to a path in the Sandbox's filesystem.
 - Added `Sandbox.SnapshotDirectory` (Go) and `Sandbox.snapshotDirectory` (JS) snapshots and creates a new image from a directory in the running sandbox.
-- Upgraded the internal handling of Sandbox exec to use the new command router interface, which brings greatly improved performance and reliability for exec operations.
+- Upgraded `Sandbox.Exec` (Go) and `Sandbox.exec` (JS) bringing improved performance and reliability.
 - Added a `Sandbox.Detach` (Go) or `sandbox.detach` (JS) to disconnect your client from the sandbox and cleans up any resources associated with the connection. We **strongly recommend** calling `Detach` after you are done interacting with the sandbox. `Detach` does not close streams from `Sandbox.Stdout` (Go), or `Sandbox.stdout` (JS). These streams should be closed using their `Close` (Go) or `close` (JS) methods.
 - `Sandbox.Terminate` (Go) and `Sandbox.terminate` (JS) detaches by default. To interact with a running sandbox, use `Sandboxes.FromID` (Go) or `sandboxes.fromId` (JS) to create a new Sandbox object.
 - `Sandbox.Terminate` (Go) and `Sandbox.terminate` (JS) now accepts a `wait` parameter to wait for the sandbox to terminate and return the exit code.
