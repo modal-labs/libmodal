@@ -917,7 +917,7 @@ func (sb *Sandbox) MountImage(ctx context.Context, path string, image *Image) er
 	return crClient.MountDirectory(ctx, request)
 }
 
-// SnapshotDirectory snapshots local changes to a previously mounted Image into a new Image.
+// SnapshotDirectory snapshots and creates a new image from a directory in the running sandbox.
 func (sb *Sandbox) SnapshotDirectory(ctx context.Context, path string) (*Image, error) {
 	if err := sb.ensureAttached(); err != nil {
 		return nil, err
