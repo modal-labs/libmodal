@@ -1,6 +1,7 @@
 import js from "@eslint/js";
 import globals from "globals";
 import tseslint from "typescript-eslint";
+import importX from "eslint-plugin-import-x";
 import { defineConfig, globalIgnores } from "eslint/config";
 
 export default defineConfig([
@@ -15,6 +16,13 @@ export default defineConfig([
     languageOptions: { globals: globals.node },
   },
   tseslint.configs.recommended,
+  {
+    files: ["**/*.{js,mjs,cjs,ts,mts,cts}"],
+    plugins: { "import-x": importX },
+    rules: {
+      "import-x/no-extraneous-dependencies": "error",
+    },
+  },
   {
     files: ["**/*.{ts,mts,cts}"],
     languageOptions: {
