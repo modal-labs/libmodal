@@ -3,12 +3,12 @@ import {
   CallOptions,
   Client,
   ClientError,
-  ChannelCredentials,
   createChannel,
   createClientFactory,
   Metadata,
   Status,
 } from "nice-grpc";
+import { ChannelCredentials } from "@grpc/grpc-js";
 import {
   TaskCommandRouterDefinition,
   TaskExecPollRequest,

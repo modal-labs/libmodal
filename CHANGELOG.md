@@ -4,7 +4,7 @@ Both client libraries are pre-1.0, and they have separate versioning.
 
 ## Unreleased
 
-- Fixed regression in `Sandbox.exec` (JS) where it threw a `ChannelCredentials` type error.
+No unreleased changes.
 
 ## modal-js/v0.7.0, modal-go/v0.7.0
 

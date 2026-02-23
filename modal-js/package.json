@@ -50,7 +50,6 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^22.15.2",
     "eslint": "^9.28.0",
-    "eslint-plugin-import-x": "^4.16.1",
     "globals": "^16.2.0",
     "grpc-tools": "^1.13.0",
     "http-server": "^14.1.1",
