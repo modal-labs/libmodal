@@ -292,6 +292,7 @@ describe("SandboxGetLogs lazy and retry behavior", () => {
 
     await Promise.race([reader.cancel(), sleep(50)]);
     const countAtCancel = batchesConsumed;
+    expect(countAtCancel).toBeLessThan(100);
 
     await sleep(100);
 
