@@ -965,7 +965,7 @@ export class Sandbox {
         this.#taskId = resp.taskId;
         return this.#taskId;
       }
-      await new Promise((resolve) => global.setTimeout(resolve, 500));
+      await setTimeout(500);
     }
     throw new Error(
       `Timed out waiting for task ID for Sandbox ${this.sandboxId}`,
