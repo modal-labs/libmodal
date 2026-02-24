@@ -685,11 +685,13 @@ func (sb *Sandbox) Open(ctx context.Context, path, mode string) (*SandboxFile, e
 	}, nil
 }
 
+const maxGetTaskIDAttempts = 600 // 5 minutes at 500ms intervals
+
 func (sb *Sandbox) ensureTaskID(ctx context.Context) error {
 	if sb.taskID != "" {
 		return nil
 	}
-	for {
+	for range maxGetTaskIDAttempts {
 		resp, err := sb.client.cpClient.SandboxGetTaskId(ctx, pb.SandboxGetTaskIdRequest_builder{
 			SandboxId: sb.SandboxID,
 		}.Build())
@@ -709,6 +711,7 @@ func (sb *Sandbox) ensureTaskID(ctx context.Context) error {
 		case <-time.After(500 * time.Millisecond):
 		}
 	}
+	return fmt.Errorf("timed out waiting for task ID for Sandbox %s", sb.SandboxID)
 }
 
 func (sb *Sandbox) getOrCreateCommandRouterClient(ctx context.Context, taskID string) (*taskCommandRouterClient, error) {

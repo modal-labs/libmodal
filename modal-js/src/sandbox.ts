@@ -946,11 +946,13 @@ export class Sandbox {
     }
   }
 
+  static readonly #maxGetTaskIdAttempts = 600; // 5 minutes at 500ms intervals
+
   async #getTaskId(): Promise<string> {
     if (this.#taskId !== undefined) {
       return this.#taskId;
     }
-    while (true) {
+    for (let i = 0; i < Sandbox.#maxGetTaskIdAttempts; i++) {
       const resp = await this.#client.cpClient.sandboxGetTaskId({
         sandboxId: this.sandboxId,
       });
@@ -965,6 +967,9 @@ export class Sandbox {
       }
       await new Promise((resolve) => global.setTimeout(resolve, 500));
     }
+    throw new Error(
+      `Timed out waiting for task ID for Sandbox ${this.sandboxId}`,
+    );
   }
 
   async #getOrCreateCommandRouterClient(

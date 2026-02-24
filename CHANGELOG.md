@@ -4,7 +4,7 @@ Both client libraries are pre-1.0, and they have separate versioning.
 
 ## Unreleased
 
-- `Sandbox` methods now poll for the task ID instead of failing immediately when it is not yet available.
+- `Sandbox` methods now poll for the task ID instead of failing immediately when it is not yet available. Polling is capped at 5 minutes and returns an error if the sandbox has already terminated.
 
 ## modal-js/v0.7.1, modal-go/v0.7.1
 

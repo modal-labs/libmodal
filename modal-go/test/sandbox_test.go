@@ -908,6 +908,35 @@ func TestSandboxGetTaskIdPolling(t *testing.T) {
 	g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
 }
 
+func TestSandboxGetTaskIdTerminated(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+	mock := newGRPCMockClient(t)
+
+	grpcmock.HandleUnary(mock, "SandboxWait",
+		func(req *pb.SandboxWaitRequest) (*pb.SandboxWaitResponse, error) {
+			return pb.SandboxWaitResponse_builder{}.Build(), nil
+		})
+	grpcmock.HandleUnary(mock, "SandboxGetTaskId",
+		func(req *pb.SandboxGetTaskIdRequest) (*pb.SandboxGetTaskIdResponse, error) {
+			return pb.SandboxGetTaskIdResponse_builder{
+				TaskResult: pb.GenericResult_builder{
+					Status: pb.GenericResult_GENERIC_STATUS_TERMINATED,
+				}.Build(),
+			}.Build(), nil
+		})
+
+	sb, err := mock.Sandboxes.FromID(ctx, "sb-123")
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	_, err = sb.Exec(ctx, []string{"echo", "hello"}, nil)
+	g.Expect(err).Should(gomega.HaveOccurred())
+	g.Expect(err.Error()).Should(gomega.ContainSubstring("already completed"))
+
+	g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
+}
+
 func TestSandboxDetachIsNonDestructive(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
