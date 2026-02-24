@@ -40,6 +40,7 @@ We also provide a number of examples:
 - [Create a Sandbox with GPU](https://github.com/modal-labs/libmodal/blob/main/modal-js/examples/sandbox-gpu.ts)
 - [Create a Sandbox using a private image from AWS ECR](https://github.com/modal-labs/libmodal/blob/main/modal-js/examples/sandbox-private-image.ts)
 - [Take a snapshot of the filesystem of a Sandbox](https://github.com/modal-labs/libmodal/blob/main/modal-js/examples/sandbox-filesystem-snapshot.ts)
+- [Snapshot a directory, and mount it in a running Sandbox](https://github.com/modal-labs/libmodal/blob/main/modal-js/examples/sandbox-directory-snapshot.ts)
 - [Execute Sandbox commands](https://github.com/modal-labs/libmodal/blob/main/modal-js/examples/sandbox-exec.ts)
 - [Running a coding agent in a Sandbox](https://github.com/modal-labs/libmodal/blob/main/modal-js/examples/sandbox-agent.ts)
 - [Check the status and exit code of a Sandbox](https://github.com/modal-labs/libmodal/blob/main/modal-js/examples/sandbox-poll.ts)
