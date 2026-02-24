@@ -1,15 +1,8 @@
-// This example shows how to mount Images in the Sandbox filesystem and take snapshots
-// of them.
-//
-//
-// High level, it allows you to:
-// - Mount any Modal Image at a specific directory within the Sandbox filesystem.
-// - Take a snapshot of that directory, which will create a new Modal Image with
-//   the updated contents of the directory.
-//
-// You can only snapshot directories that have previously been mounted using
-// `Sandbox.MountImage`. If you want to mount an empty directory,
-// you can pass nil as the image parameter.
+// This example demonstrates the directory snapshots feature, which allows you to:
+// - Take a snapshot of a directory in a Sandbox using `Sandbox.SnapshotDirectory`,
+//   which will create a new Modal Image.
+// - Mount a Modal Image at a specific directory within an already running Sandbox
+//   using `Sandbox.MountImage`.
 //
 // For example, you can use this to mount user specific dependencies into a running
 // Sandbox, that is started with a base Image with shared system dependencies. This
@@ -38,9 +31,8 @@ func main() {
 		log.Fatalf("Failed to get or create App: %v", err)
 	}
 
-	// The base Image you use for the Sandbox must have a /usr/bin/mount binary.
-	baseImage := mc.Images.FromRegistry("debian:12-slim", nil).DockerfileCommands([]string{
-		"RUN apt-get update && apt-get install -y git",
+	baseImage := mc.Images.FromRegistry("alpine:3.21", nil).DockerfileCommands([]string{
+		"RUN apk add --no-cache git",
 	}, nil)
 
 	sb, err := mc.Sandboxes.Create(ctx, app, baseImage, nil)
@@ -57,22 +49,6 @@ func main() {
 		}
 	}()
 	fmt.Printf("Started first Sandbox: %s\n", sb.SandboxID)
-
-	// You must mount an Image at a directory in the Sandbox filesystem before you
-	// can snapshot it. You can pass nil as the image parameter to mount an
-	// empty directory.
-	//
-	// The target directory must exist before you can mount it:
-	mkdirProc, err := sb.Exec(ctx, []string{"mkdir", "-p", "/repo"}, nil)
-	if err != nil {
-		log.Fatalf("Failed to exec mkdir: %v", err)
-	}
-	if exitCode, err := mkdirProc.Wait(ctx); err != nil || exitCode != 0 {
-		log.Fatalf("Failed to wait for mkdir: exit code: %d, err: %v", exitCode, err)
-	}
-	if err := sb.MountImage(ctx, "/repo", nil); err != nil {
-		log.Fatalf("Failed to mount image: %v", err)
-	}
 
 	gitClone, err := sb.Exec(ctx, []string{
 		"git",
