@@ -4,7 +4,7 @@ Both client libraries are pre-1.0, and they have separate versioning.
 
 ## Unreleased
 
-No unreleased changes.
+- `Sandbox` methods now poll for the task ID instead of failing immediately when it is not yet available.
 
 ## modal-js/v0.7.1, modal-go/v0.7.1
 
