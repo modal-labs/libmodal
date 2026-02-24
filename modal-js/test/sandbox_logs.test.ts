@@ -243,9 +243,8 @@ describe("SandboxGetLogs lazy and retry behavior", () => {
         return (async function* () {
           try {
             yield batch("1-0", [textItem("hello")], false);
-            while (true) {
-              await sleep(10);
-            }
+            // Simulate server keeping the connection open with no more data.
+            await new Promise(() => {});
           } finally {
             cancelled = true;
           }
