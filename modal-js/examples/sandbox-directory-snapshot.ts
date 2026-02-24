@@ -1,17 +1,10 @@
-// This example shows how to mount Images in the Sandbox filesystem and take snapshots
-// of them.
+// This example demonstrates the directory snapshots feature, which allows you to:
+// - Take a snapshot of a directory in a Sandbox using `Sandbox.snapshotDirectory`,
+//   which will create a new Modal Image.
+// - Mount a Modal Image at a specific directory within an already running Sandbox
+//   using `Sandbox.mountImage`.
 //
-//
-// High level, it allows you to:
-// - Mount any Modal Image at a specific directory within the Sandbox filesystem.
-// - Take a snapshot of that directory, which will create a new Modal Image with
-//   the updated contents of the directory.
-//
-// You can only snapshot directories that have previously been mounted using
-// `Sandbox.mountImage`. If you want to mount an empty directory,
-// you can pass undefined as the image parameter.
-//
-// For exmaple, you can use this to mount user specific dependencies into a running
+// For example, you can use this to mount user specific dependencies into a running
 // Sandbox, that is started with a base Image with shared system dependencies. This
 // way, you can update system dependencies and user projects independently.
 
@@ -22,18 +15,11 @@ const modal = new ModalClient();
 const app = await modal.apps.fromName("libmodal-example", {
   createIfMissing: true,
 });
-// The base Image you use for the Sandbox must have a /usr/bin/mount binary.
-const baseImage = modal.images.fromRegistry("debian:12-slim");
+const baseImage = modal.images
+  .fromRegistry("alpine:3.21")
+  .dockerfileCommands(["RUN apk add --no-cache git"]);
 
 const sb = await modal.sandboxes.create(app, baseImage);
-
-// You must mount an Image at a directory in the Sandbox filesystem before you
-// can snapshot it. You can pass undefined as the image parameter to mount an
-// empty directory.
-//
-// The target directory must exist before you can mount it:
-await (await sb.exec(["mkdir", "-p", "/repo"])).wait();
-await sb.mountImage("/repo");
 
 const gitClone = await sb.exec([
   "git",
