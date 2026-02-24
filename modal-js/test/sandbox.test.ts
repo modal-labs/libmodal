@@ -816,9 +816,7 @@ test("SandboxGetTaskIdTerminated", async () => {
   }));
 
   const sb = await mc.sandboxes.fromId("sb-123");
-  await expect(sb.exec(["echo", "hello"])).rejects.toThrow(
-    /already completed/,
-  );
+  await expect(sb.exec(["echo", "hello"])).rejects.toThrow(/already completed/);
 
   mock.assertExhausted();
 });

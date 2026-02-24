@@ -893,9 +893,9 @@ func TestSandboxGetTaskIdPolling(t *testing.T) {
 		})
 	grpcmock.HandleUnary(mock, "SandboxGetTaskId",
 		func(req *pb.SandboxGetTaskIdRequest) (*pb.SandboxGetTaskIdResponse, error) {
-			taskId := "ta-123"
+			taskID := "ta-123"
 			return pb.SandboxGetTaskIdResponse_builder{
-				TaskId: &taskId,
+				TaskId: &taskID,
 			}.Build(), nil
 		})
 
