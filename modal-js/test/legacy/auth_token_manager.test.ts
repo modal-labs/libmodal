@@ -114,6 +114,18 @@ describe("AuthTokenManager", () => {
     expect(mockClient.authTokenGet).toHaveBeenCalledTimes(1);
   });
 
+  test("TestAuthToken_ProactiveRefreshFailureReturnsOldToken", async () => {
+    const now = Math.floor(Date.now() / 1000);
+    const nearExpiryToken = createTestJWT(now + 60);
+    manager.setToken(nearExpiryToken, now + 60);
+
+    mockClient.authTokenGet.mockRejectedValueOnce(new Error("server blip"));
+
+    const token = await manager.getToken();
+    expect(token).toBe(nearExpiryToken);
+    expect(mockClient.authTokenGet).toHaveBeenCalledTimes(1);
+  });
+
   test("TestAuthToken_GetToken_EmptyResponse", async () => {
     await expect(manager.getToken()).rejects.toThrow(
       "did not receive auth token from server",

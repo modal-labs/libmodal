@@ -41,7 +41,11 @@ export class AuthTokenManager {
 
     if (this.needsRefresh()) {
       if (!this.refreshPromise) {
-        await this.lockedRefresh();
+        try {
+          await this.lockedRefresh();
+        } catch (error) {
+          this.logger.error("refreshing auth token", "error", error);
+        }
       }
       // If a refresh is already in progress, return the old (still valid) token
     }

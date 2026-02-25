@@ -141,6 +141,21 @@ describe("AuthTokenManager", () => {
     expect(mockClient.authTokenGet).toHaveBeenCalledTimes(1);
   });
 
+  test("TestAuthToken_ProactiveRefreshFailureReturnsOldToken", async () => {
+    const now = Math.floor(Date.now() / 1000);
+    // Token within REFRESH_WINDOW of expiry (60s left, window is 300s)
+    const nearExpiryToken = createTestJWT(now + 60);
+    manager.setToken(nearExpiryToken, now + 60);
+
+    // Make the refresh RPC fail
+    mockClient.authTokenGet.mockRejectedValueOnce(new Error("server blip"));
+
+    // getToken should return the old valid token, not throw
+    const token = await manager.getToken();
+    expect(token).toBe(nearExpiryToken);
+    expect(mockClient.authTokenGet).toHaveBeenCalledTimes(1);
+  });
+
   test("TestAuthToken_GetToken_EmptyResponse", async () => {
     // authToken is "" by default, so authTokenGet returns empty
     await expect(manager.getToken()).rejects.toThrow(
