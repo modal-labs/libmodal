@@ -1211,7 +1211,7 @@ func TestSandboxExecOutputTimeout(t *testing.T) {
 			// Deadline may have passed between stdout read completing and Wait() being called
 			g.Expect(waitErr.Error()).To(gomega.ContainSubstring("deadline exceeded"))
 		} else {
-			g.Expect(exitCode).To(gomega.Equal(0))
+			g.Expect(exitCode).To(gomega.Equal(137))
 		}
 	}
 
