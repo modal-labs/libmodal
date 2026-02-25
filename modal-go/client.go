@@ -179,9 +179,6 @@ func NewClientWithOptions(params *ClientParams) (*Client, error) {
 	}
 
 	c.authTokenManager = NewAuthTokenManager(c.cpClient, c.logger)
-	if err := c.authTokenManager.Start(context.Background()); err != nil {
-		return nil, fmt.Errorf("failed to start auth token manager: %w", err)
-	}
 
 	logger.DebugContext(ctx, "Modal client initialized successfully")
 
@@ -228,11 +225,10 @@ func (c *Client) ipClient(ctx context.Context, serverURL string) (pb.ModalClient
 	return c.ipClients[serverURL], nil
 }
 
-// Close stops the background auth token refresh and closes all gRPC connections.
+// Close closes all gRPC connections.
 func (c *Client) Close() {
 	ctx := context.Background()
 	c.logger.DebugContext(ctx, "Closing Modal client")
-	c.authTokenManager.Stop()
 
 	if c.cpClient != nil {
 		if err := c.cpClient.Close(); err != nil {

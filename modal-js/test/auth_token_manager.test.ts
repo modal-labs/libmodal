@@ -1,23 +1,8 @@
-import { describe, test, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, test, expect, vi, beforeEach } from "vitest";
 import jwt from "jsonwebtoken";
 import { ModalClient } from "../src/client";
 import { AuthTokenManager, REFRESH_WINDOW } from "../src/auth_token_manager";
 import { newLogger } from "../src/logger";
-
-async function eventually(
-  condition: () => boolean,
-  timeoutMs: number = 1000,
-  intervalMs: number = 10,
-): Promise<void> {
-  const start = Date.now();
-  while (Date.now() - start < timeoutMs) {
-    if (condition()) {
-      return;
-    }
-    await new Promise((resolve) => setTimeout(resolve, intervalMs));
-  }
-  throw new Error(`Condition not met within ${timeoutMs}ms`);
-}
 
 class mockAuthClient {
   private authToken: string = "";
@@ -49,33 +34,31 @@ describe("AuthTokenManager", () => {
     manager = new AuthTokenManager(mockClient as any, newLogger());
   });
 
-  afterEach(() => {
-    manager.stop();
-  });
-
   test("TestAuthToken_DecodeJWT", async () => {
     const now = Math.floor(Date.now() / 1000);
     const expiry = now + 1800;
     const token = createTestJWT(expiry);
     mockClient.setAuthToken(token);
 
-    // Test by fetching a valid JWT and checking if it gets stored properly
-    await manager.start();
+    const result = await manager.getToken();
+    expect(result).toBe(token);
     expect(manager.getCurrentToken()).toBe(token);
   });
 
-  test("TestAuthToken_InitialFetch", async () => {
+  test("TestAuthToken_LazyFetch", async () => {
     const now = Math.floor(Date.now() / 1000);
     const token = createTestJWT(now + 3600);
     mockClient.setAuthToken(token);
 
-    await manager.start();
-
+    // First getToken lazily fetches
     const firstToken = await manager.getToken();
     expect(firstToken).toBe(token);
 
+    // Second getToken returns cached
     const secondToken = await manager.getToken();
     expect(secondToken).toBe(token);
+
+    expect(mockClient.authTokenGet).toHaveBeenCalledTimes(1);
   });
 
   test("TestAuthToken_IsExpired", async () => {
@@ -100,40 +83,28 @@ describe("AuthTokenManager", () => {
     manager.setToken(expiringToken, now - 60);
     mockClient.setAuthToken(freshToken);
 
-    // Start the background refresh
-    await manager.start();
-
-    // Wait for background refresh to update the token
-    await eventually(() => manager.getCurrentToken() === freshToken);
-
-    // Should have the new token cached
-    expect(manager.getCurrentToken()).toBe(freshToken);
+    // getToken should see the expired token and fetch a new one
+    const token = await manager.getToken();
+    expect(token).toBe(freshToken);
   });
 
   test("TestAuthToken_RefreshNearExpiryToken", async () => {
     const now = Math.floor(Date.now() / 1000);
+    // Token within REFRESH_WINDOW of expiry (60s left, window is 300s)
     const expiringToken = createTestJWT(now + 60);
     const freshToken = createTestJWT(now + 3600);
 
     manager.setToken(expiringToken, now + 60);
     mockClient.setAuthToken(freshToken);
 
-    // Start the refresh timer
-    await manager.start();
-
-    // Wait for background refresh to update the token
-    await eventually(() => manager.getCurrentToken() === freshToken);
-
-    // Should have the new token cached
-    expect(manager.getCurrentToken()).toBe(freshToken);
+    // getToken should proactively refresh
+    const token = await manager.getToken();
+    expect(token).toBe(freshToken);
   });
 
   test("TestAuthToken_ConcurrentGetToken", async () => {
     const token = createTestJWT(Math.floor(Date.now() / 1000) + 3600);
     mockClient.setAuthToken(token);
-
-    // Start the manager to fetch initial token
-    await manager.start();
 
     // Multiple concurrent getToken calls should all return the same token
     const [result1, result2, result3] = await Promise.all([
@@ -145,97 +116,61 @@ describe("AuthTokenManager", () => {
     expect(result2).toBe(token);
     expect(result3).toBe(token);
 
-    // authTokenGet should have been called only once (during start)
+    // Only one fetch should have happened
     expect(mockClient.authTokenGet).toHaveBeenCalledTimes(1);
   });
 
   test("TestAuthToken_ConcurrentGetTokenWithExpiredToken", async () => {
-    vi.useFakeTimers();
-    try {
-      const now = Math.floor(Date.now() / 1000);
-      mockClient.setAuthToken(createTestJWT(now + REFRESH_WINDOW + 60));
+    const now = Math.floor(Date.now() / 1000);
 
-      await manager.start();
-      mockClient.authTokenGet.mockClear();
+    const expiredToken = createTestJWT(now - 10);
+    manager.setToken(expiredToken, now - 10);
 
-      const expiredToken = createTestJWT(now - 10);
-      manager.setToken(expiredToken, now - 10);
+    const freshToken = createTestJWT(now + 3600);
+    mockClient.setAuthToken(freshToken);
 
-      const freshToken = createTestJWT(now + 3600);
-      mockClient.setAuthToken(freshToken);
+    const [result1, result2, result3] = await Promise.all([
+      manager.getToken(),
+      manager.getToken(),
+      manager.getToken(),
+    ]);
 
-      const [result1, result2, result3] = await Promise.all([
-        manager.getToken(),
-        manager.getToken(),
-        manager.getToken(),
-      ]);
-
-      expect(result1).toBe(freshToken);
-      expect(result2).toBe(freshToken);
-      expect(result3).toBe(freshToken);
-      expect(mockClient.authTokenGet).toHaveBeenCalledTimes(1);
-    } finally {
-      vi.useRealTimers();
-    }
+    expect(result1).toBe(freshToken);
+    expect(result2).toBe(freshToken);
+    expect(result3).toBe(freshToken);
+    expect(mockClient.authTokenGet).toHaveBeenCalledTimes(1);
   });
 
-  test("TestAuthToken_GetToken_NoToken", async () => {
+  test("TestAuthToken_GetToken_EmptyResponse", async () => {
+    // authToken is "" by default, so authTokenGet returns empty
     await expect(manager.getToken()).rejects.toThrow(
-      "No valid auth token available",
+      "did not receive auth token from server",
     );
   });
 
-  test("TestAuthToken_StopCleansUpResources", async () => {
-    const now = Math.floor(Date.now() / 1000);
-    const token = createTestJWT(now + 3600);
-    mockClient.setAuthToken(token);
-
-    await manager.start();
-    expect(manager.getCurrentToken()).toBe(token);
-
-    manager.stop();
-
-    await new Promise((resolve) => setTimeout(resolve, 100));
-  });
-
-  test("TestAuthToken_HandlesEventLoopFreeze", async () => {
-    // Use fake timers so we can control both timers and system time
+  test("TestAuthToken_ExpiredThenRefreshed", async () => {
     vi.useFakeTimers();
     try {
       const baseTime = new Date("2025-01-01T00:00:00Z");
       vi.setSystemTime(baseTime);
       const baseTimeSeconds = Math.floor(baseTime.getTime() / 1000);
-      const firstRefreshDelaySeconds = 5;
 
-      // Want it to trigger refresh firstRefreshDelaySeconds from "now".
-      const tokenOneExpirySeconds =
-        baseTimeSeconds + REFRESH_WINDOW + firstRefreshDelaySeconds;
+      const tokenOneExpirySeconds = baseTimeSeconds + REFRESH_WINDOW + 5;
 
-      // First fetch happens when the manager starts.
+      // First getToken lazily fetches tokenOne
       const tokenOne = createTestJWT(tokenOneExpirySeconds);
       mockClient.setAuthToken(tokenOne);
-      await manager.start();
+      await expect(manager.getToken()).resolves.toBe(tokenOne);
       expect(mockClient.authTokenGet).toHaveBeenCalledTimes(1);
 
-      // Simulate an event-loop "freeze" where time moves forward but timeouts don't fire.
-      // getToken() should see tokenOne expired, and fetch tokenTwo.
+      // Simulate time moving past token expiry
       const tokenTwo = createTestJWT(tokenOneExpirySeconds + 3600);
       mockClient.setAuthToken(tokenTwo);
       vi.setSystemTime(new Date((tokenOneExpirySeconds + 1) * 1000));
+
+      // getToken should see tokenOne expired and fetch tokenTwo
       await expect(manager.getToken()).resolves.toBe(tokenTwo);
       expect(mockClient.authTokenGet).toHaveBeenCalledTimes(2);
-
-      // Advance timers and check that the background refresh fetches tokenThree.
-      const tokenThree = createTestJWT(tokenOneExpirySeconds + 2 * 3600);
-      mockClient.setAuthToken(tokenThree);
-      await vi.advanceTimersByTimeAsync(firstRefreshDelaySeconds * 1000);
-      await eventually(
-        () =>
-          manager.getCurrentToken() === tokenThree &&
-          mockClient.authTokenGet.mock.calls.length === 3,
-        2000,
-        10,
-      );
     } finally {
       vi.useRealTimers();
     }

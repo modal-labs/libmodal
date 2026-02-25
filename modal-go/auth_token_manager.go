@@ -12,7 +12,6 @@ import (
 	"time"
 
 	pb "github.com/modal-labs/libmodal/modal-go/proto/modal_proto"
-	"golang.org/x/sync/singleflight"
 )
 
 const (
@@ -27,17 +26,15 @@ type TokenAndExpiry struct {
 	expiry int64
 }
 
-// AuthTokenManager manages authentication tokens using a goroutine, and refreshes the token REFRESH_WINDOW seconds before it expires.
+// AuthTokenManager manages authentication tokens, refreshing them lazily
+// when GetToken is called. Tokens are refreshed when expired or within
+// RefreshWindow seconds of expiry.
 type AuthTokenManager struct {
-	client   pb.ModalClientClient
-	logger   *slog.Logger
-	cancelFn context.CancelFunc
+	client pb.ModalClientClient
+	logger *slog.Logger
 
 	tokenAndExpiry atomic.Value
-
-	mu         sync.Mutex
-	running    bool
-	fetchGroup singleflight.Group
+	refreshMu      sync.Mutex
 }
 
 func NewAuthTokenManager(client pb.ModalClientClient, logger *slog.Logger) *AuthTokenManager {
@@ -54,114 +51,58 @@ func NewAuthTokenManager(client pb.ModalClientClient, logger *slog.Logger) *Auth
 	return manager
 }
 
-// Start the token refresh goroutine.
-// Returns an error if the initial token fetch fails.
-func (m *AuthTokenManager) Start(ctx context.Context) error {
-	m.mu.Lock()
-	if m.running {
-		m.mu.Unlock()
+// GetToken returns a valid auth token, fetching or refreshing as needed.
+//
+// Three states:
+//  1. Valid token (not near expiry): returned immediately, no locking.
+//  2. No token or expired: all callers block until a fresh token is fetched.
+//     Only one goroutine makes the RPC; others wait on the mutex then see the
+//     new token via a double-check.
+//  3. Valid but within RefreshWindow of expiry: one goroutine refreshes
+//     (blocking only itself); concurrent callers get the old, still-valid token.
+func (m *AuthTokenManager) GetToken(ctx context.Context) (string, error) {
+	data := m.tokenAndExpiry.Load().(TokenAndExpiry)
+
+	if data.token == "" || isExpired(data) {
+		if err := m.lockedRefresh(ctx); err != nil {
+			return "", err
+		}
+		return m.tokenAndExpiry.Load().(TokenAndExpiry).token, nil
+	}
+
+	if needsRefresh(data) {
+		if m.refreshMu.TryLock() {
+			data = m.tokenAndExpiry.Load().(TokenAndExpiry)
+			if needsRefresh(data) {
+				if _, err := m.FetchToken(ctx); err != nil {
+					m.logger.ErrorContext(ctx, "refreshing auth token", "error", err)
+				}
+			}
+			m.refreshMu.Unlock()
+		}
+	}
+
+	return m.tokenAndExpiry.Load().(TokenAndExpiry).token, nil
+}
+
+// lockedRefresh blocks until the mutex is acquired, then refreshes if still needed.
+func (m *AuthTokenManager) lockedRefresh(ctx context.Context) error {
+	m.refreshMu.Lock()
+	defer m.refreshMu.Unlock()
+
+	data := m.tokenAndExpiry.Load().(TokenAndExpiry)
+	if data.token != "" && !needsRefresh(data) {
 		return nil
 	}
-	m.running = true
-	refreshCtx, cancel := context.WithCancel(ctx)
-	m.cancelFn = cancel
-	m.mu.Unlock()
-
-	if err := m.runFetch(refreshCtx); err != nil {
-		m.Stop()
-		return fmt.Errorf("failed to fetch initial auth token: %w", err)
-	}
-
-	go m.backgroundRefresh(refreshCtx)
-	return nil
-}
-
-// Stop the refresh goroutine.
-func (m *AuthTokenManager) Stop() {
-	m.mu.Lock()
-	m.running = false
-	cancelFn := m.cancelFn
-	m.cancelFn = nil
-	m.mu.Unlock()
-
-	if cancelFn != nil {
-		cancelFn()
-	}
-}
-
-// runFetch fetches a token, ensuring only one fetch is in progress at a time.
-func (m *AuthTokenManager) runFetch(ctx context.Context) error {
-	_, err, _ := m.fetchGroup.Do("fetch", func() (interface{}, error) {
-		return m.FetchToken(ctx)
-	})
+	_, err := m.FetchToken(ctx)
 	return err
-}
-
-// GetToken returns a valid auth token.
-// If the current token is expired and the manager is running, triggers an on-demand refresh.
-func (m *AuthTokenManager) GetToken(ctx context.Context) (string, error) {
-	if token := m.GetCurrentToken(); token != "" && !m.IsExpired() {
-		return token, nil
-	}
-
-	m.mu.Lock()
-	running := m.running
-	m.mu.Unlock()
-
-	if running {
-		if err := m.runFetch(ctx); err == nil {
-			if token := m.GetCurrentToken(); token != "" && !m.IsExpired() {
-				return token, nil
-			}
-		}
-	}
-
-	return "", fmt.Errorf("no valid auth token available")
-}
-
-// backgroundRefresh runs in a goroutine and refreshes tokens REFRESH_WINDOW seconds before they expire.
-func (m *AuthTokenManager) backgroundRefresh(ctx context.Context) {
-	for {
-		data := m.tokenAndExpiry.Load().(TokenAndExpiry)
-		now := time.Now().Unix()
-		refreshTime := data.expiry - RefreshWindow
-
-		var delay time.Duration
-		if refreshTime > now {
-			// Token does not need refreshing yet. Set a delay to wait until the refresh time.
-			delay = time.Duration(refreshTime-now) * time.Second
-		} else {
-			// Token needs refresh now or is expired, refresh immediately
-			// This should almost never happen.
-			delay = 0
-		}
-
-		if delay > 0 {
-			select {
-			case <-ctx.Done():
-				return
-			case <-time.After(delay):
-			}
-		}
-
-		// Refresh the token
-		if err := m.runFetch(ctx); err != nil {
-			m.logger.ErrorContext(ctx, "Failed to refresh auth token", "error", err)
-			// Sleep for 5 seconds before trying again on failure
-			select {
-			case <-ctx.Done():
-				return
-			case <-time.After(5 * time.Second):
-			}
-		}
-	}
 }
 
 // FetchToken fetches a new token using AuthTokenGet() and stores it.
 func (m *AuthTokenManager) FetchToken(ctx context.Context) (string, error) {
 	resp, err := m.client.AuthTokenGet(ctx, &pb.AuthTokenGetRequest{})
 	if err != nil {
-		return "", fmt.Errorf("failed to get new auth token: %w", err)
+		return "", fmt.Errorf("AuthTokenGet: %w", err)
 	}
 
 	token := resp.GetToken()
@@ -226,11 +167,18 @@ func (m *AuthTokenManager) GetCurrentToken() string {
 	return data.token
 }
 
-// IsExpired checks if token is expired.
+// IsExpired checks if the current token is expired.
 func (m *AuthTokenManager) IsExpired() bool {
 	data := m.tokenAndExpiry.Load().(TokenAndExpiry)
-	now := time.Now().Unix()
-	return now >= data.expiry
+	return isExpired(data)
+}
+
+func isExpired(data TokenAndExpiry) bool {
+	return time.Now().Unix() >= data.expiry
+}
+
+func needsRefresh(data TokenAndExpiry) bool {
+	return time.Now().Unix() >= data.expiry-RefreshWindow
 }
 
 // SetToken sets the token and expiry (for testing).
