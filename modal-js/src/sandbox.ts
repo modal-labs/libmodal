@@ -957,9 +957,11 @@ export class Sandbox {
         sandboxId: this.sandboxId,
       });
       if (resp.taskResult) {
-        throw new Error(
-          `Sandbox ${this.sandboxId} has already completed with result: ${resp.taskResult}`,
-        );
+        if (resp.taskResult.status === GenericResult_GenericStatus.GENERIC_STATUS_SUCCESS || !resp.taskResult.exception) {
+          throw new Error(`Sandbox ${this.sandboxId} has already completed`);
+        }
+        throw new Error(`Sandbox ${this.sandboxId} has already completed with result: exception:"${resp.taskResult.exception}"`);
+
       }
       if (resp.taskId) {
         this.#taskId = resp.taskId;
