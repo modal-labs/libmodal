@@ -33,7 +33,7 @@ type AuthTokenManager struct {
 	client pb.ModalClientClient
 	logger *slog.Logger
 
-	tokenAndExpiry atomic.Value
+	tokenAndExpiry atomic.Pointer[TokenAndExpiry]
 	refreshMu      sync.Mutex
 }
 
@@ -43,7 +43,7 @@ func NewAuthTokenManager(client pb.ModalClientClient, logger *slog.Logger) *Auth
 		logger: logger,
 	}
 
-	manager.tokenAndExpiry.Store(TokenAndExpiry{
+	manager.tokenAndExpiry.Store(&TokenAndExpiry{
 		token:  "",
 		expiry: 0,
 	})
@@ -61,41 +61,36 @@ func NewAuthTokenManager(client pb.ModalClientClient, logger *slog.Logger) *Auth
 //  3. Valid but within RefreshWindow of expiry: one goroutine refreshes
 //     (blocking only itself); concurrent callers get the old, still-valid token.
 func (m *AuthTokenManager) GetToken(ctx context.Context) (string, error) {
-	data := m.tokenAndExpiry.Load().(TokenAndExpiry)
+	data := m.tokenAndExpiry.Load()
 
-	if data.token == "" || isExpired(data) {
-		if err := m.lockedRefresh(ctx); err != nil {
-			return "", err
-		}
-		return m.tokenAndExpiry.Load().(TokenAndExpiry).token, nil
+	if data.token == "" || isExpired(*data) {
+		return m.lockedRefreshToken(ctx)
 	}
 
-	if needsRefresh(data) {
-		if m.refreshMu.TryLock() {
-			data = m.tokenAndExpiry.Load().(TokenAndExpiry)
-			if needsRefresh(data) {
-				if _, err := m.FetchToken(ctx); err != nil {
-					m.logger.ErrorContext(ctx, "refreshing auth token", "error", err)
-				}
-			}
-			m.refreshMu.Unlock()
+	if needsRefresh(*data) && m.refreshMu.TryLock() {
+		token, err := m.FetchToken(ctx)
+		m.refreshMu.Unlock()
+		if err != nil {
+			m.logger.ErrorContext(ctx, "refreshing auth token", "error", err)
+			return data.token, nil
 		}
+		return token, nil
 	}
 
-	return m.tokenAndExpiry.Load().(TokenAndExpiry).token, nil
+	return data.token, nil
 }
 
-// lockedRefresh blocks until the mutex is acquired, then refreshes if still needed.
-func (m *AuthTokenManager) lockedRefresh(ctx context.Context) error {
+// lockedRefreshToken blocks until the mutex is acquired, then refreshes if still needed.
+// Returns the current valid token.
+func (m *AuthTokenManager) lockedRefreshToken(ctx context.Context) (string, error) {
 	m.refreshMu.Lock()
 	defer m.refreshMu.Unlock()
 
-	data := m.tokenAndExpiry.Load().(TokenAndExpiry)
-	if data.token != "" && !needsRefresh(data) {
-		return nil
+	data := m.tokenAndExpiry.Load()
+	if data.token != "" && !needsRefresh(*data) {
+		return data.token, nil
 	}
-	_, err := m.FetchToken(ctx)
-	return err
+	return m.FetchToken(ctx)
 }
 
 // FetchToken fetches a new token using AuthTokenGet() and stores it.
@@ -119,7 +114,7 @@ func (m *AuthTokenManager) FetchToken(ctx context.Context) (string, error) {
 		expiry = time.Now().Unix() + DefaultExpiryOffset
 	}
 
-	m.tokenAndExpiry.Store(TokenAndExpiry{
+	m.tokenAndExpiry.Store(&TokenAndExpiry{
 		token:  token,
 		expiry: expiry,
 	})
@@ -163,14 +158,12 @@ func (m *AuthTokenManager) decodeJWT(token string) int64 {
 
 // GetCurrentToken returns the current cached token.
 func (m *AuthTokenManager) GetCurrentToken() string {
-	data := m.tokenAndExpiry.Load().(TokenAndExpiry)
-	return data.token
+	return m.tokenAndExpiry.Load().token
 }
 
 // IsExpired checks if the current token is expired.
 func (m *AuthTokenManager) IsExpired() bool {
-	data := m.tokenAndExpiry.Load().(TokenAndExpiry)
-	return isExpired(data)
+	return isExpired(*m.tokenAndExpiry.Load())
 }
 
 func isExpired(data TokenAndExpiry) bool {
@@ -183,7 +176,7 @@ func needsRefresh(data TokenAndExpiry) bool {
 
 // SetToken sets the token and expiry (for testing).
 func (m *AuthTokenManager) SetToken(token string, expiry int64) {
-	m.tokenAndExpiry.Store(TokenAndExpiry{
+	m.tokenAndExpiry.Store(&TokenAndExpiry{
 		token:  token,
 		expiry: expiry,
 	})

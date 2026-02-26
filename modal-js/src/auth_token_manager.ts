@@ -35,19 +35,15 @@ export class AuthTokenManager {
    */
   async getToken(): Promise<string> {
     if (!this.currentToken || this.isExpired()) {
-      await this.lockedRefresh();
-      return this.currentToken;
+      return this.lockedRefreshToken();
     }
 
-    if (this.needsRefresh()) {
-      if (!this.refreshPromise) {
-        try {
-          await this.lockedRefresh();
-        } catch (error) {
-          this.logger.error("refreshing auth token", "error", error);
-        }
+    if (this.needsRefresh() && !this.refreshPromise) {
+      try {
+        await this.lockedRefreshToken();
+      } catch (error) {
+        this.logger.error("refreshing auth token", "error", error);
       }
-      // If a refresh is already in progress, return the old (still valid) token
     }
 
     return this.currentToken;
@@ -58,7 +54,7 @@ export class AuthTokenManager {
    * await the same promise. Includes a double-check so that if another
    * caller already refreshed, we skip the RPC.
    */
-  private async lockedRefresh(): Promise<void> {
+  private async lockedRefreshToken(): Promise<string> {
     if (!this.refreshPromise) {
       this.refreshPromise = (async () => {
         try {
@@ -72,6 +68,7 @@ export class AuthTokenManager {
       })();
     }
     await this.refreshPromise;
+    return this.currentToken;
   }
 
   /**
