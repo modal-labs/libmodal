@@ -68,8 +68,8 @@ func (m *AuthTokenManager) GetToken(ctx context.Context) (string, error) {
 	}
 
 	if needsRefresh(*data) && m.refreshMu.TryLock() {
+		defer m.refreshMu.Unlock()
 		token, err := m.FetchToken(ctx)
-		m.refreshMu.Unlock()
 		if err != nil {
 			m.logger.ErrorContext(ctx, "refreshing auth token", "error", err)
 			return data.token, nil
