@@ -51,7 +51,8 @@ func TestImageFromRegistryWithSecret(t *testing.T) {
 	// https://cloud.google.com/artifact-registry/docs/docker/authentication#json-key
 	// So we use GCP Artifact Registry to test this too.
 
-	t.Parallel()
+	t.Setenv("MODAL_IMAGE_BUILDER_VERSION", "2024.10")
+
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 	tc := newTestClient(t)
@@ -72,7 +73,8 @@ func TestImageFromRegistryWithSecret(t *testing.T) {
 }
 
 func TestImageFromAwsEcr(t *testing.T) {
-	t.Parallel()
+	t.Setenv("MODAL_IMAGE_BUILDER_VERSION", "2024.10")
+
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 	tc := newTestClient(t)
@@ -91,7 +93,8 @@ func TestImageFromAwsEcr(t *testing.T) {
 }
 
 func TestImageFromGcpArtifactRegistry(t *testing.T) {
-	t.Parallel()
+	t.Setenv("MODAL_IMAGE_BUILDER_VERSION", "2024.10")
+
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 	tc := newTestClient(t)
@@ -280,7 +283,8 @@ func TestDockerfileCommandsCopyCommandValidation(t *testing.T) {
 }
 
 func TestDockerfileCommandsWithOptions(t *testing.T) {
-	t.Parallel()
+	t.Setenv("MODAL_IMAGE_BUILDER_VERSION", "2024.10")
+
 	g := gomega.NewWithT(t)
 	ctx := context.Background()
 
