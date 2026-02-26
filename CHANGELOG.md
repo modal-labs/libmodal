@@ -4,6 +4,7 @@ Both client libraries are pre-1.0, and they have separate versioning.
 
 ## Unreleased
 
+- Changed auth token refresh from a background loop to lazy just-in-time refresh on first request.
 - Fixed a bug in modal-js where cancelling `sandbox.stdout` or `sandbox.stderr` would not stop long-polling when the server returned empty batches.
 
 ## modal-js/v0.7.1, modal-go/v0.7.1
