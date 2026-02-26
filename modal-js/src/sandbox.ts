@@ -946,24 +946,30 @@ export class Sandbox {
     }
   }
 
+  static readonly #maxGetTaskIdAttempts = 600; // 5 minutes at 500ms intervals
+
   async #getTaskId(): Promise<string> {
-    if (this.#taskId === undefined) {
+    if (this.#taskId !== undefined) {
+      return this.#taskId;
+    }
+    for (let i = 0; i < Sandbox.#maxGetTaskIdAttempts; i++) {
       const resp = await this.#client.cpClient.sandboxGetTaskId({
         sandboxId: this.sandboxId,
       });
-      if (!resp.taskId) {
-        throw new Error(
-          `Sandbox ${this.sandboxId} does not have a task ID. It may not be running.`,
-        );
-      }
       if (resp.taskResult) {
         throw new Error(
           `Sandbox ${this.sandboxId} has already completed with result: ${resp.taskResult}`,
         );
       }
-      this.#taskId = resp.taskId;
+      if (resp.taskId) {
+        this.#taskId = resp.taskId;
+        return this.#taskId;
+      }
+      await setTimeout(500);
     }
-    return this.#taskId;
+    throw new Error(
+      `Timed out waiting for task ID for Sandbox ${this.sandboxId}`,
+    );
   }
 
   async #getOrCreateCommandRouterClient(

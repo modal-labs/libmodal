@@ -4,8 +4,9 @@ Both client libraries are pre-1.0, and they have separate versioning.
 
 ## Unreleased
 
-- Changed auth token refresh from a background loop to lazy just-in-time refresh on first request.
+- `Sandbox` methods now poll for the task ID instead of failing immediately when it is not yet available. Polling is capped at 5 minutes and returns an error if the sandbox has already terminated.
 - Fixed a bug in modal-js where cancelling `sandbox.stdout` or `sandbox.stderr` would not stop long-polling when the server returned empty batches.
+- Changed auth token refresh from a background loop to lazy just-in-time refresh on first request.
 
 ## modal-js/v0.7.1, modal-go/v0.7.1
 

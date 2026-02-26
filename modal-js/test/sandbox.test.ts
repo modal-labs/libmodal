@@ -794,6 +794,33 @@ test("testSandboxExperimentalDockerMock", async () => {
   mock.assertExhausted();
 });
 
+test("SandboxGetTaskIdPolling", async () => {
+  const { mockClient: mc, mockCpClient: mock } = createMockModalClients();
+
+  mock.handleUnary("/SandboxWait", () => ({}));
+  mock.handleUnary("/SandboxGetTaskId", () => ({}));
+  mock.handleUnary("/SandboxGetTaskId", () => ({ taskId: "ta-123" }));
+
+  const sb = await mc.sandboxes.fromId("sb-123");
+  await expect(sb.open("/test", "r")).rejects.toThrow();
+
+  mock.assertExhausted();
+});
+
+test("SandboxGetTaskIdTerminated", async () => {
+  const { mockClient: mc, mockCpClient: mock } = createMockModalClients();
+
+  mock.handleUnary("/SandboxWait", () => ({}));
+  mock.handleUnary("/SandboxGetTaskId", () => ({
+    taskResult: { status: 3 },
+  }));
+
+  const sb = await mc.sandboxes.fromId("sb-123");
+  await expect(sb.exec(["echo", "hello"])).rejects.toThrow(/already completed/);
+
+  mock.assertExhausted();
+});
+
 test("validateExecArgs with args within limit", () => {
   expect(() => validateExecArgs(["echo", "hello"])).not.toThrow();
 
