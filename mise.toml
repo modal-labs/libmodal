@@ -1,0 +1,42 @@
+experimental_monorepo_root = true
+
+[tasks.deploy-test-support]
+description = "Deploy test support apps"
+depends = [":py-bootstrap"]
+run = [
+    "modal-client/.venv/bin/modal deploy test-support/libmodal_test_support.py",
+    #"uvx 'modal<1.2' deploy test-support/test_support_1_1.py"
+    "mkdir -p .task_markers && touch .task_markers/last-test-support-deploy"
+]
+sources = ["test-support/**", "modal-client/**"]
+outputs = [".task_markers/last-test-support-deploy"]
+
+# The following would preferably live in modal-client itself
+# but that's blocked by mise naming of monorepo tasks vs non-monorepo tasks
+# https://github.com/jdx/mise/discussions/6564#discussioncomment-14646640
+[tools]
+python = "3.11"
+uv = "latest"
+
+[env]
+_.python.venv = {path = ".venv", create=true}
+
+[tasks.py-install]
+run = [
+    "uv pip install -r modal-client/requirements.dev.txt -e ./modal-client",
+    "mkdir -p .task_markers && touch .task_markers/py-install"
+]
+outputs = [".task_markers/py-install"]
+# technically sources here should include all top level package names
+# since they get symlinked in by the -e install, but that's hard to list
+sources = ["modal-client/requirements.dev.txt", "modal-client/pyproject.toml"]
+
+[tasks.py-protoc]
+run = "cd modal-client && inv protoc"
+sources = ["modal-client/modal_proto/*.proto"]
+outputs = ["modal-client/modal_proto/*.py"]
+depends = [":py-install"]
+
+[tasks.py-bootstrap]
+description = "Build and install the modal in ./modal-client"
+depends = [":py-install", ":py-protoc"]
