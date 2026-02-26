@@ -48,12 +48,6 @@ func (m *mockAuthClient) getCallCount() int {
 	return m.callCount
 }
 
-func (m *mockAuthClient) resetCallCount() {
-	m.mu.Lock()
-	m.callCount = 0
-	m.mu.Unlock()
-}
-
 func createTestJWT(expiry int64) string {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"exp": expiry,
@@ -80,7 +74,7 @@ func TestAuthTokenManager_DecodeJWT(t *testing.T) {
 	g.Expect(manager.GetCurrentToken()).Should(gomega.Equal(validToken))
 }
 
-func TestAuthTokenManager_InitialFetch(t *testing.T) {
+func TestAuthTokenManager_LazyFetch(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
@@ -89,17 +83,18 @@ func TestAuthTokenManager_InitialFetch(t *testing.T) {
 	mockClient.setAuthToken(token)
 
 	manager := modal.NewAuthTokenManager(mockClient, slog.Default())
-	err := manager.Start(context.Background())
-	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	defer manager.Stop()
 
-	firstToken, firstErr := manager.GetToken(context.Background())
-	g.Expect(firstErr).ShouldNot(gomega.HaveOccurred())
+	// First GetToken lazily fetches
+	firstToken, err := manager.GetToken(context.Background())
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(firstToken).Should(gomega.Equal(token))
 
-	secondToken, secondErr := manager.GetToken(context.Background())
-	g.Expect(secondErr).ShouldNot(gomega.HaveOccurred())
+	// Second GetToken returns cached
+	secondToken, err := manager.GetToken(context.Background())
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(secondToken).Should(gomega.Equal(token))
+
+	g.Expect(mockClient.getCallCount()).Should(gomega.Equal(1))
 }
 
 func TestAuthTokenManager_IsExpired(t *testing.T) {
@@ -129,13 +124,10 @@ func TestAuthTokenManager_RefreshExpiredToken(t *testing.T) {
 	manager.SetToken(expiringToken, now-60)
 	mockClient.setAuthToken(freshToken)
 
-	err := manager.Start(context.Background())
+	// GetToken should see the expired token and fetch a new one
+	token, err := manager.GetToken(context.Background())
 	g.Expect(err).ToNot(gomega.HaveOccurred())
-	defer manager.Stop()
-
-	g.Eventually(func() string {
-		return manager.GetCurrentToken()
-	}, "1s", "10ms").Should(gomega.Equal(freshToken))
+	g.Expect(token).Should(gomega.Equal(freshToken))
 }
 
 func TestAuthTokenManager_RefreshNearExpiryToken(t *testing.T) {
@@ -145,6 +137,7 @@ func TestAuthTokenManager_RefreshNearExpiryToken(t *testing.T) {
 	mockClient := newMockAuthClient()
 	now := time.Now().Unix()
 
+	// Token within RefreshWindow of expiry (60s left, window is 300s)
 	expiringToken := createTestJWT(now + 60)
 	freshToken := createTestJWT(now + 3600)
 
@@ -152,20 +145,18 @@ func TestAuthTokenManager_RefreshNearExpiryToken(t *testing.T) {
 	manager.SetToken(expiringToken, now+60)
 	mockClient.setAuthToken(freshToken)
 
-	err := manager.Start(context.Background())
+	// GetToken should proactively refresh
+	token, err := manager.GetToken(context.Background())
 	g.Expect(err).ToNot(gomega.HaveOccurred())
-	defer manager.Stop()
-
-	g.Eventually(func() string {
-		return manager.GetCurrentToken()
-	}, "1s", "10ms").Should(gomega.Equal(freshToken))
+	g.Expect(token).Should(gomega.Equal(freshToken))
 }
 
-func TestAuthTokenManager_GetToken_ExpiredToken(t *testing.T) {
+func TestAuthTokenManager_GetToken_EmptyResponse(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
 	mockClient := newMockAuthClient()
+	// authToken is "" by default, so AuthTokenGet returns empty
 	manager := modal.NewAuthTokenManager(mockClient, slog.Default())
 
 	_, err := manager.GetToken(context.Background())
@@ -178,20 +169,12 @@ func TestAuthToken_ConcurrentGetTokenWithExpiredToken(t *testing.T) {
 
 	mockClient := newMockAuthClient()
 	now := time.Now().Unix()
-	initialToken := createTestJWT(now + modal.RefreshWindow + 3600)
-	mockClient.setAuthToken(initialToken)
-
-	manager := modal.NewAuthTokenManager(mockClient, slog.Default())
-	err := manager.Start(context.Background())
-	g.Expect(err).ShouldNot(gomega.HaveOccurred())
-	defer manager.Stop()
-
-	mockClient.resetCallCount()
 
 	expiredToken := createTestJWT(now - 10)
-	manager.SetToken(expiredToken, now-10)
-
 	freshToken := createTestJWT(now + 7200)
+
+	manager := modal.NewAuthTokenManager(mockClient, slog.Default())
+	manager.SetToken(expiredToken, now-10)
 	mockClient.setAuthToken(freshToken)
 
 	var wg sync.WaitGroup

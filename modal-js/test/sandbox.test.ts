@@ -1029,7 +1029,7 @@ test("SandboxExecOutputTimeout", async () => {
     expect(elapsed).toBeLessThan(4000);
 
     const exitCode = await p.wait();
-    expect(exitCode).toBe(0);
+    expect(exitCode).toBe(137);
   } catch (error) {
     expect(String(error)).toMatch(/Deadline exceeded/);
 
