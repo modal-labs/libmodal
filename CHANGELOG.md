@@ -8,10 +8,9 @@ No unreleased changes.
 
 ## modal-js/v0.7.2, modal-go/v0.7.2
 
-- `Sandbox` methods now poll for the task ID instead of failing immediately when it is not yet available. Polling is capped at 5 minutes and returns an error if the sandbox has already terminated.
-- Fixed a bug in modal-js where cancelling `sandbox.stdout` or `sandbox.stderr` would not stop long-polling when the server returned empty batches.
-- Changed auth token refresh from a background loop to lazy just-in-time refresh on first request.
-- Updated `Sandbox` (JS) to raise a better error when the sandbox is no longer running.
+- Updated `Sandbox` methods to wait for newly created sandboxes to be ready and not error immediately when it's not avaliable yet.
+- Fixed a bug in `modal-js` so that canceling `sandbox.stdout` or `sandbox.stderr` cleans up background resources.
+- Updated `Sandbox` (JS) to raise a better error when the sandbox was terminated.
 
 ## modal-js/v0.7.1, modal-go/v0.7.1
 
