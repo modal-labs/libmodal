@@ -161,10 +161,7 @@ export class ModalClient {
 
   close(): void {
     this.logger.debug("Closing Modal client");
-    if (this.authTokenManager) {
-      this.authTokenManager.stop();
-      this.authTokenManager = null;
-    }
+    this.authTokenManager = null;
     this.logger.debug("Modal client closed");
   }
 
@@ -308,7 +305,6 @@ export class ModalClient {
           this.cpClient,
           this.logger,
         );
-        this.authTokenManager.start();
       }
       return this.authTokenManager;
     };
