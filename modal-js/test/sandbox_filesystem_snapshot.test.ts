@@ -9,10 +9,14 @@ test("snapshotFilesystem", async () => {
 
   const sb = await tc.sandboxes.create(app, image);
 
-  const writeFile = await sb.exec(["sh", "-c", "echo -n 'test content' > /tmp/test.txt"]);
+  const writeFile = await sb.exec([
+    "sh",
+    "-c",
+    "echo -n 'test content' > /tmp/test.txt",
+  ]);
   await writeFile.wait();
-  const mkdir = await sb.exec(["mkdir", "-p", "/tmp/testdir"]);
-  await mkdir.wait();
+  const mkDir = await sb.exec(["mkdir", "-p", "/tmp/testdir"]);
+  await mkDir.wait();
 
   const snapshotImage = await sb.snapshotFilesystem();
   expect(snapshotImage.imageId).toMatch(/^im-/);
