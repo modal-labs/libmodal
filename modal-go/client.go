@@ -60,6 +60,7 @@ type Client struct {
 	Apps              AppService
 	CloudBucketMounts CloudBucketMountService
 	Cls               ClsService
+	Dicts             DictService
 	Functions         FunctionService
 	FunctionCalls     FunctionCallService
 	Images            ImageService
@@ -185,6 +186,7 @@ func NewClientWithOptions(params *ClientParams) (*Client, error) {
 	c.Apps = &appServiceImpl{client: c}
 	c.CloudBucketMounts = &cloudBucketMountServiceImpl{client: c}
 	c.Cls = &clsServiceImpl{client: c}
+	c.Dicts = &dictServiceImpl{client: c}
 	c.Functions = &functionServiceImpl{client: c}
 	c.FunctionCalls = &functionCallServiceImpl{client: c}
 	c.Images = &imageServiceImpl{client: c}
