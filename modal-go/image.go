@@ -59,7 +59,8 @@ type Image struct {
 
 // ImageFromRegistryParams are options for creating an Image from a registry.
 type ImageFromRegistryParams struct {
-	Secret *Secret // Secret for private registry authentication.
+	Secret     *Secret // Secret for private registry authentication.
+	ForceBuild bool    // Ignore cached builds, similar to 'docker build --no-cache'.
 }
 
 // FromRegistry builds a Modal Image from a public or private image registry without any changes.
@@ -79,7 +80,7 @@ func (s *imageServiceImpl) FromRegistry(tag string, params *ImageFromRegistryPar
 		ImageID:             "",
 		imageRegistryConfig: imageRegistryConfig,
 		tag:                 tag,
-		layers:              []layer{{}},
+		layers:              []layer{{forceBuild: params.ForceBuild}},
 		client:              s.client,
 	}
 }
