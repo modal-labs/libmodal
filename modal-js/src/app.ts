@@ -135,7 +135,7 @@ export class App {
    * @deprecated Use {@link ImageService#fromRegistry client.images.fromRegistry()} instead.
    */
   async imageFromRegistry(tag: string, secret?: Secret): Promise<Image> {
-    return getDefaultClient().images.fromRegistry(tag, secret).build(this);
+    return getDefaultClient().images.fromRegistry(tag, { secret }).build(this);
   }
 
   /**

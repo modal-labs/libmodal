@@ -20,7 +20,7 @@ func TestImageFromId(t *testing.T) {
 	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	image, err := tc.Images.FromRegistry("alpine:3.21", nil).Build(ctx, app)
+	image, err := tc.Images.FromRegistry("alpine:3.21", nil).Build(ctx, app, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	imageFromID, err := tc.Images.FromID(ctx, image.ImageID)
@@ -40,7 +40,7 @@ func TestImageFromRegistry(t *testing.T) {
 	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	image, err := tc.Images.FromRegistry("alpine:3.21", nil).Build(ctx, app)
+	image, err := tc.Images.FromRegistry("alpine:3.21", nil).Build(ctx, app, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(image.ImageID).Should(gomega.HavePrefix("im-"))
 }
@@ -66,7 +66,7 @@ func TestImageFromRegistryWithSecret(t *testing.T) {
 
 	image, err := tc.Images.FromRegistry("us-east1-docker.pkg.dev/modal-prod-367916/private-repo-test/my-image", &modal.ImageFromRegistryParams{
 		Secret: secret,
-	}).Build(ctx, app)
+	}).Build(ctx, app, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(image.ImageID).Should(gomega.HavePrefix("im-"))
 }
@@ -85,7 +85,7 @@ func TestImageFromAwsEcr(t *testing.T) {
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	image, err := tc.Images.FromAwsEcr("459781239556.dkr.ecr.us-east-1.amazonaws.com/ecr-private-registry-test-7522615:python", secret).Build(ctx, app)
+	image, err := tc.Images.FromAwsEcr("459781239556.dkr.ecr.us-east-1.amazonaws.com/ecr-private-registry-test-7522615:python", secret, nil).Build(ctx, app, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(image.ImageID).Should(gomega.HavePrefix("im-"))
 }
@@ -104,7 +104,7 @@ func TestImageFromGcpArtifactRegistry(t *testing.T) {
 	})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	image, err := tc.Images.FromGcpArtifactRegistry("us-east1-docker.pkg.dev/modal-prod-367916/private-repo-test/my-image", secret).Build(ctx, app)
+	image, err := tc.Images.FromGcpArtifactRegistry("us-east1-docker.pkg.dev/modal-prod-367916/private-repo-test/my-image", secret, nil).Build(ctx, app, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(image.ImageID).Should(gomega.HavePrefix("im-"))
 }
@@ -137,7 +137,7 @@ func TestImageDelete(t *testing.T) {
 	app, err := tc.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	image, err := tc.Images.FromRegistry("alpine:3.13", nil).Build(ctx, app)
+	image, err := tc.Images.FromRegistry("alpine:3.13", nil).Build(ctx, app, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(image.ImageID).Should(gomega.HavePrefix("im-"))
 
@@ -151,7 +151,7 @@ func TestImageDelete(t *testing.T) {
 	_, err = tc.Images.FromID(ctx, image.ImageID)
 	g.Expect(err).Should(gomega.MatchError(gomega.MatchRegexp("Image .+ not found")))
 
-	newImage, err := tc.Images.FromRegistry("alpine:3.13", nil).Build(ctx, app)
+	newImage, err := tc.Images.FromRegistry("alpine:3.13", nil).Build(ctx, app, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(newImage.ImageID).ShouldNot(gomega.Equal(image.ImageID))
 
@@ -248,14 +248,14 @@ func TestDockerfileCommandsCopyCommandValidation(t *testing.T) {
 		[]string{"COPY --from=alpine:latest /etc/os-release /tmp/os-release"},
 		nil,
 	)
-	_, err = validImage.Build(ctx, app)
+	_, err = validImage.Build(ctx, app, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	invalidImage := image.DockerfileCommands(
 		[]string{"COPY ./file.txt /root/"},
 		nil,
 	)
-	_, err = invalidImage.Build(ctx, app)
+	_, err = invalidImage.Build(ctx, app, nil)
 	g.Expect(err).Should(gomega.HaveOccurred())
 	g.Expect(err.Error()).Should(gomega.ContainSubstring("COPY commands that copy from local context are not yet supported"))
 
@@ -263,7 +263,7 @@ func TestDockerfileCommandsCopyCommandValidation(t *testing.T) {
 		[]string{"RUN echo 'COPY ./file.txt /root/'"},
 		nil,
 	)
-	_, err = runImage.Build(ctx, app)
+	_, err = runImage.Build(ctx, app, nil)
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	multiInvalidImage := image.DockerfileCommands(
@@ -274,7 +274,7 @@ func TestDockerfileCommandsCopyCommandValidation(t *testing.T) {
 		},
 		nil,
 	)
-	_, err = multiInvalidImage.Build(ctx, app)
+	_, err = multiInvalidImage.Build(ctx, app, nil)
 	g.Expect(err).Should(gomega.HaveOccurred())
 	g.Expect(err.Error()).Should(gomega.ContainSubstring("COPY commands that copy from local context are not yet supported"))
 }
@@ -376,10 +376,238 @@ func TestDockerfileCommandsWithOptions(t *testing.T) {
 		DockerfileCommands([]string{"RUN echo layer3"}, &modal.ImageDockerfileCommandsParams{
 			ForceBuild: true,
 		}).
-		Build(ctx, app)
+		Build(ctx, app, nil)
 
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
 	g.Expect(builtImage.ImageID).To(gomega.Equal("im-layer3"))
 
+	g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
+}
+
+func TestForceBuildOnImageCreation(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name       string
+		buildImage func(ctx context.Context, mock *grpcmock.MockClient, app *modal.App) (*modal.Image, error)
+	}{
+		{
+			name: "FromRegistry",
+			buildImage: func(ctx context.Context, mock *grpcmock.MockClient, app *modal.App) (*modal.Image, error) {
+				return mock.Images.FromRegistry("alpine:3.21", &modal.ImageFromRegistryParams{
+					ForceBuild: true,
+				}).Build(ctx, app, nil)
+			},
+		},
+		{
+			name: "FromAwsEcr",
+			buildImage: func(ctx context.Context, mock *grpcmock.MockClient, app *modal.App) (*modal.Image, error) {
+				secret := &modal.Secret{SecretID: "sc-test"}
+				return mock.Images.FromAwsEcr("alpine:3.21", secret, &modal.ImageFromAwsEcrParams{
+					ForceBuild: true,
+				}).Build(ctx, app, nil)
+			},
+		},
+		{
+			name: "FromGcpArtifactRegistry",
+			buildImage: func(ctx context.Context, mock *grpcmock.MockClient, app *modal.App) (*modal.Image, error) {
+				secret := &modal.Secret{SecretID: "sc-test"}
+				return mock.Images.FromGcpArtifactRegistry("alpine:3.21", secret, &modal.ImageFromGcpArtifactRegistryParams{
+					ForceBuild: true,
+				}).Build(ctx, app, nil)
+			},
+		},
+		{
+			name: "BuildParams",
+			buildImage: func(ctx context.Context, mock *grpcmock.MockClient, app *modal.App) (*modal.Image, error) {
+				return mock.Images.FromRegistry("alpine:3.21", nil).Build(ctx, app, &modal.ImageBuildParams{
+					ForceBuild: true,
+				})
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			g := gomega.NewWithT(t)
+			ctx := context.Background()
+
+			mock := newGRPCMockClient(t)
+
+			grpcmock.HandleUnary(
+				mock, "ImageGetOrCreate",
+				func(req *pb.ImageGetOrCreateRequest) (*pb.ImageGetOrCreateResponse, error) {
+					g.Expect(req.GetAppId()).To(gomega.Equal("ap-test"))
+					g.Expect(req.GetForceBuild()).To(gomega.BeTrue())
+					return pb.ImageGetOrCreateResponse_builder{
+						ImageId: "im-test",
+						Result:  pb.GenericResult_builder{Status: pb.GenericResult_GENERIC_STATUS_SUCCESS}.Build(),
+					}.Build(), nil
+				},
+			)
+
+			app := &modal.App{AppID: "ap-test"}
+			image, err := tc.buildImage(ctx, mock, app)
+
+			g.Expect(err).ShouldNot(gomega.HaveOccurred())
+			g.Expect(image.ImageID).To(gomega.Equal("im-test"))
+			g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
+		})
+	}
+}
+
+func TestForceBuildPropagation(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+
+	mock := newGRPCMockClient(t)
+
+	// from FromRegistry, without ForceBuild
+	grpcmock.HandleUnary(
+		mock, "ImageGetOrCreate",
+		func(req *pb.ImageGetOrCreateRequest) (*pb.ImageGetOrCreateResponse, error) {
+			image := req.GetImage()
+			g.Expect(image.GetDockerfileCommands()).To(gomega.Equal([]string{"FROM alpine:3.21"}))
+			g.Expect(req.GetForceBuild()).To(gomega.BeFalse())
+			return pb.ImageGetOrCreateResponse_builder{
+				ImageId: "im-base",
+				Result:  pb.GenericResult_builder{Status: pb.GenericResult_GENERIC_STATUS_SUCCESS}.Build(),
+			}.Build(), nil
+		},
+	)
+
+	// from DockerfileCommands, with ForceBuild: true
+	grpcmock.HandleUnary(
+		mock, "ImageGetOrCreate",
+		func(req *pb.ImageGetOrCreateRequest) (*pb.ImageGetOrCreateResponse, error) {
+			image := req.GetImage()
+			g.Expect(image.GetDockerfileCommands()).To(gomega.Equal([]string{"FROM base", "RUN echo test"}))
+			g.Expect(image.GetBaseImages()).To(gomega.HaveLen(1))
+			g.Expect(image.GetBaseImages()[0].GetImageId()).To(gomega.Equal("im-base"))
+			g.Expect(req.GetForceBuild()).To(gomega.BeTrue())
+			return pb.ImageGetOrCreateResponse_builder{
+				ImageId: "im-layer1",
+				Result:  pb.GenericResult_builder{Status: pb.GenericResult_GENERIC_STATUS_SUCCESS}.Build(),
+			}.Build(), nil
+		},
+	)
+
+	// from second DockerfileCommands, without ForceBuild, should still have ForceBuild: true, propagated from previous layer
+	grpcmock.HandleUnary(
+		mock, "ImageGetOrCreate",
+		func(req *pb.ImageGetOrCreateRequest) (*pb.ImageGetOrCreateResponse, error) {
+			image := req.GetImage()
+			g.Expect(image.GetDockerfileCommands()).To(gomega.Equal([]string{"FROM base", "RUN echo test2"}))
+			g.Expect(image.GetBaseImages()).To(gomega.HaveLen(1))
+			g.Expect(image.GetBaseImages()[0].GetImageId()).To(gomega.Equal("im-layer1"))
+			g.Expect(req.GetForceBuild()).To(gomega.BeTrue())
+			return pb.ImageGetOrCreateResponse_builder{
+				ImageId: "im-layer2",
+				Result:  pb.GenericResult_builder{Status: pb.GenericResult_GENERIC_STATUS_SUCCESS}.Build(),
+			}.Build(), nil
+		},
+	)
+
+	app := &modal.App{AppID: "ap-test"}
+	image, err := mock.Images.FromRegistry("alpine:3.21", nil).
+		DockerfileCommands([]string{"RUN echo test"}, &modal.ImageDockerfileCommandsParams{
+			ForceBuild: true,
+		}).
+		DockerfileCommands([]string{"RUN echo test2"}, nil).
+		Build(ctx, app, nil)
+
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(image.ImageID).To(gomega.Equal("im-layer2"))
+	g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
+}
+
+func TestForceBuildBackPropagation(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+
+	mock := newGRPCMockClient(t)
+
+	// from FromRegistry, without ForceBuild, should still have ForceBuild: true, overridden by .Build
+	grpcmock.HandleUnary(
+		mock, "ImageGetOrCreate",
+		func(req *pb.ImageGetOrCreateRequest) (*pb.ImageGetOrCreateResponse, error) {
+			image := req.GetImage()
+			g.Expect(image.GetDockerfileCommands()).To(gomega.Equal([]string{"FROM alpine:3.21"}))
+			g.Expect(req.GetForceBuild()).To(gomega.BeTrue())
+			return pb.ImageGetOrCreateResponse_builder{
+				ImageId: "im-base",
+				Result:  pb.GenericResult_builder{Status: pb.GenericResult_GENERIC_STATUS_SUCCESS}.Build(),
+			}.Build(), nil
+		},
+	)
+
+	// from DockerfileCommands, without ForceBuild, should still have ForceBuild: true, overridden by .Build
+	grpcmock.HandleUnary(
+		mock, "ImageGetOrCreate",
+		func(req *pb.ImageGetOrCreateRequest) (*pb.ImageGetOrCreateResponse, error) {
+			image := req.GetImage()
+			g.Expect(image.GetDockerfileCommands()).To(gomega.Equal([]string{"FROM base", "RUN echo test"}))
+			g.Expect(image.GetBaseImages()).To(gomega.HaveLen(1))
+			g.Expect(image.GetBaseImages()[0].GetImageId()).To(gomega.Equal("im-base"))
+			g.Expect(req.GetForceBuild()).To(gomega.BeTrue())
+			return pb.ImageGetOrCreateResponse_builder{
+				ImageId: "im-layer1",
+				Result:  pb.GenericResult_builder{Status: pb.GenericResult_GENERIC_STATUS_SUCCESS}.Build(),
+			}.Build(), nil
+		},
+	)
+
+	app := &modal.App{AppID: "ap-test"}
+	image, err := mock.Images.FromRegistry("alpine:3.21", nil).
+		DockerfileCommands([]string{"RUN echo test"}, nil).
+		Build(ctx, app, &modal.ImageBuildParams{
+			ForceBuild: true,
+		})
+
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(image.ImageID).To(gomega.Equal("im-layer1"))
+	g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
+}
+
+func TestForceBuildFromEnvironmentVariable(t *testing.T) {
+	g := gomega.NewWithT(t)
+	ctx := context.Background()
+
+	t.Setenv("MODAL_FORCE_BUILD", "true")
+
+	mock := newGRPCMockClient(t)
+
+	grpcmock.HandleUnary(
+		mock, "ImageGetOrCreate",
+		func(req *pb.ImageGetOrCreateRequest) (*pb.ImageGetOrCreateResponse, error) {
+			g.Expect(req.GetForceBuild()).To(gomega.BeTrue())
+			return pb.ImageGetOrCreateResponse_builder{
+				ImageId: "im-base",
+				Result:  pb.GenericResult_builder{Status: pb.GenericResult_GENERIC_STATUS_SUCCESS}.Build(),
+			}.Build(), nil
+		},
+	)
+
+	grpcmock.HandleUnary(
+		mock, "ImageGetOrCreate",
+		func(req *pb.ImageGetOrCreateRequest) (*pb.ImageGetOrCreateResponse, error) {
+			g.Expect(req.GetForceBuild()).To(gomega.BeTrue())
+			return pb.ImageGetOrCreateResponse_builder{
+				ImageId: "im-layer1",
+				Result:  pb.GenericResult_builder{Status: pb.GenericResult_GENERIC_STATUS_SUCCESS}.Build(),
+			}.Build(), nil
+		},
+	)
+
+	app := &modal.App{AppID: "ap-test"}
+	image, err := mock.Images.FromRegistry("alpine:3.21", nil).
+		DockerfileCommands([]string{"RUN echo test"}, nil).
+		Build(ctx, app, nil)
+
+	g.Expect(err).ShouldNot(gomega.HaveOccurred())
+	g.Expect(image.ImageID).To(gomega.Equal("im-layer1"))
 	g.Expect(mock.AssertExhausted()).ShouldNot(gomega.HaveOccurred())
 }
