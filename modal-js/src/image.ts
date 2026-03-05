@@ -54,9 +54,19 @@ export class ImageService {
    * Creates an {@link Image} from a raw registry tag, optionally using a {@link Secret} for authentication.
    *
    * @param tag - The registry tag for the Image.
-   * @param secret - Optional. A Secret containing credentials for registry authentication.
+   * @param secretOrParams - Optional. A Secret for registry authentication, or an options object.
    */
-  fromRegistry(tag: string, secret?: Secret): Image {
+  fromRegistry(
+    tag: string,
+    secretOrParams?: Secret | ImageFromRegistryParams,
+  ): Image {
+    let params: ImageFromRegistryParams | undefined;
+    if (secretOrParams instanceof Secret) {
+      params = { secret: secretOrParams };
+    } else {
+      params = secretOrParams;
+    }
+    const secret = params?.secret;
     let imageRegistryConfig;
     if (secret) {
       if (!(secret instanceof Secret)) {
@@ -69,7 +79,12 @@ export class ImageService {
         secretId: secret.secretId,
       };
     }
-    return new Image(this.#client, "", tag, imageRegistryConfig);
+    return new Image(this.#client, "", tag, imageRegistryConfig, [
+      {
+        commands: [],
+        forceBuild: params?.forceBuild,
+      },
+    ]);
   }
 
   /**
@@ -142,6 +157,15 @@ export class ImageService {
     }
   }
 }
+
+/** Optional parameters for {@link ImageService#fromRegistry client.images.fromRegistry()}. */
+export type ImageFromRegistryParams = {
+  /** A Secret containing credentials for registry authentication. */
+  secret?: Secret;
+
+  /** Ignore cached builds, similar to 'docker build --no-cache'. */
+  forceBuild?: boolean;
+};
 
 /** Optional parameters for {@link ImageService#delete client.images.delete()}. */
 export type ImageDeleteParams = Record<never, never>;
