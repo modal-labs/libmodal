@@ -1,7 +1,7 @@
 # Modal SDKs for JavaScript/TypeScript and Go
 
 > [!WARNING]
-> The JS and Go SDKs source has migrated to https://github.com/modal-labs/modal-client. JS SDK releases
+> The JS and Go SDKs has migrated to https://github.com/modal-labs/modal-client. JS SDK releases
 > will remain at https://www.npmjs.com/package/modal. Go SDK releases will now be at
 > https://github.com/modal-labs/modal-client/go. See below on how to migrate to the new Go SDK.
 
