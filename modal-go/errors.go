@@ -1,3 +1,4 @@
+// Deprecated: The package has moved to github.com/modal-labs/modal-client/go.
 package modal
 
 // errors.go defines common error types for the public API.
