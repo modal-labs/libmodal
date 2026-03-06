@@ -1,4 +1,4 @@
-// Deprecated: The package has moved to github.com/modal-labs/modal-client/go.
+// Deprecated: Package modal has moved to github.com/modal-labs/modal-client/go.
 package modal
 
 // config.go houses the logic for loading and resolving Modal profiles
