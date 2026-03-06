@@ -1,3 +1,4 @@
+// Deprecated: The package has moved to github.com/modal-labs/modal-client/go.
 module github.com/modal-labs/libmodal/modal-go
 
 go 1.23.0

@@ -1,3 +1,4 @@
+// Deprecated: The package has moved to github.com/modal-labs/modal-client/go.
 package modal
 
 // Client construction, auth, timeout, and retry logic for Modal.
