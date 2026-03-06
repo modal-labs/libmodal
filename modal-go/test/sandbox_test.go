@@ -864,6 +864,21 @@ func TestSandboxExperimentalDockerMock(t *testing.T) {
 		},
 	)
 
+	grpcmock.HandleUnary(
+		mock, "EnvironmentGetOrCreate",
+		func(req *pb.EnvironmentGetOrCreateRequest) (*pb.EnvironmentGetOrCreateResponse, error) {
+			return pb.EnvironmentGetOrCreateResponse_builder{
+				EnvironmentId: "en-test",
+				Metadata: pb.EnvironmentMetadata_builder{
+					Name: "test",
+					Settings: pb.EnvironmentSettings_builder{
+						ImageBuilderVersion: "2024.10",
+					}.Build(),
+				}.Build(),
+			}.Build(), nil
+		},
+	)
+
 	ctx := context.Background()
 	app, err := mock.Apps.FromName(ctx, "libmodal-test", &modal.AppFromNameParams{CreateIfMissing: true})
 	g.Expect(err).ShouldNot(gomega.HaveOccurred())
