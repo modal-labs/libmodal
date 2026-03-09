@@ -1,7 +1,6 @@
 package com.modal.modalkt
 
 import io.grpc.Status
-import modal.client.Api
 
 data class ProxyFromNameParams(
     val environment: String? = null,
@@ -16,7 +15,7 @@ class ProxyService(
     ): Proxy {
         try {
             val response = client.cpClient.proxyGet(
-                Api.ProxyGetRequest.newBuilder()
+                ProxyGetRequest.newBuilder()
                     .setName(name)
                     .setEnvironmentName(client.environmentName(params.environment))
                     .build(),

@@ -3,7 +3,6 @@ package com.modal.modalkt
 import com.google.protobuf.ByteString
 import io.grpc.Status
 import kotlinx.coroutines.flow.collect
-import modal.client.Api
 
 data class ImageDeleteParams(
     val unused: Unit? = null,
@@ -20,7 +19,7 @@ internal data class ImageLayer(
     val commands: List<String>,
     val env: Map<String, String>? = null,
     val secrets: List<Secret>? = null,
-    val gpuConfig: Api.GPUConfig? = null,
+    val gpuConfig: GPUConfig? = null,
     val forceBuild: Boolean = false,
 )
 
@@ -30,7 +29,7 @@ class ImageService(
     suspend fun fromId(imageId: String): Image {
         try {
             val response = client.cpClient.imageFromId(
-                Api.ImageFromIdRequest.newBuilder()
+                ImageFromIdRequest.newBuilder()
                     .setImageId(imageId)
                     .build(),
             )
@@ -50,8 +49,8 @@ class ImageService(
 
     fun fromRegistry(tag: String, secret: Secret? = null): Image {
         val registryConfig = secret?.let {
-            Api.ImageRegistryConfig.newBuilder()
-                .setRegistryAuthType(Api.RegistryAuthType.REGISTRY_AUTH_TYPE_STATIC_CREDS)
+            ImageRegistryConfig.newBuilder()
+                .setRegistryAuthType(RegistryAuthType.REGISTRY_AUTH_TYPE_STATIC_CREDS)
                 .setSecretId(it.secretId)
                 .build()
         }
@@ -59,16 +58,16 @@ class ImageService(
     }
 
     fun fromAwsEcr(tag: String, secret: Secret): Image {
-        val registryConfig = Api.ImageRegistryConfig.newBuilder()
-            .setRegistryAuthType(Api.RegistryAuthType.REGISTRY_AUTH_TYPE_AWS)
+        val registryConfig = ImageRegistryConfig.newBuilder()
+            .setRegistryAuthType(RegistryAuthType.REGISTRY_AUTH_TYPE_AWS)
             .setSecretId(secret.secretId)
             .build()
         return Image(client, "", tag, registryConfig)
     }
 
     fun fromGcpArtifactRegistry(tag: String, secret: Secret): Image {
-        val registryConfig = Api.ImageRegistryConfig.newBuilder()
-            .setRegistryAuthType(Api.RegistryAuthType.REGISTRY_AUTH_TYPE_GCP)
+        val registryConfig = ImageRegistryConfig.newBuilder()
+            .setRegistryAuthType(RegistryAuthType.REGISTRY_AUTH_TYPE_GCP)
             .setSecretId(secret.secretId)
             .build()
         return Image(client, "", tag, registryConfig)
@@ -80,7 +79,7 @@ class ImageService(
     ) {
         try {
             client.cpClient.imageDelete(
-                Api.ImageDeleteRequest.newBuilder()
+                ImageDeleteRequest.newBuilder()
                     .setImageId(imageId)
                     .build(),
             )
@@ -102,7 +101,7 @@ class Image internal constructor(
     private val client: ModalClient,
     private var internalImageId: String,
     private val tag: String,
-    private val imageRegistryConfig: Api.ImageRegistryConfig? = null,
+    private val imageRegistryConfig: ImageRegistryConfig? = null,
     private val layers: List<ImageLayer> = listOf(ImageLayer(emptyList())),
 ) {
     val imageId: String
@@ -137,7 +136,7 @@ class Image internal constructor(
         for ((index, layer) in layers.withIndex()) {
             val mergedSecrets = mergeEnvIntoSecrets(client, layer.env, layer.secrets)
             val dockerfileCommands: List<String>
-            val baseImages: List<Api.BaseImage>
+            val baseImages: List<BaseImage>
 
             if (index == 0) {
                 dockerfileCommands = listOf("FROM $tag") + layer.commands
@@ -145,7 +144,7 @@ class Image internal constructor(
             } else {
                 dockerfileCommands = listOf("FROM base") + layer.commands
                 baseImages = listOf(
-                    Api.BaseImage.newBuilder()
+                    BaseImage.newBuilder()
                         .setDockerTag("base")
                         .setImageId(baseImageId)
                         .build(),
@@ -153,10 +152,10 @@ class Image internal constructor(
             }
 
             val response = client.cpClient.imageGetOrCreate(
-                Api.ImageGetOrCreateRequest.newBuilder()
+                ImageGetOrCreateRequest.newBuilder()
                     .setAppId(app.appId)
                     .setImage(
-                        Api.Image.newBuilder()
+                        ImageProto.newBuilder()
                             .addAllDockerfileCommands(dockerfileCommands)
                             .apply {
                                 if (this@Image.imageRegistryConfig != null) {
@@ -182,18 +181,18 @@ class Image internal constructor(
             }
 
             when (result.status) {
-                Api.GenericResult.GenericStatus.GENERIC_STATUS_SUCCESS -> Unit
-                Api.GenericResult.GenericStatus.GENERIC_STATUS_FAILURE -> {
+                GenericStatus.GENERIC_STATUS_SUCCESS -> Unit
+                GenericStatus.GENERIC_STATUS_FAILURE -> {
                     throw InvalidError(
                         "Image build for ${response.imageId} failed with the exception:\n${result.exception}",
                     )
                 }
-                Api.GenericResult.GenericStatus.GENERIC_STATUS_TERMINATED -> {
+                GenericStatus.GENERIC_STATUS_TERMINATED -> {
                     throw InvalidError(
                         "Image build for ${response.imageId} terminated due to external shut-down. Please try again.",
                     )
                 }
-                Api.GenericResult.GenericStatus.GENERIC_STATUS_TIMEOUT -> {
+                GenericStatus.GENERIC_STATUS_TIMEOUT -> {
                     throw InvalidError(
                         "Image build for ${response.imageId} timed out. Please try again with a larger timeout parameter.",
                     )
@@ -212,11 +211,11 @@ class Image internal constructor(
         return this
     }
 
-    private suspend fun waitForImageBuild(imageId: String): Api.GenericResult {
-        var result: Api.GenericResult? = null
+    private suspend fun waitForImageBuild(imageId: String): GenericResult {
+        var result: GenericResult? = null
         var lastEntryId = ""
         client.cpClient.imageJoinStreaming(
-            Api.ImageJoinStreamingRequest.newBuilder()
+            ImageJoinStreamingRequest.newBuilder()
                 .setImageId(imageId)
                 .setTimeout(55f)
                 .setLastEntryId(lastEntryId)
@@ -225,7 +224,7 @@ class Image internal constructor(
             if (item.entryId.isNotEmpty()) {
                 lastEntryId = item.entryId
             }
-            if (item.hasResult() && item.result.status != Api.GenericResult.GenericStatus.GENERIC_STATUS_UNSPECIFIED) {
+            if (item.hasResult() && item.result.status != GenericStatus.GENERIC_STATUS_UNSPECIFIED) {
                 result = item.result
             }
         }

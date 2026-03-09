@@ -4,7 +4,6 @@ import io.grpc.Status
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-import modal.client.Api
 
 private const val queueInitialPutBackoffMs: Long = 100
 private const val queueDefaultPartitionTtlMs: Long = 24 * 3600 * 1000
@@ -56,8 +55,8 @@ class QueueService(
         params: QueueEphemeralParams = QueueEphemeralParams(),
     ): Queue {
         val response = client.cpClient.queueGetOrCreate(
-            Api.QueueGetOrCreateRequest.newBuilder()
-                .setObjectCreationType(Api.ObjectCreationType.OBJECT_CREATION_TYPE_EPHEMERAL)
+            QueueGetOrCreateRequest.newBuilder()
+                .setObjectCreationType(ObjectCreationType.OBJECT_CREATION_TYPE_EPHEMERAL)
                 .setEnvironmentName(client.environmentName(params.environment))
                 .build(),
         )
@@ -65,7 +64,7 @@ class QueueService(
         val heartbeatManager = EphemeralHeartbeatManager(
             heartbeatFn = {
                 client.cpClient.queueHeartbeat(
-                    Api.QueueHeartbeatRequest.newBuilder()
+                    QueueHeartbeatRequest.newBuilder()
                         .setQueueId(response.queueId)
                         .build(),
                 )
@@ -83,14 +82,14 @@ class QueueService(
         validateQueueName(name)
         try {
             val response = client.cpClient.queueGetOrCreate(
-                Api.QueueGetOrCreateRequest.newBuilder()
+                QueueGetOrCreateRequest.newBuilder()
                     .setDeploymentName(name)
                     .setEnvironmentName(client.environmentName(params.environment))
                     .setObjectCreationType(
                         if (params.createIfMissing) {
-                            Api.ObjectCreationType.OBJECT_CREATION_TYPE_CREATE_IF_MISSING
+                            ObjectCreationType.OBJECT_CREATION_TYPE_CREATE_IF_MISSING
                         } else {
-                            Api.ObjectCreationType.OBJECT_CREATION_TYPE_UNSPECIFIED
+                            ObjectCreationType.OBJECT_CREATION_TYPE_UNSPECIFIED
                         },
                     )
                     .build(),
@@ -115,7 +114,7 @@ class QueueService(
                 QueueFromNameParams(environment = params.environment),
             )
             client.cpClient.queueDelete(
-                Api.QueueDeleteRequest.newBuilder()
+                QueueDeleteRequest.newBuilder()
                     .setQueueId(queue.queueId)
                     .build(),
             )
@@ -147,7 +146,7 @@ class Queue(
             throw InvalidError("Partition must be null when requesting to clear all.")
         }
         client.cpClient.queueClear(
-            Api.QueueClearRequest.newBuilder()
+            QueueClearRequest.newBuilder()
                 .setQueueId(queueId)
                 .setPartitionKey(validatePartitionKey(params.partition))
                 .setAllPartitions(params.all)
@@ -172,7 +171,7 @@ class Queue(
 
         while (true) {
             val response = client.cpClient.queueGet(
-                Api.QueueGetRequest.newBuilder()
+                QueueGetRequest.newBuilder()
                     .setQueueId(queueId)
                     .setPartitionKey(partitionKey)
                     .setTimeout(pollTimeoutMs.toFloat() / 1000f)
@@ -211,7 +210,7 @@ class Queue(
         while (true) {
             try {
                 client.cpClient.queuePut(
-                    Api.QueuePutRequest.newBuilder()
+                    QueuePutRequest.newBuilder()
                         .setQueueId(queueId)
                         .addAllValues(encoded)
                         .setPartitionKey(partitionKey)
@@ -242,7 +241,7 @@ class Queue(
             throw InvalidError("Partition must be null when requesting total length.")
         }
         val response = client.cpClient.queueLen(
-            Api.QueueLenRequest.newBuilder()
+            QueueLenRequest.newBuilder()
                 .setQueueId(queueId)
                 .setPartitionKey(validatePartitionKey(params.partition))
                 .setTotal(params.total)
@@ -260,7 +259,7 @@ class Queue(
         while (true) {
             val pollDurationMs = maxOf(0L, minOf(maxPollDurationMs, fetchDeadline - System.currentTimeMillis()))
             val response = client.cpClient.queueNextItems(
-                Api.QueueNextItemsRequest.newBuilder()
+                QueueNextItemsRequest.newBuilder()
                     .setQueueId(queueId)
                     .setPartitionKey(partitionKey)
                     .setItemPollTimeout(pollDurationMs.toFloat() / 1000f)

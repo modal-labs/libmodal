@@ -1,7 +1,6 @@
 package com.modal.modalkt
 
 import kotlinx.coroutines.flow.collect
-import modal.client.Api
 import java.io.ByteArrayOutputStream
 
 typealias SandboxFileMode = String
@@ -14,10 +13,10 @@ class SandboxFile(
     suspend fun read(): ByteArray {
         val result = runFilesystemExec(
             client.cpClient,
-            Api.ContainerFilesystemExecRequest.newBuilder()
+            ContainerFilesystemExecRequest.newBuilder()
                 .setTaskId(taskId)
                 .setFileReadRequest(
-                    Api.ContainerFileReadRequest.newBuilder()
+                    ContainerFileReadRequest.newBuilder()
                         .setFileDescriptor(fileDescriptor)
                         .build(),
                 )
@@ -29,10 +28,10 @@ class SandboxFile(
     suspend fun write(data: ByteArray) {
         runFilesystemExec(
             client.cpClient,
-            Api.ContainerFilesystemExecRequest.newBuilder()
+            ContainerFilesystemExecRequest.newBuilder()
                 .setTaskId(taskId)
                 .setFileWriteRequest(
-                    Api.ContainerFileWriteRequest.newBuilder()
+                    ContainerFileWriteRequest.newBuilder()
                         .setFileDescriptor(fileDescriptor)
                         .setData(com.google.protobuf.ByteString.copyFrom(data))
                         .build(),
@@ -44,10 +43,10 @@ class SandboxFile(
     suspend fun flush() {
         runFilesystemExec(
             client.cpClient,
-            Api.ContainerFilesystemExecRequest.newBuilder()
+            ContainerFilesystemExecRequest.newBuilder()
                 .setTaskId(taskId)
                 .setFileFlushRequest(
-                    Api.ContainerFileFlushRequest.newBuilder()
+                    ContainerFileFlushRequest.newBuilder()
                         .setFileDescriptor(fileDescriptor)
                         .build(),
                 )
@@ -58,10 +57,10 @@ class SandboxFile(
     suspend fun close() {
         runFilesystemExec(
             client.cpClient,
-            Api.ContainerFilesystemExecRequest.newBuilder()
+            ContainerFilesystemExecRequest.newBuilder()
                 .setTaskId(taskId)
                 .setFileCloseRequest(
-                    Api.ContainerFileCloseRequest.newBuilder()
+                    ContainerFileCloseRequest.newBuilder()
                         .setFileDescriptor(fileDescriptor)
                         .build(),
                 )
@@ -72,7 +71,7 @@ class SandboxFile(
 
 suspend fun runFilesystemExec(
     cpClient: ControlPlaneClient,
-    request: Api.ContainerFilesystemExecRequest,
+    request: ContainerFilesystemExecRequest,
 ): FilesystemExecResult {
     val response = cpClient.containerFilesystemExec(request)
     val output = ByteArrayOutputStream()
@@ -82,7 +81,7 @@ suspend fun runFilesystemExec(
     while (!completed) {
         try {
             cpClient.containerFilesystemExecGetOutput(
-                Api.ContainerFilesystemExecGetOutputRequest.newBuilder()
+                ContainerFilesystemExecGetOutputRequest.newBuilder()
                     .setExecId(response.execId)
                     .setTimeout(55f)
                     .build(),
@@ -115,5 +114,5 @@ suspend fun runFilesystemExec(
 
 data class FilesystemExecResult(
     val chunks: ByteArray,
-    val response: Api.ContainerFilesystemExecResponse,
+    val response: ContainerFilesystemExecResponse,
 )

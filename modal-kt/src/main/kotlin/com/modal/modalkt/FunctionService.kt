@@ -1,7 +1,6 @@
 package com.modal.modalkt
 
 import io.grpc.Status
-import modal.client.Api
 
 data class FunctionFromNameParams(
     val environment: String? = null,
@@ -40,7 +39,7 @@ class FunctionService(
 
         try {
             val response = client.cpClient.functionGet(
-                Api.FunctionGetRequest.newBuilder()
+                FunctionGetRequest.newBuilder()
                     .setAppName(appName)
                     .setObjectTag(name)
                     .setEnvironmentName(client.environmentName(params.environment))
@@ -61,11 +60,11 @@ class Function(
     private val client: ModalClient,
     val functionId: String,
     val methodName: String? = null,
-    private val handleMetadata: Api.FunctionHandleMetadata? = null,
+    private val handleMetadata: FunctionHandleMetadata? = null,
 ) {
     suspend fun getCurrentStats(): FunctionStats {
         val response = client.cpClient.functionGetCurrentStats(
-            Api.FunctionGetCurrentStatsRequest.newBuilder()
+            FunctionGetCurrentStatsRequest.newBuilder()
                 .setFunctionId(functionId)
                 .build(),
         )
@@ -79,11 +78,11 @@ class Function(
         }
 
         client.cpClient.functionUpdateSchedulingParams(
-            Api.FunctionUpdateSchedulingParamsRequest.newBuilder()
+            FunctionUpdateSchedulingParamsRequest.newBuilder()
                 .setFunctionId(functionId)
                 .setWarmPoolSizeOverride(0)
                 .setSettings(
-                    Api.AutoscalerSettings.newBuilder()
+                    AutoscalerSettings.newBuilder()
                         .apply {
                             if (params.minContainers != null) {
                                 minContainers = params.minContainers
@@ -115,7 +114,7 @@ class Function(
     ): Any? {
         checkNoWebUrl("remote")
         val supportedFormats = handleMetadata?.supportedInputFormatsList ?: emptyList()
-        if (supportedFormats.isNotEmpty() && !supportedFormats.contains(Api.DataFormat.DATA_FORMAT_CBOR)) {
+        if (supportedFormats.isNotEmpty() && !supportedFormats.contains(DataFormat.DATA_FORMAT_CBOR)) {
             throw InvalidError(
                 "cannot call Modal Function from Kotlin SDK since it was deployed with an incompatible Python SDK version. Redeploy with Modal Python SDK >= 1.2",
             )
@@ -133,7 +132,7 @@ class Function(
                 client,
                 functionId,
                 input,
-                Api.FunctionCallInvocationType.FUNCTION_CALL_INVOCATION_TYPE_SYNC,
+                FunctionCallInvocationType.FUNCTION_CALL_INVOCATION_TYPE_SYNC,
             )
         }
         var retryCount = 0
@@ -161,7 +160,7 @@ class Function(
             client,
             functionId,
             input,
-            Api.FunctionCallInvocationType.FUNCTION_CALL_INVOCATION_TYPE_ASYNC,
+            FunctionCallInvocationType.FUNCTION_CALL_INVOCATION_TYPE_ASYNC,
         )
         return FunctionCall(client, invocation.functionCallId)
     }
@@ -178,7 +177,7 @@ class Function(
     private suspend fun createInput(
         args: List<Any?>,
         kwargs: Map<String, Any?>,
-    ): Api.FunctionInput {
+    ): FunctionInput {
         val payload = cborEncode(listOf(args, kwargs))
         val maxObjectSizeBytes = 2 * 1024 * 1024
         var blobId: String? = null
@@ -186,8 +185,8 @@ class Function(
             blobId = blobUpload(client.cpClient, payload)
         }
         val methodName = handleMetadata?.useMethodName ?: ""
-        val builder = Api.FunctionInput.newBuilder()
-            .setDataFormat(Api.DataFormat.DATA_FORMAT_CBOR)
+        val builder = FunctionInput.newBuilder()
+            .setDataFormat(DataFormat.DATA_FORMAT_CBOR)
             .apply {
                 if (blobId == null) {
                     this.args = com.google.protobuf.ByteString.copyFrom(payload)
