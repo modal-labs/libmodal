@@ -32,8 +32,3 @@ rules = [
     "staticcheck",
   ], text = "SA1019:" },
 ]
-# [[issues.exclude-rules]]
-#   # Ignore SA1019 only when it originates from the "legacy" directory
-#   path = "internal/legacy/.*"
-#   linters = ["staticcheck"]
-#   text = "SA1019:"
