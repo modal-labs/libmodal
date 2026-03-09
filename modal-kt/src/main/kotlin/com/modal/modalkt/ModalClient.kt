@@ -24,6 +24,7 @@ class ModalClient(
     val cloudBucketMounts: CloudBucketMountService
     val cls: ClsService
     val functions: FunctionService
+    val sandboxes: SandboxService
     val secrets: SecretService
     val volumes: VolumeService
     val proxies: ProxyService
@@ -65,6 +66,7 @@ class ModalClient(
         apps = AppService(this)
         cls = ClsService(this)
         functions = FunctionService(this)
+        sandboxes = SandboxService(this)
         secrets = SecretService(this)
         volumes = VolumeService(this)
         proxies = ProxyService(this)

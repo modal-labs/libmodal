@@ -39,6 +39,26 @@ interface ControlPlaneClient : AuthTokenProvider, TaskRouterAccessProvider {
 
     suspend fun functionBindParams(request: Api.FunctionBindParamsRequest): Api.FunctionBindParamsResponse
 
+    suspend fun sandboxCreate(request: Api.SandboxCreateRequest): Api.SandboxCreateResponse
+
+    suspend fun sandboxWait(request: Api.SandboxWaitRequest): Api.SandboxWaitResponse
+
+    suspend fun sandboxGetFromName(request: Api.SandboxGetFromNameRequest): Api.SandboxGetFromNameResponse
+
+    suspend fun sandboxList(request: Api.SandboxListRequest): Api.SandboxListResponse
+
+    suspend fun sandboxTerminate(request: Api.SandboxTerminateRequest): Api.SandboxTerminateResponse
+
+    suspend fun sandboxGetTunnels(request: Api.SandboxGetTunnelsRequest): Api.SandboxGetTunnelsResponse
+
+    suspend fun sandboxCreateConnectToken(
+        request: Api.SandboxCreateConnectTokenRequest,
+    ): Api.SandboxCreateConnectTokenResponse
+
+    suspend fun sandboxTagsSet(request: Api.SandboxTagsSetRequest)
+
+    suspend fun sandboxTagsGet(request: Api.SandboxTagsGetRequest): Api.SandboxTagsGetResponse
+
     fun close()
 }
 
@@ -111,6 +131,44 @@ class GrpcControlPlaneClient(
 
     override suspend fun functionBindParams(request: Api.FunctionBindParamsRequest): Api.FunctionBindParamsResponse {
         return unaryCall(request) { stub, headers -> stub.functionBindParams(request, headers) }
+    }
+
+    override suspend fun sandboxCreate(request: Api.SandboxCreateRequest): Api.SandboxCreateResponse {
+        return unaryCall(request) { stub, headers -> stub.sandboxCreate(request, headers) }
+    }
+
+    override suspend fun sandboxWait(request: Api.SandboxWaitRequest): Api.SandboxWaitResponse {
+        return unaryCall(request) { stub, headers -> stub.sandboxWait(request, headers) }
+    }
+
+    override suspend fun sandboxGetFromName(request: Api.SandboxGetFromNameRequest): Api.SandboxGetFromNameResponse {
+        return unaryCall(request) { stub, headers -> stub.sandboxGetFromName(request, headers) }
+    }
+
+    override suspend fun sandboxList(request: Api.SandboxListRequest): Api.SandboxListResponse {
+        return unaryCall(request) { stub, headers -> stub.sandboxList(request, headers) }
+    }
+
+    override suspend fun sandboxTerminate(request: Api.SandboxTerminateRequest): Api.SandboxTerminateResponse {
+        return unaryCall(request) { stub, headers -> stub.sandboxTerminate(request, headers) }
+    }
+
+    override suspend fun sandboxGetTunnels(request: Api.SandboxGetTunnelsRequest): Api.SandboxGetTunnelsResponse {
+        return unaryCall(request) { stub, headers -> stub.sandboxGetTunnels(request, headers) }
+    }
+
+    override suspend fun sandboxCreateConnectToken(
+        request: Api.SandboxCreateConnectTokenRequest,
+    ): Api.SandboxCreateConnectTokenResponse {
+        return unaryCall(request) { stub, headers -> stub.sandboxCreateConnectToken(request, headers) }
+    }
+
+    override suspend fun sandboxTagsSet(request: Api.SandboxTagsSetRequest) {
+        unaryCall(request) { stub, headers -> stub.sandboxTagsSet(request, headers) }
+    }
+
+    override suspend fun sandboxTagsGet(request: Api.SandboxTagsGetRequest): Api.SandboxTagsGetResponse {
+        return unaryCall(request) { stub, headers -> stub.sandboxTagsGet(request, headers) }
     }
 
     override suspend fun authTokenGet(request: Api.AuthTokenGetRequest): Api.AuthTokenGetResponse {

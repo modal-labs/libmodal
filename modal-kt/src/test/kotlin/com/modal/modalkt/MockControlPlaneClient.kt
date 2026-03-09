@@ -122,6 +122,44 @@ class MockControlPlaneClient : ControlPlaneClient {
         return unary("/FunctionBindParams", request) as Api.FunctionBindParamsResponse
     }
 
+    override suspend fun sandboxCreate(request: Api.SandboxCreateRequest): Api.SandboxCreateResponse {
+        return unary("/SandboxCreate", request) as Api.SandboxCreateResponse
+    }
+
+    override suspend fun sandboxWait(request: Api.SandboxWaitRequest): Api.SandboxWaitResponse {
+        return unary("/SandboxWait", request) as Api.SandboxWaitResponse
+    }
+
+    override suspend fun sandboxGetFromName(request: Api.SandboxGetFromNameRequest): Api.SandboxGetFromNameResponse {
+        return unary("/SandboxGetFromName", request) as Api.SandboxGetFromNameResponse
+    }
+
+    override suspend fun sandboxList(request: Api.SandboxListRequest): Api.SandboxListResponse {
+        return unary("/SandboxList", request) as Api.SandboxListResponse
+    }
+
+    override suspend fun sandboxTerminate(request: Api.SandboxTerminateRequest): Api.SandboxTerminateResponse {
+        return unary("/SandboxTerminate", request) as Api.SandboxTerminateResponse
+    }
+
+    override suspend fun sandboxGetTunnels(request: Api.SandboxGetTunnelsRequest): Api.SandboxGetTunnelsResponse {
+        return unary("/SandboxGetTunnels", request) as Api.SandboxGetTunnelsResponse
+    }
+
+    override suspend fun sandboxCreateConnectToken(
+        request: Api.SandboxCreateConnectTokenRequest,
+    ): Api.SandboxCreateConnectTokenResponse {
+        return unary("/SandboxCreateConnectToken", request) as Api.SandboxCreateConnectTokenResponse
+    }
+
+    override suspend fun sandboxTagsSet(request: Api.SandboxTagsSetRequest) {
+        unary("/SandboxTagsSet", request)
+    }
+
+    override suspend fun sandboxTagsGet(request: Api.SandboxTagsGetRequest): Api.SandboxTagsGetResponse {
+        return unary("/SandboxTagsGet", request) as Api.SandboxTagsGetResponse
+    }
+
     override suspend fun authTokenGet(request: Api.AuthTokenGetRequest): Api.AuthTokenGetResponse {
         return unary("/AuthTokenGet", request) as Api.AuthTokenGetResponse
     }
