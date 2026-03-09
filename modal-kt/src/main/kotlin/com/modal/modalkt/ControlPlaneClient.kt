@@ -31,6 +31,14 @@ interface ControlPlaneClient : AuthTokenProvider, TaskRouterAccessProvider {
 
     suspend fun imageJoinStreaming(request: Api.ImageJoinStreamingRequest): kotlinx.coroutines.flow.Flow<Api.ImageJoinStreamingResponse>
 
+    suspend fun functionGet(request: Api.FunctionGetRequest): Api.FunctionGetResponse
+
+    suspend fun functionGetCurrentStats(request: Api.FunctionGetCurrentStatsRequest): Api.FunctionStats
+
+    suspend fun functionUpdateSchedulingParams(request: Api.FunctionUpdateSchedulingParamsRequest)
+
+    suspend fun functionBindParams(request: Api.FunctionBindParamsRequest): Api.FunctionBindParamsResponse
+
     fun close()
 }
 
@@ -87,6 +95,22 @@ class GrpcControlPlaneClient(
     ): kotlinx.coroutines.flow.Flow<Api.ImageJoinStreamingResponse> {
         val headers = authHeaders(includeAuthToken = true)
         return baseStub.imageJoinStreaming(request, headers)
+    }
+
+    override suspend fun functionGet(request: Api.FunctionGetRequest): Api.FunctionGetResponse {
+        return unaryCall(request) { stub, headers -> stub.functionGet(request, headers) }
+    }
+
+    override suspend fun functionGetCurrentStats(request: Api.FunctionGetCurrentStatsRequest): Api.FunctionStats {
+        return unaryCall(request) { stub, headers -> stub.functionGetCurrentStats(request, headers) }
+    }
+
+    override suspend fun functionUpdateSchedulingParams(request: Api.FunctionUpdateSchedulingParamsRequest) {
+        unaryCall(request) { stub, headers -> stub.functionUpdateSchedulingParams(request, headers) }
+    }
+
+    override suspend fun functionBindParams(request: Api.FunctionBindParamsRequest): Api.FunctionBindParamsResponse {
+        return unaryCall(request) { stub, headers -> stub.functionBindParams(request, headers) }
     }
 
     override suspend fun authTokenGet(request: Api.AuthTokenGetRequest): Api.AuthTokenGetResponse {

@@ -106,6 +106,22 @@ class MockControlPlaneClient : ControlPlaneClient {
         return streaming("/ImageJoinStreaming", request)
     }
 
+    override suspend fun functionGet(request: Api.FunctionGetRequest): Api.FunctionGetResponse {
+        return unary("/FunctionGet", request) as Api.FunctionGetResponse
+    }
+
+    override suspend fun functionGetCurrentStats(request: Api.FunctionGetCurrentStatsRequest): Api.FunctionStats {
+        return unary("/FunctionGetCurrentStats", request) as Api.FunctionStats
+    }
+
+    override suspend fun functionUpdateSchedulingParams(request: Api.FunctionUpdateSchedulingParamsRequest) {
+        unary("/FunctionUpdateSchedulingParams", request)
+    }
+
+    override suspend fun functionBindParams(request: Api.FunctionBindParamsRequest): Api.FunctionBindParamsResponse {
+        return unary("/FunctionBindParams", request) as Api.FunctionBindParamsResponse
+    }
+
     override suspend fun authTokenGet(request: Api.AuthTokenGetRequest): Api.AuthTokenGetResponse {
         return unary("/AuthTokenGet", request) as Api.AuthTokenGetResponse
     }

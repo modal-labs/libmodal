@@ -22,6 +22,8 @@ class ModalClient(
     internal val cpClient: ControlPlaneClient
     val apps: AppService
     val cloudBucketMounts: CloudBucketMountService
+    val cls: ClsService
+    val functions: FunctionService
     val secrets: SecretService
     val volumes: VolumeService
     val proxies: ProxyService
@@ -61,6 +63,8 @@ class ModalClient(
         ephemeralHeartbeatSleepMs = params.ephemeralHeartbeatSleepMs
         cloudBucketMounts = CloudBucketMountsServiceHolder.create(this)
         apps = AppService(this)
+        cls = ClsService(this)
+        functions = FunctionService(this)
         secrets = SecretService(this)
         volumes = VolumeService(this)
         proxies = ProxyService(this)
