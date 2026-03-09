@@ -10,6 +10,32 @@ import kotlin.test.assertFailsWith
 
 class SandboxServiceTest {
     @Test
+    fun sandboxCreateMergesEnvIntoSecrets() = runBlocking {
+        val (client, mock) = createMockModalClients()
+        mock.handleUnary("/SecretGetOrCreate") {
+            Api.SecretGetOrCreateResponse.newBuilder()
+                .setSecretId("st-env")
+                .build()
+        }
+        mock.handleUnary("/SandboxCreate") { request ->
+            request as Api.SandboxCreateRequest
+            assertEquals(listOf("st-env"), request.definition.secretIdsList)
+            Api.SandboxCreateResponse.newBuilder()
+                .setSandboxId("sb-123")
+                .build()
+        }
+
+        val app = App("ap-123", "app")
+        val image = Image(client, "im-123", "")
+        val sandbox = client.sandboxes.create(
+            app,
+            image,
+            SandboxCreateParams(env = mapOf("A" to "1")),
+        )
+        assertEquals("sb-123", sandbox.sandboxId)
+    }
+
+    @Test
     fun createConnectToken() = runBlocking {
         val (client, mock) = createMockModalClients()
         mock.handleUnary("/SandboxCreateConnectToken") {

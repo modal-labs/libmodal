@@ -38,7 +38,12 @@ class SandboxService(
         params: SandboxCreateParams = SandboxCreateParams(),
     ): SandboxHandle {
         image.build(app)
-        val request = buildSandboxCreateRequestProto(app.appId, image.imageId, params)
+        val mergedSecrets = mergeEnvIntoSecrets(client, params.env, params.secrets)
+        val request = buildSandboxCreateRequestProto(
+            app.appId,
+            image.imageId,
+            params.copy(env = null, secrets = mergedSecrets),
+        )
         try {
             val response = client.cpClient.sandboxCreate(request)
             return SandboxHandle(client, response.sandboxId)
@@ -188,8 +193,10 @@ class SandboxHandle(
         val currentTaskId = getTaskId()
         val router = getOrCreateCommandRouter(currentTaskId)
         val execId = java.util.UUID.randomUUID().toString()
-        router.execStart(buildTaskExecStartRequestProto(currentTaskId, execId, command, params))
-        return ContainerProcess(currentTaskId, execId, router)
+        val mergedSecrets = mergeEnvIntoSecrets(client, params.env, params.secrets)
+        val mergedParams = params.copy(env = null, secrets = mergedSecrets)
+        router.execStart(buildTaskExecStartRequestProto(currentTaskId, execId, command, mergedParams))
+        return ContainerProcess(currentTaskId, execId, router, mergedParams)
     }
 
     suspend fun open(path: String, mode: SandboxFileMode = "r"): SandboxFile {
@@ -444,6 +451,7 @@ class ContainerProcess(
     private val taskId: String,
     private val execId: String,
     private val commandRouter: TaskCommandRouter,
+    params: SandboxExecParams,
 ) {
     private var stdinOffset = 0L
 
@@ -473,12 +481,20 @@ class ContainerProcess(
         },
     )
 
-    val stdout = ModalReadStream {
-        stdio(TaskCommandRouterOuterClass.TaskExecStdioFileDescriptor.TASK_EXEC_STDIO_FILE_DESCRIPTOR_STDOUT)
+    val stdout = if (params.stdout == StdioBehavior.IGNORE) {
+        ModalReadStream { flow { } }
+    } else {
+        ModalReadStream {
+            stdio(TaskCommandRouterOuterClass.TaskExecStdioFileDescriptor.TASK_EXEC_STDIO_FILE_DESCRIPTOR_STDOUT)
+        }
     }
 
-    val stderr = ModalReadStream {
-        stdio(TaskCommandRouterOuterClass.TaskExecStdioFileDescriptor.TASK_EXEC_STDIO_FILE_DESCRIPTOR_STDERR)
+    val stderr = if (params.stderr == StdioBehavior.IGNORE) {
+        ModalReadStream { flow { } }
+    } else {
+        ModalReadStream {
+            stdio(TaskCommandRouterOuterClass.TaskExecStdioFileDescriptor.TASK_EXEC_STDIO_FILE_DESCRIPTOR_STDERR)
+        }
     }
 
     suspend fun wait(): Int {

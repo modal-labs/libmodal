@@ -105,4 +105,40 @@ class SandboxExecTest {
         sandbox.stdin.close()
         assertEquals(listOf(1, 2), seen)
     }
+
+    @Test
+    fun sandboxExecMergesEnvIntoSecretsAndSupportsIgnore() = runBlocking {
+        val (client, control, router) = createMockModalClientsWithTaskRouter()
+        control.handleUnary("/SandboxGetTaskId") {
+            Api.SandboxGetTaskIdResponse.newBuilder().setTaskId("ta-123").build()
+        }
+        control.handleUnary("/SecretGetOrCreate") {
+            Api.SecretGetOrCreateResponse.newBuilder()
+                .setSecretId("st-env")
+                .build()
+        }
+        router.handleUnary("/TaskExecStart") { request ->
+            request as TaskCommandRouterOuterClass.TaskExecStartRequest
+            assertEquals(listOf("st-env"), request.secretIdsList)
+            TaskCommandRouterOuterClass.TaskExecStartResponse.getDefaultInstance()
+        }
+        router.handleUnary("/TaskExecWait") {
+            TaskCommandRouterOuterClass.TaskExecWaitResponse.newBuilder()
+                .setCode(0)
+                .build()
+        }
+
+        val sandbox = SandboxHandle(client, "sb-123")
+        val process = sandbox.exec(
+            listOf("echo", "hello"),
+            SandboxExecParams(
+                env = mapOf("A" to "1"),
+                stdout = StdioBehavior.IGNORE,
+                stderr = StdioBehavior.IGNORE,
+            ),
+        )
+        assertEquals("", process.stdout.readText())
+        assertEquals("", process.stderr.readText())
+        assertEquals(0, process.wait())
+    }
 }
