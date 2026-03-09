@@ -59,6 +59,30 @@ interface ControlPlaneClient : AuthTokenProvider, TaskRouterAccessProvider {
 
     suspend fun sandboxTagsGet(request: Api.SandboxTagsGetRequest): Api.SandboxTagsGetResponse
 
+    suspend fun queueGetOrCreate(request: Api.QueueGetOrCreateRequest): Api.QueueGetOrCreateResponse
+
+    suspend fun queueDelete(request: Api.QueueDeleteRequest)
+
+    suspend fun queueHeartbeat(request: Api.QueueHeartbeatRequest)
+
+    suspend fun queueGet(request: Api.QueueGetRequest): Api.QueueGetResponse
+
+    suspend fun queuePut(request: Api.QueuePutRequest)
+
+    suspend fun queueLen(request: Api.QueueLenRequest): Api.QueueLenResponse
+
+    suspend fun queueNextItems(request: Api.QueueNextItemsRequest): Api.QueueNextItemsResponse
+
+    suspend fun queueClear(request: Api.QueueClearRequest)
+
+    suspend fun functionMap(request: Api.FunctionMapRequest): Api.FunctionMapResponse
+
+    suspend fun functionGetOutputs(request: Api.FunctionGetOutputsRequest): Api.FunctionGetOutputsResponse
+
+    suspend fun functionRetryInputs(request: Api.FunctionRetryInputsRequest): Api.FunctionRetryInputsResponse
+
+    suspend fun functionCallCancel(request: Api.FunctionCallCancelRequest)
+
     fun close()
 }
 
@@ -169,6 +193,54 @@ class GrpcControlPlaneClient(
 
     override suspend fun sandboxTagsGet(request: Api.SandboxTagsGetRequest): Api.SandboxTagsGetResponse {
         return unaryCall(request) { stub, headers -> stub.sandboxTagsGet(request, headers) }
+    }
+
+    override suspend fun queueGetOrCreate(request: Api.QueueGetOrCreateRequest): Api.QueueGetOrCreateResponse {
+        return unaryCall(request) { stub, headers -> stub.queueGetOrCreate(request, headers) }
+    }
+
+    override suspend fun queueDelete(request: Api.QueueDeleteRequest) {
+        unaryCall(request) { stub, headers -> stub.queueDelete(request, headers) }
+    }
+
+    override suspend fun queueHeartbeat(request: Api.QueueHeartbeatRequest) {
+        unaryCall(request) { stub, headers -> stub.queueHeartbeat(request, headers) }
+    }
+
+    override suspend fun queueGet(request: Api.QueueGetRequest): Api.QueueGetResponse {
+        return unaryCall(request) { stub, headers -> stub.queueGet(request, headers) }
+    }
+
+    override suspend fun queuePut(request: Api.QueuePutRequest) {
+        unaryCall(request) { stub, headers -> stub.queuePut(request, headers) }
+    }
+
+    override suspend fun queueLen(request: Api.QueueLenRequest): Api.QueueLenResponse {
+        return unaryCall(request) { stub, headers -> stub.queueLen(request, headers) }
+    }
+
+    override suspend fun queueNextItems(request: Api.QueueNextItemsRequest): Api.QueueNextItemsResponse {
+        return unaryCall(request) { stub, headers -> stub.queueNextItems(request, headers) }
+    }
+
+    override suspend fun queueClear(request: Api.QueueClearRequest) {
+        unaryCall(request) { stub, headers -> stub.queueClear(request, headers) }
+    }
+
+    override suspend fun functionMap(request: Api.FunctionMapRequest): Api.FunctionMapResponse {
+        return unaryCall(request) { stub, headers -> stub.functionMap(request, headers) }
+    }
+
+    override suspend fun functionGetOutputs(request: Api.FunctionGetOutputsRequest): Api.FunctionGetOutputsResponse {
+        return unaryCall(request) { stub, headers -> stub.functionGetOutputs(request, headers) }
+    }
+
+    override suspend fun functionRetryInputs(request: Api.FunctionRetryInputsRequest): Api.FunctionRetryInputsResponse {
+        return unaryCall(request) { stub, headers -> stub.functionRetryInputs(request, headers) }
+    }
+
+    override suspend fun functionCallCancel(request: Api.FunctionCallCancelRequest) {
+        unaryCall(request) { stub, headers -> stub.functionCallCancel(request, headers) }
     }
 
     override suspend fun authTokenGet(request: Api.AuthTokenGetRequest): Api.AuthTokenGetResponse {

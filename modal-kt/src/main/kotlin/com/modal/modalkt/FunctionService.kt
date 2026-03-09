@@ -120,15 +120,41 @@ class Function(
                 "cannot call Modal Function from Kotlin SDK since it was deployed with an incompatible Python SDK version. Redeploy with Modal Python SDK >= 1.2",
             )
         }
-        throw UnsupportedOperationException("Function.remote is not implemented yet")
+        val input = createInput(args, kwargs)
+        val invocation = ControlPlaneInvocation.create(
+            client,
+            functionId,
+            input,
+            Api.FunctionCallInvocationType.FUNCTION_CALL_INVOCATION_TYPE_SYNC,
+        )
+        var retryCount = 0
+        while (true) {
+            try {
+                return invocation.awaitOutput()
+            } catch (error: Throwable) {
+                if (error is InternalFailure && retryCount <= 8) {
+                    invocation.retry(retryCount)
+                    retryCount += 1
+                    continue
+                }
+                throw error
+            }
+        }
     }
 
     suspend fun spawn(
         args: List<Any?> = emptyList(),
         kwargs: Map<String, Any?> = emptyMap(),
-    ): Any? {
+    ): FunctionCall {
         checkNoWebUrl("spawn")
-        throw UnsupportedOperationException("Function.spawn is not implemented yet")
+        val input = createInput(args, kwargs)
+        val invocation = ControlPlaneInvocation.create(
+            client,
+            functionId,
+            input,
+            Api.FunctionCallInvocationType.FUNCTION_CALL_INVOCATION_TYPE_ASYNC,
+        )
+        return FunctionCall(client, invocation.functionCallId)
     }
 
     private fun checkNoWebUrl(name: String) {
@@ -138,5 +164,22 @@ class Function(
                 "A webhook Function cannot be invoked for remote execution with '.$name'. Invoke this Function via its web url '$webUrl' instead.",
             )
         }
+    }
+
+    private fun createInput(
+        args: List<Any?>,
+        kwargs: Map<String, Any?>,
+    ): Api.FunctionInput {
+        val payload = cborEncode(listOf(args, kwargs))
+        val methodName = handleMetadata?.useMethodName ?: ""
+        return Api.FunctionInput.newBuilder()
+            .setArgs(com.google.protobuf.ByteString.copyFrom(payload))
+            .setDataFormat(Api.DataFormat.DATA_FORMAT_CBOR)
+            .apply {
+                if (methodName.isNotEmpty()) {
+                    this.methodName = methodName
+                }
+            }
+            .build()
     }
 }

@@ -160,6 +160,54 @@ class MockControlPlaneClient : ControlPlaneClient {
         return unary("/SandboxTagsGet", request) as Api.SandboxTagsGetResponse
     }
 
+    override suspend fun queueGetOrCreate(request: Api.QueueGetOrCreateRequest): Api.QueueGetOrCreateResponse {
+        return unary("/QueueGetOrCreate", request) as Api.QueueGetOrCreateResponse
+    }
+
+    override suspend fun queueDelete(request: Api.QueueDeleteRequest) {
+        unary("/QueueDelete", request)
+    }
+
+    override suspend fun queueHeartbeat(request: Api.QueueHeartbeatRequest) {
+        unary("/QueueHeartbeat", request)
+    }
+
+    override suspend fun queueGet(request: Api.QueueGetRequest): Api.QueueGetResponse {
+        return unary("/QueueGet", request) as Api.QueueGetResponse
+    }
+
+    override suspend fun queuePut(request: Api.QueuePutRequest) {
+        unary("/QueuePut", request)
+    }
+
+    override suspend fun queueLen(request: Api.QueueLenRequest): Api.QueueLenResponse {
+        return unary("/QueueLen", request) as Api.QueueLenResponse
+    }
+
+    override suspend fun queueNextItems(request: Api.QueueNextItemsRequest): Api.QueueNextItemsResponse {
+        return unary("/QueueNextItems", request) as Api.QueueNextItemsResponse
+    }
+
+    override suspend fun queueClear(request: Api.QueueClearRequest) {
+        unary("/QueueClear", request)
+    }
+
+    override suspend fun functionMap(request: Api.FunctionMapRequest): Api.FunctionMapResponse {
+        return unary("/FunctionMap", request) as Api.FunctionMapResponse
+    }
+
+    override suspend fun functionGetOutputs(request: Api.FunctionGetOutputsRequest): Api.FunctionGetOutputsResponse {
+        return unary("/FunctionGetOutputs", request) as Api.FunctionGetOutputsResponse
+    }
+
+    override suspend fun functionRetryInputs(request: Api.FunctionRetryInputsRequest): Api.FunctionRetryInputsResponse {
+        return unary("/FunctionRetryInputs", request) as Api.FunctionRetryInputsResponse
+    }
+
+    override suspend fun functionCallCancel(request: Api.FunctionCallCancelRequest) {
+        unary("/FunctionCallCancel", request)
+    }
+
     override suspend fun authTokenGet(request: Api.AuthTokenGetRequest): Api.AuthTokenGetResponse {
         return unary("/AuthTokenGet", request) as Api.AuthTokenGetResponse
     }

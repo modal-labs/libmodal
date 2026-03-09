@@ -76,7 +76,7 @@ dependencies {
     implementation("com.google.protobuf:protobuf-kotlin:$protobufVersion")
     implementation("org.tomlj:tomlj:1.1.1")
     implementation("com.upokecenter:cbor:4.5.6")
-    implementation("net.razorvine:pyrolite:5.1")
+    implementation("net.razorvine:pickle:1.5")
     implementation("io.grpc:grpc-netty-shaded:$grpcVersion")
     compileOnly("org.apache.tomcat:annotations-api:6.0.53")
 
