@@ -55,6 +55,7 @@ typealias FunctionRetryInputsItem = modal.client.Api.FunctionRetryInputsItem
 typealias FunctionRetryInputsRequest = modal.client.Api.FunctionRetryInputsRequest
 typealias FunctionRetryInputsResponse = modal.client.Api.FunctionRetryInputsResponse
 typealias FunctionRetryPolicy = modal.client.Api.FunctionRetryPolicy
+typealias ProtoFunctionStats = modal.client.Api.FunctionStats
 typealias FunctionUpdateSchedulingParamsRequest = modal.client.Api.FunctionUpdateSchedulingParamsRequest
 typealias GPUConfig = modal.client.Api.GPUConfig
 typealias GenericResult = modal.client.Api.GenericResult

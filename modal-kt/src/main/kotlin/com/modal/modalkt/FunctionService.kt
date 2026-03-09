@@ -68,7 +68,7 @@ class Function(
                 .setFunctionId(functionId)
                 .build(),
         )
-        return FunctionStats(response.backlog, response.numTotalTasks)
+        return FunctionStats(response.getBacklog().toInt(), response.getNumTotalTasks().toInt())
     }
 
     suspend fun updateAutoscaler(params: FunctionUpdateAutoscalerParams) {

@@ -3,8 +3,6 @@ package com.modal.modalkt
 import io.grpc.Status
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.flow
-import modal.client.Api
-import modal.task_command_router.TaskCommandRouterOuterClass
 
 data class SandboxListParams(
     val appId: String? = null,
@@ -58,7 +56,7 @@ class SandboxService(
     suspend fun fromId(sandboxId: String): SandboxHandle {
         try {
             client.cpClient.sandboxWait(
-                Api.SandboxWaitRequest.newBuilder()
+                SandboxWaitRequest.newBuilder()
                     .setSandboxId(sandboxId)
                     .setTimeout(0f)
                     .build(),
@@ -79,7 +77,7 @@ class SandboxService(
     ): SandboxHandle {
         try {
             val response = client.cpClient.sandboxGetFromName(
-                Api.SandboxGetFromNameRequest.newBuilder()
+                SandboxGetFromNameRequest.newBuilder()
                     .setSandboxName(name)
                     .setAppName(appName)
                     .setEnvironmentName(client.environmentName(params.environment))
@@ -98,7 +96,7 @@ class SandboxService(
         params: SandboxListParams = SandboxListParams(),
     ): List<SandboxHandle> {
         val response = client.cpClient.sandboxList(
-            Api.SandboxListRequest.newBuilder()
+            SandboxListRequest.newBuilder()
                 .apply {
                     if (params.appId != null) {
                         appId = params.appId
@@ -108,7 +106,7 @@ class SandboxService(
                     if (params.tags != null) {
                         addAllTags(
                             params.tags.map { (name, value) ->
-                                Api.SandboxTag.newBuilder()
+                                SandboxTag.newBuilder()
                                     .setTagName(name)
                                     .setTagValue(value)
                                     .build()
@@ -135,7 +133,7 @@ class SandboxHandle(
         writeBlock = { bytes ->
             ensureAttached()
             client.cpClient.sandboxStdinWrite(
-                Api.SandboxStdinWriteRequest.newBuilder()
+                SandboxStdinWriteRequest.newBuilder()
                     .setSandboxId(sandboxId)
                     .setInput(com.google.protobuf.ByteString.copyFrom(bytes))
                     .setIndex(stdinIndex)
@@ -146,7 +144,7 @@ class SandboxHandle(
         closeBlock = {
             ensureAttached()
             client.cpClient.sandboxStdinWrite(
-                Api.SandboxStdinWriteRequest.newBuilder()
+                SandboxStdinWriteRequest.newBuilder()
                     .setSandboxId(sandboxId)
                     .setIndex(stdinIndex)
                     .setEof(true)
@@ -157,13 +155,13 @@ class SandboxHandle(
 
     val stdout: ModalReadStream by lazy {
         ModalReadStream {
-            outputStream(Api.FileDescriptor.FILE_DESCRIPTOR_STDOUT)
+            outputStream(FileDescriptor.FILE_DESCRIPTOR_STDOUT)
         }
     }
 
     val stderr: ModalReadStream by lazy {
         ModalReadStream {
-            outputStream(Api.FileDescriptor.FILE_DESCRIPTOR_STDERR)
+            outputStream(FileDescriptor.FILE_DESCRIPTOR_STDERR)
         }
     }
 
@@ -172,7 +170,7 @@ class SandboxHandle(
     ): SandboxCreateConnectCredentials {
         ensureAttached()
         val response = client.cpClient.sandboxCreateConnectToken(
-            Api.SandboxCreateConnectTokenRequest.newBuilder()
+            SandboxCreateConnectTokenRequest.newBuilder()
                 .setSandboxId(sandboxId)
                 .apply {
                     if (params.userMetadata != null) {
@@ -204,10 +202,10 @@ class SandboxHandle(
         val currentTaskId = getTaskId()
         val result = runFilesystemExec(
             client.cpClient,
-            Api.ContainerFilesystemExecRequest.newBuilder()
+            ContainerFilesystemExecRequest.newBuilder()
                 .setTaskId(currentTaskId)
                 .setFileOpenRequest(
-                    Api.ContainerFileOpenRequest.newBuilder()
+                    ContainerFileOpenRequest.newBuilder()
                         .setPath(path)
                         .setMode(mode)
                         .build(),
@@ -221,7 +219,7 @@ class SandboxHandle(
     suspend fun terminate(params: SandboxTerminateParams = SandboxTerminateParams()): Int? {
         ensureAttached()
         client.cpClient.sandboxTerminate(
-            Api.SandboxTerminateRequest.newBuilder()
+            SandboxTerminateRequest.newBuilder()
                 .setSandboxId(sandboxId)
                 .build(),
         )
@@ -234,7 +232,7 @@ class SandboxHandle(
         ensureAttached()
         while (true) {
             val response = client.cpClient.sandboxWait(
-                Api.SandboxWaitRequest.newBuilder()
+                SandboxWaitRequest.newBuilder()
                     .setSandboxId(sandboxId)
                     .setTimeout(10f)
                     .build(),
@@ -248,7 +246,7 @@ class SandboxHandle(
     suspend fun poll(): Int? {
         ensureAttached()
         val response = client.cpClient.sandboxWait(
-            Api.SandboxWaitRequest.newBuilder()
+            SandboxWaitRequest.newBuilder()
                 .setSandboxId(sandboxId)
                 .setTimeout(0f)
                 .build(),
@@ -259,12 +257,12 @@ class SandboxHandle(
     suspend fun tunnels(timeoutMs: Long = 50_000): Map<Int, Tunnel> {
         ensureAttached()
         val response = client.cpClient.sandboxGetTunnels(
-            Api.SandboxGetTunnelsRequest.newBuilder()
+            SandboxGetTunnelsRequest.newBuilder()
                 .setSandboxId(sandboxId)
                 .setTimeout(timeoutMs.toFloat() / 1000f)
                 .build(),
         )
-        if (response.result.status == Api.GenericResult.GenericStatus.GENERIC_STATUS_TIMEOUT) {
+        if (response.result.status == GenericStatus.GENERIC_STATUS_TIMEOUT) {
             throw SandboxTimeoutError()
         }
         return response.tunnelsList.associate { tunnel ->
@@ -280,12 +278,12 @@ class SandboxHandle(
     suspend fun snapshotFilesystem(timeoutMs: Long = 55_000): Image {
         ensureAttached()
         val response = client.cpClient.sandboxSnapshotFs(
-            Api.SandboxSnapshotFsRequest.newBuilder()
+            SandboxSnapshotFsRequest.newBuilder()
                 .setSandboxId(sandboxId)
                 .setTimeout(timeoutMs.toFloat() / 1000f)
                 .build(),
         )
-        if (response.result.status != Api.GenericResult.GenericStatus.GENERIC_STATUS_SUCCESS) {
+        if (response.result.status != GenericStatus.GENERIC_STATUS_SUCCESS) {
             throw InvalidError(
                 "Sandbox snapshot failed: ${response.result.exception.ifEmpty { "Unknown error" }}",
             )
@@ -304,7 +302,7 @@ class SandboxHandle(
         val currentTaskId = getTaskId()
         val router = getOrCreateCommandRouter(currentTaskId)
         router.mountDirectory(
-            TaskCommandRouterOuterClass.TaskMountDirectoryRequest.newBuilder()
+            TaskMountDirectoryRequest.newBuilder()
                 .setTaskId(currentTaskId)
                 .setPath(com.google.protobuf.ByteString.copyFrom(path.toByteArray()))
                 .setImageId(image?.imageId ?: "")
@@ -317,7 +315,7 @@ class SandboxHandle(
         val currentTaskId = getTaskId()
         val router = getOrCreateCommandRouter(currentTaskId)
         val response = router.snapshotDirectory(
-            TaskCommandRouterOuterClass.TaskSnapshotDirectoryRequest.newBuilder()
+            TaskSnapshotDirectoryRequest.newBuilder()
                 .setTaskId(currentTaskId)
                 .setPath(com.google.protobuf.ByteString.copyFrom(path.toByteArray()))
                 .build(),
@@ -331,12 +329,12 @@ class SandboxHandle(
     suspend fun setTags(tags: Map<String, String>) {
         ensureAttached()
         client.cpClient.sandboxTagsSet(
-            Api.SandboxTagsSetRequest.newBuilder()
+            SandboxTagsSetRequest.newBuilder()
                 .setEnvironmentName(client.environmentName())
                 .setSandboxId(sandboxId)
                 .addAllTags(
                     tags.map { (name, value) ->
-                        Api.SandboxTag.newBuilder()
+                        SandboxTag.newBuilder()
                             .setTagName(name)
                             .setTagValue(value)
                             .build()
@@ -349,7 +347,7 @@ class SandboxHandle(
     suspend fun getTags(): Map<String, String> {
         ensureAttached()
         val response = client.cpClient.sandboxTagsGet(
-            Api.SandboxTagsGetRequest.newBuilder()
+            SandboxTagsGetRequest.newBuilder()
                 .setSandboxId(sandboxId)
                 .build(),
         )
@@ -361,7 +359,7 @@ class SandboxHandle(
         commandRouter?.close()
     }
 
-    private fun outputStream(fileDescriptor: Api.FileDescriptor) = flow {
+    private fun outputStream(fileDescriptor: FileDescriptor) = flow {
         var lastEntryId = "0-0"
         var retriesRemaining = 10
         var delayMs = 10L
@@ -370,7 +368,7 @@ class SandboxHandle(
         while (!completed) {
             try {
                 client.cpClient.sandboxGetLogs(
-                    Api.SandboxGetLogsRequest.newBuilder()
+                    SandboxGetLogsRequest.newBuilder()
                         .setSandboxId(sandboxId)
                         .setFileDescriptor(fileDescriptor)
                         .setTimeout(55f)
@@ -403,12 +401,12 @@ class SandboxHandle(
         taskId?.let { return it }
         repeat(600) {
             val response = client.cpClient.sandboxGetTaskId(
-                Api.SandboxGetTaskIdRequest.newBuilder()
+                SandboxGetTaskIdRequest.newBuilder()
                     .setSandboxId(sandboxId)
                     .build(),
             )
             if (response.hasTaskResult()) {
-                if (response.taskResult.status == Api.GenericResult.GenericStatus.GENERIC_STATUS_SUCCESS ||
+                if (response.taskResult.status == GenericStatus.GENERIC_STATUS_SUCCESS ||
                     response.taskResult.exception.isEmpty()
                 ) {
                     throw InvalidError("Sandbox $sandboxId has already completed")
@@ -437,11 +435,11 @@ class SandboxHandle(
         }
     }
 
-    private fun getReturnCode(result: Api.GenericResult): Int? {
+    private fun getReturnCode(result: GenericResult): Int? {
         return when (result.status) {
-            Api.GenericResult.GenericStatus.GENERIC_STATUS_UNSPECIFIED -> null
-            Api.GenericResult.GenericStatus.GENERIC_STATUS_TIMEOUT -> 124
-            Api.GenericResult.GenericStatus.GENERIC_STATUS_TERMINATED -> 137
+            GenericStatus.GENERIC_STATUS_UNSPECIFIED -> null
+            GenericStatus.GENERIC_STATUS_TIMEOUT -> 124
+            GenericStatus.GENERIC_STATUS_TERMINATED -> 137
             else -> result.exitcode
         }
     }
@@ -458,7 +456,7 @@ class ContainerProcess(
     val stdin = ModalWriteStream(
         writeBlock = { bytes ->
             commandRouter.execStdinWrite(
-                TaskCommandRouterOuterClass.TaskExecStdinWriteRequest.newBuilder()
+                TaskExecStdinWriteRequest.newBuilder()
                     .setTaskId(taskId)
                     .setExecId(execId)
                     .setOffset(stdinOffset)
@@ -470,7 +468,7 @@ class ContainerProcess(
         },
         closeBlock = {
             commandRouter.execStdinWrite(
-                TaskCommandRouterOuterClass.TaskExecStdinWriteRequest.newBuilder()
+                TaskExecStdinWriteRequest.newBuilder()
                     .setTaskId(taskId)
                     .setExecId(execId)
                     .setOffset(stdinOffset)
@@ -485,7 +483,7 @@ class ContainerProcess(
         ModalReadStream { flow { } }
     } else {
         ModalReadStream {
-            stdio(TaskCommandRouterOuterClass.TaskExecStdioFileDescriptor.TASK_EXEC_STDIO_FILE_DESCRIPTOR_STDOUT)
+            stdio(TaskExecStdioFileDescriptor.TASK_EXEC_STDIO_FILE_DESCRIPTOR_STDOUT)
         }
     }
 
@@ -493,13 +491,13 @@ class ContainerProcess(
         ModalReadStream { flow { } }
     } else {
         ModalReadStream {
-            stdio(TaskCommandRouterOuterClass.TaskExecStdioFileDescriptor.TASK_EXEC_STDIO_FILE_DESCRIPTOR_STDERR)
+            stdio(TaskExecStdioFileDescriptor.TASK_EXEC_STDIO_FILE_DESCRIPTOR_STDERR)
         }
     }
 
     suspend fun wait(): Int {
         val response = commandRouter.execWait(
-            TaskCommandRouterOuterClass.TaskExecWaitRequest.newBuilder()
+            TaskExecWaitRequest.newBuilder()
                 .setTaskId(taskId)
                 .setExecId(execId)
                 .build(),
@@ -512,10 +510,10 @@ class ContainerProcess(
     }
 
     private fun stdio(
-        fileDescriptor: TaskCommandRouterOuterClass.TaskExecStdioFileDescriptor,
+        fileDescriptor: TaskExecStdioFileDescriptor,
     ) = flow {
         commandRouter.execStdioRead(
-            TaskCommandRouterOuterClass.TaskExecStdioReadRequest.newBuilder()
+            TaskExecStdioReadRequest.newBuilder()
                 .setTaskId(taskId)
                 .setExecId(execId)
                 .setOffset(0)
