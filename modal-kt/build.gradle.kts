@@ -84,6 +84,7 @@ dependencies {
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:$coroutinesVersion")
     testImplementation("org.junit.jupiter:junit-jupiter:$junitVersion")
     testImplementation("com.github.stefanbirkner:system-lambda:1.2.1")
+    testImplementation("io.grpc:grpc-inprocess:$grpcVersion")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 

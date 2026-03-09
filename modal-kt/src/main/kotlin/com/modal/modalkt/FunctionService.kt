@@ -121,12 +121,21 @@ class Function(
             )
         }
         val input = createInput(args, kwargs)
-        val invocation = ControlPlaneInvocation.create(
-            client,
-            functionId,
-            input,
-            Api.FunctionCallInvocationType.FUNCTION_CALL_INVOCATION_TYPE_SYNC,
-        )
+        val invocation: Invocation = if (!handleMetadata?.inputPlaneUrl.isNullOrEmpty()) {
+            InputPlaneInvocation.create(
+                client,
+                handleMetadata!!.inputPlaneUrl,
+                functionId,
+                input,
+            )
+        } else {
+            ControlPlaneInvocation.create(
+                client,
+                functionId,
+                input,
+                Api.FunctionCallInvocationType.FUNCTION_CALL_INVOCATION_TYPE_SYNC,
+            )
+        }
         var retryCount = 0
         while (true) {
             try {

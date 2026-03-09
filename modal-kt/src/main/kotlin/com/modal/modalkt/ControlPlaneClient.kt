@@ -101,6 +101,12 @@ interface ControlPlaneClient : AuthTokenProvider, TaskRouterAccessProvider {
 
     suspend fun sandboxGetLogs(request: Api.SandboxGetLogsRequest): kotlinx.coroutines.flow.Flow<Api.TaskLogsBatch>
 
+    suspend fun attemptStart(request: Api.AttemptStartRequest): Api.AttemptStartResponse
+
+    suspend fun attemptAwait(request: Api.AttemptAwaitRequest): Api.AttemptAwaitResponse
+
+    suspend fun attemptRetry(request: Api.AttemptRetryRequest): Api.AttemptRetryResponse
+
     suspend fun blobCreate(request: Api.BlobCreateRequest): Api.BlobCreateResponse
 
     suspend fun blobGet(request: Api.BlobGetRequest): Api.BlobGetResponse
@@ -112,6 +118,7 @@ class GrpcControlPlaneClient(
     private val profile: Profile,
     private val logger: Logger,
     interceptors: List<ClientInterceptor> = emptyList(),
+    private val defaultTimeoutMs: Long? = null,
 ) : ControlPlaneClient {
     private val channel: ManagedChannel = buildChannel(profile)
     private val baseStub = ModalClientGrpcKt.ModalClientCoroutineStub(
@@ -298,6 +305,18 @@ class GrpcControlPlaneClient(
         return baseStub.sandboxGetLogs(request, headers)
     }
 
+    override suspend fun attemptStart(request: Api.AttemptStartRequest): Api.AttemptStartResponse {
+        return unaryCall(request) { stub, headers -> stub.attemptStart(request, headers) }
+    }
+
+    override suspend fun attemptAwait(request: Api.AttemptAwaitRequest): Api.AttemptAwaitResponse {
+        return unaryCall(request) { stub, headers -> stub.attemptAwait(request, headers) }
+    }
+
+    override suspend fun attemptRetry(request: Api.AttemptRetryRequest): Api.AttemptRetryResponse {
+        return unaryCall(request) { stub, headers -> stub.attemptRetry(request, headers) }
+    }
+
     override suspend fun blobCreate(request: Api.BlobCreateRequest): Api.BlobCreateResponse {
         return unaryCall(request) { stub, headers -> stub.blobCreate(request, headers) }
     }
@@ -335,7 +354,12 @@ class GrpcControlPlaneClient(
         return callWithRetriesOnTransientErrors(
             func = {
                 val headers = authHeaders(includeAuthToken)
-                call(baseStub, headers)
+                val stub = if (defaultTimeoutMs != null) {
+                    baseStub.withDeadlineAfter(defaultTimeoutMs, TimeUnit.MILLISECONDS)
+                } else {
+                    baseStub
+                }
+                call(stub, headers)
             },
         )
     }

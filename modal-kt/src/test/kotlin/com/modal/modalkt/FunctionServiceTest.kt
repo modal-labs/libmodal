@@ -134,6 +134,49 @@ class FunctionServiceTest {
     }
 
     @Test
+    fun functionCallInputPlane() = runBlocking {
+        val control = MockControlPlaneClient()
+        val inputPlane = MockControlPlaneClient()
+        val modal = ModalClient(
+            ModalClientParams(
+                controlPlaneClient = control,
+                authTokenProvider = control,
+                inputPlaneClientFactory = { inputPlane },
+            ),
+        )
+        inputPlane.handleUnary("/AttemptStart") {
+            Api.AttemptStartResponse.newBuilder()
+                .setAttemptToken("attempt-1")
+                .build()
+        }
+        inputPlane.handleUnary("/AttemptAwait") {
+            Api.AttemptAwaitResponse.newBuilder()
+                .setOutput(
+                    Api.FunctionGetOutputsItem.newBuilder()
+                        .setResult(
+                            Api.GenericResult.newBuilder()
+                                .setStatus(Api.GenericResult.GenericStatus.GENERIC_STATUS_SUCCESS)
+                                .setData(com.google.protobuf.ByteString.copyFrom(cborEncode("output: hello")))
+                                .build(),
+                        )
+                        .setDataFormat(Api.DataFormat.DATA_FORMAT_CBOR)
+                        .build(),
+                )
+                .build()
+        }
+
+        val function = Function(
+            client = modal,
+            functionId = "fid-input",
+            handleMetadata = Api.FunctionHandleMetadata.newBuilder()
+                .setInputPlaneUrl("https://input-plane.example")
+                .addSupportedInputFormats(Api.DataFormat.DATA_FORMAT_CBOR)
+                .build(),
+        )
+        assertEquals("output: hello", function.remote(listOf("hello")))
+    }
+
+    @Test
     fun webEndpointRemoteCallError() = runBlocking {
         val function = Function(
             ModalClient(ModalClientParams(controlPlaneClient = MockControlPlaneClient(), authTokenProvider = MockControlPlaneClient())),

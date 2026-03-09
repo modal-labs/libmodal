@@ -236,6 +236,18 @@ class MockControlPlaneClient : ControlPlaneClient {
         unary("/FunctionCallCancel", request)
     }
 
+    override suspend fun attemptStart(request: Api.AttemptStartRequest): Api.AttemptStartResponse {
+        return unary("/AttemptStart", request) as Api.AttemptStartResponse
+    }
+
+    override suspend fun attemptAwait(request: Api.AttemptAwaitRequest): Api.AttemptAwaitResponse {
+        return unary("/AttemptAwait", request) as Api.AttemptAwaitResponse
+    }
+
+    override suspend fun attemptRetry(request: Api.AttemptRetryRequest): Api.AttemptRetryResponse {
+        return unary("/AttemptRetry", request) as Api.AttemptRetryResponse
+    }
+
     override suspend fun blobCreate(request: Api.BlobCreateRequest): Api.BlobCreateResponse {
         return unary("/BlobCreate", request) as Api.BlobCreateResponse
     }

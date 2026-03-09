@@ -10,7 +10,7 @@ import kotlinx.coroutines.sync.withLock
 import modal.client.Api
 import modal.task_command_router.TaskCommandRouterGrpcKt
 import modal.task_command_router.TaskCommandRouterOuterClass
-import java.net.URL
+import java.net.URI
 import java.util.Base64
 import java.util.concurrent.TimeUnit
 
@@ -229,7 +229,7 @@ class TaskCommandRouterClientImpl(
     }
 
     private fun buildChannel(urlString: String): ManagedChannel {
-        val url = URL(urlString)
+        val url = URI(urlString)
         val builder = NettyChannelBuilder.forAddress(
             url.host,
             if (url.port == -1) 443 else url.port,

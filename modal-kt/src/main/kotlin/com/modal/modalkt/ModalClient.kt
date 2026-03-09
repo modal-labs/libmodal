@@ -14,6 +14,7 @@ data class ModalClientParams(
     val backgroundScope: kotlinx.coroutines.CoroutineScope? = null,
     val ephemeralHeartbeatSleepMs: Long = ephemeralObjectHeartbeatSleep,
     internal val taskCommandRouterFactory: (suspend (client: ModalClient, taskId: String) -> TaskCommandRouter)? = null,
+    internal val inputPlaneClientFactory: ((serverUrl: String) -> ControlPlaneClient)? = null,
 )
 
 class ModalClient(
@@ -36,6 +37,9 @@ class ModalClient(
     internal val backgroundScope: kotlinx.coroutines.CoroutineScope
     internal val ephemeralHeartbeatSleepMs: Long
     internal val taskCommandRouterFactory: suspend (client: ModalClient, taskId: String) -> TaskCommandRouter
+    private val inputPlaneClientFactory: (String) -> ControlPlaneClient
+    private val inputPlaneClients = mutableMapOf<String, ControlPlaneClient>()
+    private val defaultTimeoutMs: Long?
 
     private val authTokenManager: AuthTokenManager?
 
@@ -61,7 +65,8 @@ class ModalClient(
             profile.serverUrl,
         )
 
-        cpClient = params.controlPlaneClient ?: GrpcControlPlaneClient(profile, logger, params.grpcInterceptors)
+        cpClient = params.controlPlaneClient ?: GrpcControlPlaneClient(profile, logger, params.grpcInterceptors, params.timeoutMs)
+        defaultTimeoutMs = params.timeoutMs
         backgroundScope = params.backgroundScope
             ?: kotlinx.coroutines.CoroutineScope(
                 kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO,
@@ -74,6 +79,9 @@ class ModalClient(
                 logger = modalClient.logger,
                 profile = modalClient.profile,
             ) ?: throw InvalidError("Command router access is not available for this sandbox")
+        }
+        inputPlaneClientFactory = params.inputPlaneClientFactory ?: { serverUrl ->
+            GrpcControlPlaneClient(profile.copy(serverUrl = serverUrl), logger, params.grpcInterceptors, defaultTimeoutMs)
         }
         cloudBucketMounts = CloudBucketMountsServiceHolder.create(this)
         apps = AppService(this)
@@ -107,11 +115,19 @@ class ModalClient(
     fun close() {
         logger.debug("Closing Modal client")
         cpClient.close()
+        inputPlaneClients.values.forEach { it.close() }
+        inputPlaneClients.clear()
         logger.debug("Modal client closed")
     }
 
     suspend fun getAuthToken(): String? {
         return authTokenManager?.getToken()
+    }
+
+    internal fun ipClient(serverUrl: String): ControlPlaneClient {
+        return inputPlaneClients.getOrPut(serverUrl) {
+            inputPlaneClientFactory(serverUrl)
+        }
     }
 }
 

@@ -12,6 +12,115 @@ internal interface Invocation {
     suspend fun retry(retryCount: Int)
 }
 
+internal class InputPlaneInvocation(
+    private val client: ModalClient,
+    private val ipClient: ControlPlaneClient,
+    private val functionId: String,
+    private val input: Api.FunctionPutInputsItem,
+    private var attemptToken: String,
+) : Invocation {
+    companion object {
+        suspend fun create(
+            client: ModalClient,
+            inputPlaneUrl: String,
+            functionId: String,
+            input: Api.FunctionInput,
+        ): InputPlaneInvocation {
+            val putInput = Api.FunctionPutInputsItem.newBuilder()
+                .setIdx(0)
+                .setInput(input)
+                .build()
+            val ipClient = client.ipClient(inputPlaneUrl)
+            val response = ipClient.attemptStart(
+                Api.AttemptStartRequest.newBuilder()
+                    .setFunctionId(functionId)
+                    .setInput(putInput)
+                    .build(),
+            )
+            return InputPlaneInvocation(
+                client = client,
+                ipClient = ipClient,
+                functionId = functionId,
+                input = putInput,
+                attemptToken = response.attemptToken,
+            )
+        }
+    }
+
+    override val functionCallId: String
+        get() = attemptToken
+
+    override suspend fun awaitOutput(timeoutMs: Long?): Any? {
+        val start = System.currentTimeMillis()
+        var pollTimeoutMs = outputsTimeoutMs
+        if (timeoutMs != null) {
+            pollTimeoutMs = minOf(pollTimeoutMs, timeoutMs)
+        }
+
+        while (true) {
+            val output = ipClient.attemptAwait(
+                Api.AttemptAwaitRequest.newBuilder()
+                    .setAttemptToken(attemptToken)
+                    .setRequestedAt(System.currentTimeMillis() / 1000.0)
+                    .setTimeoutSecs(pollTimeoutMs.toFloat() / 1000f)
+                    .build(),
+            ).output
+            if (output != null) {
+                return processResult(output.result, output.dataFormat)
+            }
+
+            if (timeoutMs != null) {
+                val remaining = timeoutMs - (System.currentTimeMillis() - start)
+                if (remaining <= 0) {
+                    throw FunctionTimeoutError("Timeout exceeded: ${timeoutMs}ms")
+                }
+                pollTimeoutMs = minOf(outputsTimeoutMs, remaining)
+            }
+        }
+    }
+
+    override suspend fun retry(retryCount: Int) {
+        val response = ipClient.attemptRetry(
+            Api.AttemptRetryRequest.newBuilder()
+                .setFunctionId(functionId)
+                .setInput(input)
+                .setAttemptToken(attemptToken)
+                .build(),
+        )
+        attemptToken = response.attemptToken
+    }
+
+    private suspend fun processResult(
+        result: Api.GenericResult,
+        dataFormat: Api.DataFormat,
+    ): Any? {
+        val data = when {
+            result.hasData() -> result.data.toByteArray()
+            result.hasDataBlobId() -> blobDownload(client.cpClient, result.dataBlobId)
+            else -> null
+        }
+
+        when (result.status) {
+            Api.GenericResult.GenericStatus.GENERIC_STATUS_TIMEOUT -> throw FunctionTimeoutError(result.exception)
+            Api.GenericResult.GenericStatus.GENERIC_STATUS_INTERNAL_FAILURE -> throw InternalFailure(result.exception)
+            Api.GenericResult.GenericStatus.GENERIC_STATUS_SUCCESS -> Unit
+            else -> throw RemoteError(result.exception)
+        }
+
+        if (data == null || data.isEmpty()) {
+            return null
+        }
+        return when (dataFormat) {
+            Api.DataFormat.DATA_FORMAT_CBOR -> cborDecode(data)
+            Api.DataFormat.DATA_FORMAT_GENERATOR_DONE -> null
+            Api.DataFormat.DATA_FORMAT_PICKLE -> throw InvalidError(
+                "PICKLE output format is not supported - remote function must return CBOR format",
+            )
+            else -> throw InvalidError("Unsupported data format: ${dataFormat.number}")
+        }
+    }
+}
+
 internal class ControlPlaneInvocation(
     private val client: ModalClient,
     override val functionCallId: String,
