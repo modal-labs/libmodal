@@ -1,8 +1,5 @@
 package com.modal.modalkt
 
-import modal.client.Api
-import modal.task_command_router.TaskCommandRouterOuterClass
-
 enum class StdioBehavior {
     PIPE,
     IGNORE,
@@ -58,15 +55,15 @@ data class SandboxExecParams(
     val timeout: Long? = null,
 )
 
-fun defaultSandboxPtyInfo(): Api.PTYInfo {
-    return Api.PTYInfo.newBuilder()
+fun defaultSandboxPtyInfo(): PTYInfo {
+    return PTYInfo.newBuilder()
         .setEnabled(true)
         .setWinszRows(24)
         .setWinszCols(80)
         .setEnvTerm("xterm-256color")
         .setEnvColorterm("truecolor")
         .setEnvTermProgram("")
-        .setPtyType(Api.PTYInfo.PTYType.PTY_TYPE_SHELL)
+        .setPtyType(PTYType.PTY_TYPE_SHELL)
         .setNoTerminateOnIdleStdin(true)
         .build()
 }
@@ -88,7 +85,7 @@ fun buildSandboxCreateRequestProto(
     appId: String,
     imageId: String,
     params: SandboxCreateParams = SandboxCreateParams(),
-): Api.SandboxCreateRequest {
+): SandboxCreateRequest {
     checkForRenamedParams(
         mapOf(
             "memory" to params.memory,
@@ -130,7 +127,7 @@ fun buildSandboxCreateRequestProto(
     }
 
     val gpuConfig = parseGpuConfig(params.gpu)
-    val resourcesBuilder = Api.Resources.newBuilder()
+    val resourcesBuilder = Resources.newBuilder()
         .setGpuConfig(gpuConfig)
 
     val cpu = params.cpu
@@ -171,18 +168,18 @@ fun buildSandboxCreateRequestProto(
         }
     }
 
-    val networkAccessBuilder = Api.NetworkAccess.newBuilder()
+    val networkAccessBuilder = NetworkAccess.newBuilder()
     val cidrAllowlist = params.cidrAllowlist
     if (params.blockNetwork) {
         if (!cidrAllowlist.isNullOrEmpty()) {
             throw InvalidError("cidrAllowlist cannot be used when blockNetwork is enabled")
         }
-        networkAccessBuilder.networkAccessType = Api.NetworkAccess.NetworkAccessType.BLOCKED
+        networkAccessBuilder.networkAccessType = NetworkAccessType.BLOCKED
     } else if (!cidrAllowlist.isNullOrEmpty()) {
-        networkAccessBuilder.networkAccessType = Api.NetworkAccess.NetworkAccessType.ALLOWLIST
+        networkAccessBuilder.networkAccessType = NetworkAccessType.ALLOWLIST
         networkAccessBuilder.addAllAllowedCidrs(cidrAllowlist)
     } else {
-        networkAccessBuilder.networkAccessType = Api.NetworkAccess.NetworkAccessType.OPEN
+        networkAccessBuilder.networkAccessType = NetworkAccessType.OPEN
     }
 
     val experimentalOptions = mutableMapOf<String, Boolean>()
@@ -193,7 +190,7 @@ fun buildSandboxCreateRequestProto(
         experimentalOptions[name] = value
     }
 
-    val definitionBuilder = Api.Sandbox.newBuilder()
+    val definitionBuilder = SandboxProto.newBuilder()
         .setImageId(imageId)
         .setTimeoutSecs((timeoutMs ?: 300_000L).div(1000).toInt())
         .setNetworkAccess(networkAccessBuilder.build())
@@ -201,14 +198,14 @@ fun buildSandboxCreateRequestProto(
         .setVerbose(params.verbose)
         .setCloudProviderStr(params.cloud.orEmpty())
         .setOpenPorts(
-            Api.PortSpecs.newBuilder()
+            PortSpecs.newBuilder()
                 .addAllPorts(buildOpenPorts(params))
                 .build(),
         )
         .addAllSecretIds(params.secrets.map { it.secretId })
         .addAllVolumeMounts(
             params.volumes.map { (mountPath, volume) ->
-                Api.VolumeMount.newBuilder()
+                VolumeMount.newBuilder()
                     .setVolumeId(volume.volumeId)
                     .setMountPath(mountPath)
                     .setAllowBackgroundCommits(true)
@@ -234,7 +231,7 @@ fun buildSandboxCreateRequestProto(
         definitionBuilder.ptyInfo = defaultSandboxPtyInfo()
     }
     if (params.regions.isNotEmpty()) {
-        definitionBuilder.schedulerPlacement = Api.SchedulerPlacement.newBuilder()
+        definitionBuilder.schedulerPlacement = SchedulerPlacement.newBuilder()
             .addAllRegions(params.regions)
             .build()
     }
@@ -248,30 +245,30 @@ fun buildSandboxCreateRequestProto(
         definitionBuilder.customDomain = params.customDomain
     }
 
-    return Api.SandboxCreateRequest.newBuilder()
+    return SandboxCreateRequest.newBuilder()
         .setAppId(appId)
         .setDefinition(definitionBuilder.build())
         .build()
 }
 
-private fun buildOpenPorts(params: SandboxCreateParams): List<Api.PortSpec> {
-    val ports = mutableListOf<Api.PortSpec>()
+private fun buildOpenPorts(params: SandboxCreateParams): List<PortSpec> {
+    val ports = mutableListOf<PortSpec>()
 
     for (port in params.encryptedPorts) {
-        ports += Api.PortSpec.newBuilder()
+        ports += PortSpec.newBuilder()
             .setPort(port)
             .setUnencrypted(false)
             .build()
     }
     for (port in params.h2Ports) {
-        ports += Api.PortSpec.newBuilder()
+        ports += PortSpec.newBuilder()
             .setPort(port)
             .setUnencrypted(false)
-            .setTunnelType(Api.TunnelType.TUNNEL_TYPE_H2)
+            .setTunnelType(TunnelType.TUNNEL_TYPE_H2)
             .build()
     }
     for (port in params.unencryptedPorts) {
-        ports += Api.PortSpec.newBuilder()
+        ports += PortSpec.newBuilder()
             .setPort(port)
             .setUnencrypted(true)
             .build()
@@ -285,7 +282,7 @@ fun buildTaskExecStartRequestProto(
     execId: String,
     command: List<String>,
     params: SandboxExecParams = SandboxExecParams(),
-): TaskCommandRouterOuterClass.TaskExecStartRequest {
+): TaskExecStartRequest {
     checkForRenamedParams(
         mapOf("timeout" to params.timeout).filterValues { it != null },
         mapOf("timeout" to "timeoutMs"),
@@ -302,15 +299,15 @@ fun buildTaskExecStartRequestProto(
     }
 
     val stdoutConfig = when (params.stdout) {
-        StdioBehavior.PIPE -> TaskCommandRouterOuterClass.TaskExecStdoutConfig.TASK_EXEC_STDOUT_CONFIG_PIPE
-        StdioBehavior.IGNORE -> TaskCommandRouterOuterClass.TaskExecStdoutConfig.TASK_EXEC_STDOUT_CONFIG_DEVNULL
+        StdioBehavior.PIPE -> TaskExecStdoutConfig.TASK_EXEC_STDOUT_CONFIG_PIPE
+        StdioBehavior.IGNORE -> TaskExecStdoutConfig.TASK_EXEC_STDOUT_CONFIG_DEVNULL
     }
     val stderrConfig = when (params.stderr) {
-        StdioBehavior.PIPE -> TaskCommandRouterOuterClass.TaskExecStderrConfig.TASK_EXEC_STDERR_CONFIG_PIPE
-        StdioBehavior.IGNORE -> TaskCommandRouterOuterClass.TaskExecStderrConfig.TASK_EXEC_STDERR_CONFIG_DEVNULL
+        StdioBehavior.PIPE -> TaskExecStderrConfig.TASK_EXEC_STDERR_CONFIG_PIPE
+        StdioBehavior.IGNORE -> TaskExecStderrConfig.TASK_EXEC_STDERR_CONFIG_DEVNULL
     }
 
-    val builder = TaskCommandRouterOuterClass.TaskExecStartRequest.newBuilder()
+    val builder = TaskExecStartRequest.newBuilder()
         .setTaskId(taskId)
         .setExecId(execId)
         .addAllCommandArgs(command)

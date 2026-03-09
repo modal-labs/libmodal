@@ -2,7 +2,6 @@ package com.modal.modalkt
 
 import com.google.protobuf.ByteString
 import io.grpc.Status
-import modal.client.Api
 
 data class ClsFromNameParams(
     val environment: String? = null,
@@ -69,7 +68,7 @@ class ClsService(
     ): Cls {
         try {
             val response = client.cpClient.functionGet(
-                Api.FunctionGetRequest.newBuilder()
+                FunctionGetRequest.newBuilder()
                     .setAppName(appName)
                     .setObjectTag("$name.*")
                     .setEnvironmentName(client.environmentName(params.environment))
@@ -88,7 +87,7 @@ class ClsService(
 class Cls internal constructor(
     private val client: ModalClient,
     private val serviceFunctionId: String,
-    private val serviceFunctionMetadata: Api.FunctionHandleMetadata,
+    private val serviceFunctionMetadata: FunctionHandleMetadata,
     private val serviceOptions: ServiceOptions?,
 ) {
     suspend fun instance(parameters: Map<String, Any?> = emptyMap()): ClsInstance {
@@ -175,7 +174,7 @@ class Cls internal constructor(
         )
     }
 
-    private fun schema(): List<Api.ClassParameterSpec> {
+    private fun schema(): List<ClassParameterSpec> {
         return serviceFunctionMetadata.classParameterInfo.schemaList
     }
 
@@ -187,7 +186,7 @@ class Cls internal constructor(
             serviceOptions.copy(secrets = mergedSecrets, env = null)
         }
 
-        val request = Api.FunctionBindParamsRequest.newBuilder()
+        val request = FunctionBindParamsRequest.newBuilder()
             .setFunctionId(serviceFunctionId)
             .setSerializedParams(ByteString.copyFrom(encodeParameterSet(schema(), parameters)))
             .setEnvironmentName(client.environmentName())
@@ -235,14 +234,14 @@ private fun mergeServiceOptions(base: ServiceOptions?, diff: ServiceOptions): Se
 
 private fun buildFunctionOptionsProto(
     options: ServiceOptions?,
-): Api.FunctionOptions? {
+): FunctionOptions? {
     if (options == null) {
         return null
     }
 
     val gpuConfig = parseGpuConfig(options.gpu)
 
-    val resourcesBuilder = Api.Resources.newBuilder()
+    val resourcesBuilder = Resources.newBuilder()
     var hasResources = false
 
     val cpu = options.cpu
@@ -282,7 +281,7 @@ private fun buildFunctionOptionsProto(
             resourcesBuilder.memoryMbMax = memoryLimitMiB
         }
     }
-    if (gpuConfig != Api.GPUConfig.getDefaultInstance()) {
+    if (gpuConfig != GPUConfig.getDefaultInstance()) {
         resourcesBuilder.gpuConfig = gpuConfig
         hasResources = true
     }
@@ -300,7 +299,7 @@ private fun buildFunctionOptionsProto(
 
     val secretIds = options.secrets?.map { it.secretId } ?: emptyList()
     val volumeMounts = options.volumes?.map { (mountPath, volume) ->
-        Api.VolumeMount.newBuilder()
+        VolumeMount.newBuilder()
             .setVolumeId(volume.volumeId)
             .setMountPath(mountPath)
             .setAllowBackgroundCommits(true)
@@ -308,7 +307,7 @@ private fun buildFunctionOptionsProto(
             .build()
     } ?: emptyList()
 
-    return Api.FunctionOptions.newBuilder()
+    return FunctionOptions.newBuilder()
         .addAllSecretIds(secretIds)
         .setReplaceSecretIds(secretIds.isNotEmpty())
         .setReplaceVolumeMounts(volumeMounts.isNotEmpty())
@@ -318,7 +317,7 @@ private fun buildFunctionOptionsProto(
                 resources = resourcesBuilder.build()
             }
             if (retries != null) {
-                retryPolicy = Api.FunctionRetryPolicy.newBuilder()
+                retryPolicy = FunctionRetryPolicy.newBuilder()
                     .setRetries(retries.maxRetries)
                     .setBackoffCoefficient(retries.backoffCoefficient.toFloat())
                     .setInitialDelayMs(retries.initialDelayMs.toInt())

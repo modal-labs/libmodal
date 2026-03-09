@@ -7,37 +7,35 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import modal.client.Api
 import modal.task_command_router.TaskCommandRouterGrpcKt
-import modal.task_command_router.TaskCommandRouterOuterClass
 import java.net.URI
 import java.util.Base64
 import java.util.concurrent.TimeUnit
 
 interface TaskRouterAccessProvider {
     suspend fun taskGetCommandRouterAccess(
-        request: Api.TaskGetCommandRouterAccessRequest,
-    ): Api.TaskGetCommandRouterAccessResponse
+        request: TaskGetCommandRouterAccessRequest,
+    ): TaskGetCommandRouterAccessResponse
 }
 
 interface TaskCommandRouter {
-    suspend fun execStart(request: TaskCommandRouterOuterClass.TaskExecStartRequest)
+    suspend fun execStart(request: TaskExecStartRequest)
 
-    suspend fun execStdinWrite(request: TaskCommandRouterOuterClass.TaskExecStdinWriteRequest)
+    suspend fun execStdinWrite(request: TaskExecStdinWriteRequest)
 
     suspend fun execWait(
-        request: TaskCommandRouterOuterClass.TaskExecWaitRequest,
-    ): TaskCommandRouterOuterClass.TaskExecWaitResponse
+        request: TaskExecWaitRequest,
+    ): TaskExecWaitResponse
 
     suspend fun execStdioRead(
-        request: TaskCommandRouterOuterClass.TaskExecStdioReadRequest,
-    ): Flow<TaskCommandRouterOuterClass.TaskExecStdioReadResponse>
+        request: TaskExecStdioReadRequest,
+    ): Flow<TaskExecStdioReadResponse>
 
-    suspend fun mountDirectory(request: TaskCommandRouterOuterClass.TaskMountDirectoryRequest)
+    suspend fun mountDirectory(request: TaskMountDirectoryRequest)
 
     suspend fun snapshotDirectory(
-        request: TaskCommandRouterOuterClass.TaskSnapshotDirectoryRequest,
-    ): TaskCommandRouterOuterClass.TaskSnapshotDirectoryResponse
+        request: TaskSnapshotDirectoryRequest,
+    ): TaskSnapshotDirectoryResponse
 
     fun close()
 }
@@ -115,7 +113,7 @@ class TaskCommandRouterClientImpl(
             profile: Profile,
         ): TaskCommandRouterClientImpl? {
             val response = serverClient.taskGetCommandRouterAccess(
-                Api.TaskGetCommandRouterAccessRequest.newBuilder()
+                TaskGetCommandRouterAccessRequest.newBuilder()
                     .setTaskId(taskId)
                     .build(),
             )
@@ -129,43 +127,43 @@ class TaskCommandRouterClientImpl(
         }
     }
 
-    override suspend fun execStart(request: TaskCommandRouterOuterClass.TaskExecStartRequest) {
+    override suspend fun execStart(request: TaskExecStartRequest) {
         callWithAuthRetry {
             stub.taskExecStart(request, authHeaders())
         }
     }
 
-    override suspend fun execStdinWrite(request: TaskCommandRouterOuterClass.TaskExecStdinWriteRequest) {
+    override suspend fun execStdinWrite(request: TaskExecStdinWriteRequest) {
         callWithAuthRetry {
             stub.taskExecStdinWrite(request, authHeaders())
         }
     }
 
     override suspend fun execWait(
-        request: TaskCommandRouterOuterClass.TaskExecWaitRequest,
-    ): TaskCommandRouterOuterClass.TaskExecWaitResponse {
+        request: TaskExecWaitRequest,
+    ): TaskExecWaitResponse {
         return callWithAuthRetry {
             stub.taskExecWait(request, authHeaders())
         }
     }
 
     override suspend fun execStdioRead(
-        request: TaskCommandRouterOuterClass.TaskExecStdioReadRequest,
-    ): Flow<TaskCommandRouterOuterClass.TaskExecStdioReadResponse> {
+        request: TaskExecStdioReadRequest,
+    ): Flow<TaskExecStdioReadResponse> {
         return callWithAuthRetry {
             stub.taskExecStdioRead(request, authHeaders())
         }
     }
 
-    override suspend fun mountDirectory(request: TaskCommandRouterOuterClass.TaskMountDirectoryRequest) {
+    override suspend fun mountDirectory(request: TaskMountDirectoryRequest) {
         callWithAuthRetry {
             stub.taskMountDirectory(request, authHeaders())
         }
     }
 
     override suspend fun snapshotDirectory(
-        request: TaskCommandRouterOuterClass.TaskSnapshotDirectoryRequest,
-    ): TaskCommandRouterOuterClass.TaskSnapshotDirectoryResponse {
+        request: TaskSnapshotDirectoryRequest,
+    ): TaskSnapshotDirectoryResponse {
         return callWithAuthRetry {
             stub.taskSnapshotDirectory(request, authHeaders())
         }
@@ -190,7 +188,7 @@ class TaskCommandRouterClientImpl(
             }
 
             val response = serverClient.taskGetCommandRouterAccess(
-                Api.TaskGetCommandRouterAccessRequest.newBuilder()
+                TaskGetCommandRouterAccessRequest.newBuilder()
                     .setTaskId(taskId)
                     .build(),
             )
