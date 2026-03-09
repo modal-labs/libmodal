@@ -10,6 +10,46 @@ import kotlin.test.assertFailsWith
 
 class FunctionServiceTest {
     @Test
+    fun functionRemoteSuccess() = runBlocking {
+        val (client, mock) = createMockModalClients()
+        mock.handleUnary("/FunctionMap") {
+            Api.FunctionMapResponse.newBuilder()
+                .setFunctionCallId("fc-123")
+                .setFunctionCallJwt("jwt")
+                .addPipelinedInputs(
+                    Api.FunctionPutInputsResponseItem.newBuilder()
+                        .setInputJwt("input-jwt")
+                        .build(),
+                )
+                .build()
+        }
+        mock.handleUnary("/FunctionGetOutputs") {
+            Api.FunctionGetOutputsResponse.newBuilder()
+                .addOutputs(
+                    Api.FunctionGetOutputsItem.newBuilder()
+                        .setResult(
+                            Api.GenericResult.newBuilder()
+                                .setStatus(Api.GenericResult.GenericStatus.GENERIC_STATUS_SUCCESS)
+                                .setData(com.google.protobuf.ByteString.copyFrom(cborEncode("output: hello")))
+                                .build(),
+                        )
+                        .setDataFormat(Api.DataFormat.DATA_FORMAT_CBOR)
+                        .build(),
+                )
+                .build()
+        }
+
+        val function = Function(
+            client = client,
+            functionId = "fid-123",
+            handleMetadata = Api.FunctionHandleMetadata.newBuilder()
+                .addSupportedInputFormats(Api.DataFormat.DATA_FORMAT_CBOR)
+                .build(),
+        )
+        assertEquals("output: hello", function.remote(kwargs = mapOf("s" to "hello")))
+    }
+
+    @Test
     fun functionGetCurrentStats() = runBlocking {
         val (client, mock) = createMockModalClients()
         mock.handleUnary("/FunctionGetCurrentStats") { request ->
@@ -77,6 +117,19 @@ class FunctionServiceTest {
         val (client, _) = createMockModalClients()
         assertFailsWith<InvalidError> {
             client.functions.fromName("libmodal-test-support", "MyClass.myMethod")
+        }
+    }
+
+    @Test
+    fun functionCallPreCborVersionError() = runBlocking {
+        val (client, _) = createMockModalClients()
+        val function = Function(
+            client = client,
+            functionId = "fid-123",
+            handleMetadata = Api.FunctionHandleMetadata.getDefaultInstance(),
+        )
+        assertFailsWith<InvalidError> {
+            function.remote(kwargs = mapOf("s" to "hello"))
         }
     }
 
