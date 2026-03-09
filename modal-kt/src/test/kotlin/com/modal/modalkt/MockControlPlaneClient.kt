@@ -176,6 +176,10 @@ class MockControlPlaneClient : ControlPlaneClient {
         return unary("/SandboxCreateConnectToken", request) as Api.SandboxCreateConnectTokenResponse
     }
 
+    override suspend fun sandboxStdinWrite(request: Api.SandboxStdinWriteRequest) {
+        unary("/SandboxStdinWrite", request)
+    }
+
     override suspend fun sandboxTagsSet(request: Api.SandboxTagsSetRequest) {
         unary("/SandboxTagsSet", request)
     }
@@ -230,6 +234,14 @@ class MockControlPlaneClient : ControlPlaneClient {
 
     override suspend fun functionCallCancel(request: Api.FunctionCallCancelRequest) {
         unary("/FunctionCallCancel", request)
+    }
+
+    override suspend fun blobCreate(request: Api.BlobCreateRequest): Api.BlobCreateResponse {
+        return unary("/BlobCreate", request) as Api.BlobCreateResponse
+    }
+
+    override suspend fun blobGet(request: Api.BlobGetRequest): Api.BlobGetResponse {
+        return unary("/BlobGet", request) as Api.BlobGetResponse
     }
 
     override suspend fun authTokenGet(request: Api.AuthTokenGetRequest): Api.AuthTokenGetResponse {

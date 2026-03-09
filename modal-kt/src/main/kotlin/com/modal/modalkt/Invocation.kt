@@ -116,6 +116,7 @@ internal class ControlPlaneInvocation(
     ): Any? {
         val data = when {
             result.hasData() -> result.data.toByteArray()
+            result.hasDataBlobId() -> blobDownload(client.cpClient, result.dataBlobId)
             else -> null
         }
 

@@ -166,20 +166,29 @@ class Function(
         }
     }
 
-    private fun createInput(
+    private suspend fun createInput(
         args: List<Any?>,
         kwargs: Map<String, Any?>,
     ): Api.FunctionInput {
         val payload = cborEncode(listOf(args, kwargs))
+        val maxObjectSizeBytes = 2 * 1024 * 1024
+        var blobId: String? = null
+        if (payload.size > maxObjectSizeBytes) {
+            blobId = blobUpload(client.cpClient, payload)
+        }
         val methodName = handleMetadata?.useMethodName ?: ""
-        return Api.FunctionInput.newBuilder()
-            .setArgs(com.google.protobuf.ByteString.copyFrom(payload))
+        val builder = Api.FunctionInput.newBuilder()
             .setDataFormat(Api.DataFormat.DATA_FORMAT_CBOR)
             .apply {
+                if (blobId == null) {
+                    this.args = com.google.protobuf.ByteString.copyFrom(payload)
+                } else {
+                    this.argsBlobId = blobId
+                }
                 if (methodName.isNotEmpty()) {
                     this.methodName = methodName
                 }
             }
-            .build()
+        return builder.build()
     }
 }

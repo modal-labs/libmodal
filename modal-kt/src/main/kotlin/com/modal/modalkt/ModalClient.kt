@@ -10,6 +10,7 @@ data class ModalClientParams(
     val timeout: Long? = null,
     internal val authTokenProvider: AuthTokenProvider? = null,
     val controlPlaneClient: ControlPlaneClient? = null,
+    val grpcInterceptors: List<io.grpc.ClientInterceptor> = emptyList(),
     val backgroundScope: kotlinx.coroutines.CoroutineScope? = null,
     val ephemeralHeartbeatSleepMs: Long = ephemeralObjectHeartbeatSleep,
     internal val taskCommandRouterFactory: (suspend (client: ModalClient, taskId: String) -> TaskCommandRouter)? = null,
@@ -60,7 +61,7 @@ class ModalClient(
             profile.serverUrl,
         )
 
-        cpClient = params.controlPlaneClient ?: GrpcControlPlaneClient(profile, logger)
+        cpClient = params.controlPlaneClient ?: GrpcControlPlaneClient(profile, logger, params.grpcInterceptors)
         backgroundScope = params.backgroundScope
             ?: kotlinx.coroutines.CoroutineScope(
                 kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO,

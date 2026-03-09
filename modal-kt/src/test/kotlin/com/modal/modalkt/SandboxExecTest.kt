@@ -84,4 +84,25 @@ class SandboxExecTest {
             sandbox.exec(listOf("echo", "hello"))
         }
     }
+
+    @Test
+    fun sandboxStdinWritesIncrementIndex() = runBlocking {
+        val (client, control, _) = createMockModalClientsWithTaskRouter()
+        val seen = mutableListOf<Int>()
+        control.handleUnary("/SandboxStdinWrite") { request ->
+            request as Api.SandboxStdinWriteRequest
+            seen += request.index
+            com.google.protobuf.Empty.getDefaultInstance()
+        }
+        control.handleUnary("/SandboxStdinWrite") { request ->
+            request as Api.SandboxStdinWriteRequest
+            seen += request.index
+            com.google.protobuf.Empty.getDefaultInstance()
+        }
+
+        val sandbox = SandboxHandle(client, "sb-123")
+        sandbox.stdin.writeText("hello")
+        sandbox.stdin.close()
+        assertEquals(listOf(1, 2), seen)
+    }
 }

@@ -2,6 +2,8 @@ package com.modal.modalkt
 
 import io.grpc.ManagedChannel
 import io.grpc.Metadata
+import io.grpc.ClientInterceptor
+import io.grpc.ClientInterceptors
 import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder
 import modal.client.Api
 import modal.client.ModalClientGrpcKt
@@ -67,6 +69,8 @@ interface ControlPlaneClient : AuthTokenProvider, TaskRouterAccessProvider {
         request: Api.SandboxCreateConnectTokenRequest,
     ): Api.SandboxCreateConnectTokenResponse
 
+    suspend fun sandboxStdinWrite(request: Api.SandboxStdinWriteRequest)
+
     suspend fun sandboxTagsSet(request: Api.SandboxTagsSetRequest)
 
     suspend fun sandboxTagsGet(request: Api.SandboxTagsGetRequest): Api.SandboxTagsGetResponse
@@ -97,15 +101,22 @@ interface ControlPlaneClient : AuthTokenProvider, TaskRouterAccessProvider {
 
     suspend fun sandboxGetLogs(request: Api.SandboxGetLogsRequest): kotlinx.coroutines.flow.Flow<Api.TaskLogsBatch>
 
+    suspend fun blobCreate(request: Api.BlobCreateRequest): Api.BlobCreateResponse
+
+    suspend fun blobGet(request: Api.BlobGetRequest): Api.BlobGetResponse
+
     fun close()
 }
 
 class GrpcControlPlaneClient(
     private val profile: Profile,
     private val logger: Logger,
+    interceptors: List<ClientInterceptor> = emptyList(),
 ) : ControlPlaneClient {
     private val channel: ManagedChannel = buildChannel(profile)
-    private val baseStub = ModalClientGrpcKt.ModalClientCoroutineStub(channel)
+    private val baseStub = ModalClientGrpcKt.ModalClientCoroutineStub(
+        if (interceptors.isEmpty()) channel else ClientInterceptors.intercept(channel, interceptors),
+    )
     private val authTokenManager = AuthTokenManager(this, logger)
 
     override suspend fun appGetOrCreate(request: Api.AppGetOrCreateRequest): Api.AppGetOrCreateResponse {
@@ -222,6 +233,10 @@ class GrpcControlPlaneClient(
         return unaryCall(request) { stub, headers -> stub.sandboxCreateConnectToken(request, headers) }
     }
 
+    override suspend fun sandboxStdinWrite(request: Api.SandboxStdinWriteRequest) {
+        unaryCall(request) { stub, headers -> stub.sandboxStdinWrite(request, headers) }
+    }
+
     override suspend fun sandboxTagsSet(request: Api.SandboxTagsSetRequest) {
         unaryCall(request) { stub, headers -> stub.sandboxTagsSet(request, headers) }
     }
@@ -281,6 +296,14 @@ class GrpcControlPlaneClient(
     override suspend fun sandboxGetLogs(request: Api.SandboxGetLogsRequest): kotlinx.coroutines.flow.Flow<Api.TaskLogsBatch> {
         val headers = authHeaders(includeAuthToken = true)
         return baseStub.sandboxGetLogs(request, headers)
+    }
+
+    override suspend fun blobCreate(request: Api.BlobCreateRequest): Api.BlobCreateResponse {
+        return unaryCall(request) { stub, headers -> stub.blobCreate(request, headers) }
+    }
+
+    override suspend fun blobGet(request: Api.BlobGetRequest): Api.BlobGetResponse {
+        return unaryCall(request) { stub, headers -> stub.blobGet(request, headers) }
     }
 
     override suspend fun authTokenGet(request: Api.AuthTokenGetRequest): Api.AuthTokenGetResponse {

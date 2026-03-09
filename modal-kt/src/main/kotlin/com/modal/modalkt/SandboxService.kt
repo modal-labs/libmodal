@@ -124,6 +124,31 @@ class SandboxHandle(
     private var attached = true
     private var taskId: String? = null
     private var commandRouter: TaskCommandRouter? = null
+    private var stdinIndex: Int = 1
+
+    val stdin = ModalWriteStream(
+        writeBlock = { bytes ->
+            ensureAttached()
+            client.cpClient.sandboxStdinWrite(
+                Api.SandboxStdinWriteRequest.newBuilder()
+                    .setSandboxId(sandboxId)
+                    .setInput(com.google.protobuf.ByteString.copyFrom(bytes))
+                    .setIndex(stdinIndex)
+                    .build(),
+            )
+            stdinIndex += 1
+        },
+        closeBlock = {
+            ensureAttached()
+            client.cpClient.sandboxStdinWrite(
+                Api.SandboxStdinWriteRequest.newBuilder()
+                    .setSandboxId(sandboxId)
+                    .setIndex(stdinIndex)
+                    .setEof(true)
+                    .build(),
+            )
+        },
+    )
 
     val stdout: ModalReadStream by lazy {
         ModalReadStream {
