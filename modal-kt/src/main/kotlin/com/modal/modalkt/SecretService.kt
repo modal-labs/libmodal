@@ -1,7 +1,6 @@
 package com.modal.modalkt
 
 import io.grpc.Status
-import modal.client.Api
 
 data class SecretFromNameParams(
     val environment: String? = null,
@@ -26,7 +25,7 @@ class SecretService(
     ): Secret {
         try {
             val response = client.cpClient.secretGetOrCreate(
-                Api.SecretGetOrCreateRequest.newBuilder()
+                SecretGetOrCreateRequest.newBuilder()
                     .setDeploymentName(name)
                     .setEnvironmentName(client.environmentName(params.environment))
                     .addAllRequiredKeys(params.requiredKeys)
@@ -62,8 +61,8 @@ class SecretService(
         }
 
         val response = client.cpClient.secretGetOrCreate(
-            Api.SecretGetOrCreateRequest.newBuilder()
-                .setObjectCreationType(Api.ObjectCreationType.OBJECT_CREATION_TYPE_EPHEMERAL)
+            SecretGetOrCreateRequest.newBuilder()
+                .setObjectCreationType(ObjectCreationType.OBJECT_CREATION_TYPE_EPHEMERAL)
                 .putAllEnvDict(validatedEntries)
                 .setEnvironmentName(client.environmentName(params.environment))
                 .build(),
@@ -82,7 +81,7 @@ class SecretService(
                 SecretFromNameParams(environment = params.environment),
             )
             client.cpClient.secretDelete(
-                Api.SecretDeleteRequest.newBuilder()
+                SecretDeleteRequest.newBuilder()
                     .setSecretId(secret.secretId)
                     .build(),
             )

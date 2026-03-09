@@ -1,5 +1,7 @@
 package com.modal.modalkt
 
+typealias TaskRouterProto = modal.task_command_router.TaskCommandRouterOuterClass
+
 typealias TaskExecPollRequest = modal.task_command_router.TaskCommandRouterOuterClass.TaskExecPollRequest
 typealias TaskExecPollResponse = modal.task_command_router.TaskCommandRouterOuterClass.TaskExecPollResponse
 typealias TaskExecStartRequest = modal.task_command_router.TaskCommandRouterOuterClass.TaskExecStartRequest

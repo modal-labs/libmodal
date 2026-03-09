@@ -1,7 +1,6 @@
 package com.modal.modalkt
 
 import io.grpc.Status
-import modal.client.Api
 
 data class VolumeFromNameParams(
     val environment: String? = null,
@@ -26,14 +25,14 @@ class VolumeService(
     ): Volume {
         try {
             val response = client.cpClient.volumeGetOrCreate(
-                Api.VolumeGetOrCreateRequest.newBuilder()
+                VolumeGetOrCreateRequest.newBuilder()
                     .setDeploymentName(name)
                     .setEnvironmentName(client.environmentName(params.environment))
                     .setObjectCreationType(
                         if (params.createIfMissing) {
-                            Api.ObjectCreationType.OBJECT_CREATION_TYPE_CREATE_IF_MISSING
+                            ObjectCreationType.OBJECT_CREATION_TYPE_CREATE_IF_MISSING
                         } else {
-                            Api.ObjectCreationType.OBJECT_CREATION_TYPE_UNSPECIFIED
+                            ObjectCreationType.OBJECT_CREATION_TYPE_UNSPECIFIED
                         },
                     )
                     .build(),
@@ -52,8 +51,8 @@ class VolumeService(
         params: VolumeEphemeralParams = VolumeEphemeralParams(),
     ): Volume {
         val response = client.cpClient.volumeGetOrCreate(
-            Api.VolumeGetOrCreateRequest.newBuilder()
-                .setObjectCreationType(Api.ObjectCreationType.OBJECT_CREATION_TYPE_EPHEMERAL)
+            VolumeGetOrCreateRequest.newBuilder()
+                .setObjectCreationType(ObjectCreationType.OBJECT_CREATION_TYPE_EPHEMERAL)
                 .setEnvironmentName(client.environmentName(params.environment))
                 .build(),
         )
@@ -61,7 +60,7 @@ class VolumeService(
         val heartbeatManager = EphemeralHeartbeatManager(
             heartbeatFn = {
                 client.cpClient.volumeHeartbeat(
-                    Api.VolumeHeartbeatRequest.newBuilder()
+                    VolumeHeartbeatRequest.newBuilder()
                         .setVolumeId(response.volumeId)
                         .build(),
                 )
@@ -82,7 +81,7 @@ class VolumeService(
                 VolumeFromNameParams(environment = params.environment),
             )
             client.cpClient.volumeDelete(
-                Api.VolumeDeleteRequest.newBuilder()
+                VolumeDeleteRequest.newBuilder()
                     .setVolumeId(volume.volumeId)
                     .build(),
             )

@@ -1,7 +1,5 @@
 package com.modal.modalkt
 
-import modal.client.Api
-
 data class FunctionCallGetParams(
     val timeoutMs: Long? = null,
 )
@@ -33,7 +31,7 @@ class FunctionCall(
 
     suspend fun cancel(params: FunctionCallCancelParams = FunctionCallCancelParams()) {
         client.cpClient.functionCallCancel(
-            Api.FunctionCallCancelRequest.newBuilder()
+            FunctionCallCancelRequest.newBuilder()
                 .setFunctionCallId(functionCallId)
                 .apply {
                     if (params.terminateContainers != null) {

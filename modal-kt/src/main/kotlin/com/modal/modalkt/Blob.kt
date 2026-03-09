@@ -1,6 +1,4 @@
 package com.modal.modalkt
-
-import modal.client.Api
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
@@ -18,7 +16,7 @@ suspend fun blobUpload(
     val contentSha256 = base64Digest("SHA-256", data)
 
     val response = client.blobCreate(
-        Api.BlobCreateRequest.newBuilder()
+        BlobCreateRequest.newBuilder()
             .setContentMd5(contentMd5)
             .setContentSha256Base64(contentSha256)
             .setContentLength(data.size.toLong())
@@ -49,7 +47,7 @@ suspend fun blobDownload(
     blobId: String,
 ): ByteArray {
     val response = client.blobGet(
-        Api.BlobGetRequest.newBuilder()
+        BlobGetRequest.newBuilder()
             .setBlobId(blobId)
             .build(),
     )
