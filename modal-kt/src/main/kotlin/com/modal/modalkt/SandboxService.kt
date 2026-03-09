@@ -1,7 +1,10 @@
 package com.modal.modalkt
 
 import io.grpc.Status
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.flow
 import modal.client.Api
+import modal.task_command_router.TaskCommandRouterOuterClass
 
 data class SandboxListParams(
     val appId: String? = null,
@@ -119,6 +122,20 @@ class SandboxHandle(
     val sandboxId: String,
 ) {
     private var attached = true
+    private var taskId: String? = null
+    private var commandRouter: TaskCommandRouter? = null
+
+    val stdout: ModalReadStream by lazy {
+        ModalReadStream {
+            outputStream(Api.FileDescriptor.FILE_DESCRIPTOR_STDOUT)
+        }
+    }
+
+    val stderr: ModalReadStream by lazy {
+        ModalReadStream {
+            outputStream(Api.FileDescriptor.FILE_DESCRIPTOR_STDERR)
+        }
+    }
 
     suspend fun createConnectToken(
         params: SandboxCreateConnectTokenParams = SandboxCreateConnectTokenParams(),
@@ -135,6 +152,19 @@ class SandboxHandle(
                 .build(),
         )
         return SandboxCreateConnectCredentials(response.url, response.token)
+    }
+
+    suspend fun exec(
+        command: List<String>,
+        params: SandboxExecParams = SandboxExecParams(),
+    ): ContainerProcess {
+        ensureAttached()
+        validateExecArgs(command)
+        val currentTaskId = getTaskId()
+        val router = getOrCreateCommandRouter(currentTaskId)
+        val execId = java.util.UUID.randomUUID().toString()
+        router.execStart(buildTaskExecStartRequestProto(currentTaskId, execId, command, params))
+        return ContainerProcess(currentTaskId, execId, router)
     }
 
     suspend fun terminate(params: SandboxTerminateParams = SandboxTerminateParams()): Int? {
@@ -226,6 +256,77 @@ class SandboxHandle(
 
     fun detach() {
         attached = false
+        commandRouter?.close()
+    }
+
+    private fun outputStream(fileDescriptor: Api.FileDescriptor) = flow {
+        var lastEntryId = "0-0"
+        var retriesRemaining = 10
+        var delayMs = 10L
+        var completed = false
+
+        while (!completed) {
+            try {
+                client.cpClient.sandboxGetLogs(
+                    Api.SandboxGetLogsRequest.newBuilder()
+                        .setSandboxId(sandboxId)
+                        .setFileDescriptor(fileDescriptor)
+                        .setTimeout(55f)
+                        .setLastEntryId(lastEntryId)
+                        .build(),
+                ).collect { batch ->
+                    delayMs = 10
+                    retriesRemaining = 10
+                    lastEntryId = batch.entryId
+                    for (item in batch.itemsList) {
+                        emit(item.data.toByteArray())
+                    }
+                    if (batch.eof) {
+                        completed = true
+                    }
+                }
+            } catch (error: Throwable) {
+                if (isRetryableGrpc(error) && retriesRemaining > 0) {
+                    delay(delayMs)
+                    delayMs *= 2
+                    retriesRemaining -= 1
+                } else {
+                    throw error
+                }
+            }
+        }
+    }
+
+    private suspend fun getTaskId(): String {
+        taskId?.let { return it }
+        repeat(600) {
+            val response = client.cpClient.sandboxGetTaskId(
+                Api.SandboxGetTaskIdRequest.newBuilder()
+                    .setSandboxId(sandboxId)
+                    .build(),
+            )
+            if (response.hasTaskResult()) {
+                if (response.taskResult.status == Api.GenericResult.GenericStatus.GENERIC_STATUS_SUCCESS ||
+                    response.taskResult.exception.isEmpty()
+                ) {
+                    throw InvalidError("Sandbox $sandboxId has already completed")
+                }
+                throw InvalidError("Sandbox $sandboxId has already completed with result: exception:\"${response.taskResult.exception}\"")
+            }
+            if (response.hasTaskId()) {
+                taskId = response.taskId
+                return response.taskId
+            }
+            delay(500)
+        }
+        throw InvalidError("Timed out waiting for task ID for Sandbox $sandboxId")
+    }
+
+    private suspend fun getOrCreateCommandRouter(taskId: String): TaskCommandRouter {
+        commandRouter?.let { return it }
+        val created = client.taskCommandRouterFactory(client, taskId)
+        commandRouter = created
+        return created
     }
 
     private fun ensureAttached() {
@@ -240,6 +341,77 @@ class SandboxHandle(
             Api.GenericResult.GenericStatus.GENERIC_STATUS_TIMEOUT -> 124
             Api.GenericResult.GenericStatus.GENERIC_STATUS_TERMINATED -> 137
             else -> result.exitcode
+        }
+    }
+}
+
+class ContainerProcess(
+    private val taskId: String,
+    private val execId: String,
+    private val commandRouter: TaskCommandRouter,
+) {
+    private var stdinOffset = 0L
+
+    val stdin = ModalWriteStream(
+        writeBlock = { bytes ->
+            commandRouter.execStdinWrite(
+                TaskCommandRouterOuterClass.TaskExecStdinWriteRequest.newBuilder()
+                    .setTaskId(taskId)
+                    .setExecId(execId)
+                    .setOffset(stdinOffset)
+                    .setData(com.google.protobuf.ByteString.copyFrom(bytes))
+                    .setEof(false)
+                    .build(),
+            )
+            stdinOffset += bytes.size
+        },
+        closeBlock = {
+            commandRouter.execStdinWrite(
+                TaskCommandRouterOuterClass.TaskExecStdinWriteRequest.newBuilder()
+                    .setTaskId(taskId)
+                    .setExecId(execId)
+                    .setOffset(stdinOffset)
+                    .setData(com.google.protobuf.ByteString.EMPTY)
+                    .setEof(true)
+                    .build(),
+            )
+        },
+    )
+
+    val stdout = ModalReadStream {
+        stdio(TaskCommandRouterOuterClass.TaskExecStdioFileDescriptor.TASK_EXEC_STDIO_FILE_DESCRIPTOR_STDOUT)
+    }
+
+    val stderr = ModalReadStream {
+        stdio(TaskCommandRouterOuterClass.TaskExecStdioFileDescriptor.TASK_EXEC_STDIO_FILE_DESCRIPTOR_STDERR)
+    }
+
+    suspend fun wait(): Int {
+        val response = commandRouter.execWait(
+            TaskCommandRouterOuterClass.TaskExecWaitRequest.newBuilder()
+                .setTaskId(taskId)
+                .setExecId(execId)
+                .build(),
+        )
+        return when {
+            response.hasCode() -> response.code
+            response.hasSignal() -> 128 + response.signal
+            else -> throw InvalidError("Unexpected exit status")
+        }
+    }
+
+    private fun stdio(
+        fileDescriptor: TaskCommandRouterOuterClass.TaskExecStdioFileDescriptor,
+    ) = flow {
+        commandRouter.execStdioRead(
+            TaskCommandRouterOuterClass.TaskExecStdioReadRequest.newBuilder()
+                .setTaskId(taskId)
+                .setExecId(execId)
+                .setOffset(0)
+                .setFileDescriptor(fileDescriptor)
+                .build(),
+        ).collect { item ->
+            emit(item.data.toByteArray())
         }
     }
 }

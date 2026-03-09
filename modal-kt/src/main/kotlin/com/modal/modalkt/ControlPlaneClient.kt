@@ -43,6 +43,8 @@ interface ControlPlaneClient : AuthTokenProvider, TaskRouterAccessProvider {
 
     suspend fun sandboxWait(request: Api.SandboxWaitRequest): Api.SandboxWaitResponse
 
+    suspend fun sandboxGetTaskId(request: Api.SandboxGetTaskIdRequest): Api.SandboxGetTaskIdResponse
+
     suspend fun sandboxGetFromName(request: Api.SandboxGetFromNameRequest): Api.SandboxGetFromNameResponse
 
     suspend fun sandboxList(request: Api.SandboxListRequest): Api.SandboxListResponse
@@ -82,6 +84,8 @@ interface ControlPlaneClient : AuthTokenProvider, TaskRouterAccessProvider {
     suspend fun functionRetryInputs(request: Api.FunctionRetryInputsRequest): Api.FunctionRetryInputsResponse
 
     suspend fun functionCallCancel(request: Api.FunctionCallCancelRequest)
+
+    suspend fun sandboxGetLogs(request: Api.SandboxGetLogsRequest): kotlinx.coroutines.flow.Flow<Api.TaskLogsBatch>
 
     fun close()
 }
@@ -165,6 +169,10 @@ class GrpcControlPlaneClient(
         return unaryCall(request) { stub, headers -> stub.sandboxWait(request, headers) }
     }
 
+    override suspend fun sandboxGetTaskId(request: Api.SandboxGetTaskIdRequest): Api.SandboxGetTaskIdResponse {
+        return unaryCall(request) { stub, headers -> stub.sandboxGetTaskId(request, headers) }
+    }
+
     override suspend fun sandboxGetFromName(request: Api.SandboxGetFromNameRequest): Api.SandboxGetFromNameResponse {
         return unaryCall(request) { stub, headers -> stub.sandboxGetFromName(request, headers) }
     }
@@ -241,6 +249,11 @@ class GrpcControlPlaneClient(
 
     override suspend fun functionCallCancel(request: Api.FunctionCallCancelRequest) {
         unaryCall(request) { stub, headers -> stub.functionCallCancel(request, headers) }
+    }
+
+    override suspend fun sandboxGetLogs(request: Api.SandboxGetLogsRequest): kotlinx.coroutines.flow.Flow<Api.TaskLogsBatch> {
+        val headers = authHeaders(includeAuthToken = true)
+        return baseStub.sandboxGetLogs(request, headers)
     }
 
     override suspend fun authTokenGet(request: Api.AuthTokenGetRequest): Api.AuthTokenGetResponse {

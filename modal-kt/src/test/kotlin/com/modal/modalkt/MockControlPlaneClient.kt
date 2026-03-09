@@ -126,8 +126,16 @@ class MockControlPlaneClient : ControlPlaneClient {
         return unary("/SandboxCreate", request) as Api.SandboxCreateResponse
     }
 
+    override suspend fun sandboxGetLogs(request: Api.SandboxGetLogsRequest): Flow<Api.TaskLogsBatch> {
+        return streaming("/SandboxGetLogs", request)
+    }
+
     override suspend fun sandboxWait(request: Api.SandboxWaitRequest): Api.SandboxWaitResponse {
         return unary("/SandboxWait", request) as Api.SandboxWaitResponse
+    }
+
+    override suspend fun sandboxGetTaskId(request: Api.SandboxGetTaskIdRequest): Api.SandboxGetTaskIdResponse {
+        return unary("/SandboxGetTaskId", request) as Api.SandboxGetTaskIdResponse
     }
 
     override suspend fun sandboxGetFromName(request: Api.SandboxGetFromNameRequest): Api.SandboxGetFromNameResponse {
@@ -238,4 +246,77 @@ fun createMockModalClients(
         ),
     )
     return client to mock
+}
+
+class MockTaskCommandRouterClient : TaskCommandRouter {
+    private val unaryHandlers = mutableMapOf<String, ArrayDeque<suspend (Any) -> Any>>()
+    private val streamingHandlers = mutableMapOf<String, ArrayDeque<suspend (Any) -> Flow<Any>>>()
+
+    fun handleUnary(method: String, handler: suspend (Any) -> Any) {
+        unaryHandlers.getOrPut(method) { ArrayDeque() }.addLast(handler)
+    }
+
+    fun handleStreaming(method: String, handler: suspend (Any) -> Flow<Any>) {
+        streamingHandlers.getOrPut(method) { ArrayDeque() }.addLast(handler)
+    }
+
+    private suspend fun unary(method: String, request: Any): Any {
+        val queue = unaryHandlers[method] ?: error("Unexpected router call: $method with request $request")
+        if (queue.isEmpty()) {
+            error("Unexpected router call: $method with request $request")
+        }
+        return queue.removeFirst()(request)
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private suspend fun <T> streaming(method: String, request: Any): Flow<T> {
+        val queue = streamingHandlers[method] ?: error("Unexpected router call: $method with request $request")
+        if (queue.isEmpty()) {
+            error("Unexpected router call: $method with request $request")
+        }
+        return queue.removeFirst()(request) as Flow<T>
+    }
+
+    override suspend fun execStart(request: modal.task_command_router.TaskCommandRouterOuterClass.TaskExecStartRequest) {
+        unary("/TaskExecStart", request)
+    }
+
+    override suspend fun execStdinWrite(request: modal.task_command_router.TaskCommandRouterOuterClass.TaskExecStdinWriteRequest) {
+        unary("/TaskExecStdinWrite", request)
+    }
+
+    override suspend fun execWait(
+        request: modal.task_command_router.TaskCommandRouterOuterClass.TaskExecWaitRequest,
+    ): modal.task_command_router.TaskCommandRouterOuterClass.TaskExecWaitResponse {
+        return unary("/TaskExecWait", request) as modal.task_command_router.TaskCommandRouterOuterClass.TaskExecWaitResponse
+    }
+
+    override suspend fun execStdioRead(
+        request: modal.task_command_router.TaskCommandRouterOuterClass.TaskExecStdioReadRequest,
+    ): Flow<modal.task_command_router.TaskCommandRouterOuterClass.TaskExecStdioReadResponse> {
+        return streaming("/TaskExecStdioRead", request)
+    }
+
+    override fun close() {
+    }
+}
+
+fun createMockModalClientsWithTaskRouter(
+    backgroundScope: kotlinx.coroutines.CoroutineScope? = null,
+    ephemeralHeartbeatSleepMs: Long = ephemeralObjectHeartbeatSleep,
+): Triple<ModalClient, MockControlPlaneClient, MockTaskCommandRouterClient> {
+    val mock = MockControlPlaneClient()
+    val router = MockTaskCommandRouterClient()
+    val client = ModalClient(
+        ModalClientParams(
+            controlPlaneClient = mock,
+            authTokenProvider = mock,
+            tokenId = "test-token-id",
+            tokenSecret = "test-token-secret",
+            backgroundScope = backgroundScope,
+            ephemeralHeartbeatSleepMs = ephemeralHeartbeatSleepMs,
+            taskCommandRouterFactory = { _, _ -> router },
+        ),
+    )
+    return Triple(client, mock, router)
 }

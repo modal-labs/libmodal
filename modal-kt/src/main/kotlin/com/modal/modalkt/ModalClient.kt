@@ -12,6 +12,7 @@ data class ModalClientParams(
     val controlPlaneClient: ControlPlaneClient? = null,
     val backgroundScope: kotlinx.coroutines.CoroutineScope? = null,
     val ephemeralHeartbeatSleepMs: Long = ephemeralObjectHeartbeatSleep,
+    internal val taskCommandRouterFactory: (suspend (client: ModalClient, taskId: String) -> TaskCommandRouter)? = null,
 )
 
 class ModalClient(
@@ -33,6 +34,7 @@ class ModalClient(
     val images: ImageService
     internal val backgroundScope: kotlinx.coroutines.CoroutineScope
     internal val ephemeralHeartbeatSleepMs: Long
+    internal val taskCommandRouterFactory: suspend (client: ModalClient, taskId: String) -> TaskCommandRouter
 
     private val authTokenManager: AuthTokenManager?
 
@@ -64,6 +66,14 @@ class ModalClient(
                 kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO,
             )
         ephemeralHeartbeatSleepMs = params.ephemeralHeartbeatSleepMs
+        taskCommandRouterFactory = params.taskCommandRouterFactory ?: { modalClient, taskId ->
+            TaskCommandRouterClientImpl.tryInit(
+                serverClient = modalClient.cpClient,
+                taskId = taskId,
+                logger = modalClient.logger,
+                profile = modalClient.profile,
+            ) ?: throw InvalidError("Command router access is not available for this sandbox")
+        }
         cloudBucketMounts = CloudBucketMountsServiceHolder.create(this)
         apps = AppService(this)
         cls = ClsService(this)
