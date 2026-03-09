@@ -3,6 +3,7 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     `java-library`
+    idea
     kotlin("jvm") version "2.2.21"
     id("com.google.protobuf") version "0.9.5"
 }
@@ -16,7 +17,6 @@ val grpcVersion = "1.73.0"
 val grpcKotlinVersion = "1.4.3"
 val protobufVersion = "3.25.5"
 val junitVersion = "5.12.0"
-
 java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(21)
@@ -34,7 +34,6 @@ sourceSets {
         proto {
             srcDir("../modal-client")
         }
-        kotlin.srcDir(layout.buildDirectory.dir("generated/sources/proto/main/kotlin"))
         kotlin.srcDir(layout.buildDirectory.dir("generated/sources/proto/main/grpckt"))
         java.srcDir(layout.buildDirectory.dir("generated/sources/proto/main/java"))
         java.srcDir(layout.buildDirectory.dir("generated/sources/proto/main/grpc"))
@@ -105,9 +104,6 @@ protobuf {
     }
     generateProtoTasks {
         all().configureEach {
-            builtins {
-                id("kotlin")
-            }
             plugins {
                 id("grpc")
                 id("grpckt")
@@ -217,6 +213,18 @@ tasks.named("compileJava") {
 
 tasks.named("compileKotlin") {
     dependsOn(patchGeneratedProtoSources)
+}
+
+idea {
+    module {
+        val generatedBase = layout.buildDirectory.dir("generated/sources/proto/main").get().asFile
+        generatedSourceDirs.add(generatedBase.resolve("java"))
+        generatedSourceDirs.add(generatedBase.resolve("grpc"))
+        generatedSourceDirs.add(generatedBase.resolve("grpckt"))
+        sourceDirs.add(generatedBase.resolve("java"))
+        sourceDirs.add(generatedBase.resolve("grpc"))
+        sourceDirs.add(generatedBase.resolve("grpckt"))
+    }
 }
 
 tasks.named("check") {
