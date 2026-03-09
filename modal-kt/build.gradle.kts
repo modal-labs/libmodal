@@ -34,6 +34,7 @@ sourceSets {
         proto {
             srcDir("../modal-client")
         }
+        kotlin.srcDir(layout.buildDirectory.dir("generated/sources/proto/main/kotlin"))
         kotlin.srcDir(layout.buildDirectory.dir("generated/sources/proto/main/grpckt"))
         java.srcDir(layout.buildDirectory.dir("generated/sources/proto/main/java"))
         java.srcDir(layout.buildDirectory.dir("generated/sources/proto/main/grpc"))
@@ -104,6 +105,9 @@ protobuf {
     }
     generateProtoTasks {
         all().configureEach {
+            builtins {
+                id("kotlin")
+            }
             plugins {
                 id("grpc")
                 id("grpckt")
