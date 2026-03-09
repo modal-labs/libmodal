@@ -229,7 +229,7 @@ class TaskCommandRouterClientImpl(
     }
 
     private fun buildChannel(urlString: String): ManagedChannel {
-        val url = URI(urlString)
+        val url = URI.create(urlString)
         val builder = NettyChannelBuilder.forAddress(
             url.host,
             if (url.port == -1) 443 else url.port,
