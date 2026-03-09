@@ -1,3 +1,5 @@
+// Package modal is a lightweight, idiomatic Go SDK for Modal.com.
+//
 // Deprecated: Package modal has moved to github.com/modal-labs/modal-client/go.
 package modal
 
