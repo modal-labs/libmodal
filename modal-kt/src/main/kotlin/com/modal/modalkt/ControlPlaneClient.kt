@@ -45,6 +45,16 @@ interface ControlPlaneClient : AuthTokenProvider, TaskRouterAccessProvider {
 
     suspend fun sandboxGetTaskId(request: Api.SandboxGetTaskIdRequest): Api.SandboxGetTaskIdResponse
 
+    suspend fun containerFilesystemExec(
+        request: Api.ContainerFilesystemExecRequest,
+    ): Api.ContainerFilesystemExecResponse
+
+    suspend fun containerFilesystemExecGetOutput(
+        request: Api.ContainerFilesystemExecGetOutputRequest,
+    ): kotlinx.coroutines.flow.Flow<Api.FilesystemRuntimeOutputBatch>
+
+    suspend fun sandboxSnapshotFs(request: Api.SandboxSnapshotFsRequest): Api.SandboxSnapshotFsResponse
+
     suspend fun sandboxGetFromName(request: Api.SandboxGetFromNameRequest): Api.SandboxGetFromNameResponse
 
     suspend fun sandboxList(request: Api.SandboxListRequest): Api.SandboxListResponse
@@ -171,6 +181,23 @@ class GrpcControlPlaneClient(
 
     override suspend fun sandboxGetTaskId(request: Api.SandboxGetTaskIdRequest): Api.SandboxGetTaskIdResponse {
         return unaryCall(request) { stub, headers -> stub.sandboxGetTaskId(request, headers) }
+    }
+
+    override suspend fun containerFilesystemExec(
+        request: Api.ContainerFilesystemExecRequest,
+    ): Api.ContainerFilesystemExecResponse {
+        return unaryCall(request) { stub, headers -> stub.containerFilesystemExec(request, headers) }
+    }
+
+    override suspend fun containerFilesystemExecGetOutput(
+        request: Api.ContainerFilesystemExecGetOutputRequest,
+    ): kotlinx.coroutines.flow.Flow<Api.FilesystemRuntimeOutputBatch> {
+        val headers = authHeaders(includeAuthToken = true)
+        return baseStub.containerFilesystemExecGetOutput(request, headers)
+    }
+
+    override suspend fun sandboxSnapshotFs(request: Api.SandboxSnapshotFsRequest): Api.SandboxSnapshotFsResponse {
+        return unaryCall(request) { stub, headers -> stub.sandboxSnapshotFs(request, headers) }
     }
 
     override suspend fun sandboxGetFromName(request: Api.SandboxGetFromNameRequest): Api.SandboxGetFromNameResponse {

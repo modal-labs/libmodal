@@ -33,6 +33,12 @@ interface TaskCommandRouter {
         request: TaskCommandRouterOuterClass.TaskExecStdioReadRequest,
     ): Flow<TaskCommandRouterOuterClass.TaskExecStdioReadResponse>
 
+    suspend fun mountDirectory(request: TaskCommandRouterOuterClass.TaskMountDirectoryRequest)
+
+    suspend fun snapshotDirectory(
+        request: TaskCommandRouterOuterClass.TaskSnapshotDirectoryRequest,
+    ): TaskCommandRouterOuterClass.TaskSnapshotDirectoryResponse
+
     fun close()
 }
 
@@ -148,6 +154,20 @@ class TaskCommandRouterClientImpl(
     ): Flow<TaskCommandRouterOuterClass.TaskExecStdioReadResponse> {
         return callWithAuthRetry {
             stub.taskExecStdioRead(request, authHeaders())
+        }
+    }
+
+    override suspend fun mountDirectory(request: TaskCommandRouterOuterClass.TaskMountDirectoryRequest) {
+        callWithAuthRetry {
+            stub.taskMountDirectory(request, authHeaders())
+        }
+    }
+
+    override suspend fun snapshotDirectory(
+        request: TaskCommandRouterOuterClass.TaskSnapshotDirectoryRequest,
+    ): TaskCommandRouterOuterClass.TaskSnapshotDirectoryResponse {
+        return callWithAuthRetry {
+            stub.taskSnapshotDirectory(request, authHeaders())
         }
     }
 

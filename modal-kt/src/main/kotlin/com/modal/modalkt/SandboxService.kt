@@ -167,6 +167,25 @@ class SandboxHandle(
         return ContainerProcess(currentTaskId, execId, router)
     }
 
+    suspend fun open(path: String, mode: SandboxFileMode = "r"): SandboxFile {
+        ensureAttached()
+        val currentTaskId = getTaskId()
+        val result = runFilesystemExec(
+            client.cpClient,
+            Api.ContainerFilesystemExecRequest.newBuilder()
+                .setTaskId(currentTaskId)
+                .setFileOpenRequest(
+                    Api.ContainerFileOpenRequest.newBuilder()
+                        .setPath(path)
+                        .setMode(mode)
+                        .build(),
+                )
+                .build(),
+        )
+        val descriptor = result.response.fileDescriptor
+        return SandboxFile(client, descriptor, currentTaskId)
+    }
+
     suspend fun terminate(params: SandboxTerminateParams = SandboxTerminateParams()): Int? {
         ensureAttached()
         client.cpClient.sandboxTerminate(
@@ -224,6 +243,57 @@ class SandboxHandle(
                 if (tunnel.hasUnencryptedPort()) tunnel.unencryptedPort else null,
             )
         }
+    }
+
+    suspend fun snapshotFilesystem(timeoutMs: Long = 55_000): Image {
+        ensureAttached()
+        val response = client.cpClient.sandboxSnapshotFs(
+            Api.SandboxSnapshotFsRequest.newBuilder()
+                .setSandboxId(sandboxId)
+                .setTimeout(timeoutMs.toFloat() / 1000f)
+                .build(),
+        )
+        if (response.result.status != Api.GenericResult.GenericStatus.GENERIC_STATUS_SUCCESS) {
+            throw InvalidError(
+                "Sandbox snapshot failed: ${response.result.exception.ifEmpty { "Unknown error" }}",
+            )
+        }
+        if (response.imageId.isEmpty()) {
+            throw InvalidError("Sandbox snapshot response missing `imageId`")
+        }
+        return Image(client, response.imageId, "")
+    }
+
+    suspend fun mountImage(path: String, image: Image? = null) {
+        ensureAttached()
+        if (image != null && image.imageId.isEmpty()) {
+            throw InvalidError("Image must be built before mounting. Call `image.build(app)` first.")
+        }
+        val currentTaskId = getTaskId()
+        val router = getOrCreateCommandRouter(currentTaskId)
+        router.mountDirectory(
+            TaskCommandRouterOuterClass.TaskMountDirectoryRequest.newBuilder()
+                .setTaskId(currentTaskId)
+                .setPath(com.google.protobuf.ByteString.copyFrom(path.toByteArray()))
+                .setImageId(image?.imageId ?: "")
+                .build(),
+        )
+    }
+
+    suspend fun snapshotDirectory(path: String): Image {
+        ensureAttached()
+        val currentTaskId = getTaskId()
+        val router = getOrCreateCommandRouter(currentTaskId)
+        val response = router.snapshotDirectory(
+            TaskCommandRouterOuterClass.TaskSnapshotDirectoryRequest.newBuilder()
+                .setTaskId(currentTaskId)
+                .setPath(com.google.protobuf.ByteString.copyFrom(path.toByteArray()))
+                .build(),
+        )
+        if (response.imageId.isEmpty()) {
+            throw InvalidError("Sandbox snapshot directory response missing `imageId`")
+        }
+        return Image(client, response.imageId, "")
     }
 
     suspend fun setTags(tags: Map<String, String>) {

@@ -138,6 +138,22 @@ class MockControlPlaneClient : ControlPlaneClient {
         return unary("/SandboxGetTaskId", request) as Api.SandboxGetTaskIdResponse
     }
 
+    override suspend fun containerFilesystemExec(
+        request: Api.ContainerFilesystemExecRequest,
+    ): Api.ContainerFilesystemExecResponse {
+        return unary("/ContainerFilesystemExec", request) as Api.ContainerFilesystemExecResponse
+    }
+
+    override suspend fun containerFilesystemExecGetOutput(
+        request: Api.ContainerFilesystemExecGetOutputRequest,
+    ): Flow<Api.FilesystemRuntimeOutputBatch> {
+        return streaming("/ContainerFilesystemExecGetOutput", request)
+    }
+
+    override suspend fun sandboxSnapshotFs(request: Api.SandboxSnapshotFsRequest): Api.SandboxSnapshotFsResponse {
+        return unary("/SandboxSnapshotFs", request) as Api.SandboxSnapshotFsResponse
+    }
+
     override suspend fun sandboxGetFromName(request: Api.SandboxGetFromNameRequest): Api.SandboxGetFromNameResponse {
         return unary("/SandboxGetFromName", request) as Api.SandboxGetFromNameResponse
     }
@@ -295,6 +311,18 @@ class MockTaskCommandRouterClient : TaskCommandRouter {
         request: modal.task_command_router.TaskCommandRouterOuterClass.TaskExecStdioReadRequest,
     ): Flow<modal.task_command_router.TaskCommandRouterOuterClass.TaskExecStdioReadResponse> {
         return streaming("/TaskExecStdioRead", request)
+    }
+
+    override suspend fun mountDirectory(
+        request: modal.task_command_router.TaskCommandRouterOuterClass.TaskMountDirectoryRequest,
+    ) {
+        unary("/TaskMountDirectory", request)
+    }
+
+    override suspend fun snapshotDirectory(
+        request: modal.task_command_router.TaskCommandRouterOuterClass.TaskSnapshotDirectoryRequest,
+    ): modal.task_command_router.TaskCommandRouterOuterClass.TaskSnapshotDirectoryResponse {
+        return unary("/TaskSnapshotDirectory", request) as modal.task_command_router.TaskCommandRouterOuterClass.TaskSnapshotDirectoryResponse
     }
 
     override fun close() {
