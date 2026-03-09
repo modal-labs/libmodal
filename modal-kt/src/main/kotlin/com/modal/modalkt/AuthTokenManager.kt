@@ -2,14 +2,13 @@ package com.modal.modalkt
 
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import modal.client.Api
 import java.util.Base64
 
 const val REFRESH_WINDOW_SECONDS: Long = 5 * 60
 const val DEFAULT_EXPIRY_OFFSET_SECONDS: Long = 20 * 60
 
 interface AuthTokenProvider {
-    suspend fun authTokenGet(request: Api.AuthTokenGetRequest): Api.AuthTokenGetResponse
+    suspend fun authTokenGet(request: AuthTokenGetRequest): AuthTokenGetResponse
 }
 
 class AuthTokenManager(
@@ -65,7 +64,7 @@ class AuthTokenManager(
     }
 
     private suspend fun fetchToken() {
-        val response = client.authTokenGet(Api.AuthTokenGetRequest.getDefaultInstance())
+        val response = client.authTokenGet(AuthTokenGetRequest.getDefaultInstance())
         val token = response.token
         if (token.isNullOrEmpty()) {
             throw InvalidError(

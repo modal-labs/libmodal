@@ -1,32 +1,30 @@
 package com.modal.modalkt
 
-import modal.client.Api
-
 fun encodeParameterSet(
-    schema: List<Api.ClassParameterSpec>,
+    schema: List<ClassParameterSpec>,
     params: Map<String, Any?>,
 ): ByteArray {
     val encoded = schema.map { spec ->
         encodeParameter(spec, params[spec.name])
     }.sortedBy { it.name }
 
-    return Api.ClassParameterSet.newBuilder()
+    return ClassParameterSet.newBuilder()
         .addAllParameters(encoded)
         .build()
         .toByteArray()
 }
 
 private fun encodeParameter(
-    parameterSpec: Api.ClassParameterSpec,
+    parameterSpec: ClassParameterSpec,
     rawValue: Any?,
-): Api.ClassParameterValue {
+): ClassParameterValue {
     val name = parameterSpec.name
-    val builder = Api.ClassParameterValue.newBuilder()
+    val builder = ClassParameterValue.newBuilder()
         .setName(name)
         .setType(parameterSpec.type)
 
     when (parameterSpec.type) {
-        Api.ParameterType.PARAM_TYPE_STRING -> {
+        ParameterType.PARAM_TYPE_STRING -> {
             val value = if (rawValue == null && parameterSpec.hasDefault) {
                 parameterSpec.stringDefault
             } else {
@@ -38,7 +36,7 @@ private fun encodeParameter(
             builder.stringValue = value
         }
 
-        Api.ParameterType.PARAM_TYPE_INT -> {
+        ParameterType.PARAM_TYPE_INT -> {
             val value = if (rawValue == null && parameterSpec.hasDefault) {
                 parameterSpec.intDefault
             } else {
@@ -50,7 +48,7 @@ private fun encodeParameter(
             builder.intValue = value.toLong()
         }
 
-        Api.ParameterType.PARAM_TYPE_BOOL -> {
+        ParameterType.PARAM_TYPE_BOOL -> {
             val value = if (rawValue == null && parameterSpec.hasDefault) {
                 parameterSpec.boolDefault
             } else {
@@ -62,7 +60,7 @@ private fun encodeParameter(
             builder.boolValue = value
         }
 
-        Api.ParameterType.PARAM_TYPE_BYTES -> {
+        ParameterType.PARAM_TYPE_BYTES -> {
             val value = if (rawValue == null && parameterSpec.hasDefault) {
                 parameterSpec.bytesDefault.toByteArray()
             } else {

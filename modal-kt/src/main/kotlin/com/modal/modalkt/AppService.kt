@@ -1,7 +1,6 @@
 package com.modal.modalkt
 
 import io.grpc.Status
-import modal.client.Api
 
 data class AppFromNameParams(
     val environment: String? = null,
@@ -17,14 +16,14 @@ class AppService(
     ): App {
         try {
             val response = client.cpClient.appGetOrCreate(
-                Api.AppGetOrCreateRequest.newBuilder()
+                AppGetOrCreateRequest.newBuilder()
                     .setAppName(name)
                     .setEnvironmentName(client.environmentName(params.environment))
                     .setObjectCreationType(
                         if (params.createIfMissing) {
-                            Api.ObjectCreationType.OBJECT_CREATION_TYPE_CREATE_IF_MISSING
+                            ObjectCreationType.OBJECT_CREATION_TYPE_CREATE_IF_MISSING
                         } else {
-                            Api.ObjectCreationType.OBJECT_CREATION_TYPE_UNSPECIFIED
+                            ObjectCreationType.OBJECT_CREATION_TYPE_UNSPECIFIED
                         },
                     )
                     .build(),
@@ -40,9 +39,9 @@ class AppService(
     }
 }
 
-fun parseGpuConfig(gpu: String?): Api.GPUConfig {
+fun parseGpuConfig(gpu: String?): GPUConfig {
     if (gpu.isNullOrBlank()) {
-        return Api.GPUConfig.getDefaultInstance()
+        return GPUConfig.getDefaultInstance()
     }
 
     var gpuType = gpu
@@ -62,7 +61,7 @@ fun parseGpuConfig(gpu: String?): Api.GPUConfig {
         }
     }
 
-    return Api.GPUConfig.newBuilder()
+    return GPUConfig.newBuilder()
         .setCount(count)
         .setGpuType(gpuType.uppercase())
         .build()

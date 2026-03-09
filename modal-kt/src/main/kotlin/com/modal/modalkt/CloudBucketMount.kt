@@ -1,7 +1,5 @@
 package com.modal.modalkt
 
-import modal.client.Api
-
 data class CloudBucketMountCreateParams(
     val secret: Secret? = null,
     val readOnly: Boolean = false,
@@ -18,7 +16,7 @@ class CloudBucketMountService(
         bucketName: String,
         params: CloudBucketMountCreateParams = CloudBucketMountCreateParams(),
     ): CloudBucketMount {
-        var bucketType = Api.CloudBucketMount.BucketType.S3
+        var bucketType = CloudBucketMountBucketType.S3
         val bucketEndpointUrl = params.bucketEndpointUrl
         if (!bucketEndpointUrl.isNullOrEmpty()) {
             val url = try {
@@ -28,15 +26,15 @@ class CloudBucketMountService(
             }
             val host = url.host
             bucketType = when {
-                host.endsWith("r2.cloudflarestorage.com") -> Api.CloudBucketMount.BucketType.R2
-                host.endsWith("storage.googleapis.com") -> Api.CloudBucketMount.BucketType.GCP
+                host.endsWith("r2.cloudflarestorage.com") -> CloudBucketMountBucketType.R2
+                host.endsWith("storage.googleapis.com") -> CloudBucketMountBucketType.GCP
                 else -> {
                     client.logger.debug(
                         "CloudBucketMount received unrecognized bucket endpoint URL. Assuming AWS S3 configuration as fallback.",
                         "bucketEndpointUrl",
                         bucketEndpointUrl,
                     )
-                    Api.CloudBucketMount.BucketType.S3
+                    CloudBucketMountBucketType.S3
                 }
             }
         }
@@ -72,10 +70,10 @@ data class CloudBucketMount(
     val bucketEndpointUrl: String? = null,
     val keyPrefix: String? = null,
     val oidcAuthRoleArn: String? = null,
-    private val bucketType: Api.CloudBucketMount.BucketType = Api.CloudBucketMount.BucketType.S3,
+    private val bucketType: CloudBucketMountBucketType = CloudBucketMountBucketType.S3,
 ) {
-    fun toProto(mountPath: String): Api.CloudBucketMount {
-        return Api.CloudBucketMount.newBuilder()
+    fun toProto(mountPath: String): CloudBucketMountProto {
+        return CloudBucketMountProto.newBuilder()
             .setBucketName(bucketName)
             .setMountPath(mountPath)
             .setCredentialsSecretId(secret?.secretId ?: "")
