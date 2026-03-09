@@ -34,7 +34,9 @@ sourceSets {
         proto {
             srcDir("../modal-client")
         }
-        kotlin.srcDir(layout.buildDirectory.dir("generated/source/proto/main/grpckt"))
+        kotlin.srcDir(layout.buildDirectory.dir("generated/sources/proto/main/grpckt"))
+        java.srcDir(layout.buildDirectory.dir("generated/sources/proto/main/java"))
+        java.srcDir(layout.buildDirectory.dir("generated/sources/proto/main/grpc"))
     }
 
     create("integrationTest") {
