@@ -19,3 +19,19 @@ context = "all"
 
 [formatters]
 enable = ["gofmt", "goimports"]
+
+[linters.exclusions]
+rules = [
+  { path = "internal", linters = [
+    "staticcheck",
+  ], text = "SA1019:" },
+  { path = "examples", linters = [
+    "staticcheck",
+  ], text = "SA1019:" },
+  { path = "test", linters = [
+    "staticcheck",
+  ], text = "SA1019:" },
+  { path = ".go", linters = [
+    "staticcheck",
+  ], text = "ST1000:" },
+]

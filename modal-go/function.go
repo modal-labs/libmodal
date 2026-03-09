@@ -1,3 +1,4 @@
+// Deprecated: Package modal has moved to github.com/modal-labs/modal-client/go.
 package modal
 
 // Function calls and invocations, to be used with Modal Functions.

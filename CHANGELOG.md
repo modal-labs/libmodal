@@ -4,7 +4,9 @@ Both client libraries are pre-1.0, and they have separate versioning.
 
 ## Unreleased
 
-No unreleased changes.
+## modal-go/v0.7.3
+
+- The JS and Go SDKs has migrated to https://github.com/modal-labs/modal-client. JS SDK releases will remain at https://www.npmjs.com/package/modal. Go SDK releases will now be at https://github.com/modal-labs/modal-client/go. Migrate to the new Go SDK by running `go get github.com/modal-labs/modal-client/go@latest` and replace all imports of `github.com/modal-labs/libmodal/modal-go` with `github.com/modal-labs/modal-client/go`.
 
 ## modal-js/v0.7.2, modal-go/v0.7.2
 
