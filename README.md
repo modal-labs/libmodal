@@ -9,7 +9,7 @@
 
 Run the following in your project: `go get github.com/modal-labs/modal-client/go@latest`
 
-Replace all imports of `github.com/modal-labs/libmodal/modal-go` with `github.com/modal-labs/modal-client/g`.
+Replace all imports of `github.com/modal-labs/libmodal/modal-go` with `github.com/modal-labs/modal-client/go`.
 
 ## Support
 
