@@ -77,7 +77,7 @@ dependencies {
     implementation("org.tomlj:tomlj:1.1.1")
     implementation("com.upokecenter:cbor:4.5.6")
     implementation("net.razorvine:pyrolite:5.1")
-    runtimeOnly("io.grpc:grpc-netty-shaded:$grpcVersion")
+    implementation("io.grpc:grpc-netty-shaded:$grpcVersion")
     compileOnly("org.apache.tomcat:annotations-api:6.0.53")
 
     testImplementation(kotlin("test"))

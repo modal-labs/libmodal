@@ -1,29 +1,36 @@
 package com.modal.modalkt
 
+data class App(
+    val appId: String,
+    val name: String? = null,
+)
+
 data class Secret(
     val secretId: String,
+    val name: String? = null,
 )
 
 data class Proxy(
     val proxyId: String,
 )
 
-data class Volume(
+class Volume(
     val volumeId: String,
+    val name: String? = null,
     val isReadOnly: Boolean = false,
+    private val ephemeralHeartbeatManager: EphemeralHeartbeatManager? = null,
 ) {
     fun readOnly(): Volume {
-        return copy(isReadOnly = true)
+        return Volume(volumeId, name, true, ephemeralHeartbeatManager)
     }
 
     fun closeEphemeral() {
+        if (ephemeralHeartbeatManager == null) {
+            throw InvalidError("Volume is not ephemeral.")
+        }
+        ephemeralHeartbeatManager.stop()
     }
 }
-
-data class App(
-    val appId: String,
-    val name: String? = null,
-)
 
 data class Tunnel(
     val host: String,

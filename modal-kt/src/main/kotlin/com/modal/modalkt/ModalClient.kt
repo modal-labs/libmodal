@@ -9,6 +9,9 @@ data class ModalClientParams(
     val logLevel: String? = null,
     val timeout: Long? = null,
     internal val authTokenProvider: AuthTokenProvider? = null,
+    val controlPlaneClient: ControlPlaneClient? = null,
+    val backgroundScope: kotlinx.coroutines.CoroutineScope? = null,
+    val ephemeralHeartbeatSleepMs: Long = ephemeralObjectHeartbeatSleep,
 )
 
 class ModalClient(
@@ -16,7 +19,15 @@ class ModalClient(
 ) {
     val profile: Profile
     val logger: Logger
-    val cloudBucketMounts: CloudBucketMountService = CloudBucketMountsServiceHolder.create(this)
+    internal val cpClient: ControlPlaneClient
+    val apps: AppService
+    val cloudBucketMounts: CloudBucketMountService
+    val secrets: SecretService
+    val volumes: VolumeService
+    val proxies: ProxyService
+    val images: ImageService
+    internal val backgroundScope: kotlinx.coroutines.CoroutineScope
+    internal val ephemeralHeartbeatSleepMs: Long
 
     private val authTokenManager: AuthTokenManager?
 
@@ -42,7 +53,20 @@ class ModalClient(
             profile.serverUrl,
         )
 
-        authTokenManager = params.authTokenProvider?.let { AuthTokenManager(it, logger) }
+        cpClient = params.controlPlaneClient ?: GrpcControlPlaneClient(profile, logger)
+        backgroundScope = params.backgroundScope
+            ?: kotlinx.coroutines.CoroutineScope(
+                kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO,
+            )
+        ephemeralHeartbeatSleepMs = params.ephemeralHeartbeatSleepMs
+        cloudBucketMounts = CloudBucketMountsServiceHolder.create(this)
+        apps = AppService(this)
+        secrets = SecretService(this)
+        volumes = VolumeService(this)
+        proxies = ProxyService(this)
+        images = ImageService(this)
+
+        authTokenManager = AuthTokenManager(params.authTokenProvider ?: cpClient, logger)
 
         logger.debug("Modal client initialized successfully")
     }
@@ -61,6 +85,7 @@ class ModalClient(
 
     fun close() {
         logger.debug("Closing Modal client")
+        cpClient.close()
         logger.debug("Modal client closed")
     }
 
