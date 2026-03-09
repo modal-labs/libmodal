@@ -31,4 +31,7 @@ rules = [
   { path = "test", linters = [
     "staticcheck",
   ], text = "SA1019:" },
+  { path = ".go", linters = [
+    "staticcheck",
+  ], text = "ST1000:" },
 ]

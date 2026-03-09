@@ -1,5 +1,3 @@
-// Package modal is a lightweight, idiomatic Go SDK for Modal.com.
-//
 // It mirrors the core feature-set of Modal’s Python SDK while feeling
 // natural in Go:
 //
