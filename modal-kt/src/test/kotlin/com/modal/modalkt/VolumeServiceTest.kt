@@ -2,15 +2,15 @@ package com.modal.modalkt
 
 import io.grpc.Status
 import io.grpc.StatusException
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runTest
-import modal.client.Api
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
+import modal.client.*
 
 class VolumeServiceTest {
     @Test
@@ -18,19 +18,19 @@ class VolumeServiceTest {
         val (client, mock) = createMockModalClients()
 
         mock.handleUnary("/VolumeGetOrCreate") {
-            Api.VolumeGetOrCreateResponse.newBuilder()
+            VolumeGetOrCreateResponse.newBuilder()
                 .setVolumeId("vo-test-123")
                 .setMetadata(
-                    Api.VolumeMetadata.newBuilder()
+                    VolumeMetadata.newBuilder()
                         .setName("test-volume")
                         .build(),
                 )
                 .build()
         }
         mock.handleUnary("/VolumeDelete") { request ->
-            request as Api.VolumeDeleteRequest
+            request as VolumeDeleteRequest
             assertEquals("vo-test-123", request.volumeId)
-            com.google.protobuf.Empty.getDefaultInstance()
+            Unit
         }
 
         client.volumes.delete("test-volume")
@@ -52,9 +52,9 @@ class VolumeServiceTest {
     fun volumeDeleteAllowMissingDeleteRpcNotFound() = runBlocking {
         val (client, mock) = createMockModalClients()
         mock.handleUnary("/VolumeGetOrCreate") {
-            Api.VolumeGetOrCreateResponse.newBuilder()
+            VolumeGetOrCreateResponse.newBuilder()
                 .setVolumeId("vo-test-123")
-                .setMetadata(Api.VolumeMetadata.newBuilder().setName("test-volume").build())
+                .setMetadata(VolumeMetadata.newBuilder().setName("test-volume").build())
                 .build()
         }
         mock.handleUnary("/VolumeDelete") {
@@ -87,13 +87,13 @@ class VolumeServiceTest {
         var heartbeatCount = 0
 
         mock.handleUnary("/VolumeGetOrCreate") {
-            Api.VolumeGetOrCreateResponse.newBuilder()
+            VolumeGetOrCreateResponse.newBuilder()
                 .setVolumeId("vo-test-123")
                 .build()
         }
         mock.handleUnary("/VolumeHeartbeat") {
             heartbeatCount += 1
-            com.google.protobuf.Empty.getDefaultInstance()
+            Unit
         }
 
         val volume = client.volumes.ephemeral()

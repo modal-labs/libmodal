@@ -2,28 +2,29 @@ package com.modal.modalkt
 
 import io.grpc.Status
 import io.grpc.StatusException
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runTest
-import modal.client.Api
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
+import modal.client.*
+import okio.ByteString.Companion.toByteString
 
 class QueueServiceTest {
     @Test
     fun queueDeleteSuccess() = runBlocking {
         val (client, mock) = createMockModalClients()
         mock.handleUnary("/QueueGetOrCreate") {
-            Api.QueueGetOrCreateResponse.newBuilder().setQueueId("qu-test-123").build()
+            QueueGetOrCreateResponse.newBuilder().setQueueId("qu-test-123").build()
         }
         mock.handleUnary("/QueueDelete") { request ->
-            request as Api.QueueDeleteRequest
+            request as QueueDeleteRequest
             assertEquals("qu-test-123", request.queueId)
-            com.google.protobuf.Empty.getDefaultInstance()
+            Unit
         }
 
         client.queues.delete("test-queue")
@@ -49,11 +50,11 @@ class QueueServiceTest {
         )
         var heartbeatCount = 0
         mock.handleUnary("/QueueGetOrCreate") {
-            Api.QueueGetOrCreateResponse.newBuilder().setQueueId("test-queue-id").build()
+            QueueGetOrCreateResponse.newBuilder().setQueueId("test-queue-id").build()
         }
         mock.handleUnary("/QueueHeartbeat") {
             heartbeatCount += 1
-            com.google.protobuf.Empty.getDefaultInstance()
+            Unit
         }
 
         val queue = client.queues.ephemeral()
@@ -67,37 +68,37 @@ class QueueServiceTest {
     @Test
     fun queuePutGetAndIterate() = runBlocking {
         val (client, mock) = createMockModalClients()
-        mock.handleUnary("/QueuePut") { com.google.protobuf.Empty.getDefaultInstance() }
+        mock.handleUnary("/QueuePut") { Unit }
         mock.handleUnary("/QueueLen") {
-            Api.QueueLenResponse.newBuilder().setLen(1).build()
+            QueueLenResponse.newBuilder().setLen(1).build()
         }
         mock.handleUnary("/QueueGet") {
-            Api.QueueGetResponse.newBuilder()
-                .addValues(com.google.protobuf.ByteString.copyFrom(PickleCodec.encode(123)))
+            QueueGetResponse.newBuilder()
+                .addValues(PickleCodec.encode(123).toByteString())
                 .build()
         }
-        mock.handleUnary("/QueuePut") { com.google.protobuf.Empty.getDefaultInstance() }
+        mock.handleUnary("/QueuePut") { Unit }
         mock.handleUnary("/QueueNextItems") {
-            Api.QueueNextItemsResponse.newBuilder()
+            QueueNextItemsResponse.newBuilder()
                 .addItems(
-                    Api.QueueItem.newBuilder()
+                    QueueItem.newBuilder()
                         .setEntryId("1-0")
-                        .setValue(com.google.protobuf.ByteString.copyFrom(PickleCodec.encode(1)))
+                        .setValue(PickleCodec.encode(1).toByteString())
                         .build(),
                 )
                 .addItems(
-                    Api.QueueItem.newBuilder()
+                    QueueItem.newBuilder()
                         .setEntryId("1-1")
-                        .setValue(com.google.protobuf.ByteString.copyFrom(PickleCodec.encode(2)))
+                        .setValue(PickleCodec.encode(2).toByteString())
                         .build(),
                 )
                 .build()
         }
         mock.handleUnary("/QueueNextItems") {
-            Api.QueueNextItemsResponse.getDefaultInstance()
+            QueueNextItemsResponse.getDefaultInstance()
         }
         mock.handleUnary("/QueueNextItems") {
-            Api.QueueNextItemsResponse.getDefaultInstance()
+            QueueNextItemsResponse.getDefaultInstance()
         }
 
         val queue = Queue(client, "qu-123", "test")

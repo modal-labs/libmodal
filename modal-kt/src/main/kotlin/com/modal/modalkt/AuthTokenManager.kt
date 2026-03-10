@@ -1,8 +1,9 @@
 package com.modal.modalkt
 
+import java.util.Base64
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import java.util.Base64
+import modal.client.*
 
 const val REFRESH_WINDOW_SECONDS: Long = 5 * 60
 const val DEFAULT_EXPIRY_OFFSET_SECONDS: Long = 20 * 60

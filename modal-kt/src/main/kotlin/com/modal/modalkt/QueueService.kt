@@ -4,6 +4,9 @@ import io.grpc.Status
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import modal.client.*
+import okio.ByteString
+import okio.ByteString.Companion.toByteString
 
 private const val queueInitialPutBackoffMs: Long = 100
 private const val queueDefaultPartitionTtlMs: Long = 24 * 3600 * 1000
@@ -202,7 +205,7 @@ class Queue(
         values: List<Any?>,
         params: QueuePutParams = QueuePutParams(),
     ) {
-        val encoded = values.map { com.google.protobuf.ByteString.copyFrom(PickleCodec.encode(it)) }
+        val encoded = values.map { PickleCodec.encode(it).toByteString() }
         val partitionKey = validatePartitionKey(params.partition)
         var delayMs = queueInitialPutBackoffMs
         val deadline = params.timeoutMs?.let { System.currentTimeMillis() + it }
@@ -286,14 +289,14 @@ class Queue(
         ephemeralHeartbeatManager.stop()
     }
 
-    private fun validatePartitionKey(partition: String?): com.google.protobuf.ByteString {
+    private fun validatePartitionKey(partition: String?): ByteString {
         if (partition == null) {
-            return com.google.protobuf.ByteString.EMPTY
+            return ByteString.EMPTY
         }
         val bytes = partition.toByteArray()
         if (bytes.isEmpty() || bytes.size > 64) {
             throw InvalidError("Queue partition key must be between 1 and 64 bytes.")
         }
-        return com.google.protobuf.ByteString.copyFrom(bytes)
+        return bytes.toByteString()
     }
 }

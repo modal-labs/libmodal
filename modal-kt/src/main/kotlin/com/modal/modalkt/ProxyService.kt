@@ -1,6 +1,7 @@
 package com.modal.modalkt
 
 import io.grpc.Status
+import modal.client.*
 
 data class ProxyFromNameParams(
     val environment: String? = null,
@@ -20,10 +21,11 @@ class ProxyService(
                     .setEnvironmentName(client.environmentName(params.environment))
                     .build(),
             )
-            if (!response.hasProxy() || response.proxy.proxyId.isNullOrEmpty()) {
+            val proxy = response.proxy
+            if (proxy == null || proxy.proxyId.isEmpty()) {
                 throw NotFoundError("Proxy '$name' not found")
             }
-            return Proxy(response.proxy.proxyId)
+            return Proxy(proxy.proxyId)
         } catch (error: Throwable) {
             if (statusCode(error) == Status.Code.NOT_FOUND) {
                 throw NotFoundError("Proxy '$name' not found")

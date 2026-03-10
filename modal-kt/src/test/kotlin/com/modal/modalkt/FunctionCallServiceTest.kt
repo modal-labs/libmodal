@@ -1,17 +1,17 @@
 package com.modal.modalkt
 
-import kotlinx.coroutines.runBlocking
-import modal.client.Api
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlinx.coroutines.runBlocking
+import modal.client.*
 
 class FunctionCallServiceTest {
     @Test
     fun functionCallGetTimeoutAndNull() = runBlocking {
         val (client, mock) = createMockModalClients()
         mock.handleUnary("/FunctionGetOutputs") {
-            Api.FunctionGetOutputsResponse.getDefaultInstance()
+            FunctionGetOutputsResponse.getDefaultInstance()
         }
         val functionCall = FunctionCall(client, "fc-123")
         assertFailsWith<FunctionTimeoutError> {
@@ -23,16 +23,16 @@ class FunctionCallServiceTest {
     fun functionCallGetSuccess() = runBlocking {
         val (client, mock) = createMockModalClients()
         mock.handleUnary("/FunctionGetOutputs") {
-            Api.FunctionGetOutputsResponse.newBuilder()
+            FunctionGetOutputsResponse.newBuilder()
                 .addOutputs(
-                    Api.FunctionGetOutputsItem.newBuilder()
+                    FunctionGetOutputsItem.newBuilder()
                         .setResult(
-                            Api.GenericResult.newBuilder()
-                                .setStatus(Api.GenericResult.GenericStatus.GENERIC_STATUS_SUCCESS)
+                            GenericResult.newBuilder()
+                                .setStatus(GenericResult.GenericStatus.GENERIC_STATUS_SUCCESS)
                                 .setData(com.google.protobuf.ByteString.copyFrom(cborEncode("output: hello")))
                                 .build(),
                         )
-                        .setDataFormat(Api.DataFormat.DATA_FORMAT_CBOR)
+                        .setDataFormat(DataFormat.DATA_FORMAT_CBOR)
                         .build(),
                 )
                 .build()
@@ -46,11 +46,11 @@ class FunctionCallServiceTest {
     fun functionSpawnCreatesFunctionCall() = runBlocking {
         val (client, mock) = createMockModalClients()
         mock.handleUnary("/FunctionMap") {
-            Api.FunctionMapResponse.newBuilder()
+            FunctionMapResponse.newBuilder()
                 .setFunctionCallId("fc-123")
                 .setFunctionCallJwt("jwt")
                 .addPipelinedInputs(
-                    Api.FunctionPutInputsResponseItem.newBuilder()
+                    FunctionPutInputsResponseItem.newBuilder()
                         .setInputJwt("input-jwt")
                         .build(),
                 )
@@ -60,8 +60,8 @@ class FunctionCallServiceTest {
         val function = Function(
             client = client,
             functionId = "fid-123",
-            handleMetadata = Api.FunctionHandleMetadata.newBuilder()
-                .addSupportedInputFormats(Api.DataFormat.DATA_FORMAT_CBOR)
+            handleMetadata = FunctionHandleMetadata.newBuilder()
+                .addSupportedInputFormats(DataFormat.DATA_FORMAT_CBOR)
                 .build(),
         )
         val call = function.spawn(kwargs = mapOf("s" to "hello"))

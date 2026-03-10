@@ -2,20 +2,20 @@ package com.modal.modalkt
 
 import io.grpc.Status
 import io.grpc.StatusException
-import kotlinx.coroutines.runBlocking
-import modal.client.Api
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlinx.coroutines.runBlocking
+import modal.client.*
 
 class AppServiceTest {
     @Test
     fun appFromNameSuccess() = runBlocking {
         val (client, mock) = createMockModalClients()
         mock.handleUnary("/AppGetOrCreate") { request ->
-            request as Api.AppGetOrCreateRequest
+            request as AppGetOrCreateRequest
             assertEquals("my-app", request.appName)
-            Api.AppGetOrCreateResponse.newBuilder()
+            AppGetOrCreateResponse.newBuilder()
                 .setAppId("ap-123")
                 .build()
         }

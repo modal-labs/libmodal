@@ -3,14 +3,15 @@ package com.modal.modalkt
 import io.grpc.ManagedChannel
 import io.grpc.Metadata
 import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder
+import java.net.URI
+import java.util.Base64
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import modal.task_command_router.TaskCommandRouterGrpcKt
-import java.net.URI
-import java.util.Base64
-import java.util.concurrent.TimeUnit
+import modal.client.*
+import modal.task_command_router.*
 
 interface TaskRouterAccessProvider {
     suspend fun taskGetCommandRouterAccess(
@@ -99,11 +100,11 @@ class TaskCommandRouterClientImpl(
     private var jwt: String,
     private val logger: Logger,
 ) : TaskCommandRouter {
+    private val serviceName = "modal.task_command_router.TaskCommandRouter"
     private val refreshMutex = Mutex()
     private var jwtExpiration: Long? = parseJwtExpiration(jwt, logger)
     private var closed: Boolean = false
     private val channel: ManagedChannel = buildChannel(serverUrl)
-    private val stub = TaskCommandRouterGrpcKt.TaskCommandRouterCoroutineStub(channel)
 
     companion object {
         suspend fun tryInit(
@@ -129,13 +130,29 @@ class TaskCommandRouterClientImpl(
 
     override suspend fun execStart(request: TaskExecStartRequest) {
         callWithAuthRetry {
-            stub.taskExecStart(request, authHeaders())
+            unaryRpc(
+                channel = channel,
+                serviceName = serviceName,
+                methodName = "TaskExecStart",
+                request = request,
+                requestAdapter = TaskExecStartRequest.ADAPTER,
+                responseAdapter = TaskExecStartResponse.ADAPTER,
+                options = RpcOptions(headers = authHeaders()),
+            )
         }
     }
 
     override suspend fun execStdinWrite(request: TaskExecStdinWriteRequest) {
         callWithAuthRetry {
-            stub.taskExecStdinWrite(request, authHeaders())
+            unaryRpc(
+                channel = channel,
+                serviceName = serviceName,
+                methodName = "TaskExecStdinWrite",
+                request = request,
+                requestAdapter = TaskExecStdinWriteRequest.ADAPTER,
+                responseAdapter = TaskExecStdinWriteResponse.ADAPTER,
+                options = RpcOptions(headers = authHeaders()),
+            )
         }
     }
 
@@ -143,7 +160,15 @@ class TaskCommandRouterClientImpl(
         request: TaskExecWaitRequest,
     ): TaskExecWaitResponse {
         return callWithAuthRetry {
-            stub.taskExecWait(request, authHeaders())
+            unaryRpc(
+                channel = channel,
+                serviceName = serviceName,
+                methodName = "TaskExecWait",
+                request = request,
+                requestAdapter = TaskExecWaitRequest.ADAPTER,
+                responseAdapter = TaskExecWaitResponse.ADAPTER,
+                options = RpcOptions(headers = authHeaders()),
+            )
         }
     }
 
@@ -151,13 +176,29 @@ class TaskCommandRouterClientImpl(
         request: TaskExecStdioReadRequest,
     ): Flow<TaskExecStdioReadResponse> {
         return callWithAuthRetry {
-            stub.taskExecStdioRead(request, authHeaders())
+            serverStreamingRpc(
+                channel = channel,
+                serviceName = serviceName,
+                methodName = "TaskExecStdioRead",
+                request = request,
+                requestAdapter = TaskExecStdioReadRequest.ADAPTER,
+                responseAdapter = TaskExecStdioReadResponse.ADAPTER,
+                options = RpcOptions(headers = authHeaders()),
+            )
         }
     }
 
     override suspend fun mountDirectory(request: TaskMountDirectoryRequest) {
         callWithAuthRetry {
-            stub.taskMountDirectory(request, authHeaders())
+            unaryRpc(
+                channel = channel,
+                serviceName = serviceName,
+                methodName = "TaskMountDirectory",
+                request = request,
+                requestAdapter = TaskMountDirectoryRequest.ADAPTER,
+                responseAdapter = com.squareup.wire.ProtoAdapter.EMPTY,
+                options = RpcOptions(headers = authHeaders()),
+            )
         }
     }
 
@@ -165,7 +206,15 @@ class TaskCommandRouterClientImpl(
         request: TaskSnapshotDirectoryRequest,
     ): TaskSnapshotDirectoryResponse {
         return callWithAuthRetry {
-            stub.taskSnapshotDirectory(request, authHeaders())
+            unaryRpc(
+                channel = channel,
+                serviceName = serviceName,
+                methodName = "TaskSnapshotDirectory",
+                request = request,
+                requestAdapter = TaskSnapshotDirectoryRequest.ADAPTER,
+                responseAdapter = TaskSnapshotDirectoryResponse.ADAPTER,
+                options = RpcOptions(headers = authHeaders()),
+            )
         }
     }
 

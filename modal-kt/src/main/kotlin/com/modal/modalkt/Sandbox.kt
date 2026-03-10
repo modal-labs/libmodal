@@ -1,5 +1,8 @@
 package com.modal.modalkt
 
+import modal.client.*
+import modal.task_command_router.*
+
 enum class StdioBehavior {
     PIPE,
     IGNORE,

@@ -2,13 +2,13 @@ package com.modal.modalkt
 
 import io.grpc.Status
 import io.grpc.StatusException
-import kotlinx.coroutines.runBlocking
-import modal.client.Api
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlinx.coroutines.runBlocking
+import modal.client.*
 
 class TaskCommandRouterClientTest {
     private val logger = RecordingLogger()
@@ -123,13 +123,13 @@ class TaskCommandRouterClientTest {
             var calls = 0
 
             override suspend fun taskGetCommandRouterAccess(
-                request: Api.TaskGetCommandRouterAccessRequest,
-            ): Api.TaskGetCommandRouterAccessResponse {
+                request: TaskGetCommandRouterAccessRequest,
+            ): TaskGetCommandRouterAccessResponse {
                 calls += 1
                 if (calls == 1) {
                     throw IllegalStateException("Transient network error")
                 }
-                return Api.TaskGetCommandRouterAccessResponse.newBuilder()
+                return TaskGetCommandRouterAccessResponse.newBuilder()
                     .setUrl("https://example.com")
                     .setJwt(mockJwt((System.currentTimeMillis() / 1000 + 3600).toString()))
                     .build()

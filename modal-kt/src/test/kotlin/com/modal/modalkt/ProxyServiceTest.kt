@@ -2,19 +2,19 @@ package com.modal.modalkt
 
 import io.grpc.Status
 import io.grpc.StatusException
-import kotlinx.coroutines.runBlocking
-import modal.client.Api
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlinx.coroutines.runBlocking
+import modal.client.*
 
 class ProxyServiceTest {
     @Test
     fun proxyFromNameSuccess() = runBlocking {
         val (client, mock) = createMockModalClients()
         mock.handleUnary("/ProxyGet") {
-            Api.ProxyGetResponse.newBuilder()
-                .setProxy(Api.Proxy.newBuilder().setProxyId("pr-123").build())
+            ProxyGetResponse.newBuilder()
+                .setProxy(modal.client.Proxy.newBuilder().setProxyId("pr-123").build())
                 .build()
         }
 

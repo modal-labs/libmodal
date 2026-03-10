@@ -1,22 +1,22 @@
 package com.modal.modalkt
 
-import kotlinx.coroutines.runBlocking
-import modal.client.Api
-import modal.task_command_router.TaskCommandRouterOuterClass
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlinx.coroutines.runBlocking
+import modal.client.*
+import modal.task_command_router.*
 
 class SandboxSnapshotTest {
     @Test
     fun snapshotFilesystem() = runBlocking {
         val (client, control, _) = createMockModalClientsWithTaskRouter()
         control.handleUnary("/SandboxSnapshotFs") {
-            Api.SandboxSnapshotFsResponse.newBuilder()
+            SandboxSnapshotFsResponse.newBuilder()
                 .setImageId("im-123")
                 .setResult(
-                    Api.GenericResult.newBuilder()
-                        .setStatus(Api.GenericResult.GenericStatus.GENERIC_STATUS_SUCCESS)
+                    GenericResult.newBuilder()
+                        .setStatus(GenericResult.GenericStatus.GENERIC_STATUS_SUCCESS)
                         .build(),
                 )
                 .build()
@@ -41,15 +41,15 @@ class SandboxSnapshotTest {
     fun snapshotDirectoryAndMountImage() = runBlocking {
         val (client, control, router) = createMockModalClientsWithTaskRouter()
         control.handleUnary("/SandboxGetTaskId") {
-            Api.SandboxGetTaskIdResponse.newBuilder().setTaskId("ta-123").build()
+            SandboxGetTaskIdResponse.newBuilder().setTaskId("ta-123").build()
         }
         router.handleUnary("/TaskSnapshotDirectory") { request ->
-            request as TaskCommandRouterOuterClass.TaskSnapshotDirectoryRequest
-            TaskCommandRouterOuterClass.TaskSnapshotDirectoryResponse.newBuilder()
+            request as TaskSnapshotDirectoryRequest
+            TaskSnapshotDirectoryResponse.newBuilder()
                 .setImageId("im-snap")
                 .build()
         }
-        router.handleUnary("/TaskMountDirectory") { com.google.protobuf.Empty.getDefaultInstance() }
+        router.handleUnary("/TaskMountDirectory") { Unit }
 
         val sandbox = SandboxHandle(client, "sb-123")
         val image = sandbox.snapshotDirectory("/mnt/data")

@@ -2,11 +2,11 @@ package com.modal.modalkt
 
 import io.grpc.Status
 import io.grpc.StatusException
-import kotlinx.coroutines.runBlocking
-import modal.client.Api
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlinx.coroutines.runBlocking
+import modal.client.*
 
 class SecretServiceTest {
     @Test
@@ -14,14 +14,14 @@ class SecretServiceTest {
         val (client, mock) = createMockModalClients()
 
         mock.handleUnary("/SecretGetOrCreate") {
-            Api.SecretGetOrCreateResponse.newBuilder()
+            SecretGetOrCreateResponse.newBuilder()
                 .setSecretId("st-test-123")
                 .build()
         }
         mock.handleUnary("/SecretDelete") { request ->
-            request as Api.SecretDeleteRequest
+            request as SecretDeleteRequest
             assertEquals("st-test-123", request.secretId)
-            com.google.protobuf.Empty.getDefaultInstance()
+            Unit
         }
 
         client.secrets.delete("test-secret")
@@ -45,7 +45,7 @@ class SecretServiceTest {
         val (client, mock) = createMockModalClients()
 
         mock.handleUnary("/SecretGetOrCreate") {
-            Api.SecretGetOrCreateResponse.newBuilder()
+            SecretGetOrCreateResponse.newBuilder()
                 .setSecretId("st-test-123")
                 .build()
         }
@@ -84,7 +84,7 @@ class SecretServiceTest {
         val (client, mock) = createMockModalClients()
         val existingSecret = Secret("st-existing")
         mock.handleUnary("/SecretGetOrCreate") {
-            Api.SecretGetOrCreateResponse.newBuilder()
+            SecretGetOrCreateResponse.newBuilder()
                 .setSecretId("st-generated")
                 .build()
         }

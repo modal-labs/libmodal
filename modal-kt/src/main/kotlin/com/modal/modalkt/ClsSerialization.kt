@@ -1,5 +1,8 @@
 package com.modal.modalkt
 
+import modal.client.*
+import okio.ByteString.Companion.toByteString
+
 fun encodeParameterSet(
     schema: List<ClassParameterSpec>,
     params: Map<String, Any?>,
@@ -11,7 +14,7 @@ fun encodeParameterSet(
     return ClassParameterSet.newBuilder()
         .addAllParameters(encoded)
         .build()
-        .toByteArray()
+        .encode()
 }
 
 private fun encodeParameter(
@@ -33,7 +36,7 @@ private fun encodeParameter(
             if (value !is String) {
                 throw InvalidError("Parameter '$name' must be a string")
             }
-            builder.stringValue = value
+            builder.setStringValue(value)
         }
 
         ParameterType.PARAM_TYPE_INT -> {
@@ -45,7 +48,7 @@ private fun encodeParameter(
             if (value !is Number) {
                 throw InvalidError("Parameter '$name' must be an integer")
             }
-            builder.intValue = value.toLong()
+            builder.setIntValue(value.toLong())
         }
 
         ParameterType.PARAM_TYPE_BOOL -> {
@@ -57,19 +60,20 @@ private fun encodeParameter(
             if (value !is Boolean) {
                 throw InvalidError("Parameter '$name' must be a boolean")
             }
-            builder.boolValue = value
+            builder.setBoolValue(value)
         }
 
         ParameterType.PARAM_TYPE_BYTES -> {
             val value = if (rawValue == null && parameterSpec.hasDefault) {
-                parameterSpec.bytesDefault.toByteArray()
+                parameterSpec.bytesDefault?.toByteArray()
+                    ?: throw InvalidError("Parameter '$name' is missing a default byte value")
             } else {
                 rawValue
             }
             if (value !is ByteArray) {
                 throw InvalidError("Parameter '$name' must be a byte array")
             }
-            builder.bytesValue = com.google.protobuf.ByteString.copyFrom(value)
+            builder.setBytesValue(value.toByteString())
         }
 
         else -> throw InvalidError("Unsupported parameter type: ${parameterSpec.type}")

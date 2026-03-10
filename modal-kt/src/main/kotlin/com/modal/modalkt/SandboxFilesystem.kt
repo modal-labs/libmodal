@@ -1,7 +1,9 @@
 package com.modal.modalkt
 
-import kotlinx.coroutines.flow.collect
 import java.io.ByteArrayOutputStream
+import kotlinx.coroutines.flow.collect
+import modal.client.*
+import okio.ByteString.Companion.toByteString
 
 typealias SandboxFileMode = String
 
@@ -33,7 +35,7 @@ class SandboxFile(
                 .setFileWriteRequest(
                     ContainerFileWriteRequest.newBuilder()
                         .setFileDescriptor(fileDescriptor)
-                        .setData(com.google.protobuf.ByteString.copyFrom(data))
+                        .setData(data.toByteString())
                         .build(),
                 )
                 .build(),
@@ -94,7 +96,8 @@ suspend fun runFilesystemExec(
                         retries -= 1
                         return@collect
                     }
-                    throw SandboxFilesystemError(batch.error.errorMessage)
+                    val errorMessage = batch.error?.errorMessage ?: "Unknown filesystem error"
+                    throw SandboxFilesystemError(errorMessage)
                 }
                 if (batch.eof) {
                     completed = true

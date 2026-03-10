@@ -2,25 +2,25 @@ package com.modal.modalkt
 
 import io.grpc.Status
 import io.grpc.StatusException
-import kotlinx.coroutines.runBlocking
-import modal.client.Api
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlinx.coroutines.runBlocking
+import modal.client.*
 
 class SandboxServiceTest {
     @Test
     fun sandboxCreateMergesEnvIntoSecrets() = runBlocking {
         val (client, mock) = createMockModalClients()
         mock.handleUnary("/SecretGetOrCreate") {
-            Api.SecretGetOrCreateResponse.newBuilder()
+            SecretGetOrCreateResponse.newBuilder()
                 .setSecretId("st-env")
                 .build()
         }
         mock.handleUnary("/SandboxCreate") { request ->
-            request as Api.SandboxCreateRequest
-            assertEquals(listOf("st-env"), request.definition.secretIdsList)
-            Api.SandboxCreateResponse.newBuilder()
+            request as SandboxCreateRequest
+            assertEquals(listOf("st-env"), requireNotNull(request.definition).secretIdsList)
+            SandboxCreateResponse.newBuilder()
                 .setSandboxId("sb-123")
                 .build()
         }
@@ -39,7 +39,7 @@ class SandboxServiceTest {
     fun createConnectToken() = runBlocking {
         val (client, mock) = createMockModalClients()
         mock.handleUnary("/SandboxCreateConnectToken") {
-            Api.SandboxCreateConnectTokenResponse.newBuilder()
+            SandboxCreateConnectTokenResponse.newBuilder()
                 .setUrl("https://sandbox.modal.run")
                 .setToken("token-123")
                 .build()
@@ -67,7 +67,7 @@ class SandboxServiceTest {
     fun sandboxTerminateThenDetach() = runBlocking {
         val (client, mock) = createMockModalClients()
         mock.handleUnary("/SandboxTerminate") {
-            Api.SandboxTerminateResponse.getDefaultInstance()
+            SandboxTerminateResponse.getDefaultInstance()
         }
         val sandbox = SandboxHandle(client, "sb-123")
         sandbox.terminate()
@@ -89,11 +89,11 @@ class SandboxServiceTest {
     @Test
     fun sandboxSetAndGetTags() = runBlocking {
         val (client, mock) = createMockModalClients()
-        mock.handleUnary("/SandboxTagsSet") { com.google.protobuf.Empty.getDefaultInstance() }
+        mock.handleUnary("/SandboxTagsSet") { Unit }
         mock.handleUnary("/SandboxTagsGet") {
-            Api.SandboxTagsGetResponse.newBuilder()
-                .addTags(Api.SandboxTag.newBuilder().setTagName("key-a").setTagValue("A").build())
-                .addTags(Api.SandboxTag.newBuilder().setTagName("key-b").setTagValue("B").build())
+            SandboxTagsGetResponse.newBuilder()
+                .addTags(SandboxTag.newBuilder().setTagName("key-a").setTagValue("A").build())
+                .addTags(SandboxTag.newBuilder().setTagName("key-b").setTagValue("B").build())
                 .build()
         }
 
@@ -107,21 +107,21 @@ class SandboxServiceTest {
     fun sandboxTunnels() = runBlocking {
         val (client, mock) = createMockModalClients()
         mock.handleUnary("/SandboxGetTunnels") {
-            Api.SandboxGetTunnelsResponse.newBuilder()
+            SandboxGetTunnelsResponse.newBuilder()
                 .setResult(
-                    Api.GenericResult.newBuilder()
-                        .setStatus(Api.GenericResult.GenericStatus.GENERIC_STATUS_SUCCESS)
+                    GenericResult.newBuilder()
+                        .setStatus(GenericResult.GenericStatus.GENERIC_STATUS_SUCCESS)
                         .build(),
                 )
                 .addTunnels(
-                    Api.TunnelData.newBuilder()
+                    TunnelData.newBuilder()
                         .setContainerPort(8443)
                         .setHost("example.modal.host")
                         .setPort(443)
                         .build(),
                 )
                 .addTunnels(
-                    Api.TunnelData.newBuilder()
+                    TunnelData.newBuilder()
                         .setContainerPort(8080)
                         .setHost("example2.modal.host")
                         .setPort(443)

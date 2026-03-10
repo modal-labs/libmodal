@@ -1,6 +1,7 @@
 package com.modal.modalkt
 
 import io.grpc.Status
+import modal.client.*
 
 data class AppFromNameParams(
     val environment: String? = null,

@@ -1,5 +1,7 @@
 package com.modal.modalkt
 
+import modal.client.*
+
 private const val outputsTimeoutMs: Long = 55_000
 
 internal interface Invocation {
@@ -64,7 +66,7 @@ internal class InputPlaneInvocation(
                     .build(),
             ).output
             if (output != null) {
-                return processResult(output.result, output.dataFormat)
+                return processResult(output.result ?: throw RemoteError("Missing function result"), output.dataFormat)
             }
 
             if (timeoutMs != null) {
@@ -93,8 +95,8 @@ internal class InputPlaneInvocation(
         dataFormat: DataFormat,
     ): Any? {
         val data = when {
-            result.hasData() -> result.data.toByteArray()
-            result.hasDataBlobId() -> blobDownload(client.cpClient, result.dataBlobId)
+            result.hasData() -> result.data?.toByteArray()
+            result.hasDataBlobId() -> blobDownload(client.cpClient, result.dataBlobId ?: "")
             else -> null
         }
 
@@ -172,7 +174,8 @@ internal class ControlPlaneInvocation(
         while (true) {
             val item = getOutput(pollTimeoutMs)
             if (item != null) {
-                return processResult(item.result, item.dataFormat)
+                val result = item.result ?: throw RemoteError("Missing function result")
+                return processResult(result, item.dataFormat)
             }
 
             if (timeoutMs != null) {
@@ -222,8 +225,8 @@ internal class ControlPlaneInvocation(
         dataFormat: DataFormat,
     ): Any? {
         val data = when {
-            result.hasData() -> result.data.toByteArray()
-            result.hasDataBlobId() -> blobDownload(client.cpClient, result.dataBlobId)
+            result.hasData() -> result.data?.toByteArray()
+            result.hasDataBlobId() -> blobDownload(client.cpClient, result.dataBlobId ?: "")
             else -> null
         }
 

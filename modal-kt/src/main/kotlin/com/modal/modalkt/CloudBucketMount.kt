@@ -1,5 +1,7 @@
 package com.modal.modalkt
 
+import modal.client.*
+
 data class CloudBucketMountCreateParams(
     val secret: Secret? = null,
     val readOnly: Boolean = false,
@@ -82,13 +84,13 @@ data class CloudBucketMount(
             .setRequesterPays(requesterPays)
             .apply {
                 if (this@CloudBucketMount.bucketEndpointUrl != null) {
-                    bucketEndpointUrl = this@CloudBucketMount.bucketEndpointUrl
+                    setBucketEndpointUrl(this@CloudBucketMount.bucketEndpointUrl!!)
                 }
                 if (this@CloudBucketMount.keyPrefix != null) {
-                    keyPrefix = this@CloudBucketMount.keyPrefix
+                    setKeyPrefix(this@CloudBucketMount.keyPrefix!!)
                 }
                 if (this@CloudBucketMount.oidcAuthRoleArn != null) {
-                    oidcAuthRoleArn = this@CloudBucketMount.oidcAuthRoleArn
+                    setOidcAuthRoleArn(this@CloudBucketMount.oidcAuthRoleArn!!)
                 }
             }
             .build()

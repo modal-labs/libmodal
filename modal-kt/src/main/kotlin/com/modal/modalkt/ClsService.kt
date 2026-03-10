@@ -1,7 +1,8 @@
 package com.modal.modalkt
 
-import com.google.protobuf.ByteString
 import io.grpc.Status
+import modal.client.*
+import okio.ByteString.Companion.toByteString
 
 data class ClsFromNameParams(
     val environment: String? = null,
@@ -74,7 +75,9 @@ class ClsService(
                     .setEnvironmentName(client.environmentName(params.environment))
                     .build(),
             )
-            return Cls(client, response.functionId, response.handleMetadata, null)
+            val handleMetadata = response.handleMetadata
+                ?: throw InvalidError("Class '$appName/$name' is missing handle metadata")
+            return Cls(client, response.functionId, handleMetadata, null)
         } catch (error: Throwable) {
             if (statusCode(error) == Status.Code.NOT_FOUND) {
                 throw NotFoundError("Class '$appName/$name' not found")
@@ -97,9 +100,11 @@ class Cls internal constructor(
             bindParameters(parameters)
         }
 
-        val methods = serviceFunctionMetadata.methodHandleMetadataMap.mapValues { (name, metadata) ->
-            Function(client, functionId, name, metadata)
-        }
+        val methods = serviceFunctionMetadata.methodHandleMetadataMap
+            .mapNotNull { (name, metadata) ->
+                metadata?.let { name to Function(client, functionId, name, it) }
+            }
+            .toMap()
         return ClsInstance(methods)
     }
 
@@ -175,7 +180,7 @@ class Cls internal constructor(
     }
 
     private fun schema(): List<ClassParameterSpec> {
-        return serviceFunctionMetadata.classParameterInfo.schemaList
+        return serviceFunctionMetadata.classParameterInfo?.schemaList ?: emptyList()
     }
 
     private suspend fun bindParameters(parameters: Map<String, Any?>): String {
@@ -188,12 +193,12 @@ class Cls internal constructor(
 
         val request = FunctionBindParamsRequest.newBuilder()
             .setFunctionId(serviceFunctionId)
-            .setSerializedParams(ByteString.copyFrom(encodeParameterSet(schema(), parameters)))
+            .setSerializedParams(encodeParameterSet(schema(), parameters).toByteString())
             .setEnvironmentName(client.environmentName())
             .apply {
                 val functionOptions = buildFunctionOptionsProto(options)
                 if (functionOptions != null) {
-                    this.functionOptions = functionOptions
+                    setFunctionOptions(functionOptions)
                 }
             }
             .build()
@@ -253,13 +258,13 @@ private fun buildFunctionOptionsProto(
         if (cpu <= 0.0) {
             throw InvalidError("cpu ($cpu) must be a positive number")
         }
-        resourcesBuilder.milliCpu = (cpu * 1000).toInt()
+        resourcesBuilder.setMilliCpu((cpu * 1000).toInt())
         hasResources = true
         if (cpuLimit != null) {
             if (cpuLimit < cpu) {
                 throw InvalidError("cpu ($cpu) cannot be higher than cpuLimit ($cpuLimit)")
             }
-            resourcesBuilder.milliCpuMax = (cpuLimit * 1000).toInt()
+            resourcesBuilder.setMilliCpuMax((cpuLimit * 1000).toInt())
         }
     }
 
@@ -272,17 +277,17 @@ private fun buildFunctionOptionsProto(
         if (memoryMiB <= 0) {
             throw InvalidError("memoryMiB ($memoryMiB) must be a positive number")
         }
-        resourcesBuilder.memoryMb = memoryMiB
+        resourcesBuilder.setMemoryMb(memoryMiB)
         hasResources = true
         if (memoryLimitMiB != null) {
             if (memoryLimitMiB < memoryMiB) {
                 throw InvalidError("memoryMiB ($memoryMiB) cannot be higher than memoryLimitMiB ($memoryLimitMiB)")
             }
-            resourcesBuilder.memoryMbMax = memoryLimitMiB
+            resourcesBuilder.setMemoryMbMax(memoryLimitMiB)
         }
     }
     if (gpuConfig != GPUConfig.getDefaultInstance()) {
-        resourcesBuilder.gpuConfig = gpuConfig
+        resourcesBuilder.setGpuConfig(gpuConfig)
         hasResources = true
     }
 
@@ -314,39 +319,41 @@ private fun buildFunctionOptionsProto(
         .addAllVolumeMounts(volumeMounts)
         .apply {
             if (hasResources) {
-                resources = resourcesBuilder.build()
+                setResources(resourcesBuilder.build())
             }
             if (retries != null) {
-                retryPolicy = FunctionRetryPolicy.newBuilder()
+                setRetryPolicy(
+                    FunctionRetryPolicy.newBuilder()
                     .setRetries(retries.maxRetries)
                     .setBackoffCoefficient(retries.backoffCoefficient.toFloat())
                     .setInitialDelayMs(retries.initialDelayMs.toInt())
                     .setMaxDelayMs(retries.maxDelayMs.toInt())
-                    .build()
+                    .build(),
+                )
             }
             if (options.maxContainers != null) {
-                concurrencyLimit = options.maxContainers
+                setConcurrencyLimit(options.maxContainers)
             }
             if (options.bufferContainers != null) {
-                bufferContainers = options.bufferContainers
+                setBufferContainers(options.bufferContainers)
             }
             if (scaledownWindowMs != null) {
-                taskIdleTimeoutSecs = (scaledownWindowMs / 1000).toInt()
+                setTaskIdleTimeoutSecs((scaledownWindowMs / 1000).toInt())
             }
             if (timeoutMs != null) {
-                timeoutSecs = (timeoutMs / 1000).toInt()
+                setTimeoutSecs((timeoutMs / 1000).toInt())
             }
             if (options.maxConcurrentInputs != null) {
-                maxConcurrentInputs = options.maxConcurrentInputs
+                setMaxConcurrentInputs(options.maxConcurrentInputs)
             }
             if (options.targetConcurrentInputs != null) {
-                targetConcurrentInputs = options.targetConcurrentInputs
+                setTargetConcurrentInputs(options.targetConcurrentInputs)
             }
             if (options.batchMaxSize != null) {
-                batchMaxSize = options.batchMaxSize
+                setBatchMaxSize(options.batchMaxSize)
             }
             if (options.batchWaitMs != null) {
-                batchLingerMs = options.batchWaitMs
+                setBatchLingerMs(options.batchWaitMs)
             }
         }
         .build()

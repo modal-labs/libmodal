@@ -2,19 +2,19 @@ package com.modal.modalkt
 
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
-import modal.client.Api
+import modal.client.*
 
 class SerializationTest {
     @Test
     fun parameterSerialization() {
         var schema = listOf(
-            Api.ClassParameterSpec.newBuilder()
+            ClassParameterSpec.newBuilder()
                 .setName("foo")
-                .setType(Api.ParameterType.PARAM_TYPE_STRING)
+                .setType(ParameterType.PARAM_TYPE_STRING)
                 .build(),
-            Api.ClassParameterSpec.newBuilder()
+            ClassParameterSpec.newBuilder()
                 .setName("i")
-                .setType(Api.ParameterType.PARAM_TYPE_INT)
+                .setType(ParameterType.PARAM_TYPE_INT)
                 .build(),
         )
         val values = mapOf<String, Any?>("i" to 5, "foo" to "bar")
@@ -31,9 +31,9 @@ class SerializationTest {
         assertContentEquals(expected, serialized)
 
         schema = listOf(
-            Api.ClassParameterSpec.newBuilder()
+            ClassParameterSpec.newBuilder()
                 .setName("x")
-                .setType(Api.ParameterType.PARAM_TYPE_BYTES)
+                .setType(ParameterType.PARAM_TYPE_BYTES)
                 .setHasDefault(true)
                 .setBytesDefault(com.google.protobuf.ByteString.copyFrom(byteArrayOf(0)))
                 .build(),

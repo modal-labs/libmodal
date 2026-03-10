@@ -2,38 +2,38 @@ package com.modal.modalkt
 
 import io.grpc.Status
 import io.grpc.StatusException
-import kotlinx.coroutines.runBlocking
-import modal.client.Api
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlinx.coroutines.runBlocking
+import modal.client.*
 
 class FunctionServiceTest {
     @Test
     fun functionRemoteSuccess() = runBlocking {
         val (client, mock) = createMockModalClients()
         mock.handleUnary("/FunctionMap") {
-            Api.FunctionMapResponse.newBuilder()
+            FunctionMapResponse.newBuilder()
                 .setFunctionCallId("fc-123")
                 .setFunctionCallJwt("jwt")
                 .addPipelinedInputs(
-                    Api.FunctionPutInputsResponseItem.newBuilder()
+                    FunctionPutInputsResponseItem.newBuilder()
                         .setInputJwt("input-jwt")
                         .build(),
                 )
                 .build()
         }
         mock.handleUnary("/FunctionGetOutputs") {
-            Api.FunctionGetOutputsResponse.newBuilder()
+            FunctionGetOutputsResponse.newBuilder()
                 .addOutputs(
-                    Api.FunctionGetOutputsItem.newBuilder()
+                    FunctionGetOutputsItem.newBuilder()
                         .setResult(
-                            Api.GenericResult.newBuilder()
-                                .setStatus(Api.GenericResult.GenericStatus.GENERIC_STATUS_SUCCESS)
+                            GenericResult.newBuilder()
+                                .setStatus(GenericResult.GenericStatus.GENERIC_STATUS_SUCCESS)
                                 .setData(com.google.protobuf.ByteString.copyFrom(cborEncode("output: hello")))
                                 .build(),
                         )
-                        .setDataFormat(Api.DataFormat.DATA_FORMAT_CBOR)
+                        .setDataFormat(DataFormat.DATA_FORMAT_CBOR)
                         .build(),
                 )
                 .build()
@@ -42,8 +42,8 @@ class FunctionServiceTest {
         val function = Function(
             client = client,
             functionId = "fid-123",
-            handleMetadata = Api.FunctionHandleMetadata.newBuilder()
-                .addSupportedInputFormats(Api.DataFormat.DATA_FORMAT_CBOR)
+            handleMetadata = FunctionHandleMetadata.newBuilder()
+                .addSupportedInputFormats(DataFormat.DATA_FORMAT_CBOR)
                 .build(),
         )
         assertEquals("output: hello", function.remote(kwargs = mapOf("s" to "hello")))
@@ -53,9 +53,9 @@ class FunctionServiceTest {
     fun functionGetCurrentStats() = runBlocking {
         val (client, mock) = createMockModalClients()
         mock.handleUnary("/FunctionGetCurrentStats") { request ->
-            request as Api.FunctionGetCurrentStatsRequest
+            request as FunctionGetCurrentStatsRequest
             assertEquals("fid-stats", request.functionId)
-            Api.FunctionStats.newBuilder()
+            ProtoFunctionStats.newBuilder()
                 .setBacklog(3)
                 .setNumTotalTasks(7)
                 .build()
@@ -71,13 +71,14 @@ class FunctionServiceTest {
         val (client, mock) = createMockModalClients()
 
         mock.handleUnary("/FunctionUpdateSchedulingParams") { request ->
-            request as Api.FunctionUpdateSchedulingParamsRequest
+            request as FunctionUpdateSchedulingParamsRequest
+            val settings = requireNotNull(request.settings)
             assertEquals("fid-auto", request.functionId)
-            assertEquals(1, request.settings.minContainers)
-            assertEquals(10, request.settings.maxContainers)
-            assertEquals(2, request.settings.bufferContainers)
-            assertEquals(300, request.settings.scaledownWindow)
-            com.google.protobuf.Empty.getDefaultInstance()
+            assertEquals(1, settings.minContainers)
+            assertEquals(10, settings.maxContainers)
+            assertEquals(2, settings.bufferContainers)
+            assertEquals(300, settings.scaledownWindow)
+            Unit
         }
 
         val function = Function(client, "fid-auto")
@@ -95,13 +96,13 @@ class FunctionServiceTest {
     fun functionGetWebUrl() = runBlocking {
         val (client, mock) = createMockModalClients()
         mock.handleUnary("/FunctionGet") { request ->
-            request as Api.FunctionGetRequest
+            request as FunctionGetRequest
             assertEquals("libmodal-test-support", request.appName)
             assertEquals("web_endpoint", request.objectTag)
-            Api.FunctionGetResponse.newBuilder()
+            FunctionGetResponse.newBuilder()
                 .setFunctionId("fid-web")
                 .setHandleMetadata(
-                    Api.FunctionHandleMetadata.newBuilder()
+                    FunctionHandleMetadata.newBuilder()
                         .setWebUrl("https://endpoint.internal")
                         .build(),
                 )
@@ -126,7 +127,7 @@ class FunctionServiceTest {
         val function = Function(
             client = client,
             functionId = "fid-123",
-            handleMetadata = Api.FunctionHandleMetadata.getDefaultInstance(),
+            handleMetadata = FunctionHandleMetadata.getDefaultInstance(),
         )
         assertFailsWith<InvalidError> {
             function.remote(kwargs = mapOf("s" to "hello"))
@@ -145,21 +146,21 @@ class FunctionServiceTest {
             ),
         )
         inputPlane.handleUnary("/AttemptStart") {
-            Api.AttemptStartResponse.newBuilder()
+            AttemptStartResponse.newBuilder()
                 .setAttemptToken("attempt-1")
                 .build()
         }
         inputPlane.handleUnary("/AttemptAwait") {
-            Api.AttemptAwaitResponse.newBuilder()
+            AttemptAwaitResponse.newBuilder()
                 .setOutput(
-                    Api.FunctionGetOutputsItem.newBuilder()
+                    FunctionGetOutputsItem.newBuilder()
                         .setResult(
-                            Api.GenericResult.newBuilder()
-                                .setStatus(Api.GenericResult.GenericStatus.GENERIC_STATUS_SUCCESS)
+                            GenericResult.newBuilder()
+                                .setStatus(GenericResult.GenericStatus.GENERIC_STATUS_SUCCESS)
                                 .setData(com.google.protobuf.ByteString.copyFrom(cborEncode("output: hello")))
                                 .build(),
                         )
-                        .setDataFormat(Api.DataFormat.DATA_FORMAT_CBOR)
+                        .setDataFormat(DataFormat.DATA_FORMAT_CBOR)
                         .build(),
                 )
                 .build()
@@ -168,9 +169,9 @@ class FunctionServiceTest {
         val function = Function(
             client = modal,
             functionId = "fid-input",
-            handleMetadata = Api.FunctionHandleMetadata.newBuilder()
+            handleMetadata = FunctionHandleMetadata.newBuilder()
                 .setInputPlaneUrl("https://input-plane.example")
-                .addSupportedInputFormats(Api.DataFormat.DATA_FORMAT_CBOR)
+                .addSupportedInputFormats(DataFormat.DATA_FORMAT_CBOR)
                 .build(),
         )
         assertEquals("output: hello", function.remote(listOf("hello")))
@@ -182,7 +183,7 @@ class FunctionServiceTest {
             ModalClient(ModalClientParams(controlPlaneClient = MockControlPlaneClient(), authTokenProvider = MockControlPlaneClient())),
             "fid",
             null,
-            Api.FunctionHandleMetadata.newBuilder()
+            FunctionHandleMetadata.newBuilder()
                 .setWebUrl("https://endpoint.internal")
                 .build(),
         )

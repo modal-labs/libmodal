@@ -1,14 +1,14 @@
 package com.modal.modalkt
 
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.runBlocking
-import modal.client.Api
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.runBlocking
+import modal.client.*
 
 class AuthTokenManagerTest {
     @Test
@@ -83,9 +83,9 @@ class AuthTokenManagerTest {
     private class TestAuthTokenProvider(var token: String) : AuthTokenProvider {
         var calls: Int = 0
 
-        override suspend fun authTokenGet(request: Api.AuthTokenGetRequest): Api.AuthTokenGetResponse {
+        override suspend fun authTokenGet(request: AuthTokenGetRequest): AuthTokenGetResponse {
             calls += 1
-            return Api.AuthTokenGetResponse.newBuilder()
+            return AuthTokenGetResponse.newBuilder()
                 .setToken(token)
                 .build()
         }

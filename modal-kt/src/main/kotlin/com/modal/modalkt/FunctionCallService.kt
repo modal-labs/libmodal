@@ -1,5 +1,7 @@
 package com.modal.modalkt
 
+import modal.client.*
+
 data class FunctionCallGetParams(
     val timeoutMs: Long? = null,
 )
@@ -35,7 +37,7 @@ class FunctionCall(
                 .setFunctionCallId(functionCallId)
                 .apply {
                     if (params.terminateContainers != null) {
-                        terminateContainers = params.terminateContainers
+                        setTerminateContainers(params.terminateContainers)
                     }
                 }
                 .build(),

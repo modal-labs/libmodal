@@ -1,6 +1,8 @@
 package com.modal.modalkt
 
 import io.grpc.Status
+import modal.client.*
+import okio.ByteString.Companion.toByteString
 
 data class FunctionFromNameParams(
     val environment: String? = null,
@@ -68,7 +70,7 @@ class Function(
                 .setFunctionId(functionId)
                 .build(),
         )
-        return FunctionStats(response.getBacklog().toInt(), response.getNumTotalTasks().toInt())
+        return FunctionStats(response.backlog.toInt(), response.numTotalTasks.toInt())
     }
 
     suspend fun updateAutoscaler(params: FunctionUpdateAutoscalerParams) {
@@ -85,16 +87,16 @@ class Function(
                     AutoscalerSettings.newBuilder()
                         .apply {
                             if (params.minContainers != null) {
-                                minContainers = params.minContainers
+                                setMinContainers(params.minContainers)
                             }
                             if (params.maxContainers != null) {
-                                maxContainers = params.maxContainers
+                                setMaxContainers(params.maxContainers)
                             }
                             if (params.bufferContainers != null) {
-                                bufferContainers = params.bufferContainers
+                                setBufferContainers(params.bufferContainers)
                             }
                             if (scaledownWindowMs != null) {
-                                scaledownWindow = (scaledownWindowMs / 1000).toInt()
+                                setScaledownWindow((scaledownWindowMs / 1000).toInt())
                             }
                         }
                         .build(),
@@ -120,10 +122,11 @@ class Function(
             )
         }
         val input = createInput(args, kwargs)
-        val invocation: Invocation = if (!handleMetadata?.inputPlaneUrl.isNullOrEmpty()) {
+        val inputPlaneUrl = handleMetadata?.inputPlaneUrl
+        val invocation: Invocation = if (!inputPlaneUrl.isNullOrEmpty()) {
             InputPlaneInvocation.create(
                 client,
-                handleMetadata!!.inputPlaneUrl,
+                inputPlaneUrl,
                 functionId,
                 input,
             )
@@ -189,12 +192,12 @@ class Function(
             .setDataFormat(DataFormat.DATA_FORMAT_CBOR)
             .apply {
                 if (blobId == null) {
-                    this.args = com.google.protobuf.ByteString.copyFrom(payload)
+                    setArgs(payload.toByteString())
                 } else {
-                    this.argsBlobId = blobId
+                    setArgsBlobId(blobId!!)
                 }
                 if (methodName.isNotEmpty()) {
-                    this.methodName = methodName
+                    setMethodName(methodName)
                 }
             }
         return builder.build()

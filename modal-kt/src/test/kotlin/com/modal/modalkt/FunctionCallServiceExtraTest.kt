@@ -1,9 +1,9 @@
 package com.modal.modalkt
 
-import kotlinx.coroutines.runBlocking
-import modal.client.Api
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlinx.coroutines.runBlocking
+import modal.client.*
 
 class FunctionCallServiceExtraTest {
     @Test
@@ -18,9 +18,9 @@ class FunctionCallServiceExtraTest {
         val (client, mock) = createMockModalClients()
         var seenTerminate: Boolean? = null
         mock.handleUnary("/FunctionCallCancel") { request ->
-            request as Api.FunctionCallCancelRequest
+            request as FunctionCallCancelRequest
             seenTerminate = request.terminateContainers
-            com.google.protobuf.Empty.getDefaultInstance()
+            Unit
         }
 
         val functionCall = FunctionCall(client, "fc-123")

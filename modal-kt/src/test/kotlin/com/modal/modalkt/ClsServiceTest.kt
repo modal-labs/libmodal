@@ -1,22 +1,22 @@
 package com.modal.modalkt
 
-import kotlinx.coroutines.runBlocking
-import modal.client.Api
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
+import kotlinx.coroutines.runBlocking
+import modal.client.*
 
 class ClsServiceTest {
-    private fun mockFunctionProto(): Api.FunctionGetResponse {
-        return Api.FunctionGetResponse.newBuilder()
+    private fun mockFunctionProto(): FunctionGetResponse {
+        return FunctionGetResponse.newBuilder()
             .setFunctionId("fid")
             .setHandleMetadata(
-                Api.FunctionHandleMetadata.newBuilder()
-                    .putMethodHandleMetadata("echo_string", Api.FunctionHandleMetadata.getDefaultInstance())
+                FunctionHandleMetadata.newBuilder()
+                    .putMethodHandleMetadata("echo_string", FunctionHandleMetadata.getDefaultInstance())
                     .setClassParameterInfo(
-                        Api.ClassParameterInfo.newBuilder()
+                        ClassParameterInfo.newBuilder()
                             .addAllSchema(emptyList())
                             .build(),
                     )
@@ -30,18 +30,19 @@ class ClsServiceTest {
         val (client, mock) = createMockModalClients()
         mock.handleUnary("/FunctionGet") { mockFunctionProto() }
         mock.handleUnary("/FunctionBindParams") { request ->
-            request as Api.FunctionBindParamsRequest
+            request as FunctionBindParamsRequest
             assertEquals("fid", request.functionId)
-            val options = request.functionOptions
+            val options = requireNotNull(request.functionOptions)
+            val resources = requireNotNull(options.resources)
             assertEquals(60, options.timeoutSecs)
-            assertEquals(250, options.resources.milliCpu)
-            assertEquals(256, options.resources.memoryMb)
+            assertEquals(250, resources.milliCpu)
+            assertEquals(256, resources.memoryMb)
             assertTrue(options.hasResources())
             assertEquals(listOf("sec-1"), options.secretIdsList)
             assertEquals(true, options.replaceSecretIds)
             assertEquals(true, options.replaceVolumeMounts)
             assertEquals("/mnt/test", options.volumeMountsList.first().mountPath)
-            Api.FunctionBindParamsResponse.newBuilder()
+            FunctionBindParamsResponse.newBuilder()
                 .setBoundFunctionId("fid-1")
                 .build()
         }
@@ -65,13 +66,13 @@ class ClsServiceTest {
         val (client, mock) = createMockModalClients()
         mock.handleUnary("/FunctionGet") { mockFunctionProto() }
         mock.handleUnary("/FunctionBindParams") { request ->
-            request as Api.FunctionBindParamsRequest
-            val options = request.functionOptions
+            request as FunctionBindParamsRequest
+            val options = requireNotNull(request.functionOptions)
             assertEquals(60, options.timeoutSecs)
             assertEquals(10, options.maxConcurrentInputs)
             assertEquals(11, options.batchMaxSize)
             assertEquals(12, options.batchLingerMs)
-            Api.FunctionBindParamsResponse.newBuilder()
+            FunctionBindParamsResponse.newBuilder()
                 .setBoundFunctionId("fid-1")
                 .build()
         }
@@ -90,13 +91,13 @@ class ClsServiceTest {
         val (client, mock) = createMockModalClients()
         mock.handleUnary("/FunctionGet") { mockFunctionProto() }
         mock.handleUnary("/FunctionBindParams") { request ->
-            request as Api.FunctionBindParamsRequest
-            val policy = request.functionOptions.retryPolicy
+            request as FunctionBindParamsRequest
+            val policy = requireNotNull(requireNotNull(request.functionOptions).retryPolicy)
             assertEquals(3, policy.retries)
             assertEquals(1.0f, policy.backoffCoefficient)
             assertEquals(1000, policy.initialDelayMs)
             assertEquals(60_000, policy.maxDelayMs)
-            Api.FunctionBindParamsResponse.newBuilder().setBoundFunctionId("fid-1").build()
+            FunctionBindParamsResponse.newBuilder().setBoundFunctionId("fid-1").build()
         }
         client.cls.fromName("libmodal-test-support", "EchoCls")
             .withOptions(ClsWithOptionsParams(retries = 3))

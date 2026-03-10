@@ -1,13 +1,13 @@
 package com.modal.modalkt
 
 import com.sun.net.httpserver.HttpServer
-import kotlinx.coroutines.runBlocking
-import modal.client.Api
 import java.net.InetSocketAddress
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
+import kotlinx.coroutines.runBlocking
+import modal.client.*
 
 class BlobTest {
     @Test
@@ -24,8 +24,8 @@ class BlobTest {
             val (client, mock) = createMockModalClients()
             val uploadUrl = "http://127.0.0.1:${server.address.port}/upload"
             mock.handleUnary("/BlobCreate") { request ->
-                request as Api.BlobCreateRequest
-                Api.BlobCreateResponse.newBuilder()
+                request as BlobCreateRequest
+                BlobCreateResponse.newBuilder()
                     .setBlobId("bl-123")
                     .setUploadUrl(uploadUrl)
                     .build()
@@ -53,7 +53,7 @@ class BlobTest {
             val (client, mock) = createMockModalClients()
             val downloadUrl = "http://127.0.0.1:${server.address.port}/download"
             mock.handleUnary("/BlobGet") {
-                Api.BlobGetResponse.newBuilder()
+                BlobGetResponse.newBuilder()
                     .setDownloadUrl(downloadUrl)
                     .build()
             }

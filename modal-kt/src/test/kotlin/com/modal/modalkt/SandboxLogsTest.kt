@@ -2,14 +2,14 @@ package com.modal.modalkt
 
 import io.grpc.Status
 import io.grpc.StatusException
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.runBlocking
-import modal.client.Api
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.runBlocking
+import modal.client.*
 
 class SandboxLogsTest {
     @Test
@@ -65,7 +65,7 @@ class SandboxLogsTest {
         val (client, mock) = createMockModalClients()
         val seen = mutableListOf<String>()
         mock.handleStreaming("/SandboxGetLogs") { request ->
-            request as Api.SandboxGetLogsRequest
+            request as SandboxGetLogsRequest
             seen += request.lastEntryId
             flow {
                 emit(batch("1-9", listOf("part"), false))
@@ -73,7 +73,7 @@ class SandboxLogsTest {
             }
         }
         mock.handleStreaming("/SandboxGetLogs") { request ->
-            request as Api.SandboxGetLogsRequest
+            request as SandboxGetLogsRequest
             seen += request.lastEntryId
             flow {
                 emit(batch("1-10", emptyList(), true))
@@ -129,13 +129,13 @@ class SandboxLogsTest {
         assertEquals("", sandbox.stdout.readText())
     }
 
-    private fun batch(entryId: String, items: List<String>, eof: Boolean): Api.TaskLogsBatch {
-        return Api.TaskLogsBatch.newBuilder()
+    private fun batch(entryId: String, items: List<String>, eof: Boolean): TaskLogsBatch {
+        return TaskLogsBatch.newBuilder()
             .setEntryId(entryId)
             .setEof(eof)
             .addAllItems(
                 items.map { text ->
-                    Api.TaskLogs.newBuilder().setData(text).build()
+                    TaskLogs.newBuilder().setData(text).build()
                 },
             )
             .build()

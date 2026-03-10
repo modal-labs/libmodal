@@ -1,8 +1,8 @@
 package com.modal.modalkt
 
-import com.google.protobuf.ByteString
 import io.grpc.Status
 import kotlinx.coroutines.flow.collect
+import modal.client.*
 
 data class ImageDeleteParams(
     val unused: Unit? = null,
@@ -146,7 +146,7 @@ class Image internal constructor(
                 baseImages = listOf(
                     BaseImage.newBuilder()
                         .setDockerTag("base")
-                        .setImageId(baseImageId)
+                        .setImageId(baseImageId ?: "")
                         .build(),
                 )
             }
@@ -159,12 +159,12 @@ class Image internal constructor(
                             .addAllDockerfileCommands(dockerfileCommands)
                             .apply {
                                 if (this@Image.imageRegistryConfig != null) {
-                                    imageRegistryConfig = this@Image.imageRegistryConfig
+                                    setImageRegistryConfig(this@Image.imageRegistryConfig)
                                 }
                                 addAllSecretIds(mergedSecrets.map { it.secretId })
                                 addAllBaseImages(baseImages)
                                 if (layer.gpuConfig != null) {
-                                    gpuConfig = layer.gpuConfig
+                                    setGpuConfig(layer.gpuConfig)
                                 }
                             }
                             .build(),
@@ -175,7 +175,7 @@ class Image internal constructor(
             )
 
             val result = if (response.hasResult()) {
-                response.result
+                response.result ?: waitForImageBuild(response.imageId)
             } else {
                 waitForImageBuild(response.imageId)
             }
@@ -224,8 +224,9 @@ class Image internal constructor(
             if (item.entryId.isNotEmpty()) {
                 lastEntryId = item.entryId
             }
-            if (item.hasResult() && item.result.status != GenericStatus.GENERIC_STATUS_UNSPECIFIED) {
-                result = item.result
+            val itemResult = item.result
+            if (item.hasResult() && itemResult != null && itemResult.status != GenericStatus.GENERIC_STATUS_UNSPECIFIED) {
+                result = itemResult
             }
         }
         return result ?: throw InvalidError("Image build for $imageId failed with unknown status: missing result")

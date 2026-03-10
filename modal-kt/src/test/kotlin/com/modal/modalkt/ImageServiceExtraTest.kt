@@ -2,20 +2,20 @@ package com.modal.modalkt
 
 import io.grpc.Status
 import io.grpc.StatusException
-import kotlinx.coroutines.runBlocking
-import modal.client.Api
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlinx.coroutines.runBlocking
+import modal.client.*
 
 class ImageServiceExtraTest {
     @Test
     fun imageFromIdSuccess() = runBlocking {
         val (client, mock) = createMockModalClients()
         mock.handleUnary("/ImageFromId") { request ->
-            request as Api.ImageFromIdRequest
+            request as ImageFromIdRequest
             assertEquals("im-123", request.imageId)
-            Api.ImageFromIdResponse.newBuilder()
+            ImageFromIdResponse.newBuilder()
                 .setImageId("im-123")
                 .build()
         }

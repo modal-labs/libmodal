@@ -2,17 +2,17 @@ package com.modal.modalkt
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
-import modal.client.Api
-import modal.task_command_router.TaskCommandRouterOuterClass
+import modal.client.*
+import modal.task_command_router.*
 
 class SandboxBuildersTest {
     @Test
     fun parseGpuConfigValues() {
-        assertEquals(Api.GPUConfig.getDefaultInstance(), parseGpuConfig(null))
+        assertEquals(GPUConfig.getDefaultInstance(), parseGpuConfig(null))
         assertEquals("T4", parseGpuConfig("T4").gpuType)
         assertEquals(1, parseGpuConfig("A10G").count)
         assertEquals(3, parseGpuConfig("A100-80GB:3").count)
@@ -27,7 +27,7 @@ class SandboxBuildersTest {
     @Test
     fun buildSandboxCreateRequestWithoutPty() {
         val request = buildSandboxCreateRequestProto("app-123", "img-456")
-        val definition = request.definition
+        val definition = requireNotNull(request.definition)
 
         assertFalse(definition.hasPtyInfo())
     }
@@ -40,13 +40,14 @@ class SandboxBuildersTest {
             SandboxCreateParams(pty = true),
         )
 
-        val ptyInfo = request.definition.ptyInfo
+        val definition = requireNotNull(request.definition)
+        val ptyInfo = requireNotNull(definition.ptyInfo)
         assertTrue(ptyInfo.enabled)
         assertEquals(24, ptyInfo.winszRows)
         assertEquals(80, ptyInfo.winszCols)
         assertEquals("xterm-256color", ptyInfo.envTerm)
         assertEquals("truecolor", ptyInfo.envColorterm)
-        assertEquals(Api.PTYInfo.PTYType.PTY_TYPE_SHELL, ptyInfo.ptyType)
+        assertEquals(PTYInfo.PTYType.PTY_TYPE_SHELL, ptyInfo.ptyType)
     }
 
     @Test
@@ -62,7 +63,8 @@ class SandboxBuildersTest {
             ),
         )
 
-        val resources = request.definition.resources
+        val definition = requireNotNull(request.definition)
+        val resources = requireNotNull(definition.resources)
         assertEquals(2000, resources.milliCpu)
         assertEquals(4500, resources.milliCpuMax)
         assertEquals(1024, resources.memoryMb)
@@ -104,16 +106,19 @@ class SandboxBuildersTest {
     @Test
     fun buildSandboxCreateRequestDefaults() {
         val request = buildSandboxCreateRequestProto("app-123", "img-456")
-        val definition = request.definition
+        val definition = requireNotNull(request.definition)
+        val networkAccess = requireNotNull(definition.networkAccess)
+        val resources = requireNotNull(definition.resources)
+        val openPorts = requireNotNull(definition.openPorts)
 
         assertEquals(300, definition.timeoutSecs)
         assertTrue(definition.entrypointArgsList.isEmpty())
-        assertEquals(Api.NetworkAccess.NetworkAccessType.OPEN, definition.networkAccess.networkAccessType)
-        assertTrue(definition.networkAccess.allowedCidrsList.isEmpty())
+        assertEquals(NetworkAccess.NetworkAccessType.OPEN, networkAccess.networkAccessType)
+        assertTrue(networkAccess.allowedCidrsList.isEmpty())
         assertFalse(definition.verbose)
         assertEquals("", definition.cloudProviderStr)
-        assertEquals(0, definition.resources.milliCpu)
-        assertEquals(0, definition.resources.memoryMb)
+        assertEquals(0, resources.milliCpu)
+        assertEquals(0, resources.memoryMb)
         assertFalse(definition.hasIdleTimeoutSecs())
         assertFalse(definition.hasWorkdir())
         assertFalse(definition.hasSchedulerPlacement())
@@ -121,7 +126,7 @@ class SandboxBuildersTest {
         assertTrue(definition.volumeMountsList.isEmpty())
         assertTrue(definition.cloudBucketMountsList.isEmpty())
         assertTrue(definition.secretIdsList.isEmpty())
-        assertTrue(definition.openPorts.portsList.isEmpty())
+        assertTrue(openPorts.portsList.isEmpty())
         assertFalse(definition.hasName())
     }
 
@@ -168,11 +173,11 @@ class SandboxBuildersTest {
         assertEquals("exec-456", request.execId)
         assertEquals(listOf("bash"), request.commandArgsList)
         assertEquals(
-            TaskCommandRouterOuterClass.TaskExecStdoutConfig.TASK_EXEC_STDOUT_CONFIG_PIPE,
+            TaskExecStdoutConfig.TASK_EXEC_STDOUT_CONFIG_PIPE,
             request.stdoutConfig,
         )
         assertEquals(
-            TaskCommandRouterOuterClass.TaskExecStderrConfig.TASK_EXEC_STDERR_CONFIG_PIPE,
+            TaskExecStderrConfig.TASK_EXEC_STDERR_CONFIG_PIPE,
             request.stderrConfig,
         )
         assertFalse(request.hasTimeoutSecs())
@@ -191,11 +196,11 @@ class SandboxBuildersTest {
             SandboxExecParams(stdout = StdioBehavior.IGNORE, stderr = StdioBehavior.IGNORE),
         )
         assertEquals(
-            TaskCommandRouterOuterClass.TaskExecStdoutConfig.TASK_EXEC_STDOUT_CONFIG_DEVNULL,
+            TaskExecStdoutConfig.TASK_EXEC_STDOUT_CONFIG_DEVNULL,
             ignored.stdoutConfig,
         )
         assertEquals(
-            TaskCommandRouterOuterClass.TaskExecStderrConfig.TASK_EXEC_STDERR_CONFIG_DEVNULL,
+            TaskExecStderrConfig.TASK_EXEC_STDERR_CONFIG_DEVNULL,
             ignored.stderrConfig,
         )
 

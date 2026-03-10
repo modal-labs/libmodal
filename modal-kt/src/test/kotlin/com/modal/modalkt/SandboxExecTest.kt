@@ -1,24 +1,24 @@
 package com.modal.modalkt
 
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.runBlocking
-import modal.client.Api
-import modal.task_command_router.TaskCommandRouterOuterClass
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.runBlocking
+import modal.client.*
+import modal.task_command_router.*
 
 class SandboxExecTest {
     @Test
     fun sandboxGetTaskIdPolling() = runBlocking {
         val (client, control, router) = createMockModalClientsWithTaskRouter()
         control.handleUnary("/SandboxGetTaskId") {
-            Api.SandboxGetTaskIdResponse.getDefaultInstance()
+            SandboxGetTaskIdResponse.getDefaultInstance()
         }
         control.handleUnary("/SandboxGetTaskId") {
-            Api.SandboxGetTaskIdResponse.newBuilder().setTaskId("ta-123").build()
+            SandboxGetTaskIdResponse.newBuilder().setTaskId("ta-123").build()
         }
-        router.handleUnary("/TaskExecStart") { TaskCommandRouterOuterClass.TaskExecStartResponse.getDefaultInstance() }
+        router.handleUnary("/TaskExecStart") { TaskExecStartResponse.getDefaultInstance() }
 
         val sandbox = SandboxHandle(client, "sb-123")
         val process = sandbox.exec(listOf("echo", "hello"))
@@ -29,10 +29,10 @@ class SandboxExecTest {
     fun sandboxGetTaskIdTerminated() = runBlocking {
         val (client, control, _) = createMockModalClientsWithTaskRouter()
         control.handleUnary("/SandboxGetTaskId") {
-            Api.SandboxGetTaskIdResponse.newBuilder()
+            SandboxGetTaskIdResponse.newBuilder()
                 .setTaskResult(
-                    Api.GenericResult.newBuilder()
-                        .setStatus(Api.GenericResult.GenericStatus.GENERIC_STATUS_TERMINATED)
+                    GenericResult.newBuilder()
+                        .setStatus(GenericResult.GenericStatus.GENERIC_STATUS_TERMINATED)
                         .setException("boom")
                         .build(),
                 )
@@ -49,13 +49,13 @@ class SandboxExecTest {
     fun sandboxExecStdoutAndWait() = runBlocking {
         val (client, control, router) = createMockModalClientsWithTaskRouter()
         control.handleUnary("/SandboxGetTaskId") {
-            Api.SandboxGetTaskIdResponse.newBuilder().setTaskId("ta-123").build()
+            SandboxGetTaskIdResponse.newBuilder().setTaskId("ta-123").build()
         }
-        router.handleUnary("/TaskExecStart") { TaskCommandRouterOuterClass.TaskExecStartResponse.getDefaultInstance() }
+        router.handleUnary("/TaskExecStart") { TaskExecStartResponse.getDefaultInstance() }
         router.handleStreaming("/TaskExecStdioRead") {
             flow {
                 emit(
-                    TaskCommandRouterOuterClass.TaskExecStdioReadResponse.newBuilder()
+                    TaskExecStdioReadResponse.newBuilder()
                         .setData(com.google.protobuf.ByteString.copyFrom("hello\n".toByteArray()))
                         .build(),
                 )
@@ -63,7 +63,7 @@ class SandboxExecTest {
         }
         router.handleStreaming("/TaskExecStdioRead") { flow { } }
         router.handleUnary("/TaskExecWait") {
-            TaskCommandRouterOuterClass.TaskExecWaitResponse.newBuilder()
+            TaskExecWaitResponse.newBuilder()
                 .setCode(0)
                 .build()
         }
@@ -90,14 +90,14 @@ class SandboxExecTest {
         val (client, control, _) = createMockModalClientsWithTaskRouter()
         val seen = mutableListOf<Int>()
         control.handleUnary("/SandboxStdinWrite") { request ->
-            request as Api.SandboxStdinWriteRequest
+            request as SandboxStdinWriteRequest
             seen += request.index
-            com.google.protobuf.Empty.getDefaultInstance()
+            Unit
         }
         control.handleUnary("/SandboxStdinWrite") { request ->
-            request as Api.SandboxStdinWriteRequest
+            request as SandboxStdinWriteRequest
             seen += request.index
-            com.google.protobuf.Empty.getDefaultInstance()
+            Unit
         }
 
         val sandbox = SandboxHandle(client, "sb-123")
@@ -110,20 +110,20 @@ class SandboxExecTest {
     fun sandboxExecMergesEnvIntoSecretsAndSupportsIgnore() = runBlocking {
         val (client, control, router) = createMockModalClientsWithTaskRouter()
         control.handleUnary("/SandboxGetTaskId") {
-            Api.SandboxGetTaskIdResponse.newBuilder().setTaskId("ta-123").build()
+            SandboxGetTaskIdResponse.newBuilder().setTaskId("ta-123").build()
         }
         control.handleUnary("/SecretGetOrCreate") {
-            Api.SecretGetOrCreateResponse.newBuilder()
+            SecretGetOrCreateResponse.newBuilder()
                 .setSecretId("st-env")
                 .build()
         }
         router.handleUnary("/TaskExecStart") { request ->
-            request as TaskCommandRouterOuterClass.TaskExecStartRequest
+            request as TaskExecStartRequest
             assertEquals(listOf("st-env"), request.secretIdsList)
-            TaskCommandRouterOuterClass.TaskExecStartResponse.getDefaultInstance()
+            TaskExecStartResponse.getDefaultInstance()
         }
         router.handleUnary("/TaskExecWait") {
-            TaskCommandRouterOuterClass.TaskExecWaitResponse.newBuilder()
+            TaskExecWaitResponse.newBuilder()
                 .setCode(0)
                 .build()
         }

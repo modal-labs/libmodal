@@ -1,9 +1,9 @@
 package com.modal.modalkt
 
-import modal.client.Api
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import modal.client.*
 
 class CloudBucketMountTest {
     private val client = ModalClient()
@@ -16,7 +16,7 @@ class CloudBucketMountTest {
         assertEquals(false, mount.readOnly)
         assertEquals(false, mount.requesterPays)
         assertEquals(null, mount.secret)
-        assertEquals(Api.CloudBucketMount.BucketType.S3, mount.toProto("/").bucketType)
+        assertEquals(CloudBucketMountBucketType.S3, mount.toProto("/").bucketType)
     }
 
     @Test
@@ -36,27 +36,27 @@ class CloudBucketMountTest {
         )
 
         assertEquals(secret, mount.secret)
-        assertEquals(Api.CloudBucketMount.BucketType.R2, mount.toProto("/").bucketType)
+        assertEquals(CloudBucketMountBucketType.R2, mount.toProto("/").bucketType)
     }
 
     @Test
     fun detectsBucketTypesFromEndpointUrl() {
         assertEquals(
-            Api.CloudBucketMount.BucketType.S3,
+            CloudBucketMountBucketType.S3,
             client.cloudBucketMounts.create(
                 "my-bucket",
                 CloudBucketMountCreateParams(bucketEndpointUrl = ""),
             ).toProto("/").bucketType,
         )
         assertEquals(
-            Api.CloudBucketMount.BucketType.R2,
+            CloudBucketMountBucketType.R2,
             client.cloudBucketMounts.create(
                 "my-bucket",
                 CloudBucketMountCreateParams(bucketEndpointUrl = "https://my-bucket.r2.cloudflarestorage.com"),
             ).toProto("/").bucketType,
         )
         assertEquals(
-            Api.CloudBucketMount.BucketType.GCP,
+            CloudBucketMountBucketType.GCP,
             client.cloudBucketMounts.create(
                 "my-bucket",
                 CloudBucketMountCreateParams(bucketEndpointUrl = "https://storage.googleapis.com/my-bucket"),
@@ -98,6 +98,6 @@ class CloudBucketMountTest {
         assertEquals("/mnt/bucket", proto.mountPath)
         assertEquals("", proto.credentialsSecretId)
         assertEquals(false, proto.readOnly)
-        assertEquals(Api.CloudBucketMount.BucketType.S3, proto.bucketType)
+        assertEquals(CloudBucketMountBucketType.S3, proto.bucketType)
     }
 }

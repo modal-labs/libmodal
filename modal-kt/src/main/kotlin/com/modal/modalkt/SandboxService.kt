@@ -3,6 +3,9 @@ package com.modal.modalkt
 import io.grpc.Status
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.flow
+import modal.client.*
+import modal.task_command_router.*
+import okio.ByteString.Companion.toByteString
 
 data class SandboxListParams(
     val appId: String? = null,
@@ -135,7 +138,7 @@ class SandboxHandle(
             client.cpClient.sandboxStdinWrite(
                 SandboxStdinWriteRequest.newBuilder()
                     .setSandboxId(sandboxId)
-                    .setInput(com.google.protobuf.ByteString.copyFrom(bytes))
+                    .setInput(bytes.toByteString())
                     .setIndex(stdinIndex)
                     .build(),
             )
@@ -213,7 +216,7 @@ class SandboxHandle(
                 .build(),
         )
         val descriptor = result.response.fileDescriptor
-        return SandboxFile(client, descriptor, currentTaskId)
+        return SandboxFile(client, descriptor ?: throw InvalidError("Sandbox file descriptor missing"), currentTaskId)
     }
 
     suspend fun terminate(params: SandboxTerminateParams = SandboxTerminateParams()): Int? {
@@ -238,7 +241,7 @@ class SandboxHandle(
                     .build(),
             )
             if (response.hasResult()) {
-                return getReturnCode(response.result) ?: 0
+                return getReturnCode(response.result ?: throw InvalidError("Sandbox wait result missing")) ?: 0
             }
         }
     }
@@ -251,7 +254,7 @@ class SandboxHandle(
                 .setTimeout(0f)
                 .build(),
         )
-        return if (response.hasResult()) getReturnCode(response.result) else null
+        return if (response.hasResult()) getReturnCode(response.result ?: throw InvalidError("Sandbox poll result missing")) else null
     }
 
     suspend fun tunnels(timeoutMs: Long = 50_000): Map<Int, Tunnel> {
@@ -262,7 +265,8 @@ class SandboxHandle(
                 .setTimeout(timeoutMs.toFloat() / 1000f)
                 .build(),
         )
-        if (response.result.status == GenericStatus.GENERIC_STATUS_TIMEOUT) {
+        val result = response.result ?: throw InvalidError("Sandbox tunnels result missing")
+        if (result.status == GenericStatus.GENERIC_STATUS_TIMEOUT) {
             throw SandboxTimeoutError()
         }
         return response.tunnelsList.associate { tunnel ->
@@ -283,9 +287,10 @@ class SandboxHandle(
                 .setTimeout(timeoutMs.toFloat() / 1000f)
                 .build(),
         )
-        if (response.result.status != GenericStatus.GENERIC_STATUS_SUCCESS) {
+        val result = response.result ?: throw InvalidError("Sandbox snapshot result missing")
+        if (result.status != GenericStatus.GENERIC_STATUS_SUCCESS) {
             throw InvalidError(
-                "Sandbox snapshot failed: ${response.result.exception.ifEmpty { "Unknown error" }}",
+                "Sandbox snapshot failed: ${result.exception.ifEmpty { "Unknown error" }}",
             )
         }
         if (response.imageId.isEmpty()) {
@@ -304,7 +309,7 @@ class SandboxHandle(
         router.mountDirectory(
             TaskMountDirectoryRequest.newBuilder()
                 .setTaskId(currentTaskId)
-                .setPath(com.google.protobuf.ByteString.copyFrom(path.toByteArray()))
+                .setPath(path.toByteArray().toByteString())
                 .setImageId(image?.imageId ?: "")
                 .build(),
         )
@@ -317,7 +322,7 @@ class SandboxHandle(
         val response = router.snapshotDirectory(
             TaskSnapshotDirectoryRequest.newBuilder()
                 .setTaskId(currentTaskId)
-                .setPath(com.google.protobuf.ByteString.copyFrom(path.toByteArray()))
+                .setPath(path.toByteArray().toByteString())
                 .build(),
         )
         if (response.imageId.isEmpty()) {
@@ -406,16 +411,18 @@ class SandboxHandle(
                     .build(),
             )
             if (response.hasTaskResult()) {
-                if (response.taskResult.status == GenericStatus.GENERIC_STATUS_SUCCESS ||
-                    response.taskResult.exception.isEmpty()
+                val taskResult = response.taskResult ?: throw InvalidError("Sandbox task result missing")
+                if (taskResult.status == GenericStatus.GENERIC_STATUS_SUCCESS ||
+                    taskResult.exception.isEmpty()
                 ) {
                     throw InvalidError("Sandbox $sandboxId has already completed")
                 }
-                throw InvalidError("Sandbox $sandboxId has already completed with result: exception:\"${response.taskResult.exception}\"")
+                throw InvalidError("Sandbox $sandboxId has already completed with result: exception:\"${taskResult.exception}\"")
             }
             if (response.hasTaskId()) {
-                taskId = response.taskId
-                return response.taskId
+                val currentTaskId = response.taskId ?: throw InvalidError("Sandbox task ID missing")
+                taskId = currentTaskId
+                return currentTaskId
             }
             delay(500)
         }
@@ -460,7 +467,7 @@ class ContainerProcess(
                     .setTaskId(taskId)
                     .setExecId(execId)
                     .setOffset(stdinOffset)
-                    .setData(com.google.protobuf.ByteString.copyFrom(bytes))
+                    .setData(bytes.toByteString())
                     .setEof(false)
                     .build(),
             )
@@ -472,7 +479,7 @@ class ContainerProcess(
                     .setTaskId(taskId)
                     .setExecId(execId)
                     .setOffset(stdinOffset)
-                    .setData(com.google.protobuf.ByteString.EMPTY)
+                    .setData(okio.ByteString.EMPTY)
                     .setEof(true)
                     .build(),
             )
@@ -503,8 +510,8 @@ class ContainerProcess(
                 .build(),
         )
         return when {
-            response.hasCode() -> response.code
-            response.hasSignal() -> 128 + response.signal
+            response.hasCode() -> response.code ?: throw InvalidError("Missing exit code")
+            response.hasSignal() -> 128 + (response.signal ?: throw InvalidError("Missing exit signal"))
             else -> throw InvalidError("Unexpected exit status")
         }
     }

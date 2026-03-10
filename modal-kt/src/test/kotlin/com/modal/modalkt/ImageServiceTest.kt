@@ -1,10 +1,11 @@
 package com.modal.modalkt
 
-import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.runBlocking
-import modal.client.Api
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.runBlocking
+import modal.client.*
 
 class ImageServiceTest {
     @Test
@@ -42,43 +43,47 @@ class ImageServiceTest {
         val (client, mock) = createMockModalClients()
 
         mock.handleUnary("/ImageGetOrCreate") { request ->
-            request as Api.ImageGetOrCreateRequest
+            request as ImageGetOrCreateRequest
             assertEquals("ap-test", request.appId)
-            assertEquals(listOf("FROM alpine:3.21"), request.image.dockerfileCommandsList)
-            Api.ImageGetOrCreateResponse.newBuilder()
+            val image = requireNotNull(request.image)
+            assertEquals(listOf("FROM alpine:3.21"), image.dockerfileCommandsList)
+            ImageGetOrCreateResponse.newBuilder()
                 .setImageId("im-base")
                 .setResult(successResult())
                 .build()
         }
         mock.handleUnary("/ImageGetOrCreate") { request ->
-            request as Api.ImageGetOrCreateRequest
-            assertEquals(listOf("FROM base", "RUN echo layer1"), request.image.dockerfileCommandsList)
-            assertEquals(0, request.image.secretIdsCount)
-            assertEquals(1, request.image.baseImagesCount)
-            assertEquals("im-base", request.image.baseImagesList.first().imageId)
-            Api.ImageGetOrCreateResponse.newBuilder()
+            request as ImageGetOrCreateRequest
+            val image = requireNotNull(request.image)
+            assertEquals(listOf("FROM base", "RUN echo layer1"), image.dockerfileCommandsList)
+            assertEquals(0, image.secretIdsCount)
+            assertEquals(1, image.baseImagesCount)
+            assertEquals("im-base", image.baseImagesList.first().imageId)
+            ImageGetOrCreateResponse.newBuilder()
                 .setImageId("im-layer1")
                 .setResult(successResult())
                 .build()
         }
         mock.handleUnary("/ImageGetOrCreate") { request ->
-            request as Api.ImageGetOrCreateRequest
-            assertEquals(listOf("FROM base", "RUN echo layer2"), request.image.dockerfileCommandsList)
-            assertEquals(listOf("sc-test"), request.image.secretIdsList)
-            assertEquals("im-layer1", request.image.baseImagesList.first().imageId)
-            assertEquals("A100", request.image.gpuConfig.gpuType)
+            request as ImageGetOrCreateRequest
+            val image = requireNotNull(request.image)
+            assertEquals(listOf("FROM base", "RUN echo layer2"), image.dockerfileCommandsList)
+            assertEquals(listOf("sc-test"), image.secretIdsList)
+            assertEquals("im-layer1", image.baseImagesList.first().imageId)
+            assertEquals("A100", requireNotNull(image.gpuConfig).gpuType)
             assertEquals(true, request.forceBuild)
-            Api.ImageGetOrCreateResponse.newBuilder()
+            ImageGetOrCreateResponse.newBuilder()
                 .setImageId("im-layer2")
                 .setResult(successResult())
                 .build()
         }
         mock.handleUnary("/ImageGetOrCreate") { request ->
-            request as Api.ImageGetOrCreateRequest
-            assertEquals(listOf("FROM base", "RUN echo layer3"), request.image.dockerfileCommandsList)
-            assertEquals("im-layer2", request.image.baseImagesList.first().imageId)
+            request as ImageGetOrCreateRequest
+            val image = requireNotNull(request.image)
+            assertEquals(listOf("FROM base", "RUN echo layer3"), image.dockerfileCommandsList)
+            assertEquals("im-layer2", image.baseImagesList.first().imageId)
             assertEquals(true, request.forceBuild)
-            Api.ImageGetOrCreateResponse.newBuilder()
+            ImageGetOrCreateResponse.newBuilder()
                 .setImageId("im-layer3")
                 .setResult(successResult())
                 .build()
@@ -105,9 +110,9 @@ class ImageServiceTest {
         mock.assertExhausted()
     }
 
-    private fun successResult(): Api.GenericResult {
-        return Api.GenericResult.newBuilder()
-            .setStatus(Api.GenericResult.GenericStatus.GENERIC_STATUS_SUCCESS)
+    private fun successResult(): GenericResult {
+        return GenericResult.newBuilder()
+            .setStatus(GenericResult.GenericStatus.GENERIC_STATUS_SUCCESS)
             .build()
     }
 }

@@ -1,13 +1,14 @@
 package com.modal.modalkt
 
-import io.grpc.ManagedChannel
-import io.grpc.Metadata
+import com.squareup.wire.ProtoAdapter
 import io.grpc.ClientInterceptor
 import io.grpc.ClientInterceptors
+import io.grpc.ManagedChannel
+import io.grpc.Metadata
 import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder
-import modal.client.ModalClientGrpcKt
 import java.net.URI
 import java.util.concurrent.TimeUnit
+import modal.client.*
 
 interface ControlPlaneClient : AuthTokenProvider, TaskRouterAccessProvider {
     suspend fun appGetOrCreate(request: AppGetOrCreateRequest): AppGetOrCreateResponse
@@ -119,253 +120,304 @@ class GrpcControlPlaneClient(
     interceptors: List<ClientInterceptor> = emptyList(),
     private val defaultTimeoutMs: Long? = null,
 ) : ControlPlaneClient {
+    private val serviceName = "modal.client.ModalClient"
     private val channel: ManagedChannel = buildChannel(profile)
-    private val baseStub = ModalClientGrpcKt.ModalClientCoroutineStub(
-        if (interceptors.isEmpty()) channel else ClientInterceptors.intercept(channel, interceptors),
-    )
+    private val rpcChannel = if (interceptors.isEmpty()) {
+        channel
+    } else {
+        ClientInterceptors.intercept(channel, interceptors)
+    }
     private val authTokenManager = AuthTokenManager(this, logger)
 
     override suspend fun appGetOrCreate(request: AppGetOrCreateRequest): AppGetOrCreateResponse {
-        return unaryCall(request) { stub, headers -> stub.appGetOrCreate(request, headers) }
+        return unaryCall("AppGetOrCreate", request, AppGetOrCreateRequest.ADAPTER, AppGetOrCreateResponse.ADAPTER)
     }
 
     override suspend fun secretGetOrCreate(request: SecretGetOrCreateRequest): SecretGetOrCreateResponse {
-        return unaryCall(request) { stub, headers -> stub.secretGetOrCreate(request, headers) }
+        return unaryCall("SecretGetOrCreate", request, SecretGetOrCreateRequest.ADAPTER, SecretGetOrCreateResponse.ADAPTER)
     }
 
     override suspend fun secretDelete(request: SecretDeleteRequest) {
-        unaryCall(request) { stub, headers -> stub.secretDelete(request, headers) }
+        unaryCall("SecretDelete", request, SecretDeleteRequest.ADAPTER, ProtoAdapter.EMPTY)
     }
 
     override suspend fun volumeGetOrCreate(request: VolumeGetOrCreateRequest): VolumeGetOrCreateResponse {
-        return unaryCall(request) { stub, headers -> stub.volumeGetOrCreate(request, headers) }
+        return unaryCall("VolumeGetOrCreate", request, VolumeGetOrCreateRequest.ADAPTER, VolumeGetOrCreateResponse.ADAPTER)
     }
 
     override suspend fun volumeDelete(request: VolumeDeleteRequest) {
-        unaryCall(request) { stub, headers -> stub.volumeDelete(request, headers) }
+        unaryCall("VolumeDelete", request, VolumeDeleteRequest.ADAPTER, ProtoAdapter.EMPTY)
     }
 
     override suspend fun volumeHeartbeat(request: VolumeHeartbeatRequest) {
-        unaryCall(request) { stub, headers -> stub.volumeHeartbeat(request, headers) }
+        unaryCall("VolumeHeartbeat", request, VolumeHeartbeatRequest.ADAPTER, ProtoAdapter.EMPTY)
     }
 
     override suspend fun proxyGet(request: ProxyGetRequest): ProxyGetResponse {
-        return unaryCall(request) { stub, headers -> stub.proxyGet(request, headers) }
+        return unaryCall("ProxyGet", request, ProxyGetRequest.ADAPTER, ProxyGetResponse.ADAPTER)
     }
 
     override suspend fun imageFromId(request: ImageFromIdRequest): ImageFromIdResponse {
-        return unaryCall(request) { stub, headers -> stub.imageFromId(request, headers) }
+        return unaryCall("ImageFromId", request, ImageFromIdRequest.ADAPTER, ImageFromIdResponse.ADAPTER)
     }
 
     override suspend fun imageDelete(request: ImageDeleteRequest) {
-        unaryCall(request) { stub, headers -> stub.imageDelete(request, headers) }
+        unaryCall("ImageDelete", request, ImageDeleteRequest.ADAPTER, ProtoAdapter.EMPTY)
     }
 
     override suspend fun imageGetOrCreate(request: ImageGetOrCreateRequest): ImageGetOrCreateResponse {
-        return unaryCall(request) { stub, headers -> stub.imageGetOrCreate(request, headers) }
+        return unaryCall("ImageGetOrCreate", request, ImageGetOrCreateRequest.ADAPTER, ImageGetOrCreateResponse.ADAPTER)
     }
 
     override suspend fun imageJoinStreaming(
         request: ImageJoinStreamingRequest,
     ): kotlinx.coroutines.flow.Flow<ImageJoinStreamingResponse> {
-        val headers = authHeaders(includeAuthToken = true)
-        return baseStub.imageJoinStreaming(request, headers)
+        return streamingCall(
+            methodName = "ImageJoinStreaming",
+            request = request,
+            requestAdapter = ImageJoinStreamingRequest.ADAPTER,
+            responseAdapter = ImageJoinStreamingResponse.ADAPTER,
+        )
     }
 
     override suspend fun functionGet(request: FunctionGetRequest): FunctionGetResponse {
-        return unaryCall(request) { stub, headers -> stub.functionGet(request, headers) }
+        return unaryCall("FunctionGet", request, FunctionGetRequest.ADAPTER, FunctionGetResponse.ADAPTER)
     }
 
     override suspend fun functionGetCurrentStats(request: FunctionGetCurrentStatsRequest): ProtoFunctionStats {
-        return unaryCall(request) { stub, headers -> stub.functionGetCurrentStats(request, headers) }
+        return unaryCall("FunctionGetCurrentStats", request, FunctionGetCurrentStatsRequest.ADAPTER, modal.client.FunctionStats.ADAPTER)
     }
 
     override suspend fun functionUpdateSchedulingParams(request: FunctionUpdateSchedulingParamsRequest) {
-        unaryCall(request) { stub, headers -> stub.functionUpdateSchedulingParams(request, headers) }
+        unaryCall("FunctionUpdateSchedulingParams", request, FunctionUpdateSchedulingParamsRequest.ADAPTER, ProtoAdapter.EMPTY)
     }
 
     override suspend fun functionBindParams(request: FunctionBindParamsRequest): FunctionBindParamsResponse {
-        return unaryCall(request) { stub, headers -> stub.functionBindParams(request, headers) }
+        return unaryCall("FunctionBindParams", request, FunctionBindParamsRequest.ADAPTER, FunctionBindParamsResponse.ADAPTER)
     }
 
     override suspend fun sandboxCreate(request: SandboxCreateRequest): SandboxCreateResponse {
-        return unaryCall(request) { stub, headers -> stub.sandboxCreate(request, headers) }
+        return unaryCall("SandboxCreate", request, SandboxCreateRequest.ADAPTER, SandboxCreateResponse.ADAPTER)
     }
 
     override suspend fun sandboxWait(request: SandboxWaitRequest): SandboxWaitResponse {
-        return unaryCall(request) { stub, headers -> stub.sandboxWait(request, headers) }
+        return unaryCall("SandboxWait", request, SandboxWaitRequest.ADAPTER, SandboxWaitResponse.ADAPTER)
     }
 
     override suspend fun sandboxGetTaskId(request: SandboxGetTaskIdRequest): SandboxGetTaskIdResponse {
-        return unaryCall(request) { stub, headers -> stub.sandboxGetTaskId(request, headers) }
+        return unaryCall("SandboxGetTaskId", request, SandboxGetTaskIdRequest.ADAPTER, SandboxGetTaskIdResponse.ADAPTER)
     }
 
     override suspend fun containerFilesystemExec(
         request: ContainerFilesystemExecRequest,
     ): ContainerFilesystemExecResponse {
-        return unaryCall(request) { stub, headers -> stub.containerFilesystemExec(request, headers) }
+        return unaryCall(
+            "ContainerFilesystemExec",
+            request,
+            ContainerFilesystemExecRequest.ADAPTER,
+            ContainerFilesystemExecResponse.ADAPTER,
+        )
     }
 
     override suspend fun containerFilesystemExecGetOutput(
         request: ContainerFilesystemExecGetOutputRequest,
     ): kotlinx.coroutines.flow.Flow<FilesystemRuntimeOutputBatch> {
-        val headers = authHeaders(includeAuthToken = true)
-        return baseStub.containerFilesystemExecGetOutput(request, headers)
+        return streamingCall(
+            methodName = "ContainerFilesystemExecGetOutput",
+            request = request,
+            requestAdapter = ContainerFilesystemExecGetOutputRequest.ADAPTER,
+            responseAdapter = FilesystemRuntimeOutputBatch.ADAPTER,
+        )
     }
 
     override suspend fun sandboxSnapshotFs(request: SandboxSnapshotFsRequest): SandboxSnapshotFsResponse {
-        return unaryCall(request) { stub, headers -> stub.sandboxSnapshotFs(request, headers) }
+        return unaryCall("SandboxSnapshotFs", request, SandboxSnapshotFsRequest.ADAPTER, SandboxSnapshotFsResponse.ADAPTER)
     }
 
     override suspend fun sandboxGetFromName(request: SandboxGetFromNameRequest): SandboxGetFromNameResponse {
-        return unaryCall(request) { stub, headers -> stub.sandboxGetFromName(request, headers) }
+        return unaryCall("SandboxGetFromName", request, SandboxGetFromNameRequest.ADAPTER, SandboxGetFromNameResponse.ADAPTER)
     }
 
     override suspend fun sandboxList(request: SandboxListRequest): SandboxListResponse {
-        return unaryCall(request) { stub, headers -> stub.sandboxList(request, headers) }
+        return unaryCall("SandboxList", request, SandboxListRequest.ADAPTER, SandboxListResponse.ADAPTER)
     }
 
     override suspend fun sandboxTerminate(request: SandboxTerminateRequest): SandboxTerminateResponse {
-        return unaryCall(request) { stub, headers -> stub.sandboxTerminate(request, headers) }
+        return unaryCall("SandboxTerminate", request, SandboxTerminateRequest.ADAPTER, SandboxTerminateResponse.ADAPTER)
     }
 
     override suspend fun sandboxGetTunnels(request: SandboxGetTunnelsRequest): SandboxGetTunnelsResponse {
-        return unaryCall(request) { stub, headers -> stub.sandboxGetTunnels(request, headers) }
+        return unaryCall("SandboxGetTunnels", request, SandboxGetTunnelsRequest.ADAPTER, SandboxGetTunnelsResponse.ADAPTER)
     }
 
     override suspend fun sandboxCreateConnectToken(
         request: SandboxCreateConnectTokenRequest,
     ): SandboxCreateConnectTokenResponse {
-        return unaryCall(request) { stub, headers -> stub.sandboxCreateConnectToken(request, headers) }
+        return unaryCall(
+            "SandboxCreateConnectToken",
+            request,
+            SandboxCreateConnectTokenRequest.ADAPTER,
+            SandboxCreateConnectTokenResponse.ADAPTER,
+        )
     }
 
     override suspend fun sandboxStdinWrite(request: SandboxStdinWriteRequest) {
-        unaryCall(request) { stub, headers -> stub.sandboxStdinWrite(request, headers) }
+        unaryCall("SandboxStdinWrite", request, SandboxStdinWriteRequest.ADAPTER, ProtoAdapter.EMPTY)
     }
 
     override suspend fun sandboxTagsSet(request: SandboxTagsSetRequest) {
-        unaryCall(request) { stub, headers -> stub.sandboxTagsSet(request, headers) }
+        unaryCall("SandboxTagsSet", request, SandboxTagsSetRequest.ADAPTER, ProtoAdapter.EMPTY)
     }
 
     override suspend fun sandboxTagsGet(request: SandboxTagsGetRequest): SandboxTagsGetResponse {
-        return unaryCall(request) { stub, headers -> stub.sandboxTagsGet(request, headers) }
+        return unaryCall("SandboxTagsGet", request, SandboxTagsGetRequest.ADAPTER, SandboxTagsGetResponse.ADAPTER)
     }
 
     override suspend fun queueGetOrCreate(request: QueueGetOrCreateRequest): QueueGetOrCreateResponse {
-        return unaryCall(request) { stub, headers -> stub.queueGetOrCreate(request, headers) }
+        return unaryCall("QueueGetOrCreate", request, QueueGetOrCreateRequest.ADAPTER, QueueGetOrCreateResponse.ADAPTER)
     }
 
     override suspend fun queueDelete(request: QueueDeleteRequest) {
-        unaryCall(request) { stub, headers -> stub.queueDelete(request, headers) }
+        unaryCall("QueueDelete", request, QueueDeleteRequest.ADAPTER, ProtoAdapter.EMPTY)
     }
 
     override suspend fun queueHeartbeat(request: QueueHeartbeatRequest) {
-        unaryCall(request) { stub, headers -> stub.queueHeartbeat(request, headers) }
+        unaryCall("QueueHeartbeat", request, QueueHeartbeatRequest.ADAPTER, ProtoAdapter.EMPTY)
     }
 
     override suspend fun queueGet(request: QueueGetRequest): QueueGetResponse {
-        return unaryCall(request) { stub, headers -> stub.queueGet(request, headers) }
+        return unaryCall("QueueGet", request, QueueGetRequest.ADAPTER, QueueGetResponse.ADAPTER)
     }
 
     override suspend fun queuePut(request: QueuePutRequest) {
-        unaryCall(request) { stub, headers -> stub.queuePut(request, headers) }
+        unaryCall("QueuePut", request, QueuePutRequest.ADAPTER, ProtoAdapter.EMPTY)
     }
 
     override suspend fun queueLen(request: QueueLenRequest): QueueLenResponse {
-        return unaryCall(request) { stub, headers -> stub.queueLen(request, headers) }
+        return unaryCall("QueueLen", request, QueueLenRequest.ADAPTER, QueueLenResponse.ADAPTER)
     }
 
     override suspend fun queueNextItems(request: QueueNextItemsRequest): QueueNextItemsResponse {
-        return unaryCall(request) { stub, headers -> stub.queueNextItems(request, headers) }
+        return unaryCall("QueueNextItems", request, QueueNextItemsRequest.ADAPTER, QueueNextItemsResponse.ADAPTER)
     }
 
     override suspend fun queueClear(request: QueueClearRequest) {
-        unaryCall(request) { stub, headers -> stub.queueClear(request, headers) }
+        unaryCall("QueueClear", request, QueueClearRequest.ADAPTER, ProtoAdapter.EMPTY)
     }
 
     override suspend fun functionMap(request: FunctionMapRequest): FunctionMapResponse {
-        return unaryCall(request) { stub, headers -> stub.functionMap(request, headers) }
+        return unaryCall("FunctionMap", request, FunctionMapRequest.ADAPTER, FunctionMapResponse.ADAPTER)
     }
 
     override suspend fun functionGetOutputs(request: FunctionGetOutputsRequest): FunctionGetOutputsResponse {
-        return unaryCall(request) { stub, headers -> stub.functionGetOutputs(request, headers) }
+        return unaryCall("FunctionGetOutputs", request, FunctionGetOutputsRequest.ADAPTER, FunctionGetOutputsResponse.ADAPTER)
     }
 
     override suspend fun functionRetryInputs(request: FunctionRetryInputsRequest): FunctionRetryInputsResponse {
-        return unaryCall(request) { stub, headers -> stub.functionRetryInputs(request, headers) }
+        return unaryCall("FunctionRetryInputs", request, FunctionRetryInputsRequest.ADAPTER, FunctionRetryInputsResponse.ADAPTER)
     }
 
     override suspend fun functionCallCancel(request: FunctionCallCancelRequest) {
-        unaryCall(request) { stub, headers -> stub.functionCallCancel(request, headers) }
+        unaryCall("FunctionCallCancel", request, FunctionCallCancelRequest.ADAPTER, ProtoAdapter.EMPTY)
     }
 
     override suspend fun sandboxGetLogs(request: SandboxGetLogsRequest): kotlinx.coroutines.flow.Flow<TaskLogsBatch> {
-        val headers = authHeaders(includeAuthToken = true)
-        return baseStub.sandboxGetLogs(request, headers)
+        return streamingCall(
+            methodName = "SandboxGetLogs",
+            request = request,
+            requestAdapter = SandboxGetLogsRequest.ADAPTER,
+            responseAdapter = TaskLogsBatch.ADAPTER,
+        )
     }
 
     override suspend fun attemptStart(request: AttemptStartRequest): AttemptStartResponse {
-        return unaryCall(request) { stub, headers -> stub.attemptStart(request, headers) }
+        return unaryCall("AttemptStart", request, AttemptStartRequest.ADAPTER, AttemptStartResponse.ADAPTER)
     }
 
     override suspend fun attemptAwait(request: AttemptAwaitRequest): AttemptAwaitResponse {
-        return unaryCall(request) { stub, headers -> stub.attemptAwait(request, headers) }
+        return unaryCall("AttemptAwait", request, AttemptAwaitRequest.ADAPTER, AttemptAwaitResponse.ADAPTER)
     }
 
     override suspend fun attemptRetry(request: AttemptRetryRequest): AttemptRetryResponse {
-        return unaryCall(request) { stub, headers -> stub.attemptRetry(request, headers) }
+        return unaryCall("AttemptRetry", request, AttemptRetryRequest.ADAPTER, AttemptRetryResponse.ADAPTER)
     }
 
     override suspend fun blobCreate(request: BlobCreateRequest): BlobCreateResponse {
-        return unaryCall(request) { stub, headers -> stub.blobCreate(request, headers) }
+        return unaryCall("BlobCreate", request, BlobCreateRequest.ADAPTER, BlobCreateResponse.ADAPTER)
     }
 
     override suspend fun blobGet(request: BlobGetRequest): BlobGetResponse {
-        return unaryCall(request) { stub, headers -> stub.blobGet(request, headers) }
+        return unaryCall("BlobGet", request, BlobGetRequest.ADAPTER, BlobGetResponse.ADAPTER)
     }
 
     override suspend fun authTokenGet(request: AuthTokenGetRequest): AuthTokenGetResponse {
-        return unaryCall(request, includeAuthToken = false) { stub, headers ->
-            stub.authTokenGet(request, headers)
-        }
+        return unaryCall("AuthTokenGet", request, AuthTokenGetRequest.ADAPTER, AuthTokenGetResponse.ADAPTER, includeAuthToken = false)
     }
 
     override suspend fun taskGetCommandRouterAccess(
         request: TaskGetCommandRouterAccessRequest,
     ): TaskGetCommandRouterAccessResponse {
-        return unaryCall(request) { stub, headers ->
-            stub.taskGetCommandRouterAccess(request, headers)
-        }
+        return unaryCall(
+            "TaskGetCommandRouterAccess",
+            request,
+            TaskGetCommandRouterAccessRequest.ADAPTER,
+            TaskGetCommandRouterAccessResponse.ADAPTER,
+        )
     }
 
     override fun close() {
         channel.shutdownNow()
     }
 
-    private suspend fun <RequestT, ResponseT> unaryCall(
+    private suspend fun <RequestT : Any, ResponseT : Any> unaryCall(
+        methodName: String,
         request: RequestT,
+        requestAdapter: ProtoAdapter<RequestT>,
+        responseAdapter: ProtoAdapter<ResponseT>,
         includeAuthToken: Boolean = true,
-        call: suspend (
-            stub: ModalClientGrpcKt.ModalClientCoroutineStub,
-            headers: Metadata,
-        ) -> ResponseT,
     ): ResponseT {
         return callWithRetriesOnTransientErrors(
             func = {
-                val headers = authHeaders(includeAuthToken)
-                val stub = if (defaultTimeoutMs != null) {
-                    baseStub.withDeadlineAfter(defaultTimeoutMs, TimeUnit.MILLISECONDS)
-                } else {
-                    baseStub
-                }
-                call(stub, headers)
+                unaryRpc(
+                    channel = rpcChannel,
+                    serviceName = serviceName,
+                    methodName = methodName,
+                    request = request,
+                    requestAdapter = requestAdapter,
+                    responseAdapter = responseAdapter,
+                    options = RpcOptions(
+                        timeoutMs = defaultTimeoutMs,
+                        headers = authHeaders(includeAuthToken),
+                    ),
+                )
             },
+        )
+    }
+
+    private suspend fun <RequestT : Any, ResponseT : Any> streamingCall(
+        methodName: String,
+        request: RequestT,
+        requestAdapter: ProtoAdapter<RequestT>,
+        responseAdapter: ProtoAdapter<ResponseT>,
+        includeAuthToken: Boolean = true,
+    ): kotlinx.coroutines.flow.Flow<ResponseT> {
+        return serverStreamingRpc(
+            channel = rpcChannel,
+            serviceName = serviceName,
+            methodName = methodName,
+            request = request,
+            requestAdapter = requestAdapter,
+            responseAdapter = responseAdapter,
+            options = RpcOptions(
+                timeoutMs = defaultTimeoutMs,
+                headers = authHeaders(includeAuthToken),
+            ),
         )
     }
 
     private suspend fun authHeaders(includeAuthToken: Boolean): Metadata {
         val headers = Metadata()
-        headers.put(key("x-modal-client-type"), ClientType.CLIENT_TYPE_LIBMODAL_JS_VALUE.toString())
+        headers.put(key("x-modal-client-type"), ClientType.CLIENT_TYPE_LIBMODAL_JS.value.toString())
         headers.put(key("x-modal-client-version"), "1.0.0")
         headers.put(key("x-modal-libmodal-version"), "modal-kt/${getSdkVersion()}")
 
