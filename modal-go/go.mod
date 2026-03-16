@@ -1,4 +1,5 @@
-// Deprecated: The package has moved to github.com/modal-labs/modal-client/go.
+// Deprecated: Package modal has moved to github.com/modal-labs/modal-client/go.
+// Use github.com/modal-labs/modal-client/go instead.
 module github.com/modal-labs/libmodal/modal-go
 
 go 1.23.0
