@@ -1,7 +1,6 @@
 # Modal Go SDK
 
-[![Build Status](https://github.com/modal-labs/libmodal/actions/workflows/ci.yaml/badge.svg?branch=main)](https://github.com/modal-labs/libmodal/actions?query=branch%3Amain)
-[![Go Reference Documentation](https://pkg.go.dev/badge/github.com/modal-labs/libmodal/modal-go)](https://pkg.go.dev/github.com/modal-labs/libmodal/modal-go)
+> **This package has moved.** The Modal Go SDK is now maintained at [github.com/modal-labs/modal-client/tree/main/go](https://github.com/modal-labs/modal-client/tree/main/go). Please update your import paths to `github.com/modal-labs/modal-client/go`. See the new [API reference documentation](https://pkg.go.dev/github.com/modal-labs/modal-client/go).
 
 The [Modal](https://modal.com/) Go SDK provides convenient, on-demand access to serverless cloud compute on Modal from golang projects. Use it to safely run arbitrary code in Modal Sandboxes, call Modal Functions, and interact with Modal resources.
 
