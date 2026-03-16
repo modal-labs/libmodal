@@ -1,4 +1,3 @@
-// Deprecated: Package modal has moved to github.com/modal-labs/modal-client/go.
 package modal
 
 // Test to make sure serialization behaviors are consistent.
