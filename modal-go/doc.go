@@ -1,3 +1,5 @@
+// Package modal is a lightweight, idiomatic Go SDK for Modal.com.
+//
 // It mirrors the core feature-set of Modal’s Python SDK while feeling
 // natural in Go:
 //
@@ -39,5 +41,5 @@
 // https://github.com/modal-labs/libmodal/tree/main/modal-go.
 //
 // Deprecated: Package modal has moved to github.com/modal-labs/modal-client/go.
-// Use github.com/modal-labs/modal-client/go instead.
+// Please use github.com/modal-labs/modal-client/go instead.
 package modal
