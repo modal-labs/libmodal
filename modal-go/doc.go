@@ -40,6 +40,5 @@
 // For additional examples and language-parity tests, see
 // https://github.com/modal-labs/libmodal/tree/main/modal-go.
 //
-// Deprecated: Package modal has moved to github.com/modal-labs/modal-client/go.
-// Please use github.com/modal-labs/modal-client/go instead.
+// Deprecated: Use github.com/modal-labs/modal-client/go instead.
 package modal
